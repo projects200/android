@@ -42,6 +42,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.timber)
     implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.recyclerview)
 
     // 테스트
     testImplementation(libs.junit)

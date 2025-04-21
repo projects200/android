@@ -1,18 +1,15 @@
 package com.project200.common.base
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.annotation.LayoutRes
-import androidx.viewbinding.ViewBinding
-import androidx.fragment.app.Fragment
-import androidx.databinding.ViewDataBinding
+import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModel
+import androidx.viewbinding.ViewBinding
 
-abstract class BaseFragment<VB : ViewBinding, VM : ViewModel>(
+abstract class BaseDialogFragment<VB : ViewBinding, VM : ViewModel>(
     @LayoutRes private val layoutResId: Int
-) : Fragment(layoutResId) {
+) : DialogFragment(layoutResId) {
 
     private var _binding: VB? = null
     protected val binding get() = _binding!!
