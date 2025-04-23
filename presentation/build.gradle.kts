@@ -6,6 +6,10 @@ plugins {
     alias(libs.plugins.navigation.safeargs)
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 android {
     namespace = "com.project200.myapp.presentation"
     compileSdk = libs.versions.compileSdk.get().toInt()

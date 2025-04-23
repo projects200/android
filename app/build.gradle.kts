@@ -5,6 +5,10 @@ plugins {
     alias(libs.plugins.hilt)
 }
 
+kotlin {
+    jvmToolchain(17)
+}
+
 android {
     namespace = "com.project200.myapp"
     compileSdk = libs.versions.compileSdk.get().toInt()

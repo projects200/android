@@ -3,30 +3,30 @@
 [versions]
 # Build Tools & Core
 gradlePlugin = "8.3.2"
-kotlin = "2.0.21"
-ksp = "2.0.0-1.0.21"
+kotlin = "1.9.23"
+ksp = "1.9.23-1.0.19"
 compileSdk = "34"
-minSdk = "24"
+minSdk = "26"
 targetSdk = "34"
 versionCode = "1"
 versionName = "1.0"
 
-# AndroidX Core & UI
-androidxCore = "1.16.0"
-androidxAppCompat = "1.7.0"
-androidxActivity = "1.10.1"
-androidxFragment = "1.8.6"
-androidxConstraintLayout = "2.2.1"
-androidxRecyclerview = "1.4.0"
-androidxLifecycle = "2.8.7"
-androidxNavigation = "2.8.9"
-androidxRoom = "2.7.0"
-androidxDatastore = "1.1.4"
+# AndroidX Core & UI (SDK 34 호환 버전으로 조정)
+androidxCore = "1.13.1"
+androidxAppCompat = "1.6.1"
+androidxActivity = "1.9.0"
+androidxFragment = "1.7.1"
+androidxConstraintLayout = "2.1.4"
+androidxRecyclerview = "1.3.2"
+androidxLifecycle = "2.7.0"
+androidxNavigation = "2.7.7"
+androidxRoom = "2.6.1"
+androidxDatastore = "1.0.0"
 androidxArchCoreTesting = "2.2.0" # 테스트용
 
-# Google
-material = "1.12.0"
-hilt = "2.51.1"
+# Google (SDK 34 호환 버전으로 조정)
+material = "1.11.0"
+hilt = "2.49"
 
 # Kotlinx
 coroutines = "1.9.0"
@@ -48,7 +48,7 @@ turbine = "1.1.0" # Flow 테스트용
 
 # DI - JSR 330
 javaxInject = "1"
-activity = "1.10.1"
+activity = "1.9.0"
 
 
 [libraries]
@@ -113,7 +113,7 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 
 # DI - JSR 330
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
-androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" } # 원래 있던 정의 유지
 
 
 [plugins]
