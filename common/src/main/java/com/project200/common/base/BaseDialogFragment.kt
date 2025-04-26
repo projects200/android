@@ -7,14 +7,13 @@ import androidx.fragment.app.DialogFragment
 import androidx.lifecycle.ViewModel
 import androidx.viewbinding.ViewBinding
 
-abstract class BaseDialogFragment<VB : ViewBinding, VM : ViewModel>(
+abstract class BaseDialogFragment<VB : ViewBinding>(
     @LayoutRes private val layoutResId: Int
 ) : DialogFragment(layoutResId) {
 
     private var _binding: VB? = null
     protected val binding get() = _binding!!
 
-    protected abstract val viewModel: VM
     protected abstract fun getViewBinding(view: View): VB
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

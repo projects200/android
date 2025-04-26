@@ -1,16 +1,13 @@
 package com.project200.common.base
 
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup
 import androidx.annotation.LayoutRes
 import androidx.viewbinding.ViewBinding
 import androidx.fragment.app.Fragment
-import androidx.databinding.ViewDataBinding
 import androidx.lifecycle.ViewModel
 
-abstract class BaseFragment<VB : ViewBinding, VM : ViewModel>(
+abstract class BindingFragment<VB : ViewBinding, VM : ViewModel>(
     @LayoutRes private val layoutResId: Int
 ) : Fragment(layoutResId) {
 
@@ -31,7 +28,7 @@ abstract class BaseFragment<VB : ViewBinding, VM : ViewModel>(
     open fun setupViews() {}
 
     override fun onDestroyView() {
-        super.onDestroyView()
         _binding = null
+        super.onDestroyView()
     }
 }

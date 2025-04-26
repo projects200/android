@@ -5,9 +5,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import androidx.viewbinding.ViewBinding
 
-abstract class BaseAdapter<T, VB : ViewBinding>(
+abstract class BindingAdapter<T, VB : ViewBinding>(
     private val inflater: (LayoutInflater, ViewGroup, Boolean) -> VB
-) : RecyclerView.Adapter<BaseAdapter<T, VB>.BaseViewHolder>() {
+) : RecyclerView.Adapter<BindingAdapter<T, VB>.BaseViewHolder>() {
 
     var items: List<T> = emptyList()
 
