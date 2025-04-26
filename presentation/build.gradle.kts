@@ -37,8 +37,8 @@ android {
 }
 
 dependencies {
-    implementation(project(":domain"))
-    implementation(project(":common"))
+    implementation(projects.domain)
+    implementation(projects.common)
 
     implementation(libs.kotlin.stdlib)
     implementation(libs.androidx.core.ktx)

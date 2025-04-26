@@ -56,9 +56,9 @@ android {
 }
 
 dependencies {
-    implementation(project(":presentation"))
-    implementation(project(":data"))
-    implementation(project(":common"))
+    implementation(projects.presentation)
+    implementation(projects.data)
+    implementation(projects.common)
 
     implementation(libs.kotlin.stdlib)
     implementation(libs.androidx.core.ktx)
