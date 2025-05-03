@@ -1,4 +1,4 @@
-package com.project200.myapp
+package com.project200.undabang
 
 import android.app.Application
 import dagger.hilt.android.HiltAndroidApp

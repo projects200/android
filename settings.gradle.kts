@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     versionCatalogs {
     }
 }
-rootProject.name = "myapp"
+rootProject.name = "undabang"
 include(":app")
 include(":domain")
 include(":data")

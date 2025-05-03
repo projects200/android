@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.myapp"
+    namespace = "com.project200.undabang"
 
     signingConfigs { /* ... 출시 서명 설정 ... */ }
 

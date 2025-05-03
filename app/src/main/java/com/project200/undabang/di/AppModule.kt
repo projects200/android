@@ -1,4 +1,4 @@
-package com.project200.myapp.di
+package com.project200.undabang.di
 
 import dagger.Module
 import dagger.hilt.InstallIn

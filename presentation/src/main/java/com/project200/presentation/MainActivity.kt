@@ -2,7 +2,7 @@ package com.project200.presentation
 
 import androidx.activity.viewModels
 import com.project200.common.base.BindingActivity
-import com.project200.myapp.presentation.databinding.ActivityMainBinding
+import com.project200.undabang.presentation.databinding.ActivityMainBinding
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint

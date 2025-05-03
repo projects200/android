@@ -1,4 +1,4 @@
-package com.project200.myapp
+package com.project200.undabang
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
