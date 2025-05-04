@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.myapp.common"
+    namespace = "com.project200.undabang.common"
 
     buildFeatures {
         viewBinding = true

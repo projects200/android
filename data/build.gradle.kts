@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.myapp.data"
+    namespace = "com.project200.undabang.data"
 }
 
 dependencies {
