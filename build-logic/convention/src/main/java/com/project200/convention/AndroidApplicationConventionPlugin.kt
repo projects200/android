@@ -11,6 +11,8 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         with(target) {
             pluginManager.apply(libs.plugin("android-application").get().pluginId)
             pluginManager.apply(libs.plugin("kotlin-android").get().pluginId)
+            pluginManager.apply(libs.plugin("google-services").get().pluginId)
+            pluginManager.apply(libs.plugin("firebase-performance").get().pluginId)
             pluginManager.apply("convention.android.hilt")
 
             // Android 애플리케이션 공통 설정
@@ -33,7 +35,6 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                         )
                     }
                     debug {
-                        applicationIdSuffix = ".debug"
                         isDebuggable = true
                     }
                 }
@@ -45,6 +46,10 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 "implementation"(libs.library("kotlin-stdlib"))
                 "implementation"(libs.library("androidx-core-ktx"))
                 "implementation"(libs.library("timber"))
+
+                "implementation"(platform(libs.library("firebase-bom")))
+                "implementation"(libs.library("firebase-analytics"))
+                "implementation"(libs.library("firebase-performance"))
 
                 "testImplementation"(libs.library("junit"))
                 "androidTestImplementation"(libs.library("androidx-test-ext-junit"))

@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.myapp.presentation"
+    namespace = "com.project200.undabang.presentation"
 
     buildFeatures {
         viewBinding = true
