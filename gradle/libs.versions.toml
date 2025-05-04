@@ -10,6 +10,9 @@ minSdk = "26"
 targetSdk = "34"
 versionCode = "1"
 versionName = "1.0"
+firebaseBom = "32.7.0"
+googleServicesPlugin = "4.4.2"
+firebasePerfPlugin = "1.4.2"
 
 # AndroidX Core & UI (SDK 34 호환 버전으로 조정)
 androidxCore = "1.13.1"
@@ -60,7 +63,7 @@ kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-p
 ksp-gradle-plugin = { group = "com.google.devtools.ksp", name = "com.google.devtools.ksp.gradle.plugin", version.ref = "ksp"}
 # Hilt 플러그인 아티팩트
 hilt-gradle-plugin = { group = "com.google.dagger", name = "hilt-android-gradle-plugin", version.ref = "hilt"}
-
+firebase-performance-plugin = { group = "com.google.firebase", name = "perf-plugin", version.ref = "firebasePerfPlugin" }
 
 # Kotlin
 kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlin" }
@@ -125,6 +128,12 @@ turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" } # 원래 있던 정의 유지
 
+# Firebase BoM
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
+# Firebase SDKs
+firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
+firebase-performance = { group = "com.google.firebase", name = "firebase-perf-ktx" }
+
 
 [plugins]
 # Android Gradle Plugins
@@ -143,3 +152,7 @@ hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 
 # Navigation Safe Args Plugin
 navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref = "androidxNavigation" }
+
+# Firebase 플러그인
+google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
+firebase-performance = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
