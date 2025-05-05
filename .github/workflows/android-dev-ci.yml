@@ -8,7 +8,7 @@ on:
 
 jobs:
   dev-ci:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -20,6 +20,7 @@ jobs:
         echo "Decoding google-services.json..."
         echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/google-services.json
         echo "google-services.json created successfully."
+
     - name: Set up JDK 17
       uses: actions/setup-java@v4
       with:
@@ -29,9 +30,6 @@ jobs:
 
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
-
-    - name: Clean project
-      run: ./gradlew clean
 
     - name: Run Android Lint
       run: ./gradlew lint
@@ -43,10 +41,10 @@ jobs:
       uses: reactivecircus/android-emulator-runner@v2
       with:
         api-level: 30
-        target: google_apis
+        target: default
         arch: x86_64
         profile: pixel_3
         script: ./gradlew connectedDebugAndroidTest
 
-    - name: Build APKs
-      run: ./gradlew assembleDebug assembleRelease
+    - name: Build Debug APK
+      run: ./gradlew assembleDebug
