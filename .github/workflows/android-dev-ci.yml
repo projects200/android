@@ -43,6 +43,5 @@ jobs:
         api-level: 30
         target: default
         arch: x86_64
-        profile: pixel_3
-        enable-kvm: true
+        profile: Nexus 6
         script: ./gradlew connectedDebugAndroidTest
