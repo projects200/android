@@ -45,6 +45,3 @@ jobs:
         arch: x86_64
         profile: pixel_3
         script: ./gradlew connectedDebugAndroidTest
-
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
