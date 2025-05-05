@@ -44,4 +44,5 @@ jobs:
         target: default
         arch: x86_64
         profile: pixel_3
+        enable-kvm: true
         script: ./gradlew connectedDebugAndroidTest
