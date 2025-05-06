@@ -16,6 +16,9 @@ dependencies {
     implementation(libs.retrofit.converter.moshi)
     implementation(libs.okhttp.logging.interceptor)
     implementation(libs.moshi.kotlin)
+
+    // Firebase
+    implementation(libs.firebase.config.ktx)
     ksp(libs.moshi.codegen)
 
     // Local DB (Room)
