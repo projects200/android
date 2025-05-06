@@ -14,12 +14,10 @@ class MainActivity : BindingActivity<ActivityMainBinding, MainViewModel>() {
     override val viewModel: MainViewModel by viewModels()
 
     override fun getViewBinding(): ActivityMainBinding {
-        Timber.tag("CheckForUpdate").d("setupViews")
         return ActivityMainBinding.inflate(layoutInflater)
     }
 
     override fun setupViews() {
-        Timber.tag("CheckForUpdate").d("setupViews")
         viewModel.checkForUpdate()
     }
 

@@ -1,5 +1,6 @@
 <resources>
     <!-- 공용 -->
+    <string name="app_name">운다방</string>
 
     <!-- 업데이트 -->
     <string name="update_title">업데이트 알림</string>
@@ -7,4 +8,8 @@
     <string name="update_btn">업데이트</string>
     <string name="update_later_btn">나중에</string>
 
+    <!-- auth -->
+    <string name="google_login">구글 로그인</string>
+    <string name="naver_login">네이버 로그인</string>
+    <string name="kakao_login">카카오 로그인</string>
 </resources>

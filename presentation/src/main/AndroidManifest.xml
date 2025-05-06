@@ -3,6 +3,9 @@
 
     <application>
         <activity
+            android:name="com.project200.presentation.auth.LoginActivity"
+            android:exported="false" />
+        <activity
             android:name="com.project200.presentation.MainActivity"
             android:exported="true">
             <intent-filter>
