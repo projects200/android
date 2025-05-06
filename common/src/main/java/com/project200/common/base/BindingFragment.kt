@@ -7,14 +7,13 @@ import androidx.viewbinding.ViewBinding
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModel
 
-abstract class BindingFragment<VB : ViewBinding, VM : ViewModel>(
+abstract class BindingFragment<VB : ViewBinding>(
     @LayoutRes private val layoutResId: Int
 ) : Fragment(layoutResId) {
 
     private var _binding: VB? = null
     protected val binding get() = _binding!!
 
-    protected abstract val viewModel: VM
     protected abstract fun getViewBinding(view: View): VB
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {

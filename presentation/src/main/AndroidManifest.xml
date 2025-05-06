@@ -3,16 +3,25 @@
 
     <application>
         <activity
-            android:name="com.project200.presentation.auth.LoginActivity"
-            android:exported="false" />
-        <activity
-            android:name="com.project200.presentation.MainActivity"
-            android:exported="true">
+            android:name="com.project200.presentation.auth.OnBoardingActivity"
+            android:exported="true" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name="com.project200.presentation.auth.LoginActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.project200.presentation.MainActivity"
+            android:exported="true">
+<!--            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>-->
         </activity>
     </application>
 
