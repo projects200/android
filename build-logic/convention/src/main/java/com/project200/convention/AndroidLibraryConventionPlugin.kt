@@ -30,6 +30,12 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                         )
                     }
                 }
+
+                buildFeatures {
+                    viewBinding = true
+                    dataBinding = true
+                    buildConfig = true
+                }
                 // 코틀린 관련 설정 헬퍼 함수 호출
                 configureKotlinAndroid()
             }

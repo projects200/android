@@ -14,11 +14,6 @@ android {
         debug {
         }
     }
-
-    buildFeatures {
-        viewBinding = true
-        dataBinding = true
-    }
 }
 
 dependencies {
