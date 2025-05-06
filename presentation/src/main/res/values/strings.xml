@@ -1,1 +1,10 @@
-<resources></resources>
+<resources>
+    <!-- 공용 -->
+
+    <!-- 업데이트 -->
+    <string name="update_title">업데이트 알림</string>
+    <string name="update_desc">새로운 버전이 출시되었습니다.\n앱을 업데이트해주세요.</string>
+    <string name="update_btn">업데이트</string>
+    <string name="update_later_btn">나중에</string>
+
+</resources>
