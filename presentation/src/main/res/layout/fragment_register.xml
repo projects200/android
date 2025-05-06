@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <TextView
+        android:id="@+id/register_title_tv"
+        style="@style/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="114dp"
+        android:text="@string/register_title"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+    <TextView
+        android:id="@+id/nickname_title_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        style="@style/content_bold"
+        android:layout_marginTop="90dp"
+        android:text="@string/nickname"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/register_title_tv"/>
+
+    <EditText
+        android:id="@+id/nickname_et"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/black"
+        android:inputType="text"
+        android:maxLength="30"
+        android:maxLines="2"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_title_tv"
+        app:layout_constraintEnd_toEndOf="@+id/nickname_rule_tv"
+        app:layout_constraintStart_toStartOf="@id/nickname_rule_tv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_title_tv" />
+
+    <TextView
+        style="@style/subtext_14"
+        android:id="@+id/nickname_rule_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/register_nickname_rule"
+        android:paddingHorizontal="12dp"
+        android:textColor="@color/gray"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/nickname_et" />
+
+    <TextView
+        android:id="@+id/birth_title_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/birth"
+        android:layout_marginTop="32dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_rule_tv" />
+
+    <TextView
+        android:id="@+id/birth_day_tv"
+        style="@style/content_regular"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/birth_default"
+        app:layout_constraintBottom_toBottomOf="@+id/birth_title_tv"
+        app:layout_constraintStart_toStartOf="@+id/nickname_rule_tv"
+        app:layout_constraintTop_toTopOf="@+id/birth_title_tv" />
+
+    <TextView
+        android:id="@+id/gender_title_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/gender"
+        android:layout_marginTop="32dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/birth_title_tv" />
+
+    <TextView
+        android:id="@+id/gender_male_tv"
+        style="@style/content_regular"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/male"
+        app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+        app:layout_constraintStart_toStartOf="@+id/birth_day_tv"
+        app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+    <ImageView
+        android:id="@+id/male_btn_imv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/selector_terms_check"
+        android:layout_marginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@+id/gender_male_tv"
+        app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+    <TextView
+        android:id="@+id/gender_female_tv"
+        style="@style/content_regular"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/female"
+        android:layout_marginStart="30dp"
+        app:layout_constraintStart_toEndOf="@id/male_btn_imv"
+        app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+        app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+    <ImageView
+        android:id="@+id/female_btn_imv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/selector_terms_check"
+        android:layout_marginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@+id/gender_female_tv"
+        app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/register_complete_btn"
+        style="@style/content_bold"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/btn_height"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/selector_basic_btn"
+        android:gravity="center"
+        android:stateListAnimator="@null"
+        android:text="@string/complete"
+        android:textColor="@color/white"
+        app:layout_constraintBottom_toBottomOf="parent" />
+</androidx.constraintlayout.widget.ConstraintLayout>
