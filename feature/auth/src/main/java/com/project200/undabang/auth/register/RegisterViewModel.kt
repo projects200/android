@@ -1,0 +1,48 @@
+package com.project200.undabang.auth
+
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
+
+@HiltViewModel
+class RegisterViewModel @Inject constructor(): ViewModel() {
+
+    private val _nickname = MutableLiveData("")
+    val nickname: LiveData<String> = _nickname
+
+    private val _birth = MutableLiveData<String?>(null)
+    val birth: LiveData<String?> = _birth
+
+    private val _gender = MutableLiveData<String?>(null) // "male" or "female"
+    val gender: LiveData<String?> = _gender
+
+    val isFormValid: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
+        fun validate() {
+            val nameValid = validateNickname(_nickname.value.orEmpty())
+            value = nameValid && !(_birth.value.isNullOrEmpty()) && !(_gender.value.isNullOrEmpty())
+        }
+        addSource(_nickname) { validate() }
+        addSource(_birth) { validate() }
+        addSource(_gender) { validate() }
+    }
+
+    fun updateNickname(value: String) {
+        _nickname.value = value
+    }
+
+    fun updateBirth(value: String) {
+        _birth.value = value
+    }
+
+    fun selectGender(gender: String) {
+        _gender.value = gender
+    }
+
+    private fun validateNickname(nickname: String): Boolean {
+        val regex = "^[가-힣a-zA-Z0-9]{1,30}$".toRegex()
+        return nickname.matches(regex)
+    }
+}

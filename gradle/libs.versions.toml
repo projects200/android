@@ -54,6 +54,8 @@ javaxInject = "1"
 activity = "1.9.0"
 firebaseConfigKtx = "22.1.1"
 
+# Cognito
+appauth = "0.11.1"
 
 [libraries]
 
@@ -136,6 +138,8 @@ firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics
 firebase-performance = { group = "com.google.firebase", name = "firebase-perf-ktx" }
 firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx", version.ref = "firebaseConfigKtx" }
 
+# Cognito
+appauth = { group = "net.openid", name = "appauth", version.ref = "appauth" }
 
 [plugins]
 # Android Gradle Plugins

@@ -1,10 +1,10 @@
-package com.project200.presentation.utils
+package com.project200.undabang.auth.utils
 
 import android.annotation.SuppressLint
 import android.view.View
 import com.project200.common.base.BaseDialogFragment
-import com.project200.undabang.presentation.R
-import com.project200.undabang.presentation.databinding.DialogDatePickerBinding
+import com.project200.undabang.auth.R
+import com.project200.undabang.auth.databinding.DialogDatePickerBinding
 import java.util.Calendar
 
 class DatePickerDialogFragment(

@@ -1,7 +1,7 @@
 package com.project200.presentation
 
 import androidx.activity.viewModels
-import com.project200.common.base.BindingActivity
+import com.project200.presentation.base.BindingActivity
 import com.project200.domain.usecase.UpdateCheckResult
 import com.project200.presentation.update.UpdateDialogFragment
 import com.project200.undabang.presentation.databinding.ActivityMainBinding
@@ -9,9 +9,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
 @AndroidEntryPoint
-class MainActivity : BindingActivity<ActivityMainBinding, MainViewModel>() {
-
-    override val viewModel: MainViewModel by viewModels()
+class MainActivity : BindingActivity<ActivityMainBinding>() {
+    val viewModel: MainViewModel by viewModels()
 
     override fun getViewBinding(): ActivityMainBinding {
         return ActivityMainBinding.inflate(layoutInflater)
