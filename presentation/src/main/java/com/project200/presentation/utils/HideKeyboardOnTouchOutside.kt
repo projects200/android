@@ -1,4 +1,4 @@
-package com.project200.undabang.auth.utils
+package com.project200.presentation.utils
 
 import android.app.Activity
 import android.content.Context.INPUT_METHOD_SERVICE

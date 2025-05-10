@@ -1,4 +1,4 @@
-package com.project200.common.base
+package com.project200.presentation.base
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity

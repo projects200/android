@@ -14,32 +14,4 @@
     <string name="update_desc">새로운 버전이 출시되었습니다.\n앱을 업데이트해주세요.</string>
     <string name="update_btn">업데이트</string>
     <string name="update_later_btn">나중에</string>
-
-    <!-- auth -->
-    <string name="google_login">구글 로그인</string>
-    <string name="naver_login">네이버 로그인</string>
-    <string name="kakao_login">카카오 로그인</string>
-
-    <!-- 권한 -->
-    <string name="permission_title">원활한 운다방 사용을 위한\n접근 권한 안내</string>
-    <string name="location_title">위치 정보</string>
-    <string name="location_desc">근처 운동 메이트 검색</string>
-    <string name="notify_title">알림</string>
-    <string name="notify_desc">매칭 알림</string>
-    <string name="gallery_title">갤러리</string>
-    <string name="gallery_desc">운동 기록 시 갤러리 내 사진 사용</string>
-
-    <!-- 약관 동의 -->
-    <string name="terms_title">환영합니다!\n아래의 약관에 동의해주세요</string>
-    <string name="terms_required_service">(필수) 이용약관</string>
-    <string name="terms_required_privacy">(필수) 개인정보수집이용동의</string>
-    <string name="terms_required_location">(선택) 위치 기반 서비스 이용약관</string>
-    <string name="terms_required_notify">(선택) 알림 동의</string>
-
-    <!-- 회원가입 -->
-    <string name="register_title">회원가입을 위해\n프로필 정보를 입력해주세요</string>
-    <string name="register_nickname_rule">•&#160;&#160;영어, 한글, 숫자 포함 30자 이내\n•&#160;&#160;태그, 이모지 및 특수 문자 불가능</string>
-    <string name="male">남</string>
-    <string name="female">여</string>
-    <string name="birth_default">YYYY / MM / DD</string>
 </resources>

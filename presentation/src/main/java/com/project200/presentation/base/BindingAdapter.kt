@@ -1,4 +1,4 @@
-package com.project200.common.base
+package com.project200.presentation.base
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
