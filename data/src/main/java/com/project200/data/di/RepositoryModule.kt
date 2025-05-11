@@ -1,7 +1,9 @@
 package com.project200.data.di
 
 import com.project200.data.impl.AppUpdateRepositoryImpl
+import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.domain.repository.AppUpdateRepository
+import com.project200.domain.repository.AuthRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -13,8 +15,14 @@ import javax.inject.Singleton
 abstract class RepositoryModule {
 
     @Binds
-    @Singleton // Repository는 보통 싱글톤으로 관리
+    @Singleton
     abstract fun bindAppUpdateRepository(
         appUpdateRepositoryImpl: AppUpdateRepositoryImpl
     ): AppUpdateRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthRepository(
+        authRepositoryImpl: AuthRepositoryImpl
+    ): AuthRepository
 }

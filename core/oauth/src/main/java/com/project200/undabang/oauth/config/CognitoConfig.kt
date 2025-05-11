@@ -1,6 +1,6 @@
 package com.project200.undabang.oauth.config
 
-import com.project200.undabang.core.auth.BuildConfig
+import com.project200.undabang.core.oauth.BuildConfig
 
 
 internal object CognitoConfig {

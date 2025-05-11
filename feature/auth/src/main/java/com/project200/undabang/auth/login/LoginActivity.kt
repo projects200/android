@@ -4,14 +4,16 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.project200.presentation.MainActivity
 import com.project200.presentation.base.BindingActivity
+import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
-import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthResultCallback
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -30,6 +32,8 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
     private lateinit var localAuthService: AuthorizationService
 
+    val viewModel: LoginViewModel by viewModels()
+
     private val authorizationLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
@@ -40,7 +44,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
                 result.data?.let {
                     val ex = AuthorizationException.fromIntent(it)
                     Timber.tag(TAG).e(ex, "Authorization Exception from launcher: ${ex?.errorDescription}")
-                    // TODO: 사용자에게 알림 (예: 로그인 취소)
+                    Toast.makeText(this, "로그인 실패", Toast.LENGTH_SHORT).show()
                 } ?: Timber.tag(TAG).w("Authorization flow canceled or failed without data.")
             }
         }
@@ -52,8 +56,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
         override fun onSuccess(tokenResponse: TokenResponse) {
             Timber.tag(TAG).i("로그인 성공: ${tokenResponse.accessToken}")
-            // TODO: 회원(MainActivity로 이동)/비회원(RegisterActivity로 이동) 분기 처리
-            startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
+            viewModel.checkIsRegistered()
         }
 
         override fun onError(exception: AuthorizationException?) {
@@ -107,18 +110,23 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     override fun setupViews() {
         binding.googleLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                // localAuthService는 onCreate에서 초기화됨
                 authManager.initiateAuthorization(localAuthService, "Google", authCallback)
             }
         }
         binding.kakaoLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                // localAuthService는 onCreate에서 초기화됨
                 authManager.initiateAuthorization(localAuthService, "kakao", authCallback)
             }
         }
     }
 
+    override fun setupObservers() {
+        viewModel.isRegistered.observe(this) { isRegistered ->
+            startActivity(Intent(this@LoginActivity,
+                if(isRegistered)  MainActivity::class.java
+                else RegisterActivity::class.java ))
+        }
+    }
     override fun onDestroy() {
         super.onDestroy()
         localAuthService.dispose()

@@ -16,7 +16,7 @@ dependencies {
     implementation(projects.domain)
     implementation(projects.common)
     implementation(projects.presentation)
-    implementation(projects.core.auth)
+    implementation(projects.core.oauth)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)

@@ -2,7 +2,7 @@ package com.project200.undabang.oauth
 
 import android.content.Intent
 import androidx.core.net.toUri
-import com.project200.undabang.core.auth.BuildConfig
+import com.project200.undabang.core.oauth.BuildConfig
 import com.project200.undabang.oauth.config.CognitoConfig.ISSUER_URI
 import com.project200.undabang.oauth.config.CognitoConfig.REDIRECT_URI
 import com.project200.undabang.oauth.config.CognitoConfig.SCOPES

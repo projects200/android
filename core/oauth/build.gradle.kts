@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.undabang.core.auth"
+    namespace = "com.project200.undabang.core.oauth"
 
     defaultConfig {
         buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID") ?: ""}\"")

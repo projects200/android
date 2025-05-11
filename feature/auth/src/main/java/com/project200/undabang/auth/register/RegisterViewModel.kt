@@ -4,11 +4,19 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.toLocalDate
+import com.project200.domain.model.SignUpResult
+import com.project200.domain.usecase.SignUpUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
-class RegisterViewModel @Inject constructor(): ViewModel() {
+class RegisterViewModel @Inject constructor(
+    private val signUpUseCase: SignUpUseCase
+): ViewModel() {
 
     private val _nickname = MutableLiveData("")
     val nickname: LiveData<String> = _nickname
@@ -16,7 +24,7 @@ class RegisterViewModel @Inject constructor(): ViewModel() {
     private val _birth = MutableLiveData<String?>(null)
     val birth: LiveData<String?> = _birth
 
-    private val _gender = MutableLiveData<String?>(null) // "male" or "female"
+    private val _gender = MutableLiveData<String?>(null)
     val gender: LiveData<String?> = _gender
 
     val isFormValid: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
@@ -29,6 +37,9 @@ class RegisterViewModel @Inject constructor(): ViewModel() {
         addSource(_gender) { validate() }
     }
 
+    private val _signUpResult = MutableLiveData<SignUpResult>()
+    val signUpResult: LiveData<SignUpResult> = _signUpResult
+
     fun updateNickname(value: String) {
         _nickname.value = value
     }
@@ -39,6 +50,16 @@ class RegisterViewModel @Inject constructor(): ViewModel() {
 
     fun selectGender(gender: String) {
         _gender.value = gender
+    }
+
+    fun signUp() {
+        viewModelScope.launch {
+            _signUpResult.value = signUpUseCase.invoke(
+                _gender.value ?: "U",
+                _nickname.value ?: "",
+                _birth.value.toLocalDate() ?: LocalDate.now()
+            )
+        }
     }
 
     private fun validateNickname(nickname: String): Boolean {

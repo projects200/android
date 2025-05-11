@@ -24,7 +24,6 @@ object AuthCoreModule {
     @Singleton
     fun provideAuthManager(
         authStateManager: AuthStateManager
-        // ApplicationContext는 AuthStateManager를 통해 간접적으로 사용되므로 직접 주입 불필요
     ): AuthManager {
         return AuthManager(authStateManager)
     }
