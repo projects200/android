@@ -1,11 +1,12 @@
-package com.project200.undabang.auth
+package com.project200.undabang.auth.register
 
 import android.view.View
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.presentation.base.BindingFragment
-import com.project200.undabang.auth.databinding.FragmentRegisterBinding
 import com.project200.presentation.utils.DatePickerDialogFragment
+import com.project200.undabang.feature.auth.R
+import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
 
 class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragment_register) {
 

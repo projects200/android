@@ -1,4 +1,4 @@
-package com.project200.undabang.auth
+package com.project200.undabang.auth.register
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
@@ -16,11 +16,11 @@ class TermsViewModel @Inject constructor() : ViewModel() {
     private val _privacyChecked = MutableLiveData(false)
     val privacyChecked: LiveData<Boolean> = _privacyChecked
 
-    private val _locationChecked = MutableLiveData(false)
+    /* private val _locationChecked = MutableLiveData(false)
     val locationChecked: LiveData<Boolean> = _locationChecked
 
     private val _notifyChecked = MutableLiveData(false)
-    val notifyChecked: LiveData<Boolean> = _notifyChecked
+    val notifyChecked: LiveData<Boolean> = _notifyChecked */
 
     val isAllRequiredChecked: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
         fun update() {
@@ -40,11 +40,11 @@ class TermsViewModel @Inject constructor() : ViewModel() {
         _privacyChecked.value = !(_privacyChecked.value ?: false)
     }
 
-    fun toggleLocation() {
+    /*fun toggleLocation() {
         _locationChecked.value = !(_locationChecked.value ?: false)
     }
 
     fun toggleNotify() {
         _notifyChecked.value = !(_notifyChecked.value ?: false)
-    }
+    }*/
 }

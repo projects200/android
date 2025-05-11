@@ -1,4 +1,4 @@
-package com.project200.undabang.auth
+package com.project200.undabang.auth.register
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
