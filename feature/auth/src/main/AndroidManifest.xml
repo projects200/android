@@ -21,6 +21,11 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+            <action android:name="android.content.Intent.ACTION_VIEW" />
+            <category android:name="android.content.Intent.CATEGORY_DEFAULT" />
+            <category android:name="android.content.Intent.CATEGORY_BROWSABLE" />
+            <data android:scheme="com.project200.undabang" android:host="logout_callback" />
         </activity>
         <activity android:name="net.openid.appauth.RedirectUriReceiverActivity"
             android:exported="true">
