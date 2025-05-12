@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:fitsSystemWindows="true">
+
+    <ImageView
+        android:id="@+id/back_btn_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="20dp"
+        android:layout_marginTop="26dp"
+        android:src="@drawable/ic_arrow_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:text="@string/setting"
+        app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
+        app:layout_constraintStart_toEndOf="@id/back_btn_iv"
+        app:layout_constraintTop_toTopOf="@id/back_btn_iv" />
+
+    <LinearLayout
+        android:id="@+id/customer_service_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@id/back_btn_iv">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_customer_service" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/customer_service" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/logout_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@id/customer_service_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_logout" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/logout" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/withdraw_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@id/logout_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_withdraw" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/withdraw" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/terms_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@id/withdraw_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_document" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/terms" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/privacy_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@id/terms_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_document" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/privacy" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/version_info_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@id/privacy_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_document" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/version_info" />
+
+        <TextView
+            android:id="@+id/version_info_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginEnd="20dp"
+            android:text=""
+            android:textColor="@color/gray" />
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
