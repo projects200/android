@@ -9,7 +9,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.project200.presentation.MainActivity
+import com.project200.undabang.main.MainActivity
 import com.project200.presentation.base.BindingActivity
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
@@ -123,7 +123,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     override fun setupObservers() {
         viewModel.isRegistered.observe(this) { isRegistered ->
             startActivity(Intent(this@LoginActivity,
-                if(isRegistered)  MainActivity::class.java
+                if(isRegistered)  com.project200.undabang.main.MainActivity::class.java
                 else RegisterActivity::class.java ))
         }
     }

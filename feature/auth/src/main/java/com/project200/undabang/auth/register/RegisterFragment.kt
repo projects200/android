@@ -6,7 +6,7 @@ import android.widget.Toast
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.domain.model.SignUpResult
-import com.project200.presentation.MainActivity
+import com.project200.undabang.main.MainActivity
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
@@ -68,7 +68,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
                     is SignUpResult.Success -> {
                         val memberId = it.memberId
                         Timber.d("회원가입 성공! Member ID: $memberId")
-                        startActivity(Intent(requireContext(), MainActivity::class.java))
+                        startActivity(Intent(requireContext(), com.project200.undabang.main.MainActivity::class.java))
                         requireActivity().finish()
                     }
                     is SignUpResult.Failure -> {

@@ -5,6 +5,6 @@
     android:id="@+id/main"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.project200.presentation.MainActivity">
+    tools:context="com.project200.undabang.main.MainActivity">
 
 </androidx.constraintlayout.widget.ConstraintLayout>

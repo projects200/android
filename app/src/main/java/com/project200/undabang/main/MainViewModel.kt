@@ -1,6 +1,5 @@
-package com.project200.presentation
+package com.project200.undabang.main
 
-import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -25,7 +24,7 @@ class MainViewModel @Inject constructor(
         if (_updateCheckResult.value != null) { return } // 이미 체크했다면 스킵
 
         viewModelScope.launch {
-            checkForUpdateUseCase()
+            checkForUpdateUseCase.invoke()
                 .onSuccess { result ->
                     _updateCheckResult.value = result
                     when (result) {
