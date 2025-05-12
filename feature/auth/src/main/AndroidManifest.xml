@@ -31,7 +31,7 @@
 
                 <data
                     android:host="logout_callback"
-                    android:scheme="com.project200.undabang" />
+                    android:scheme="${appAuthRedirectScheme}" />
             </intent-filter>
         </activity>
         <activity
@@ -43,7 +43,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
-                <data android:scheme="${appAuthRedirectScheme}" />
+                <data
+                    android:scheme="${appAuthRedirectScheme}" />
             </intent-filter>
         </activity>
     </application>

@@ -1,6 +1,5 @@
 package com.project200.undabang.auth.register
 
-import android.content.Intent
 import android.view.View
 import android.widget.Toast
 import androidx.core.widget.doAfterTextChanged
@@ -8,7 +7,7 @@ import androidx.fragment.app.viewModels
 import com.project200.domain.model.SignUpResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.AppNavigator
-import com.project200.presentation.utils.DatePickerDialogFragment
+import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
 import dagger.hilt.android.AndroidEntryPoint
