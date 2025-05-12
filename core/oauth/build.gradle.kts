@@ -7,6 +7,10 @@ android {
     namespace = "com.project200.undabang.core.oauth"
 
     defaultConfig {
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
+    }
+
+    defaultConfig {
         buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID") ?: ""}\"")
         buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID") ?: ""}\"")
         buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION") ?: ""}\"")

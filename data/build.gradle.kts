@@ -6,10 +6,6 @@ plugins {
 android {
     namespace = "com.project200.undabang.data"
 
-    defaultConfig {
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
-    }
-
     buildTypes {
 /*        getByName("debug") {
             buildConfigField("String", "BASE_URL", "\"https://api.undabang.store/dev/\"") // Debug용 URL
