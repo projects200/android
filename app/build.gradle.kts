@@ -6,6 +6,10 @@ plugins {
 android {
     namespace = "com.project200.undabang"
 
+    defaultConfig {
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
+    }
+
     signingConfigs { /* ... 출시 서명 설정 ... */ }
 
     buildTypes {
