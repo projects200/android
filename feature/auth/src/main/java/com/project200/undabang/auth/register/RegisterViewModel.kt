@@ -58,7 +58,7 @@ class RegisterViewModel @Inject constructor(
                 _gender.value ?: "U",
                 _nickname.value ?: "",
                 _birth.value.toLocalDate() ?: LocalDate.now()
-            )
+            ) ?: SignUpResult.Failure("UNEXPECTED_NULL_ERROR")
         }
     }
 

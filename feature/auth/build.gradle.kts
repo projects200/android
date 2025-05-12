@@ -7,6 +7,10 @@ plugins {
 android {
     namespace = "com.project200.undabang.feature.auth"
 
+    defaultConfig {
+        manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
+    }
+
     buildFeatures {
         viewBinding = true
     }
