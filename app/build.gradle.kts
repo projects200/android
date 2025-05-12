@@ -8,10 +8,6 @@ android {
 
     signingConfigs { /* ... 출시 서명 설정 ... */ }
 
-    defaultConfig {
-        manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
-    }
-
     buildTypes {
         release {
         }
