@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.project200.undabang.oauth.test", appContext.packageName)
+        assertEquals("com.project200.undabang.core.oauth.test", appContext.packageName)
     }
 }
