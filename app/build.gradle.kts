@@ -18,6 +18,10 @@ android {
         debug {
         }
     }
+
+    buildFeatures {
+        viewBinding = true
+    }
 }
 
 dependencies {
@@ -26,6 +30,14 @@ dependencies {
     implementation(projects.common)
     implementation(projects.domain)
     implementation(projects.feature.auth)
+    implementation(projects.feature.profile)
+
+    implementation(libs.androidx.appcompat)
+    implementation(libs.androidx.constraintlayout)
+    implementation(libs.google.android.material)
+    implementation(libs.androidx.activity.ktx)
+    implementation(libs.androidx.fragment.ktx)
+    implementation(libs.androidx.activity)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.google.android.material)

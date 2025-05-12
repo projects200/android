@@ -3,7 +3,7 @@ package com.project200.undabang.main
 import androidx.activity.viewModels
 import com.project200.presentation.base.BindingActivity
 import com.project200.domain.usecase.UpdateCheckResult
-import com.project200.undabang.presentation.databinding.ActivityMainBinding
+import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.update.UpdateDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
