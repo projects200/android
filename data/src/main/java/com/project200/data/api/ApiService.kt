@@ -4,11 +4,12 @@ import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
+import retrofit2.Response
 import retrofit2.http.*
+import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 interface ApiService {
-
-    // 회원가입 여부 확인
+    // 회원 여부 확인
     @GET("v1/members/me/registration-status")
     suspend fun getIsRegistered(): BaseResponse<GetIsRegisteredData>
 
