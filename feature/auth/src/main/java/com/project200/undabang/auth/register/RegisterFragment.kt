@@ -35,12 +35,16 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
             datePicker.show(parentFragmentManager, DatePickerDialogFragment::class.java.simpleName)
         }
 
-        maleBtnImv.setOnClickListener {
+        genderMaleLl.setOnClickListener {
             viewModel.selectGender(MALE)
         }
 
-        femaleBtnImv.setOnClickListener {
+        genderFemaleLl.setOnClickListener {
             viewModel.selectGender(FEMALE)
+        }
+
+        genderHiddenLl.setOnClickListener {
+            viewModel.selectGender(HIDDEN)
         }
 
         registerCompleteBtn.setOnClickListener {
@@ -56,6 +60,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         gender.observe(viewLifecycleOwner) { gender ->
             binding.maleBtnImv.isSelected = gender == MALE
             binding.femaleBtnImv.isSelected = gender == FEMALE
+            binding.hiddenBtnImv.isSelected = gender == HIDDEN
         }
 
         isFormValid.observe(viewLifecycleOwner) { isValid ->
@@ -73,8 +78,8 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
                     }
                     is SignUpResult.Failure -> {
                         val displayMessage = when (it.errorCode) {
-                            "MEMBER_NICKNAME_DUPLICATED" -> "이미 사용 중인 닉네임입니다."
-                            else -> it.errorCode
+                            DUPLICATE -> getString(R.string.error_nickname_duplicated)
+                            else -> getString(R.string.error_unknown)
                         }
                         Toast.makeText(requireContext(), displayMessage, Toast.LENGTH_LONG).show()
                     }
@@ -84,7 +89,9 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     }
 
     companion object {
-        const val MALE = "male"
-        const val FEMALE = "female"
+        const val MALE = "M"
+        const val FEMALE = "F"
+        const val HIDDEN = "U"
+        const val DUPLICATE = "MEMBER_NICKNAME_DUPLICATED"
     }
 }
