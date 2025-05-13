@@ -10,50 +10,50 @@ import timber.log.Timber
 import java.io.IOException
 import java.time.LocalDate
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 
 class AuthRepositoryImpl @Inject constructor(
-    private val apiService: ApiService
+    private val apiService: ApiService,
+    private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
 
-    override suspend fun checkIsRegistered(): Boolean = withContext(Dispatchers.IO) {
-        runCatching {
-            apiService.getIsRegistered()
-        }.fold(
-            onSuccess = { it.data?.isRegistered ?: false },
-            onFailure = {
-                Timber.tag(TAG).d("checkIsRegistered failed$it")
-                false
-            }
-        )
+    override suspend fun checkIsRegistered(): Boolean = withContext(ioDispatcher) {
+        try {
+            val response = apiService.getIsRegistered()
+            response.data?.isRegistered ?: false
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.tag(TAG).d("checkIsRegistered failed: $e")
+            false
+        }
     }
 
     override suspend fun signUp(
         gender: String,
         nickname: String,
-        birth: LocalDate // 파라미터 타입은 API 스펙 및 DTO와 일치
-    ): SignUpResult = withContext(Dispatchers.IO) {
-        runCatching {
+        birth: LocalDate
+    ): SignUpResult = withContext(ioDispatcher) {
+        try {
             val response = apiService.postSignUp(PostSignUpRequest(gender, birth, nickname))
 
             if (response.succeed && response.data != null) {
                 Timber.i("회원가입 성공 MemberId: ${response.data.memberId}")
                 SignUpResult.Success(response.data.memberId)
             } else {
+                // API 응답은 성공했지만, 서버 로직상 실패(예: 중복, 유효성 검사 실패 등)
                 SignUpResult.Failure(response.code)
             }
-        }.fold(
-            onSuccess = { result: SignUpResult ->
-                Timber.i("Registration attempt processed. Result: $result")
-                result
-            },
-            onFailure = { exception ->
-                Timber.e(exception, "Registration failed due to an exception in runCatching.")
-                when (exception) {
-                    is IOException -> SignUpResult.Failure("NETWORK_ERROR")
-                    else -> SignUpResult.Failure("UNKNOWN_ERROR")
-                }
-            }
-        )
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            Timber.e(e, "Registration failed due to IOException.")
+            SignUpResult.Failure("NETWORK_ERROR")
+        } catch (e: Exception) {
+            Timber.e(e, "Registration failed due to an unexpected exception.")
+            SignUpResult.Failure("UNKNOWN_ERROR")
+        }
     }
 
     companion object {
