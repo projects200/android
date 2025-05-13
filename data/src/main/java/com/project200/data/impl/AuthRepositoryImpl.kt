@@ -1,5 +1,6 @@
 package com.project200.data.impl
 
+import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.domain.model.SignUpResult
@@ -15,7 +16,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 
 class AuthRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
-    private val ioDispatcher: CoroutineDispatcher
+    @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
 
     override suspend fun checkIsRegistered(): Boolean = withContext(ioDispatcher) {
