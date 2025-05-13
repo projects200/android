@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.toLocalDate
 import com.project200.domain.model.SignUpResult
 import com.project200.domain.usecase.SignUpUseCase
+import com.project200.domain.usecase.ValidateNicknameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class RegisterViewModel @Inject constructor(
-    private val signUpUseCase: SignUpUseCase
+    private val signUpUseCase: SignUpUseCase,
+    private val validateNicknameUseCase: ValidateNicknameUseCase
 ): ViewModel() {
 
     private val _nickname = MutableLiveData("")
@@ -29,7 +31,7 @@ class RegisterViewModel @Inject constructor(
 
     val isFormValid: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
         fun validate() {
-            val nameValid = validateNickname(_nickname.value.orEmpty())
+            val nameValid = validateNicknameUseCase.invoke(_nickname.value.orEmpty())
             value = nameValid && !(_birth.value.isNullOrEmpty()) && !(_gender.value.isNullOrEmpty())
         }
         addSource(_nickname) { validate() }
@@ -60,10 +62,5 @@ class RegisterViewModel @Inject constructor(
                 _birth.value.toLocalDate() ?: LocalDate.now()
             ) ?: SignUpResult.Failure("UNEXPECTED_NULL_ERROR")
         }
-    }
-
-    private fun validateNickname(nickname: String): Boolean {
-        val regex = "^[가-힣a-zA-Z0-9]{1,30}$".toRegex()
-        return nickname.matches(regex)
     }
 }
