@@ -133,54 +133,71 @@ class AuthManager @Inject constructor(
     }
 
     suspend fun logout(
-        authService: AuthorizationService, // Fragment/Activity에서 전달받은 인스턴스
+        authService: AuthorizationService,
         callback: LogoutResultCallback
     ) {
-        var localLogoutDone = false
+        Timber.tag(TAG_DEBUG).d("Initiating logout.")
+        var localLogoutAttempted = false
         try {
             val serviceConfig = fetchServiceConfiguration()
             val currentAuthState = authStateManager.getCurrent()
             val idTokenHint = currentAuthState.idToken
 
             if (idTokenHint == null) {
-                Timber.w("ID Token hint is not available for RP-Initiated Logout. Clearing local state only.")
+                Timber.tag(TAG_DEBUG).w("ID Token hint is null. Clearing local state only.")
                 authStateManager.clearAuthState()
-                localLogoutDone = true
+                localLogoutAttempted = true
                 callback.onLocalLogoutCompleted()
                 return
             }
 
             if (serviceConfig.endSessionEndpoint == null) {
-                Timber.e("End session endpoint is not available in the service configuration. Clearing local state only.")
+                Timber.tag(TAG_DEBUG).e("End session endpoint is null. Clearing local state only.")
                 authStateManager.clearAuthState()
-                localLogoutDone = true
+                localLogoutAttempted = true
                 callback.onLocalLogoutCompleted()
-                callback.onLogoutProcessError(IllegalStateException("End session endpoint is not configured."))
+                callback.onLogoutProcessError(IllegalStateException("End session endpoint is not configured for $ISSUER_URI"))
                 return
             }
 
-            val endSessionRequestBuilder = EndSessionRequest.Builder(serviceConfig)
-                .setIdTokenHint(idTokenHint)
-                .setPostLogoutRedirectUri(LOGOUT_REDIRECT_URI.toUri())
-
-            val endSessionRequest = endSessionRequestBuilder.build()
-            Timber.d("EndSessionRequest: ${endSessionRequest.jsonSerializeString()}")
-
-            val endSessionIntent = authService.getEndSessionRequestIntent(endSessionRequest)
-
+            // 로컬 상태 먼저 정리
             authStateManager.clearAuthState()
-            localLogoutDone = true
-            Timber.i("Local AuthState cleared for logout.")
-
-            callback.onLogoutPageIntentReady(endSessionIntent)
+            localLogoutAttempted = true
+            Timber.tag(TAG_DEBUG).i("Local AuthState cleared for logout.")
             callback.onLocalLogoutCompleted()
 
+
+            val manualLogoutUriBuilder = serviceConfig.endSessionEndpoint!!.buildUpon()
+                .appendQueryParameter("client_id", BuildConfig.COGNITO_APP_CLIENT_ID)
+                .appendQueryParameter("logout_uri", LOGOUT_REDIRECT_URI)
+                .appendQueryParameter("id_token_hint", idTokenHint)
+
+            val manualCognitoLogoutUri = manualLogoutUriBuilder.build()
+            Timber.tag(TAG_DEBUG).d("Attempting to launch MANUALLY CONSTRUCTED browser intent with URI: $manualCognitoLogoutUri")
+
+            if (manualCognitoLogoutUri != null) {
+                val directBrowserIntent = Intent(Intent.ACTION_VIEW, manualCognitoLogoutUri)
+                callback.onLogoutPageIntentReady(directBrowserIntent)
+            } else {
+                Timber.tag(TAG_DEBUG).e("Manually constructed CognitoLogoutUri is null.")
+                val endSessionRequest = EndSessionRequest.Builder(serviceConfig)
+                    .setIdTokenHint(idTokenHint)
+                    .setPostLogoutRedirectUri(LOGOUT_REDIRECT_URI.toUri())
+                    .setAdditionalParameters(mapOf("client_id" to BuildConfig.COGNITO_APP_CLIENT_ID))
+                    .build()
+                val endSessionIntentFromAppAuth = authService.getEndSessionRequestIntent(endSessionRequest)
+                callback.onLogoutPageIntentReady(endSessionIntentFromAppAuth)
+            }
+
         } catch (ex: Exception) {
-            Timber.e(ex, "Error during logout initiation.")
-            if (!localLogoutDone) {
-                authStateManager.clearAuthState()
-                Timber.w("Local AuthState cleared due to an error during logout initiation.")
-                callback.onLocalLogoutCompleted()
+            Timber.tag(TAG_DEBUG).e(ex, "Error during logout process.")
+            if (!localLogoutAttempted) {
+                try {
+                    authStateManager.clearAuthState()
+                    callback.onLocalLogoutCompleted()
+                } catch (clearEx: Exception) {
+                    Timber.tag(TAG_DEBUG).e(clearEx, "Error clearing AuthState during logout error handling.")
+                }
             }
             callback.onLogoutProcessError(ex)
         }
@@ -188,5 +205,6 @@ class AuthManager @Inject constructor(
 
     companion object {
         private const val TAG = "AuthManager"
+        private const val TAG_DEBUG = "AuthManagerDebug"
     }
 }

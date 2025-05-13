@@ -35,7 +35,7 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
     private val logoutPageLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             Timber.d("로그아웃: ${result.resultCode}")
-            appNavigator.navigateToMain(requireContext())
+            appNavigator.navigateToLogin(requireContext())
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -71,6 +71,8 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
                 override fun onLogoutProcessError(exception: Exception) {
                     Timber.e(exception, "로그아웃 에러: ${exception.message}")
                     Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
+                    // 오류 발생 시에도 로컬 상태는 AuthManager에서 정리 시도됨. 로그인 화면으로 이동.
+                    appNavigator.navigateToLogin(requireContext())
                 }
             })
         }
