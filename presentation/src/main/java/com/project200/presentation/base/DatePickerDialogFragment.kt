@@ -1,23 +1,25 @@
 package com.project200.presentation.base
 
+
 import android.graphics.Color
 import android.view.View
 import android.view.WindowManager
 import androidx.core.graphics.drawable.toDrawable
+import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.presentation.R
 import com.project200.undabang.presentation.databinding.DialogDatePickerBinding
 import java.time.LocalDate
 import java.util.Calendar
+import java.util.Locale
 
 class DatePickerDialogFragment(
-    private val initialDateString: String? = null, // 초기 날짜 문자열을 받을 파라미터 추가
+    private val initialDateString: String? = null,
     private val onDateSelected: (String) -> Unit
 ) : BaseDialogFragment<DialogDatePickerBinding>(R.layout.dialog_date_picker) {
 
     override fun getViewBinding(view: View): DialogDatePickerBinding {
         return DialogDatePickerBinding.bind(view)
     }
-
 
     override fun setupViews() = with(binding) {
         val today = Calendar.getInstance()
@@ -46,7 +48,7 @@ class DatePickerDialogFragment(
             val year = datePicker.year
             val month = datePicker.month
             val day = datePicker.dayOfMonth
-            onDateSelected(String.format("%04d-%02d-%02d", year, month + 1, day))
+            onDateSelected(String.format(Locale.KOREA,"%04d-%02d-%02d", year, month + 1, day))
             dismiss()
         }
     }

@@ -19,6 +19,7 @@ import net.openid.appauth.TokenResponse
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
@@ -90,6 +91,7 @@ class AuthManager @Inject constructor(
             callback.onAuthFlowStarted(authIntent)
 
         } catch (ex: Exception) {
+            if (ex is CancellationException) { throw ex }
             Timber.tag(TAG).e(ex, "Error during authorization initiation")
             callback.onConfigurationError(ex)
         }
