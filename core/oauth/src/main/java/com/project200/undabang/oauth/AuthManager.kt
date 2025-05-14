@@ -193,6 +193,7 @@ class AuthManager @Inject constructor(
 
         } catch (ex: Exception) {
             Timber.tag(TAG_DEBUG).e(ex, "Error during logout process.")
+            if (ex is CancellationException) { throw ex }
             if (!localLogoutAttempted) {
                 try {
                     authStateManager.clearAuthState()
