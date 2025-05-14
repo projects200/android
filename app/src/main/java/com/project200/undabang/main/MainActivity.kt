@@ -4,7 +4,7 @@ import androidx.activity.viewModels
 import com.project200.presentation.base.BindingActivity
 import com.project200.domain.usecase.UpdateCheckResult
 import com.project200.undabang.databinding.ActivityMainBinding
-import com.project200.undabang.update.UpdateDialogFragment
+import com.project200.presentation.update.UpdateDialogFragment
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 

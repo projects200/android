@@ -1,4 +1,4 @@
-package com.project200.undabang.update
+package com.project200.presentation.update
 
 
 import android.content.Intent
@@ -10,8 +10,8 @@ import com.project200.presentation.base.BaseDialogFragment
 import androidx.core.net.toUri
 import com.project200.common.constants.AppConstants.MARKET_URL
 import androidx.core.graphics.drawable.toDrawable
-import com.project200.undabang.R
-import com.project200.undabang.databinding.DialogUpdateBinding
+import com.project200.undabang.presentation.R
+import com.project200.undabang.presentation.databinding.DialogUpdateBinding
 
 class UpdateDialogFragment(private val isForceUpdate: Boolean): BaseDialogFragment<DialogUpdateBinding>(R.layout.dialog_update) {
 
