@@ -9,8 +9,8 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.project200.presentation.MainActivity
 import com.project200.presentation.base.BindingActivity
+import com.project200.presentation.navigator.AppNavigator
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
@@ -26,11 +26,10 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class LoginActivity : BindingActivity<ActivityLoginBinding>() {
+    @Inject lateinit var authManager: AuthManager
+    @Inject lateinit var appNavigator: AppNavigator
 
-    @Inject
-    lateinit var authManager: AuthManager
-
-    private lateinit var localAuthService: AuthorizationService
+    private lateinit var authService: AuthorizationService
 
     val viewModel: LoginViewModel by viewModels()
 
@@ -38,7 +37,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.let { intent: Intent ->
-                    authManager.handleAuthorizationResponse(localAuthService, intent, authCallback)
+                    authManager.handleAuthorizationResponse(authService, intent, authCallback)
                 } ?: Timber.tag(TAG).e("Authorization response data is null")
             } else {
                 result.data?.let {
@@ -74,7 +73,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        localAuthService = AuthorizationService(this)
+        authService = AuthorizationService(this)
 
         // TODO: 자동 로그인
 
@@ -99,8 +98,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         if (AuthorizationResponse.fromIntent(intent) != null ||
             AuthorizationException.fromIntent(intent) != null) {
             Timber.tag(TAG).d("Handling authorization response from onNewIntent/checkIntent")
-            // localAuthService는 onCreate에서 초기화됨
-            authManager.handleAuthorizationResponse(localAuthService, intent, authCallback)
+            authManager.handleAuthorizationResponse(authService, intent, authCallback)
             intent.putExtra(USED_INTENT_EXTRA_KEY, true)
         } else {
             Timber.tag(TAG).w("Intent in checkIntent is not an auth callback: ${intent.data}")
@@ -110,26 +108,25 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     override fun setupViews() {
         binding.googleLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                authManager.initiateAuthorization(localAuthService, "Google", authCallback)
+                authManager.initiateAuthorization(authService, "Google", authCallback)
             }
         }
         binding.kakaoLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                authManager.initiateAuthorization(localAuthService, "kakao", authCallback)
+                authManager.initiateAuthorization(authService, "kakao", authCallback)
             }
         }
     }
 
     override fun setupObservers() {
         viewModel.isRegistered.observe(this) { isRegistered ->
-            startActivity(Intent(this@LoginActivity,
-                if(isRegistered)  MainActivity::class.java
-                else RegisterActivity::class.java ))
+            if (isRegistered) appNavigator.navigateToMain(this)
+            else startActivity(Intent(this@LoginActivity, RegisterActivity::class.java ))
         }
     }
     override fun onDestroy() {
         super.onDestroy()
-        localAuthService.dispose()
+        authService.dispose()
     }
 
     companion object {

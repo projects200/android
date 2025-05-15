@@ -1,6 +1,10 @@
-package com.project200.presentation.utils
+package com.project200.presentation.base
 
+
+import android.graphics.Color
 import android.view.View
+import android.view.WindowManager
+import androidx.core.graphics.drawable.toDrawable
 import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.presentation.R
 import com.project200.undabang.presentation.databinding.DialogDatePickerBinding
@@ -27,6 +31,16 @@ class DatePickerDialogFragment(
                 val initialDate = LocalDate.parse(dateStr)
                 datePicker.updateDate(initialDate.year, initialDate.monthValue - 1, initialDate.dayOfMonth)
             }
+        }
+
+        dialog?.window?.let { window ->
+            val screenWidth = resources.displayMetrics.widthPixels
+            val desiredWidth = (screenWidth * 0.85).toInt()
+
+            window.setLayout(desiredWidth, WindowManager.LayoutParams.WRAP_CONTENT)
+
+            window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
+
         }
 
         cancelButton.setOnClickListener { dismiss() }

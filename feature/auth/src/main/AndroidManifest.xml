@@ -5,12 +5,14 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
+
     <application>
         <activity
             android:name="com.project200.undabang.auth.register.RegisterActivity"
-            android:exported="true" >
+            android:exported="true">
 
         </activity>
         <activity
@@ -21,14 +23,28 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.content.Intent.ACTION_VIEW" />
+
+                <category android:name="android.content.Intent.CATEGORY_DEFAULT" />
+                <category android:name="android.content.Intent.CATEGORY_BROWSABLE" />
+
+                <data
+                    android:host="logout_callback"
+                    android:scheme="${appAuthRedirectScheme}" />
+            </intent-filter>
         </activity>
-        <activity android:name="net.openid.appauth.RedirectUriReceiverActivity"
+        <activity
+            android:name="net.openid.appauth.RedirectUriReceiverActivity"
             android:exported="true">
             <intent-filter>
-                <action android:name="android.intent.action.VIEW"/>
-                <category android:name="android.intent.category.DEFAULT"/>
-                <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="${appAuthRedirectScheme}"/>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:scheme="${appAuthRedirectScheme}" />
             </intent-filter>
         </activity>
     </application>

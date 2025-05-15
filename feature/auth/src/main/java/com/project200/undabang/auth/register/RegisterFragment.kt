@@ -1,23 +1,26 @@
 package com.project200.undabang.auth.register
 
-import android.content.Intent
 import android.view.View
 import android.widget.Toast
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.domain.model.SignUpResult
-import com.project200.presentation.MainActivity
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.utils.DatePickerDialogFragment
+import com.project200.presentation.navigator.AppNavigator
+import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragment_register) {
 
     private val viewModel: RegisterViewModel by viewModels()
+
+    @Inject
+    lateinit var appNavigator: AppNavigator
 
     override fun getViewBinding(view: View): FragmentRegisterBinding {
         return FragmentRegisterBinding.bind(view)
@@ -73,8 +76,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
                     is SignUpResult.Success -> {
                         val memberId = it.memberId
                         Timber.d("회원가입 성공! Member ID: $memberId")
-                        startActivity(Intent(requireContext(), MainActivity::class.java))
-                        requireActivity().finish()
+                        appNavigator.navigateToMain(requireContext())
                     }
                     is SignUpResult.Failure -> {
                         val displayMessage = when (it.errorCode) {

@@ -13,9 +13,9 @@ import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory // Moshi 사용한다고 가정
-import com.squareup.moshi.Moshi // Moshi 임포트
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory // Moshi Kotlin 지원
+import retrofit2.converter.moshi.MoshiConverterFactory
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -73,7 +73,7 @@ object NetworkModule {
         return Retrofit.Builder()
             .baseUrl("https://api.undabang.store/dev/")
             .client(okHttpClient)
-            .addConverterFactory(MoshiConverterFactory.create(moshi)) // Moshi 사용
+            .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
     }
 

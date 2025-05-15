@@ -1,36 +1,22 @@
 plugins {
-    id("convention.android.application")
+    id("convention.android.library")
+    id("convention.android.hilt")
     alias(libs.plugins.navigation.safeargs)
 }
 
 android {
-    namespace = "com.project200.undabang"
+    namespace = "com.project200.undabang.feature.profile"
 
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
     }
-
-    signingConfigs { /* ... 출시 서명 설정 ... */ }
-
-    buildTypes {
-        release {
-        }
-        debug {
-        }
-    }
-
-    buildFeatures {
-        viewBinding = true
-    }
 }
 
 dependencies {
-    implementation(projects.presentation)
-    implementation(projects.data)
-    implementation(projects.common)
     implementation(projects.domain)
-    implementation(projects.feature.auth)
-    implementation(projects.feature.profile)
+    implementation(projects.common)
+    implementation(projects.presentation)
+    implementation(projects.core.oauth)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
@@ -38,10 +24,6 @@ dependencies {
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.activity)
-
-    implementation(libs.androidx.appcompat)
-    implementation(libs.google.android.material)
-    implementation(libs.androidx.constraintlayout)
 
     // Lifecycle
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
@@ -51,4 +33,11 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+
+    testImplementation(libs.androidx.arch.core.testing)
+    testImplementation(libs.turbine)
+    androidTestImplementation(libs.androidx.navigation.testing)
+
+    // Cognito
+    implementation(libs.appauth)
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/exerciseFragment">
+    <fragment
+        android:id="@+id/exerciseFragment"
+        android:name="com.project200.undabang.main.ExerciseFragment"
+        android:label="운동"
+        tools:layout="@layout/fragment_exercise">
+
+        <action
+            android:id="@+id/action_exerciseFragment_to_settingFragment"
+            app:destination="@id/settingFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/settingFragment"
+        android:name="com.project200.undabang.profile.setting.SettingFragment"
+        android:label="설정"
+        tools:layout="@layout/fragment_setting" />
+
+</navigation>

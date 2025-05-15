@@ -4,6 +4,7 @@ import android.content.Intent
 import androidx.core.net.toUri
 import com.project200.undabang.core.oauth.BuildConfig
 import com.project200.undabang.oauth.config.CognitoConfig.ISSUER_URI
+import com.project200.undabang.oauth.config.CognitoConfig.LOGOUT_REDIRECT_URI
 import com.project200.undabang.oauth.config.CognitoConfig.REDIRECT_URI
 import com.project200.undabang.oauth.config.CognitoConfig.SCOPES
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -12,6 +13,7 @@ import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationService
 import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.EndSessionRequest
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.TokenResponse
 import timber.log.Timber
@@ -26,6 +28,12 @@ interface AuthResultCallback {
     fun onSuccess(tokenResponse: TokenResponse)
     fun onError(exception: AuthorizationException?)
     fun onConfigurationError(exception: Exception)
+}
+
+interface LogoutResultCallback {
+    fun onLogoutPageIntentReady(logoutIntent: Intent)
+    fun onLocalLogoutCompleted()
+    fun onLogoutProcessError(exception: Exception)
 }
 
 @Singleton
@@ -78,8 +86,7 @@ class AuthManager @Inject constructor(
             val authRequest = authRequestBuilder.build()
             Timber.tag(TAG).d("Auth Request: ${authRequest.jsonSerializeString()}")
 
-            // Activity에서 authIntent를 받아 실행할 수 있도록 콜백으로 전달
-            // authService는 Activity에서 전달받은 것을 사용
+            // Activity에서 authIntent를 받아 실행할 수 있도록 콜백으로 전달 용
             val authIntent = authService.getAuthorizationRequestIntent(authRequest)
             callback.onAuthFlowStarted(authIntent)
 
@@ -98,7 +105,6 @@ class AuthManager @Inject constructor(
         val response = AuthorizationResponse.fromIntent(intent)
         val exception = AuthorizationException.fromIntent(intent)
 
-        // AuthStateManager의 현재 AuthState를 업데이트
         authStateManager.update(response, exception)
 
         if (response != null) {
@@ -115,7 +121,6 @@ class AuthManager @Inject constructor(
         response: AuthorizationResponse,
         callback: AuthResultCallback
     ) {
-        // authService는 Activity에서 전달받은 것을 사용
         authService.performTokenRequest(response.createTokenExchangeRequest()) { tokenResponse, ex ->
             authStateManager.update(tokenResponse, ex)
 
@@ -129,7 +134,80 @@ class AuthManager @Inject constructor(
         }
     }
 
+    suspend fun logout(
+        authService: AuthorizationService,
+        callback: LogoutResultCallback
+    ) {
+        Timber.tag(TAG_DEBUG).d("Initiating logout.")
+        var localLogoutAttempted = false
+        try {
+            val serviceConfig = fetchServiceConfiguration()
+            val currentAuthState = authStateManager.getCurrent()
+            val idTokenHint = currentAuthState.idToken
+
+            if (idTokenHint == null) {
+                Timber.tag(TAG_DEBUG).w("ID Token hint is null. Clearing local state only.")
+                authStateManager.clearAuthState()
+                localLogoutAttempted = true
+                callback.onLocalLogoutCompleted()
+                return
+            }
+
+            if (serviceConfig.endSessionEndpoint == null) {
+                Timber.tag(TAG_DEBUG).e("End session endpoint is null. Clearing local state only.")
+                authStateManager.clearAuthState()
+                localLogoutAttempted = true
+                callback.onLocalLogoutCompleted()
+                callback.onLogoutProcessError(IllegalStateException("End session endpoint is not configured for $ISSUER_URI"))
+                return
+            }
+
+            // 로컬 상태 먼저 정리
+            authStateManager.clearAuthState()
+            localLogoutAttempted = true
+            Timber.tag(TAG_DEBUG).i("Local AuthState cleared for logout.")
+            callback.onLocalLogoutCompleted()
+
+
+            val manualLogoutUriBuilder = serviceConfig.endSessionEndpoint!!.buildUpon()
+                .appendQueryParameter("client_id", BuildConfig.COGNITO_APP_CLIENT_ID)
+                .appendQueryParameter("logout_uri", LOGOUT_REDIRECT_URI)
+                .appendQueryParameter("id_token_hint", idTokenHint)
+
+            val manualCognitoLogoutUri = manualLogoutUriBuilder.build()
+            Timber.tag(TAG_DEBUG).d("Attempting to launch MANUALLY CONSTRUCTED browser intent with URI: $manualCognitoLogoutUri")
+
+            if (manualCognitoLogoutUri != null) {
+                val directBrowserIntent = Intent(Intent.ACTION_VIEW, manualCognitoLogoutUri)
+                callback.onLogoutPageIntentReady(directBrowserIntent)
+            } else {
+                Timber.tag(TAG_DEBUG).e("Manually constructed CognitoLogoutUri is null.")
+                val endSessionRequest = EndSessionRequest.Builder(serviceConfig)
+                    .setIdTokenHint(idTokenHint)
+                    .setPostLogoutRedirectUri(LOGOUT_REDIRECT_URI.toUri())
+                    .setAdditionalParameters(mapOf("client_id" to BuildConfig.COGNITO_APP_CLIENT_ID))
+                    .build()
+                val endSessionIntentFromAppAuth = authService.getEndSessionRequestIntent(endSessionRequest)
+                callback.onLogoutPageIntentReady(endSessionIntentFromAppAuth)
+            }
+
+        } catch (ex: Exception) {
+            Timber.tag(TAG_DEBUG).e(ex, "Error during logout process.")
+            if (ex is CancellationException) { throw ex }
+            if (!localLogoutAttempted) {
+                try {
+                    authStateManager.clearAuthState()
+                    callback.onLocalLogoutCompleted()
+                } catch (clearEx: Exception) {
+                    Timber.tag(TAG_DEBUG).e(clearEx, "Error clearing AuthState during logout error handling.")
+                }
+            }
+            callback.onLogoutProcessError(ex)
+        }
+    }
+
     companion object {
         private const val TAG = "AuthManager"
+        private const val TAG_DEBUG = "AuthManagerDebug"
     }
 }
