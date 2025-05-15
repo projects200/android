@@ -18,6 +18,7 @@ dependencies {
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.splashscreen)
     implementation(libs.google.android.material)
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.fragment.ktx)

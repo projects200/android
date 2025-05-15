@@ -1,0 +1,24 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <style name="Theme.Undabang.Base" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/main</item>
+        <item name="colorPrimaryVariant">@color/error_led</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/black</item>
+        <item name="colorSecondaryVariant">@color/error_led</item>
+        <item name="colorOnSecondary">@color/black</item>
+        <item name="android:statusBarColor" >@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">true</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="Theme.Undabang" parent="Theme.Undabang.Base">
+        <item name="android:windowBackground">@drawable/splash_background_legacy</item>
+    </style>
+
+    <style name="Theme.App.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_document</item>
+        <item name="postSplashScreenTheme">@style/Theme.Undabang</item>
+    </style>
+</resources>
