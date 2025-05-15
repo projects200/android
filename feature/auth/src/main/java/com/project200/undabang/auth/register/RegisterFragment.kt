@@ -1,0 +1,97 @@
+package com.project200.undabang.auth.register
+
+import android.content.Intent
+import android.view.View
+import android.widget.Toast
+import androidx.core.widget.doAfterTextChanged
+import androidx.fragment.app.viewModels
+import com.project200.domain.model.SignUpResult
+import com.project200.presentation.MainActivity
+import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.DatePickerDialogFragment
+import com.project200.undabang.feature.auth.R
+import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
+import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
+
+@AndroidEntryPoint
+class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragment_register) {
+
+    private val viewModel: RegisterViewModel by viewModels()
+
+    override fun getViewBinding(view: View): FragmentRegisterBinding {
+        return FragmentRegisterBinding.bind(view)
+    }
+
+    override fun setupViews() = with(binding) {
+        nicknameEt.doAfterTextChanged {
+            viewModel.updateNickname(it.toString())
+        }
+
+        birthDayTv.setOnClickListener {
+            val datePicker = DatePickerDialogFragment(viewModel.birth.value) { selectedDate ->
+                viewModel.updateBirth(selectedDate)
+            }
+            datePicker.show(parentFragmentManager, DatePickerDialogFragment::class.java.simpleName)
+        }
+
+        genderMaleLl.setOnClickListener {
+            viewModel.selectGender(MALE)
+        }
+
+        genderFemaleLl.setOnClickListener {
+            viewModel.selectGender(FEMALE)
+        }
+
+        genderHiddenLl.setOnClickListener {
+            viewModel.selectGender(HIDDEN)
+        }
+
+        registerCompleteBtn.setOnClickListener {
+            viewModel.signUp()
+        }
+    }
+
+    override fun setupObservers() = with(viewModel) {
+        birth.observe(viewLifecycleOwner) { birthDay ->
+            binding.birthDayTv.text = birthDay ?: getString(R.string.birth_default)
+        }
+
+        gender.observe(viewLifecycleOwner) { gender ->
+            binding.maleBtnImv.isSelected = gender == MALE
+            binding.femaleBtnImv.isSelected = gender == FEMALE
+            binding.hiddenBtnImv.isSelected = gender == HIDDEN
+        }
+
+        isFormValid.observe(viewLifecycleOwner) { isValid ->
+            binding.registerCompleteBtn.isEnabled = isValid
+        }
+
+        signUpResult.observe(viewLifecycleOwner) { result ->
+            result?.let {
+                when (it) {
+                    is SignUpResult.Success -> {
+                        val memberId = it.memberId
+                        Timber.d("회원가입 성공! Member ID: $memberId")
+                        startActivity(Intent(requireContext(), MainActivity::class.java))
+                        requireActivity().finish()
+                    }
+                    is SignUpResult.Failure -> {
+                        val displayMessage = when (it.errorCode) {
+                            DUPLICATE -> getString(R.string.error_nickname_duplicated)
+                            else -> getString(R.string.error_unknown)
+                        }
+                        Toast.makeText(requireContext(), displayMessage, Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
+    }
+
+    companion object {
+        const val MALE = "M"
+        const val FEMALE = "F"
+        const val HIDDEN = "U"
+        const val DUPLICATE = "MEMBER_NICKNAME_DUPLICATED"
+    }
+}

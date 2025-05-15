@@ -1,10 +1,17 @@
 <resources>
     <!-- 공용 -->
+    <string name="app_name_kr">운다방</string>
+    <string name="confirm">확인</string>
+    <string name="next">다음</string>
+    <string name="cancel">취소</string>
+    <string name="complete">완료</string>
+    <string name="nickname">닉네임</string>
+    <string name="birth">생년월일</string>
+    <string name="gender">성별</string>
 
     <!-- 업데이트 -->
     <string name="update_title">업데이트 알림</string>
     <string name="update_desc">새로운 버전이 출시되었습니다.\n앱을 업데이트해주세요.</string>
     <string name="update_btn">업데이트</string>
     <string name="update_later_btn">나중에</string>
-
 </resources>

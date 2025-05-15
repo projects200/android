@@ -7,7 +7,7 @@ import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
-import com.project200.common.base.BaseDialogFragment
+import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.presentation.R
 import com.project200.undabang.presentation.databinding.DialogUpdateBinding
 import androidx.core.net.toUri
