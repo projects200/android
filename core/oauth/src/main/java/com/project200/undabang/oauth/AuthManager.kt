@@ -82,7 +82,7 @@ class AuthManager @Inject constructor(
                 BuildConfig.COGNITO_APP_CLIENT_ID,
                 ResponseTypeValues.CODE,
                 REDIRECT_URI.toUri()
-            ).setScope(SCOPES)
+            ).setScope(SCOPES).setPromptValues(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
 
             identityProvider?.let {
                 val params = mutableMapOf<String, String>()

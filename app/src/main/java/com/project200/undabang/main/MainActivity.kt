@@ -6,13 +6,10 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.findNavController
-import androidx.navigation.fragment.findNavController
 import com.project200.domain.usecase.UpdateCheckResult
 import com.project200.presentation.navigator.AppNavigator
 import com.project200.presentation.update.UpdateDialogFragment
-import com.project200.undabang.R
-import com.project200.undabang.auth.login.LoginActivity
+import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
@@ -40,9 +37,9 @@ class MainActivity : AppCompatActivity() {
 
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
-
         authService = AuthorizationService(this)
 
+        setupObservers()
         performRouting()
     }
 
@@ -55,7 +52,7 @@ class MainActivity : AppCompatActivity() {
                     when (val refreshResult = authManager.refreshAccessToken(authService)) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
-                            proceedToThisActivityContent()
+                            viewModel.checkIsRegistered() // 회원 여부 확인
                         }
                         is TokenRefreshResult.Error,
                         is TokenRefreshResult.NoRefreshToken,
@@ -67,7 +64,7 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     Timber.i("User is authorized and token is fresh.")
-                    proceedToThisActivityContent()
+                    viewModel.checkIsRegistered() // 회원 여부 확인
                 }
             } else {
                 Timber.i("User is not authorized.")
@@ -76,13 +73,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun proceedToThisActivityContent() {
+    private fun proceedToContent() {
         isLoading = false // 스플래시 종료
-        // MainActivity의 실제 UI를 여기서 설정
+        
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        setupObservers() // 옵저버 설정
-        setupViews()     // 뷰 설정
+        setupViews()
         Timber.d("MainActivity content is now visible.")
     }
 
@@ -92,11 +88,11 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private fun setupViews() { // 기존 함수 유지
+    private fun setupViews() {
         viewModel.checkForUpdate()
     }
 
-    private fun setupObservers() { // 기존 함수 유지
+    private fun setupObservers() {
         viewModel.updateCheckResult.observe(this) { result ->
             when (result) {
                 is UpdateCheckResult.UpdateAvailable -> {
@@ -111,10 +107,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        
+        viewModel.isRegistered.observe(this) { isRegistered ->
+            if (isRegistered) proceedToContent()
+            else appNavigator.navigateToLogin(this)
+        }
     }
 
-    private fun showUpdateDialog(isForceUpdate: Boolean) { // 기존 함수 유지
-        // 다이얼로그가 이미 떠있는지 확인하여 중복 호출 방지 (선택 사항)
+    private fun showUpdateDialog(isForceUpdate: Boolean) {
         if (supportFragmentManager.findFragmentByTag(UpdateDialogFragment::class.java.simpleName) == null) {
             val dialog = UpdateDialogFragment(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
@@ -123,9 +123,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        if (::authService.isInitialized) { // authService가 초기화 되었는지 확인
-            authService.dispose() // AuthorizationService 리소스 해제
-            Timber.d("AuthorizationService disposed in MainActivity.")
+        if (::authService.isInitialized) {
+            authService.dispose()
         }
     }
 }
