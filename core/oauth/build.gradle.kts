@@ -29,4 +29,7 @@ dependencies {
 
     // Cognito
     implementation(libs.appauth)
+
+    // EncryptedSharedPreferences
+    implementation(libs.androidx.security.crypto)
 }
