@@ -36,6 +36,13 @@ interface LogoutResultCallback {
     fun onLogoutProcessError(exception: Exception)
 }
 
+sealed class TokenRefreshResult {
+    data class Success(val tokenResponse: TokenResponse) : TokenRefreshResult()
+    data class Error(val exception: AuthorizationException?) : TokenRefreshResult()
+    object NoRefreshToken : TokenRefreshResult() // 리프레시 토큰이 없을 경우
+    object ConfigError : TokenRefreshResult() // 서비스 설정 로드 실패 등
+}
+
 @Singleton
 class AuthManager @Inject constructor(
     private val authStateManager: AuthStateManager
@@ -203,6 +210,46 @@ class AuthManager @Inject constructor(
                 }
             }
             callback.onLogoutProcessError(ex)
+        }
+    }
+
+    suspend fun refreshAccessToken(authService: AuthorizationService): TokenRefreshResult {
+        Timber.tag(TAG_DEBUG).d("Attempting to refresh access token.")
+        val currentState = authStateManager.getCurrent()
+        val refreshToken = currentState.refreshToken
+
+        if (refreshToken == null) {
+            Timber.tag(TAG_DEBUG).w("No refresh token available.")
+            return TokenRefreshResult.NoRefreshToken
+        }
+
+        // 서비스 설정은 AuthState에 이미 저장되어 있어야 함 (최초 인증 성공 시)
+        val serviceConfig = currentState.lastAuthorizationResponse?.request?.configuration
+        if (serviceConfig == null) {
+            Timber.tag(TAG_DEBUG).e("ServiceConfiguration is missing in AuthState. Cannot refresh token.")
+            return TokenRefreshResult.ConfigError
+        }
+
+        val tokenRefreshRequest = currentState.createTokenRefreshRequest()
+
+        return suspendCancellableCoroutine { continuation ->
+            authService.performTokenRequest(tokenRefreshRequest) { tokenResponse, ex ->
+                authStateManager.update(tokenResponse, ex) // 새 토큰 또는 에러로 AuthState 업데이트
+                if (continuation.isCancelled) return@performTokenRequest
+
+                if (tokenResponse != null) {
+                    Timber.tag(TAG_DEBUG).i("Access token refreshed successfully.")
+                    continuation.resume(TokenRefreshResult.Success(tokenResponse))
+                } else {
+                    Timber.tag(TAG_DEBUG).e(ex, "Token refresh failed: ${ex?.errorDescription}")
+                    // invalid_grant 등의 에러 발생 시, authStateManager에서 로컬 상태를 clear 할 수 있음
+                    if (ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR && ex.error == "invalid_grant") {
+                        Timber.tag(TAG_DEBUG).w("Refresh token is invalid (invalid_grant). Clearing local AuthState.")
+                        authStateManager.clearAuthState() // 리프레시 토큰이 무효하므로 로컬 상태 삭제
+                    }
+                    continuation.resume(TokenRefreshResult.Error(ex))
+                }
+            }
         }
     }
 
