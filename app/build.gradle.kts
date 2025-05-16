@@ -29,6 +29,7 @@ dependencies {
     implementation(projects.data)
     implementation(projects.common)
     implementation(projects.domain)
+    implementation(projects.core.oauth)
     implementation(projects.feature.auth)
     implementation(projects.feature.profile)
 
@@ -51,4 +52,6 @@ dependencies {
     // Navigation
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+
+    implementation(libs.appauth)
 }

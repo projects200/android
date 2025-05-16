@@ -46,4 +46,7 @@ dependencies {
     testImplementation(libs.androidx.arch.core.testing)
 
     implementation(libs.appauth)
+
+    // EncryptedSharedPreferences
+    implementation(libs.androidx.security.crypto)
 }

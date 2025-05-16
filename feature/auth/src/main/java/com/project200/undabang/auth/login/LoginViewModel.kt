@@ -18,7 +18,7 @@ class LoginViewModel @Inject constructor(
 
     fun checkIsRegistered() {
         viewModelScope.launch {
-            _isRegistered.value = checkIsRegisteredUseCase.invoke() ?: false
+            _isRegistered.value = checkIsRegisteredUseCase() ?: false
         }
     }
 }

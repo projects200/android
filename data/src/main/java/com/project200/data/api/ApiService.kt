@@ -14,7 +14,7 @@ interface ApiService {
     suspend fun getIsRegistered(): BaseResponse<GetIsRegisteredData>
 
     // 회원가입
-    @POST("v1/auth/sign-up")
+    @POST("auth/sign-up/v1")
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>

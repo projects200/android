@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.usecase.CheckForUpdateUseCase
+import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.UpdateCheckResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -13,18 +14,22 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
-    private val checkForUpdateUseCase: CheckForUpdateUseCase
+    private val checkForUpdateUseCase: CheckForUpdateUseCase,
+    private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase
 ) : ViewModel() {
 
     private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
     val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
+
+    private val _isRegistered = MutableLiveData<Boolean>()
+    val isRegistered: LiveData<Boolean> = _isRegistered
 
     // 업데이트 확인
     fun checkForUpdate() {
         if (_updateCheckResult.value != null) { return } // 이미 체크했다면 스킵
 
         viewModelScope.launch {
-            checkForUpdateUseCase.invoke()
+            checkForUpdateUseCase()
                 .onSuccess { result ->
                     _updateCheckResult.value = result
                     when (result) {
@@ -35,6 +40,13 @@ class MainViewModel @Inject constructor(
                 .onFailure { error ->
                     Timber.e(error, "ViewModel: 업데이트 확인 실패")
                 }
+        }
+    }
+
+    // 회원 확인
+    fun checkIsRegistered() {
+        viewModelScope.launch {
+            _isRegistered.value = checkIsRegisteredUseCase() ?: false
         }
     }
 }

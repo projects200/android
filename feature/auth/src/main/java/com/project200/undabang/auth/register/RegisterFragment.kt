@@ -74,16 +74,10 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
             result?.let {
                 when (it) {
                     is SignUpResult.Success -> {
-                        val memberId = it.memberId
-                        Timber.d("회원가입 성공! Member ID: $memberId")
                         appNavigator.navigateToMain(requireContext())
                     }
                     is SignUpResult.Failure -> {
-                        val displayMessage = when (it.errorCode) {
-                            DUPLICATE -> getString(R.string.error_nickname_duplicated)
-                            else -> getString(R.string.error_unknown)
-                        }
-                        Toast.makeText(requireContext(), displayMessage, Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), it.errorMessage, Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -94,6 +88,5 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         const val MALE = "M"
         const val FEMALE = "F"
         const val HIDDEN = "U"
-        const val DUPLICATE = "MEMBER_NICKNAME_DUPLICATED"
     }
 }

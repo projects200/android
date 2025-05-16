@@ -3,6 +3,7 @@ package com.project200.undabang.oauth.di
 import android.content.Context
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
+import com.project200.undabang.oauth.config.CognitoConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,15 +17,25 @@ object AuthCoreModule {
 
     @Provides
     @Singleton
-    fun provideAuthStateManager(@ApplicationContext context: Context): AuthStateManager {
-        return AuthStateManager(context)
+    fun provideAuthStateManager(
+        @ApplicationContext context: Context,
+        cognitoConfig: CognitoConfig
+    ): AuthStateManager {
+        return AuthStateManager(context, cognitoConfig)
     }
 
     @Provides
     @Singleton
     fun provideAuthManager(
-        authStateManager: AuthStateManager
+        authStateManager: AuthStateManager,
+        cognitoConfig: CognitoConfig
     ): AuthManager {
-        return AuthManager(authStateManager)
+        return AuthManager(authStateManager, cognitoConfig)
+    }
+
+    @Provides
+    @Singleton
+    fun provideCognitoConfig(): CognitoConfig {
+        return CognitoConfig()
     }
 }

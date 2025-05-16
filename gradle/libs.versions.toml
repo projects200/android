@@ -16,6 +16,8 @@ firebasePerfPlugin = "1.4.2"
 
 # AndroidX Core & UI (SDK 34 호환 버전으로 조정)
 androidxCore = "1.13.1"
+androidxSplashscreen = "1.0.1"
+androidxSecurityCrypto = "1.1.0-alpha06"
 androidxAppCompat = "1.6.1"
 androidxActivity = "1.9.0"
 androidxFragment = "1.7.1"
@@ -73,6 +75,8 @@ kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", versio
 
 # AndroidX Core & UI
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
+androidx-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "androidxSplashscreen" }
+androidx-security-crypto = { group = "androidx.security", name = "security-crypto", version.ref = "androidxSecurityCrypto" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "androidxAppCompat" }
 androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", version.ref = "androidxActivity" }
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }

@@ -29,8 +29,8 @@ data class PostSignUpData(
     val memberEmail: String,
     val memberGender: String,
     val memberBday: LocalDate,
-    val memberNickName: String,
-    val memberDesc: String,
+    val memberNickname: String,
+    val memberDesc: String?,
     val memberScore: Int?,
     val memberCreatedAt: LocalDateTime
 )
