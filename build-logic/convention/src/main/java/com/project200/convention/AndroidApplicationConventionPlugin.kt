@@ -40,6 +40,13 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 }
                 // 코틀린 관련 설정 헬퍼 함수 호출
                 configureKotlinAndroid()
+
+                lint {
+                    htmlReport = true
+                    xmlReport = true
+                    abortOnError = true
+                    warningsAsErrors = false
+                }
             }
 
             dependencies {
@@ -52,8 +59,16 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 "implementation"(libs.library("firebase-performance"))
 
                 "testImplementation"(libs.library("junit"))
+                "testImplementation"(libs.library("mockk"))
+                "testImplementation"(libs.library("kotlinx-coroutines-test")) // 코루틴 테스트
+                "testImplementation"(libs.library("turbine")) // Flow 테스트
+                "testImplementation"(libs.library("androidx-arch-core-testing")) // LiveData/ViewModel 테스트용
+
+
                 "androidTestImplementation"(libs.library("androidx-test-ext-junit"))
                 "androidTestImplementation"(libs.library("androidx-test-espresso-core"))
+                "androidTestImplementation"(libs.library("mockk"))
+                "androidTestImplementation"(libs.library("kotlinx-coroutines-test")) // 코루틴 테스트
             }
         }
     }
