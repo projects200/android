@@ -1,28 +1,53 @@
 package com.project200.undabang.oauth
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
-import com.project200.undabang.oauth.config.CognitoConfig.AUTH_PREFS_NAME
-import com.project200.undabang.oauth.config.CognitoConfig.AUTH_STATE_PREF_KEY
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+import com.project200.undabang.oauth.config.CognitoConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.TokenResponse
-import org.json.JSONException
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class AuthStateManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val cognitoConfig: CognitoConfig
 ) {
     private var currentAuthState: AuthState = AuthState()
+    private val prefs: SharedPreferences
 
     init {
+        val masterKeyAlias = try {
+            MasterKey.Builder(context, MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+        } catch (e: Exception) {
+            Timber.e(e, "MasterKey creation failed for AuthState.")
+            throw RuntimeException("Failed to create MasterKey for AuthState", e) // 또는 다른 강력한 에러 처리
+        }
+
+        prefs = try {
+            EncryptedSharedPreferences.create(
+                context,
+                cognitoConfig.authPrefsName,
+                masterKeyAlias,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Timber.e(e, "AuthState 암호화 sp 생성 실패")
+            throw RuntimeException("AuthState 암호화 sp 생성 실패", e)
+        }
+
         restoreAuthState()
-        Timber.tag(TAG).d("AuthStateManager initialized. Current state needs refresh: ${currentAuthState.needsTokenRefresh}")
+        Timber.tag(TAG).d("AuthStateManager 초기화. refresh 필요: ${currentAuthState.needsTokenRefresh}")
     }
 
     fun getCurrent(): AuthState {
@@ -41,37 +66,41 @@ class AuthStateManager @Inject constructor(
 
     private fun saveAuthState() {
         try {
-            val prefs = context.getSharedPreferences(AUTH_PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit {
-                putString(AUTH_STATE_PREF_KEY, currentAuthState.jsonSerializeString())
+                putString(cognitoConfig.authStatePrefKey, currentAuthState.jsonSerializeString())
             }
-            Timber.tag(TAG).i("AuthState saved.")
-        } catch (e: JSONException) {
-            Timber.tag(TAG).e(e, "Failed to serialize auth state for saving")
+            Timber.tag(TAG).i("AuthState saved (encrypted) to ${cognitoConfig.authPrefsName}.")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to serialize/save auth state to ${cognitoConfig.authPrefsName}")
         }
     }
 
     private fun restoreAuthState() {
         try {
-            val prefs = context.getSharedPreferences(AUTH_PREFS_NAME, Context.MODE_PRIVATE)
-            val storedAuthStateString = prefs.getString(AUTH_STATE_PREF_KEY, null)
+            val storedAuthStateString = prefs.getString(cognitoConfig.authStatePrefKey, null)
             if (storedAuthStateString != null) {
                 currentAuthState = AuthState.jsonDeserialize(storedAuthStateString)
-                Timber.tag(TAG).i("AuthState restored.")
+                Timber.tag(TAG).i("AuthState restored (decrypted) from ${cognitoConfig.authPrefsName}.")
             } else {
                 currentAuthState = AuthState()
-                Timber.tag(TAG).i("No AuthState found, initialized a new one.")
+                Timber.tag(TAG).i("No AuthState found in ${cognitoConfig.authPrefsName}, initialized a new one.")
             }
-        } catch (e: JSONException) {
-            Timber.tag(TAG).e(e, "Failed to deserialize auth state")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to deserialize/restore auth state from ${cognitoConfig.authPrefsName}")
             currentAuthState = AuthState()
         }
     }
 
     fun clearAuthState() {
         currentAuthState = AuthState()
-        saveAuthState()
-        Timber.tag(TAG).i("AuthState cleared.")
+        try {
+            prefs.edit {
+                remove(cognitoConfig.authStatePrefKey)
+            }
+            Timber.tag(TAG).i("AuthState cleared from ${cognitoConfig.authPrefsName}.")
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to clear auth state from ${cognitoConfig.authPrefsName}")
+        }
     }
 
     companion object {

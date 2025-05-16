@@ -52,6 +52,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             dependencies {
                 "implementation"(libs.library("kotlin-stdlib"))
                 "implementation"(libs.library("androidx-core-ktx"))
+                "implementation"(libs.library("androidx-splashscreen"))
                 "implementation"(libs.library("timber"))
 
                 "implementation"(platform(libs.library("firebase-bom")))

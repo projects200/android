@@ -3,9 +3,9 @@ package com.project200.data.impl
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.PostSignUpRequest
+import com.project200.data.local.PreferenceManager
 import com.project200.domain.model.SignUpResult
 import com.project200.domain.repository.AuthRepository
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.io.IOException
@@ -16,6 +16,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 
 class AuthRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
+    private val spManager: PreferenceManager,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : AuthRepository {
 
@@ -41,19 +42,20 @@ class AuthRepositoryImpl @Inject constructor(
 
             if (response.succeed && response.data != null) {
                 Timber.i("회원가입 성공 MemberId: ${response.data.memberId}")
-                SignUpResult.Success(response.data.memberId)
+                spManager.saveMemberId(response.data.memberId)
+                SignUpResult.Success
             } else {
                 // API 응답은 성공했지만, 서버 로직상 실패(예: 중복, 유효성 검사 실패 등)
-                SignUpResult.Failure(response.code)
+                SignUpResult.Failure(response.code, response.message)
             }
         } catch (e: CancellationException) {
             throw e
         } catch (e: IOException) {
             Timber.e(e, "Registration failed due to IOException.")
-            SignUpResult.Failure("NETWORK_ERROR")
+            SignUpResult.Failure("NETWORK_ERROR", "네트워크 오류")
         } catch (e: Exception) {
             Timber.e(e, "Registration failed due to an unexpected exception.")
-            SignUpResult.Failure("UNKNOWN_ERROR")
+            SignUpResult.Failure("UNKNOWN_ERROR", "알 수 없는 오류")
         }
     }
 

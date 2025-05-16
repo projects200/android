@@ -12,17 +12,19 @@
     <application>
         <activity
             android:name="com.project200.undabang.auth.register.RegisterActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@style/Theme.Undabang">
 
         </activity>
         <activity
             android:name="com.project200.undabang.auth.login.LoginActivity"
-            android:exported="true">
-            <intent-filter>
+            android:exported="true"
+            android:theme="@style/Theme.Undabang">
+            <!--<intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
+            </intent-filter>-->
             <intent-filter>
                 <action android:name="android.content.Intent.ACTION_VIEW" />
 
@@ -30,13 +32,14 @@
                 <category android:name="android.content.Intent.CATEGORY_BROWSABLE" />
 
                 <data
-                    android:host="logout_callback"
+                    android:host="logout"
                     android:scheme="${appAuthRedirectScheme}" />
             </intent-filter>
         </activity>
         <activity
             android:name="net.openid.appauth.RedirectUriReceiverActivity"
-            android:exported="true">
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
 
@@ -44,6 +47,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
+                    android:host="callback"
                     android:scheme="${appAuthRedirectScheme}" />
             </intent-filter>
         </activity>
