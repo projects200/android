@@ -3,10 +3,7 @@ package com.project200.undabang.oauth
 import android.content.Intent
 import androidx.core.net.toUri
 import com.project200.undabang.core.oauth.BuildConfig
-import com.project200.undabang.oauth.config.CognitoConfig.ISSUER_URI
-import com.project200.undabang.oauth.config.CognitoConfig.LOGOUT_REDIRECT_URI
-import com.project200.undabang.oauth.config.CognitoConfig.REDIRECT_URI
-import com.project200.undabang.oauth.config.CognitoConfig.SCOPES
+import com.project200.undabang.oauth.config.CognitoConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
@@ -45,13 +42,14 @@ sealed class TokenRefreshResult {
 
 @Singleton
 class AuthManager @Inject constructor(
-    private val authStateManager: AuthStateManager
+    private val authStateManager: AuthStateManager,
+    private val cognitoConfig: CognitoConfig
 ) {
 
     private suspend fun fetchServiceConfiguration(): AuthorizationServiceConfiguration {
         return suspendCancellableCoroutine { continuation ->
             AuthorizationServiceConfiguration.fetchFromIssuer(
-                ISSUER_URI.toUri(),
+                cognitoConfig.issuerUri.toUri(),
                 { serviceConfiguration, ex ->
                     if (ex != null) {
                         Timber.tag(TAG).e(ex, "Failed to fetch configuration: ${ex.errorDescription}")
@@ -81,8 +79,8 @@ class AuthManager @Inject constructor(
                 serviceConfig,
                 BuildConfig.COGNITO_APP_CLIENT_ID,
                 ResponseTypeValues.CODE,
-                REDIRECT_URI.toUri()
-            ).setScope(SCOPES).setPromptValues(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
+                cognitoConfig.redirectUri.toUri()
+            ).setScope(cognitoConfig.scopes).setPromptValues(AuthorizationRequest.Prompt.SELECT_ACCOUNT)
 
             identityProvider?.let {
                 val params = mutableMapOf<String, String>()
@@ -165,7 +163,7 @@ class AuthManager @Inject constructor(
                 authStateManager.clearAuthState()
                 localLogoutAttempted = true
                 callback.onLocalLogoutCompleted()
-                callback.onLogoutProcessError(IllegalStateException("End session endpoint is not configured for $ISSUER_URI"))
+                callback.onLogoutProcessError(IllegalStateException("End session endpoint is not configured"))
                 return
             }
 
@@ -178,7 +176,7 @@ class AuthManager @Inject constructor(
 
             val manualLogoutUriBuilder = serviceConfig.endSessionEndpoint!!.buildUpon()
                 .appendQueryParameter("client_id", BuildConfig.COGNITO_APP_CLIENT_ID)
-                .appendQueryParameter("logout_uri", LOGOUT_REDIRECT_URI)
+                .appendQueryParameter("logout_uri", cognitoConfig.logoutRedirectUri)
                 .appendQueryParameter("id_token_hint", idTokenHint)
 
             val manualCognitoLogoutUri = manualLogoutUriBuilder.build()
@@ -191,7 +189,7 @@ class AuthManager @Inject constructor(
                 Timber.tag(TAG_DEBUG).e("Manually constructed CognitoLogoutUri is null.")
                 val endSessionRequest = EndSessionRequest.Builder(serviceConfig)
                     .setIdTokenHint(idTokenHint)
-                    .setPostLogoutRedirectUri(LOGOUT_REDIRECT_URI.toUri())
+                    .setPostLogoutRedirectUri(cognitoConfig.logoutRedirectUri.toUri())
                     .setAdditionalParameters(mapOf("client_id" to BuildConfig.COGNITO_APP_CLIENT_ID))
                     .build()
                 val endSessionIntentFromAppAuth = authService.getEndSessionRequestIntent(endSessionRequest)

@@ -110,7 +110,7 @@ class MainActivity : AppCompatActivity() {
         
         viewModel.isRegistered.observe(this) { isRegistered ->
             if (isRegistered) proceedToContent()
-            else appNavigator.navigateToLogin(this)
+            else navigateToLogin()
         }
     }
 
