@@ -29,7 +29,7 @@ class MainViewModel @Inject constructor(
         if (_updateCheckResult.value != null) { return } // 이미 체크했다면 스킵
 
         viewModelScope.launch {
-            checkForUpdateUseCase.invoke()
+            checkForUpdateUseCase()
                 .onSuccess { result ->
                     _updateCheckResult.value = result
                     when (result) {
@@ -46,7 +46,7 @@ class MainViewModel @Inject constructor(
     // 회원 확인
     fun checkIsRegistered() {
         viewModelScope.launch {
-            _isRegistered.value = checkIsRegisteredUseCase.invoke() ?: false
+            _isRegistered.value = checkIsRegisteredUseCase() ?: false
         }
     }
 }
