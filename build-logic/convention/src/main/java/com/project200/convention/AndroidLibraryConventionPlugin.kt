@@ -37,6 +37,21 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 }
                 // 코틀린 관련 설정 헬퍼 함수 호출
                 configureKotlinAndroid()
+
+                lint {
+                    htmlReport = true
+                    xmlReport = true
+                    abortOnError = true
+                    warningsAsErrors = false
+                }
+
+                packaging {
+                    resources {
+                        // mockk 충돌문제
+                        excludes.add("META-INF/LICENSE-notice.md")
+                        excludes.add("META-INF/LICENSE.md")
+                    }
+                }
             }
 
             // 헬퍼를 사용하여 공통 의존성 추가
@@ -47,8 +62,16 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                 "implementation"(libs.library("timber"))
 
                 "testImplementation"(libs.library("junit"))
+                "testImplementation"(libs.library("mockk"))
+                "testImplementation"(libs.library("kotlinx-coroutines-test")) // 코루틴 테스트
+                "testImplementation"(libs.library("turbine")) // Flow 테스트
+                "testImplementation"(libs.library("androidx-arch-core-testing")) // LiveData/ViewModel 테스트용
+
+
                 "androidTestImplementation"(libs.library("androidx-test-ext-junit"))
                 "androidTestImplementation"(libs.library("androidx-test-espresso-core"))
+                "androidTestImplementation"(libs.library("mockk")) // MockK 추가
+                "androidTestImplementation"(libs.library("kotlinx-coroutines-test")) // 코루틴 테스트
             }
         }
     }
