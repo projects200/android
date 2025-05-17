@@ -47,6 +47,14 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     abortOnError = true
                     warningsAsErrors = false
                 }
+
+                packaging {
+                    resources {
+                        // mockk 충돌문제
+                        excludes.add("META-INF/LICENSE-notice.md")
+                        excludes.add("META-INF/LICENSE.md")
+                    }
+                }
             }
 
             dependencies {
