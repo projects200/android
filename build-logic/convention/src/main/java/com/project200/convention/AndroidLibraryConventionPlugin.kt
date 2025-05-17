@@ -44,6 +44,14 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
                     abortOnError = true
                     warningsAsErrors = false
                 }
+
+                packaging {
+                    resources {
+                        // mockk 충돌문제
+                        excludes.add("META-INF/LICENSE-notice.md")
+                        excludes.add("META-INF/LICENSE.md")
+                    }
+                }
             }
 
             // 헬퍼를 사용하여 공통 의존성 추가
