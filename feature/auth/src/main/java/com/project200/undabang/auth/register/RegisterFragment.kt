@@ -11,7 +11,7 @@ import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
+// import timber.log.Timber // Timber 사용하지 않으면 제거
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -71,13 +71,14 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         }
 
         signUpResult.observe(viewLifecycleOwner) { result ->
-            result?.let {
-                when (it) {
+            result?.let { signUpResult ->
+                when (signUpResult) {
                     is SignUpResult.Success -> {
+                        Toast.makeText(requireContext(), "회원가입 성공!", Toast.LENGTH_SHORT).show()
                         appNavigator.navigateToMain(requireContext())
                     }
                     is SignUpResult.Failure -> {
-                        Toast.makeText(requireContext(), it.errorMessage, Toast.LENGTH_LONG).show()
+                        Toast.makeText(requireContext(), signUpResult.errorMessage, Toast.LENGTH_LONG).show()
                     }
                 }
             }

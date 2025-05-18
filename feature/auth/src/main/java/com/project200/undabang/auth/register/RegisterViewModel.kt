@@ -18,7 +18,7 @@ import javax.inject.Inject
 class RegisterViewModel @Inject constructor(
     private val signUpUseCase: SignUpUseCase,
     private val validateNicknameUseCase: ValidateNicknameUseCase
-): ViewModel() {
+) : ViewModel() {
 
     private val _nickname = MutableLiveData("")
     val nickname: LiveData<String> = _nickname
@@ -29,18 +29,20 @@ class RegisterViewModel @Inject constructor(
     private val _gender = MutableLiveData<String?>(null)
     val gender: LiveData<String?> = _gender
 
+
     val isFormValid: LiveData<Boolean> = MediatorLiveData<Boolean>().apply {
-        fun validate() {
-            val nameValid = validateNicknameUseCase.invoke(_nickname.value.orEmpty())
-            value = nameValid && !(_birth.value.isNullOrEmpty()) && !(_gender.value.isNullOrEmpty())
+        fun validateFormInputs() {
+            val isNicknameEntered = _nickname.value.orEmpty().isNotEmpty()
+            value = isNicknameEntered && !_birth.value.isNullOrEmpty() && !_gender.value.isNullOrEmpty()
         }
-        addSource(_nickname) { validate() }
-        addSource(_birth) { validate() }
-        addSource(_gender) { validate() }
+        addSource(_nickname) { validateFormInputs() }
+        addSource(_birth) { validateFormInputs() }
+        addSource(_gender) { validateFormInputs() }
     }
 
-    private val _signUpResult = MutableLiveData<SignUpResult>()
-    val signUpResult: LiveData<SignUpResult> = _signUpResult
+    private val _signUpResult = MutableLiveData<SignUpResult?>()
+    val signUpResult: LiveData<SignUpResult?> = _signUpResult
+
 
     fun updateNickname(value: String) {
         _nickname.value = value
@@ -55,12 +57,40 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun signUp() {
-        viewModelScope.launch {
-            _signUpResult.value = signUpUseCase(
-                _gender.value ?: "U",
-                _nickname.value ?: "",
-                _birth.value.toLocalDate() ?: LocalDate.now()
-            ) ?: SignUpResult.Failure(errorCode = "", errorMessage = "")
+        val currentNickname = _nickname.value.orEmpty()
+        val currentGender = _gender.value
+        val currentBirthStr = _birth.value
+
+
+        if (!validateNicknameUseCase(currentNickname)) {
+            _signUpResult.value = SignUpResult.Failure(
+                errorCode = ERROR_CODE_INVALID_NICKNAME,
+                errorMessage = "닉네임 조건을 확인해주세요."
+            )
+            return
         }
+
+        if (currentGender == null || currentBirthStr == null) {
+            _signUpResult.value = SignUpResult.Failure(
+                errorCode = FORM_INCOMPLETE,
+                errorMessage = "생일과 성별을 모두 선택해주세요."
+            )
+            return
+        }
+
+        viewModelScope.launch {
+            val birthDate = currentBirthStr.toLocalDate() ?: LocalDate.now()
+
+            _signUpResult.value = signUpUseCase(
+                currentGender,
+                currentNickname,
+                birthDate
+            )
+        }
+    }
+
+    companion object {
+        const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
+        const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
     }
 }
