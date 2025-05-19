@@ -1,6 +1,7 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.GetExerciseRecordResult
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
@@ -18,4 +19,9 @@ interface ApiService {
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>
+
+    @GET("v1/exerciseRecords/{recordId}")
+    suspend fun getExerciseRecordDetail(
+        @Path("recordId") recordId: Int
+    ): BaseResponse<GetExerciseRecordResult>
 }
