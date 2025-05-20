@@ -42,7 +42,7 @@
         android:layout_height="wrap_content"
         android:text="@string/register_nickname_rule"
         android:paddingHorizontal="12dp"
-        android:textColor="@color/gray"
+        android:textColor="@color/gray200"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@id/nickname_et" />
 
@@ -163,6 +163,6 @@
         android:gravity="center"
         android:stateListAnimator="@null"
         android:text="@string/complete"
-        android:textColor="@color/white"
+        android:textColor="@color/white300"
         app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

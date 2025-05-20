@@ -29,7 +29,7 @@
             android:layout_height="wrap_content"
             style="@style/subtext_14"
             android:layout_gravity="center"
-            android:textColor="@color/dark_gray"
+            android:textColor="@color/gray100"
             android:text="@string/terms_required_service"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -58,7 +58,7 @@
             android:layout_height="wrap_content"
             style="@style/subtext_14"
             android:layout_gravity="center"
-            android:textColor="@color/dark_gray"
+            android:textColor="@color/gray100"
             android:text="@string/terms_required_privacy"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
@@ -140,7 +140,7 @@
         android:gravity="center"
         android:stateListAnimator="@null"
         android:text="@string/confirm"
-        android:textColor="@color/white"
+        android:textColor="@color/white300"
         android:layout_marginBottom="32dp"
         app:layout_constraintBottom_toBottomOf="parent" />
 </LinearLayout>

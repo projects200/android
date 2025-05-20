@@ -2,7 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
-import com.project200.data.dto.GetExerciseRecordResult
+import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.mapper.toDomain
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -19,7 +19,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getExerciseRecordDetail(recordId) },
-            mapper = { dto: GetExerciseRecordResult -> dto.toDomain() }
+            mapper = { dto: GetExerciseRecordData -> dto.toDomain() }
         )
     }
 }

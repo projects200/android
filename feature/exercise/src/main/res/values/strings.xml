@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="exercise_record">운동 기록</string>
+    <string name="exercise_record_title">제목</string>
+    <string name="exercise_record_type">운동 종류</string>
+    <string name="exercise_record_time">운동 시간</string>
+    <string name="exercise_record_location">장소</string>
+    <string name="exercise_record_desc">내용</string>
+    <string name="exercise_record_delete_alert">운동 기록을 삭제하시겠습니까?</string>
+</resources>

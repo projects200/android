@@ -59,6 +59,9 @@ firebaseConfigKtx = "22.1.1"
 # Cognito
 appauth = "0.11.1"
 
+# Glide
+glide = "4.16.0"
+
 [libraries]
 
 # Gradle 플러그인 아티팩트 정의
@@ -144,6 +147,10 @@ firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-k
 
 # Cognito
 appauth = { group = "net.openid", name = "appauth", version.ref = "appauth" }
+
+# Glide
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
 
 [plugins]
 # Android Gradle Plugins

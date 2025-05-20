@@ -3,7 +3,7 @@
     <style name="Theme.Undabang.Base" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="colorPrimary">@color/main</item>
         <item name="colorPrimaryVariant">@color/error_led</item>
-        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorOnPrimary">@color/white300</item>
         <item name="colorSecondary">@color/black</item>
         <item name="colorSecondaryVariant">@color/error_led</item>
         <item name="colorOnSecondary">@color/black</item>
@@ -17,7 +17,7 @@
     </style>
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/white</item>
+        <item name="windowSplashScreenBackground">@color/white300</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_document</item>
         <item name="postSplashScreenTheme">@style/Theme.Undabang</item>
     </style>

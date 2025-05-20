@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.util.Locale
 
 
 fun String?.toLocalDate(formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE): LocalDate? {
@@ -42,4 +43,5 @@ fun LocalDateTime?.toFormattedString(formatter: DateTimeFormatter = DateTimeForm
 
 object CommonDateTimeFormatters {
     val YYYY_MM_DD: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE // "YYYY-MM-DD"
+    val MM_DD_DAY_HH_MM_KOREAN: DateTimeFormatter = DateTimeFormatter.ofPattern("MM.dd. (E) HH:mm", Locale.KOREAN)
 }

@@ -41,7 +41,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/location_desc"
-        android:textColor="@color/gray"
+        android:textColor="@color/gray200"
         app:layout_constraintBottom_toBottomOf="@+id/location_imv"
         app:layout_constraintStart_toStartOf="@+id/location_title_tv"
         app:layout_constraintTop_toBottomOf="@id/location_title_tv" />
@@ -73,7 +73,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/notify_desc"
-        android:textColor="@color/gray"
+        android:textColor="@color/gray200"
         app:layout_constraintBottom_toBottomOf="@+id/notify_imv"
         app:layout_constraintStart_toStartOf="@+id/notify_title_tv"
         app:layout_constraintTop_toBottomOf="@id/notify_title_tv" />
@@ -105,7 +105,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/gallery_desc"
-        android:textColor="@color/gray"
+        android:textColor="@color/gray200"
         app:layout_constraintBottom_toBottomOf="@+id/gallery_imv"
         app:layout_constraintStart_toStartOf="@+id/gallery_title_tv"
         app:layout_constraintTop_toBottomOf="@id/gallery_title_tv" />
@@ -119,7 +119,7 @@
         android:gravity="center"
         android:stateListAnimator="@null"
         android:text="@string/confirm"
-        android:textColor="@color/white"
+        android:textColor="@color/white300"
         android:layout_marginBottom="32dp"
         app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

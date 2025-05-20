@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.project200.undabang.feature.profile"
+    namespace = "com.project200.undabang.feature.exercise"
 
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
@@ -37,4 +37,8 @@ dependencies {
     testImplementation(libs.androidx.arch.core.testing)
     testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.navigation.testing)
+
+    // Glide
+    implementation(libs.glide)
+    ksp(libs.glide.compiler.ksp)
 }
