@@ -2,7 +2,7 @@ package com.project200.undabang.di
 
 import android.content.Context
 import android.content.Intent
-import com.project200.presentation.navigator.AppNavigator
+import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.login.LoginActivity
 import com.project200.undabang.main.MainActivity
 import dagger.Module
@@ -17,8 +17,8 @@ object NavigationModule {
 
     @Provides
     @Singleton
-    fun provideAppNavigator(): AppNavigator {
-        return object : AppNavigator {
+    fun provideAppNavigator(): ActivityNavigator {
+        return object : ActivityNavigator {
             override fun navigateToMain(context: Context) {
                 val intent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
