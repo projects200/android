@@ -24,13 +24,15 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
     }
 
     override fun setupViews() {
-
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_record))
             showBackButton(true) { findNavController().navigateUp() }
             setSubButton(R.drawable.ic_menu) { view -> showExerciseDetailMenu(view) }
         }
+    }
 
+    override fun onResume() {
+        super.onResume()
         viewModel.getExerciseRecord()
     }
 

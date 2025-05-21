@@ -72,6 +72,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 "testImplementation"(libs.library("kotlinx-coroutines-test")) // 코루틴 테스트
                 "testImplementation"(libs.library("turbine")) // Flow 테스트
                 "testImplementation"(libs.library("androidx-arch-core-testing")) // LiveData/ViewModel 테스트용
+                "testImplementation"(libs.library("truth"))
 
 
                 "androidTestImplementation"(libs.library("androidx-test-ext-junit"))

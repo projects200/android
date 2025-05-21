@@ -11,6 +11,6 @@ fun GetExerciseRecordData.toDomain(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
-        pictureUrls = pictureDataList.map { it.pictureUrl }
+        pictureUrls = pictureDataList?.map { it.pictureUrl } ?: emptyList()
     )
 }
