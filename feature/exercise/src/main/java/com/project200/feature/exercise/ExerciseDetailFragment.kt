@@ -54,11 +54,12 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
     private fun bindExerciseRecordData(record: ExerciseRecord) {
         with(binding) {
             // 이미지 ViewPager 설정
-            if (record.pictureUrls.isNotEmpty()) {
-                recordImgVp.adapter = ImageSliderAdapter(record.pictureUrls)
-                recordImgVp.visibility = View.VISIBLE
-            } else {
+            val currentPictureUrls = record.pictureUrls
+            if (currentPictureUrls.isNullOrEmpty()) {
                 recordImgVp.visibility = View.GONE
+            } else {
+                recordImgVp.adapter = ImageSliderAdapter(currentPictureUrls)
+                recordImgVp.visibility = View.VISIBLE
             }
 
             recordTitleTv.text = record.title

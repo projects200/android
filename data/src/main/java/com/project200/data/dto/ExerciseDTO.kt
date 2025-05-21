@@ -11,7 +11,7 @@ data class GetExerciseRecordData(
     val exerciseStartedAt: LocalDateTime,
     val exerciseEndedAt: LocalDateTime,
     val exerciseLocation: String,
-    val pictureDataList: List<PictureData>
+    val pictureDataList: List<PictureData>?
 )
 
 data class PictureData(
