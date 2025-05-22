@@ -1,11 +1,11 @@
-package com.project200.undabang
+package com.project200.feature.exercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.SavedStateHandle
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
-import com.project200.feature.exercise.ExerciseViewModel
+import com.project200.feature.exercise.detail.ExerciseDetailViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -24,7 +24,7 @@ import org.junit.Test
 import java.time.LocalDateTime
 
 @ExperimentalCoroutinesApi
-class ExerciseViewModelTest {
+class ExerciseDetailViewModelTest {
 
     @get:Rule
     val mockkRule = MockKRule(this)
@@ -37,7 +37,7 @@ class ExerciseViewModelTest {
 
     // SavedStateHandle은 mockk()로 직접 생성하거나 @MockK 사용 가능
     private lateinit var savedStateHandle: SavedStateHandle
-    private lateinit var viewModel: ExerciseViewModel
+    private lateinit var viewModel: ExerciseDetailViewModel
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -68,7 +68,7 @@ class ExerciseViewModelTest {
         // Given
         val recordId = 123
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
         val successResult = BaseResult.Success(sampleRecord)
 
@@ -91,7 +91,7 @@ class ExerciseViewModelTest {
         // Given
         val recordId = 456
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
         val errorResult = BaseResult.Error("500", "Network error")
         coEvery { mockUseCase.invoke(recordId) } returns errorResult

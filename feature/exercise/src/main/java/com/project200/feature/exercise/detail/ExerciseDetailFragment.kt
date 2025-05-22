@@ -1,4 +1,4 @@
-package com.project200.feature.exercise
+package com.project200.feature.exercise.detail
 
 import android.view.View
 import android.widget.PopupMenu
@@ -13,11 +13,12 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
+import com.project200.feature.exercise.ImageSliderAdapter
 import com.project200.presentation.base.BaseAlertDialog
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
-    private val viewModel: ExerciseViewModel by viewModels()
+    private val viewModel: ExerciseDetailViewModel by viewModels()
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)

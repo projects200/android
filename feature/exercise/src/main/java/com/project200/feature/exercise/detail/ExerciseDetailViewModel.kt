@@ -1,4 +1,4 @@
-package com.project200.feature.exercise
+package com.project200.feature.exercise.detail
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
@@ -10,11 +10,10 @@ import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
-class ExerciseViewModel @Inject constructor(
+class ExerciseDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val exerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase
 ): ViewModel() {
