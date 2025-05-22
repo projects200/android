@@ -27,7 +27,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_record))
             showBackButton(true) { findNavController().navigateUp() }
-            setSubButton(R.drawable.ic_menu) { view -> showExerciseDetailMenu(view) }
+            setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }
     }
 
@@ -98,23 +98,11 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
-    private fun showExerciseDetailMenu(anchorView: View) {
-        val popup = PopupMenu(requireContext(), anchorView)
-        popup.menuInflater.inflate(R.menu.menu_exercise_detail, popup.menu)
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.item_edit_record -> {
-                    // TODO: 생성/수정 화면으로 이동
-                    true
-                }
-                R.id.item_delete_record -> {
-                    showDeleteConfirmationDialog()
-                    true
-                }
-                else -> false
-            }
-        }
-        popup.show()
+    private fun showExerciseDetailMenu() {
+        ExerciseMenuBottomSheet(
+            onEditClicked = { },
+            onDeleteClicked = { showDeleteConfirmationDialog() }
+        ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
     }
 
     private fun showDeleteConfirmationDialog() {
