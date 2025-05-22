@@ -19,13 +19,19 @@
         <action
             android:id="@+id/action_exerciseListFragment_to_settingFragment"
             app:destination="@id/settingFragment" />
+        <action
+            android:id="@+id/action_exerciseListFragment_to_exerciseFormFragment"
+            app:destination="@id/exerciseFormFragment"/>
     </fragment>
 
     <fragment
         android:id="@+id/exerciseDetailFragment"
-        android:name="com.project200.feature.exercise.ExerciseDetailFragment"
+        android:name="com.project200.feature.exercise.detail.ExerciseDetailFragment"
         android:label="exerciseDetail"
         tools:layout="@layout/fragment_exercise_detail">
+        <action
+            android:id="@+id/action_exerciseDetailFragment_to_exerciseFormFragment"
+            app:destination="@id/exerciseFormFragment"/>
     </fragment>
 
     <fragment
@@ -34,5 +40,11 @@
         android:label="setting"
         tools:layout="@layout/fragment_setting">
     </fragment>
+
+    <fragment
+        android:id="@+id/exerciseFormFragment"
+        android:name="com.project200.feature.exercise.form.ExerciseFormFragment"
+        android:label="exerciseForm"
+        tools:layout="@layout/fragment_exercise_form"/>
 
 </navigation>

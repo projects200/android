@@ -136,6 +136,10 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
     }
 
+    override fun navigateFromExerciseListToExerciseForm() {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         if (::authService.isInitialized) {
