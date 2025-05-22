@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="btn_height">55dp</dimen>
+    <dimen name="tool_bar_height">65dp</dimen>
+    <dimen name="base_horizontal_margin">20dp</dimen>
+    <dimen name="exercise_image_height">240dp</dimen>
 </resources>

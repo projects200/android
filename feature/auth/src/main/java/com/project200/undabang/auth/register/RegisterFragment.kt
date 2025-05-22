@@ -6,7 +6,7 @@ import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.domain.model.SignUpResult
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.navigator.AppNavigator
+import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
@@ -20,7 +20,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     private val viewModel: RegisterViewModel by viewModels()
 
     @Inject
-    lateinit var appNavigator: AppNavigator
+    lateinit var appNavigator: ActivityNavigator
 
     override fun getViewBinding(view: View): FragmentRegisterBinding {
         return FragmentRegisterBinding.bind(view)

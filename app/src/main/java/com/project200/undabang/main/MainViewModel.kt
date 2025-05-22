@@ -4,9 +4,9 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
-import com.project200.domain.usecase.UpdateCheckResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber

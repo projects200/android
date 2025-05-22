@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/base_toolbar"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/tool_bar_height"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingHorizontal="12dp"
+    android:background="@color/white300">
+
+    <ImageView
+        android:id="@+id/back_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_arrow_back"
+        android:padding="8dp"
+        android:visibility="visible" />
+
+    <TextView
+        android:id="@+id/title_tv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:text="제목"
+        android:layout_weight="1"
+        style="@style/content_bold"
+        android:gravity="center"
+        android:paddingHorizontal="12dp" />
+
+    <ImageView
+        android:id="@+id/sub_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:src="@drawable/ic_arrow_back"
+        android:visibility="invisible" />
+</LinearLayout>

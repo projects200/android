@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white300">
+
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginBottom="40dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <androidx.viewpager2.widget.ViewPager2
+                android:id="@+id/record_img_vp"
+                android:background="@color/black"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/exercise_image_height"/>
+
+            <TextView
+                android:id="@+id/record_title_title_tv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/exercise_record_title"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                style="@style/content_bold" />
+
+            <TextView
+                android:id="@+id/record_title_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                style="@style/subtext_14"
+                android:background="@drawable/bg_solid_corner"
+                android:paddingVertical="11dp"
+                android:paddingHorizontal="16dp"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                android:id="@+id/record_type_title_tv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/exercise_record_type"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                style="@style/content_bold" />
+
+            <TextView
+                android:id="@+id/record_type_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                style="@style/subtext_14"
+                android:background="@drawable/bg_solid_corner"
+                android:paddingVertical="11dp"
+                android:paddingHorizontal="16dp"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:layout_marginTop="8dp"/>
+
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/record_time_cl"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:layout_marginTop="24dp">
+                <TextView
+                    android:id="@+id/record_time_title_tv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+
+                    android:text="@string/exercise_record_time"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    style="@style/content_bold" />
+
+                <TextView
+                    android:id="@+id/start_time_tv"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    style="@style/subtext_14"
+                    android:background="@drawable/bg_solid_corner"
+                    android:paddingVertical="16dp"
+                    android:layout_marginTop="8dp"
+                    android:text="@string/exercise_record_time"
+                    android:gravity="center"
+                    app:layout_constraintTop_toBottomOf="@id/record_time_title_tv"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toStartOf="@id/divider_iv"/>
+                <ImageView
+                    android:id="@+id/divider_iv"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:src="@drawable/ic_time_divider"
+                    android:layout_marginHorizontal="20dp"
+                    app:layout_constraintStart_toEndOf="@id/start_time_tv"
+                    app:layout_constraintTop_toTopOf="@id/start_time_tv"
+                    app:layout_constraintBottom_toBottomOf="@id/start_time_tv"
+                    app:layout_constraintEnd_toStartOf="@id/end_time_tv"/>
+
+                <TextView
+                    android:id="@+id/end_time_tv"
+                    style="@style/subtext_14"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_solid_corner"
+                    android:paddingVertical="16dp"
+                    android:text="@string/exercise_record_time"
+                    android:gravity="center"
+                    app:layout_constraintBottom_toBottomOf="@id/start_time_tv"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/divider_iv"
+                    app:layout_constraintTop_toTopOf="@id/start_time_tv" />
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <TextView
+                android:id="@+id/record_location_title_tv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:text="@string/exercise_record_location"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                style="@style/content_bold" />
+
+            <TextView
+                android:id="@+id/record_location_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                style="@style/subtext_14"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:background="@drawable/bg_solid_corner"
+                android:paddingVertical="11dp"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="8dp"/>
+
+            <TextView
+                android:id="@+id/record_desc_title_tv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/exercise_record_desc"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                style="@style/content_bold" />
+
+            <TextView
+                android:id="@+id/record_desc_tv"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="200dp"
+                style="@style/subtext_14"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:background="@drawable/bg_solid_corner"
+                android:paddingVertical="16dp"
+                android:paddingHorizontal="16dp"
+                android:layout_marginTop="8dp"/>
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</androidx.constraintlayout.widget.ConstraintLayout>

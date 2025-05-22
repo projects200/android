@@ -10,7 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.project200.presentation.base.BindingActivity
-import com.project200.presentation.navigator.AppNavigator
+import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
@@ -27,7 +27,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     @Inject lateinit var authManager: AuthManager
-    @Inject lateinit var appNavigator: AppNavigator
+    @Inject lateinit var appNavigator: ActivityNavigator
 
     private lateinit var authService: AuthorizationService
 

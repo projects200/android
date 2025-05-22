@@ -1,5 +1,6 @@
 package com.project200.domain.usecase
 
+import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.repository.AppUpdateRepository
 import javax.inject.Inject
 
@@ -21,10 +22,4 @@ class CheckForUpdateUseCase @Inject constructor(
             }
         }
     }
-}
-
-// Use Case 결과 정의
-sealed interface UpdateCheckResult {
-    data class UpdateAvailable(val isForceUpdate: Boolean) : UpdateCheckResult
-    data object NoUpdateNeeded : UpdateCheckResult
 }

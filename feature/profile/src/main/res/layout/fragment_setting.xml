@@ -3,15 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white"
+    android:background="@color/white300"
     android:fitsSystemWindows="true">
 
     <ImageView
         android:id="@+id/back_btn_iv"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="20dp"
-        android:layout_marginTop="26dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="18dp"
+        android:padding="8dp"
         android:src="@drawable/ic_arrow_back"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
@@ -20,7 +21,7 @@
         style="@style/content_bold"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="4dp"
+
         android:text="@string/setting"
         app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
         app:layout_constraintStart_toEndOf="@id/back_btn_iv"
@@ -178,6 +179,6 @@
             android:layout_gravity="center"
             android:layout_marginEnd="20dp"
             android:text=""
-            android:textColor="@color/gray" />
+            android:textColor="@color/gray200" />
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

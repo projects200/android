@@ -1,12 +1,11 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
-import retrofit2.Response
 import retrofit2.http.*
-import kotlin.reflect.jvm.internal.impl.load.kotlin.JvmType
 
 interface ApiService {
     // 회원 여부 확인
@@ -18,4 +17,10 @@ interface ApiService {
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>
+
+    // 운동 기록 상세 조회
+    @GET("v1/exercises/{recordId}")
+    suspend fun getExerciseRecordDetail(
+        @Path("recordId") recordId: Int
+    ): BaseResponse<GetExerciseRecordData>
 }

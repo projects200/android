@@ -50,6 +50,7 @@ androidxTestExtJunit = "1.2.1"
 androidxTestEspresso = "3.6.1"
 mockk = "1.13.10"
 turbine = "1.1.0" # Flow 테스트용
+truth = "1.1.5"
 
 # DI - JSR 330
 javaxInject = "1"
@@ -58,6 +59,9 @@ firebaseConfigKtx = "22.1.1"
 
 # Cognito
 appauth = "0.11.1"
+
+# Glide
+glide = "4.16.0"
 
 [libraries]
 
@@ -130,6 +134,7 @@ androidx-test-espresso-core = { group = "androidx.test.espresso", name = "espres
 androidx-arch-core-testing = { group = "androidx.arch.core", name = "core-testing", version.ref = "androidxArchCoreTesting" }
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
+truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 
 # DI - JSR 330
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
@@ -144,6 +149,10 @@ firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-k
 
 # Cognito
 appauth = { group = "net.openid", name = "appauth", version.ref = "appauth" }
+
+# Glide
+glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
+glide-compiler-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
 
 [plugins]
 # Android Gradle Plugins

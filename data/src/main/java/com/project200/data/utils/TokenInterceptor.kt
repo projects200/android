@@ -28,6 +28,7 @@ class TokenInterceptor @Inject constructor(
             }
         } else {
             currentAuthState.accessToken?.let { accessToken ->
+                Timber.tag("TokenInterceptor").d("accessToken: $accessToken")
                 requestBuilder.header("Authorization", "Bearer $accessToken")
             } ?: run {
                 Timber.w("Access Token is null")

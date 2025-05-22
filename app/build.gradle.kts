@@ -32,6 +32,7 @@ dependencies {
     implementation(projects.core.oauth)
     implementation(projects.feature.auth)
     implementation(projects.feature.profile)
+    implementation(projects.feature.exercise)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)

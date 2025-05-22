@@ -9,7 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.navigator.AppNavigator
+import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentSettingBinding
@@ -27,7 +27,7 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
         return FragmentSettingBinding.bind(view)
     }
 
-    @Inject lateinit var appNavigator: AppNavigator
+    @Inject lateinit var appNavigator: ActivityNavigator
     @Inject lateinit var authManager: AuthManager
     private lateinit var authService: AuthorizationService
 

@@ -1,15 +1,18 @@
 package com.project200.undabang.main
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
-import com.project200.domain.usecase.UpdateCheckResult
-import com.project200.presentation.navigator.AppNavigator
+import androidx.navigation.NavController
+import androidx.navigation.fragment.NavHostFragment
+import com.project200.domain.model.UpdateCheckResult
+import com.project200.feature.exercise.ExerciseListFragmentDirections
+import com.project200.presentation.navigator.ActivityNavigator
+import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.update.UpdateDialogFragment
-import com.project200.undabang.auth.register.RegisterActivity
+import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
@@ -21,12 +24,13 @@ import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), FragmentNavigator {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
     @Inject lateinit var authStateManager: AuthStateManager
-    @Inject lateinit var appNavigator: AppNavigator
+    @Inject lateinit var appNavigator: ActivityNavigator
+    private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
     private lateinit var binding: ActivityMainBinding
     private lateinit var authService: AuthorizationService
@@ -78,8 +82,11 @@ class MainActivity : AppCompatActivity() {
         
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+
+        navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
+
         setupViews()
-        Timber.d("MainActivity content is now visible.")
     }
 
     private fun navigateToLogin() {
@@ -119,6 +126,14 @@ class MainActivity : AppCompatActivity() {
             val dialog = UpdateDialogFragment(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
         }
+    }
+
+    override fun navigateFromExerciseListToExerciseDetail(recordId: Int) {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
+    }
+
+    override fun navigateFromExerciseListToSetting() {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
     }
 
     override fun onDestroy() {
