@@ -31,5 +31,8 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         btn2.setOnClickListener {
             fragmentNavigator?.navigateFromExerciseListToSetting()
         }
+        btn3.setOnClickListener {
+            fragmentNavigator?.navigateFromExerciseListToExerciseForm()
+        }
     }
 }
