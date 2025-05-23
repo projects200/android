@@ -3,6 +3,7 @@ package com.project200.feature.exercise.form
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
@@ -53,11 +54,16 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         return FragmentExerciseFormBinding.bind(view)
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.loadInitialRecord(args.exerciseRecord)
+    }
+
     private fun setupRVAdapter(calculatedItemSize: Int) {
         imageAdapter = ExerciseImageAdapter(
             itemSize = calculatedItemSize,
             onAddItemClick = {
-                val currentImageCount = viewModel.imageItems.value?.count { it is ExerciseImageListItem.ImageItem } ?: 0
+                val currentImageCount = viewModel.imageItems.value?.count() ?: 0
                 if (currentImageCount >= MAX_IMAGE) {
                     Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_SHORT).show()
                 } else {

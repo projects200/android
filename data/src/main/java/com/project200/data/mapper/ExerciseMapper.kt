@@ -2,6 +2,7 @@ package com.project200.data.mapper
 
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordPicture
 
 fun GetExerciseRecordData.toDomain(): ExerciseRecord {
     return ExerciseRecord(
@@ -11,6 +12,6 @@ fun GetExerciseRecordData.toDomain(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
-        pictureUrls = pictureDataList?.map { it.pictureUrl } ?: emptyList()
+        pictures = pictureDataList?.map { ExerciseRecordPicture(it.pictureId, it.pictureUrl) } ?: emptyList()
     )
 }
