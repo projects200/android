@@ -1,8 +1,6 @@
 package com.project200.feature.exercise.form
 
 import android.Manifest
-import android.app.DatePickerDialog
-import android.app.TimePickerDialog
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.View
@@ -87,8 +85,8 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
 
-        binding.startTimeBtn.setOnClickListener { showDateTimePicker() }
-        binding.endTimeBtn.setOnClickListener { showDateTimePicker() }
+        binding.startTimeBtn.setOnClickListener { showTimePickerDialog(true) }
+        binding.endTimeBtn.setOnClickListener { showTimePickerDialog(false) }
 
         binding.recordCompleteBtn.setOnClickListener {
             viewModel.submitRecord(
@@ -118,13 +116,23 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         pickMultipleMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
-    private fun showDateTimePicker() {
-        // TODO : 날짜, 시간을 받아오는 다이얼로그
+    private fun showTimePickerDialog(isStart: Boolean) {
+        val dialog = ExerciseTimeDialog().apply {
+            onDateTimeSelected = { year, month, day, hour, minute ->
+                val selectedDateTime = LocalDateTime.of(year, month + 1, day, hour, minute)
+                if (isStart) {
+                    viewModel.setStartTime(selectedDateTime)
+                } else {
+                    if (!viewModel.setEndTime(selectedDateTime)) {
+                        Toast.makeText(requireContext(), getString(R.string.exercise_record_time_error), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
+        dialog.show(parentFragmentManager, ExerciseTimeDialog::class.java.simpleName)
     }
 
     override fun setupObservers() {
-        super.setupObservers()
-
         viewModel.startTime.observe(viewLifecycleOwner) { dateTime ->
             binding.startTimeBtn.text = dateTime?.let { viewModel.dateTimeFormatter.format(it) } ?: getString(R.string.exercise_record_start_time)
             binding.startTimeIv.isVisible = dateTime == null
