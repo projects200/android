@@ -15,7 +15,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ) : ExerciseRecordRepository {
-    override suspend fun getExerciseDetail(recordId: Int): BaseResult<ExerciseRecord> {
+    override suspend fun getExerciseDetail(recordId: Long): BaseResult<ExerciseRecord> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getExerciseRecordDetail(recordId) },

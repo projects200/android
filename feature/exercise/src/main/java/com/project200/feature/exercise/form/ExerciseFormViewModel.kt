@@ -3,17 +3,26 @@ package com.project200.feature.exercise.form
 import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.common.utils.CommonDateTimeFormatters.MM_DD_DAY_HH_MM_KOREAN
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 @HiltViewModel
-class ExerciseFormViewModel @Inject constructor() : ViewModel() {
+class ExerciseFormViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
+    private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase
+) : ViewModel() {
+    val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
     private val _startTime = MutableLiveData<LocalDateTime?>()
     val startTime: LiveData<LocalDateTime?> = _startTime
@@ -39,28 +48,46 @@ class ExerciseFormViewModel @Inject constructor() : ViewModel() {
     private val _submissionResult = MutableLiveData<Boolean>()
     val submissionResult: LiveData<Boolean> = _submissionResult
 
-    /** 이전 화면에서 ExerciseRecord를 받아 초기화 */
-    fun loadInitialRecord(record: ExerciseRecord?) {
-        initialRecord = record
-        isEditMode = record != null
+    private val _toastMessage = MutableLiveData<String>()
+    val toastMessage: LiveData<String> = _toastMessage
 
-        // 수정 모드
-        if (isEditMode && record != null) {
-            _startTime.value = record.startedAt
-            _endTime.value = record.endedAt
-
-            val items = mutableListOf<ExerciseImageListItem>()
-            record.pictures?.forEach { picture ->
-                items.add(ExerciseImageListItem.ExistingImageItem(picture.url, picture.id))
-            }
-            _imageItems.value = items
-            _initialDataLoaded.value = record
-
-        } else { // 생성 모드
+    fun loadInitialRecord() {
+        if (recordId == -1L || recordId == null) {
+            // 생성 모드
+            isEditMode = false
+            initialRecord = null
             _startTime.value = null
             _endTime.value = null
+            _imageItems.value = mutableListOf(ExerciseImageListItem.AddButtonItem)
             _initialDataLoaded.value = null
+        } else {
+            // 수정 모드
+            viewModelScope.launch {
+                when (val result = getExerciseRecordDetailUseCase.invoke(recordId)) {
+                    is BaseResult.Success -> {
+                        setupEditMode(result.data)
+                    }
+                    is BaseResult.Error -> {
+                        _toastMessage.value = "기록을 불러오는데 실패했습니다"
+                    }
+                }
+            }
         }
+    }
+
+    /** 수정 모드 데이터 설정 */
+    private fun setupEditMode(record: ExerciseRecord) {
+        initialRecord = record
+        isEditMode = true
+
+        _startTime.value = record.startedAt
+        _endTime.value = record.endedAt
+
+        record.pictures?.forEach { picture ->
+            _imageItems.value?.add(ExerciseImageListItem.ExistingImageItem(picture.url, picture.id))
+        }
+
+        _initialDataLoaded.value = record
     }
 
     fun setStartTime(dateTime: LocalDateTime) {
@@ -100,7 +127,7 @@ class ExerciseFormViewModel @Inject constructor() : ViewModel() {
 
 
     fun getCurrentPermittedImageCount(): Int {
-        val imageCount = _imageItems.value?.count() ?: 0
+        val imageCount = _imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
         return MAX_IMAGE - imageCount
     }
 

@@ -4,6 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main_nav_graph"
     app:startDestination="@id/exerciseListFragment">
+
     <fragment
         android:id="@+id/exerciseListFragment"
         android:name="com.project200.feature.exercise.ExerciseListFragment"
@@ -11,17 +12,23 @@
         tools:layout="@layout/fragment_exercise_list">
         <action
             android:id="@+id/action_exerciseListFragment_to_exerciseDetailFragment"
-            app:destination="@id/exerciseDetailFragment" >
+            app:destination="@id/exerciseDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out">
             <argument
                 android:name="recordId"
-                app:argType="integer" />
+                app:argType="long" />
         </action>
         <action
             android:id="@+id/action_exerciseListFragment_to_settingFragment"
-            app:destination="@id/settingFragment" />
+            app:destination="@id/settingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out"/>
         <action
             android:id="@+id/action_exerciseListFragment_to_exerciseFormFragment"
-            app:destination="@id/exerciseFormFragment"/>
+            app:destination="@id/exerciseFormFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out"/>
     </fragment>
 
     <fragment
@@ -29,9 +36,15 @@
         android:name="com.project200.feature.exercise.detail.ExerciseDetailFragment"
         android:label="exerciseDetail"
         tools:layout="@layout/fragment_exercise_detail">
+        <argument
+            android:name="recordId"
+            app:argType="long" />
         <action
             android:id="@+id/action_exerciseDetailFragment_to_exerciseFormFragment"
-            app:destination="@id/exerciseFormFragment"/>
+            app:destination="@id/exerciseFormFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out">
+        </action>
     </fragment>
 
     <fragment
@@ -45,6 +58,10 @@
         android:id="@+id/exerciseFormFragment"
         android:name="com.project200.feature.exercise.form.ExerciseFormFragment"
         android:label="exerciseForm"
-        tools:layout="@layout/fragment_exercise_form"/>
+        tools:layout="@layout/fragment_exercise_form">
+        <argument
+            android:name="recordId"
+            app:argType="long"
+            android:defaultValue="-1L" /> </fragment>
 
 </navigation>

@@ -14,6 +14,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
+import com.project200.domain.model.ExerciseRecord
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
@@ -21,7 +22,6 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.LocalDateTime
-import java.util.Calendar
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
@@ -56,14 +56,14 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.loadInitialRecord(args.exerciseRecord)
+        viewModel.loadInitialRecord()
     }
 
     private fun setupRVAdapter(calculatedItemSize: Int) {
         imageAdapter = ExerciseImageAdapter(
             itemSize = calculatedItemSize,
             onAddItemClick = {
-                val currentImageCount = viewModel.imageItems.value?.count() ?: 0
+                val currentImageCount = viewModel.imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
                 if (currentImageCount >= MAX_IMAGE) {
                     Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_SHORT).show()
                 } else {
@@ -84,10 +84,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
 
     override fun setupViews() {
-        binding.baseToolbar.apply {
-            setTitle(getString(R.string.exercise_record))
-            showBackButton(true) { findNavController().navigateUp() }
-        }
+        binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
 
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
 
@@ -152,6 +149,22 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.imageItems.observe(viewLifecycleOwner) { items ->
             imageAdapter.submitList(items.toList())
         }
+
+        viewModel.initialDataLoaded.observe(viewLifecycleOwner) { record ->
+            if (record != null) {
+                setupInitialData(record)
+                binding.baseToolbar.setTitle(getString(R.string.edit_exercise))
+            } else {
+                binding.baseToolbar.setTitle(getString(R.string.record_exercise))
+            }
+        }
+    }
+
+    private fun setupInitialData(record: ExerciseRecord) {
+        binding.recordTitleEt.setText(record.title)
+        binding.recordTypeEt.setText(record.personalType)
+        binding.recordLocationEt.setText(record.location)
+        binding.recordDescEt.setText(record.detail)
     }
 
     companion object {
