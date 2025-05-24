@@ -44,4 +44,5 @@
         <item name="fontFamily">@font/pretendard_regular</item>
         <item name="android:lineSpacingMultiplier">1.2</item>
     </style>
+
 </resources>
