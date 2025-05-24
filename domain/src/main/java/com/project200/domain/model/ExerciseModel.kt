@@ -9,5 +9,12 @@ data class ExerciseRecord(
     val startedAt: LocalDateTime,
     val endedAt: LocalDateTime,
     val location: String,
-    val pictureUrls: List<String>?
+    val pictures: List<ExerciseRecordPicture>?
 )
+
+data class ExerciseRecordPicture(
+    val id: Long,
+    val url: String
+)
+
+

@@ -21,6 +21,6 @@ interface ApiService {
     // 운동 기록 상세 조회
     @GET("v1/exercises/{recordId}")
     suspend fun getExerciseRecordDetail(
-        @Path("recordId") recordId: Int
+        @Path("recordId") recordId: Long
     ): BaseResponse<GetExerciseRecordData>
 }

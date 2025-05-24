@@ -8,7 +8,7 @@ import javax.inject.Inject
 class GetExerciseRecordDetailUseCase @Inject constructor(
     private val getExerciseRecordRepository: ExerciseRecordRepository
 ) {
-    suspend operator fun invoke(recordId: Int): BaseResult<ExerciseRecord> {
+    suspend operator fun invoke(recordId: Long): BaseResult<ExerciseRecord> {
         return getExerciseRecordRepository.getExerciseDetail(recordId)
     }
 }

@@ -17,7 +17,7 @@ class ExerciseDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val exerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase
 ): ViewModel() {
-    val recordId: Int? = savedStateHandle.get<Int>("recordId")
+    val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
     private val _exerciseRecord = MutableLiveData<BaseResult<ExerciseRecord>>()
     val exerciseRecord: LiveData<BaseResult<ExerciseRecord>> = _exerciseRecord

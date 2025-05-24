@@ -1,5 +1,6 @@
 package com.project200.feature.exercise.detail
 
+import android.content.Context
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -15,10 +16,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.feature.exercise.ImageSliderAdapter
 import com.project200.presentation.base.BaseAlertDialog
+import com.project200.presentation.navigator.FragmentNavigator
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
+    private var fragmentNavigator: FragmentNavigator? = null
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
@@ -55,7 +58,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
     private fun bindExerciseRecordData(record: ExerciseRecord) {
         with(binding) {
             // 이미지 ViewPager 설정
-            val currentPictureUrls = record.pictureUrls
+            val currentPictureUrls = record.pictures?.map { it.url }
             if (currentPictureUrls.isNullOrEmpty()) {
                 recordImgVp.visibility = View.GONE
             } else {
@@ -105,7 +108,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         popup.setOnMenuItemClickListener { item ->
             when (item.itemId) {
                 R.id.item_edit_record -> {
-                    // TODO: 생성/수정 화면으로 이동
+                    fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!)
                     true
                 }
                 R.id.item_delete_record -> {
@@ -126,6 +129,15 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
                 // TODO: 삭제
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is FragmentNavigator) {
+            fragmentNavigator = context
+        } else {
+            throw ClassCastException("$context must implement FragmentNavigator")
+        }
     }
 
     companion object {

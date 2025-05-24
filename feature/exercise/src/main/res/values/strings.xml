@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="exercise_record">운동 기록</string>
+    <string name="record_exercise">운동 기록하기</string>
+    <string name="edit_exercise">운동 기록 수정</string>
+    <string name="exercise_detail">운동 기록 상세</string>
     <string name="exercise_record_title">제목</string>
     <string name="exercise_record_type">운동 종류</string>
     <string name="exercise_record_time">운동 시간</string>
