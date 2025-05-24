@@ -7,8 +7,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.common.utils.CommonDateTimeFormatters.MM_DD_DAY_HH_MM_KOREAN
 import com.project200.domain.model.BaseResult
+import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +35,7 @@ class ExerciseFormViewModel @Inject constructor(
     )
     val imageItems: LiveData<MutableList<ExerciseImageListItem>> = _imageItems
 
-    val dateTimeFormatter: DateTimeFormatter = MM_DD_DAY_HH_MM_KOREAN
+    val dateTimeFormatter: DateTimeFormatter = YY_MM_DD_HH_MM
 
     // 수정/생성 모드 관련
     private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
