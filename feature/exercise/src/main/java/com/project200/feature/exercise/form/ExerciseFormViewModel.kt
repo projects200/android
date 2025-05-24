@@ -5,7 +5,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.common.utils.CommonDateTimeFormatters.MM_DD_DAY_HH_MM_KOREAN
+import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.ExerciseRecord
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDateTime
@@ -26,7 +26,7 @@ class ExerciseFormViewModel @Inject constructor() : ViewModel() {
     )
     val imageItems: LiveData<MutableList<ExerciseImageListItem>> = _imageItems
 
-    val dateTimeFormatter: DateTimeFormatter = MM_DD_DAY_HH_MM_KOREAN
+    val dateTimeFormatter: DateTimeFormatter = YY_MM_DD_HH_MM
 
     fun setStartTime(dateTime: LocalDateTime) {
         _startTime.value = dateTime

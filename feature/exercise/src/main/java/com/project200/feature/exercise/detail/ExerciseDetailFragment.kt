@@ -67,7 +67,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
             recordTypeTv.setTextOrHide(record.personalType, recordTypeTitleTv)
 
             // 시간 처리
-            val dateTimeFormatter = CommonDateTimeFormatters.MM_DD_DAY_HH_MM_KOREAN
+            val dateTimeFormatter = CommonDateTimeFormatters.YY_MM_DD_HH_MM
             val startTimeString = record.startedAt.format(dateTimeFormatter)
             val endTimeString = record.endedAt.format(dateTimeFormatter)
 
