@@ -14,6 +14,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.UiUtils.dpToPx
@@ -158,6 +159,31 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 binding.baseToolbar.setTitle(getString(R.string.record_exercise))
             }
         }
+
+        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
+            binding.progressBar.isVisible = isLoading
+            binding.recordCompleteBtn.isEnabled = !isLoading
+        }
+
+        viewModel.createResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    findNavController().navigateUp()
+                }
+                is BaseResult.Error -> {
+                    if (result.errorCode != UPLOAD_FAIL) { // 기록 생성 실패
+                    } else { // 기록 생성 성공, 이미지 업로드 실패
+                        findNavController().navigateUp()
+                    }
+                }
+            }
+        }
+
+        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
+            if (message.isNotEmpty()) {
+                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun setupInitialData(record: ExerciseRecord) {
@@ -171,5 +197,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         private const val GRID_SPAN_COUNT = 3
         private const val GRID_SPAN_MARGIN = 80f
         private const val RV_MARGIN = 20f
+        private const val UPLOAD_FAIL = "UPLOAD_FAIL"
     }
 }

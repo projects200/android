@@ -1,5 +1,7 @@
 package com.project200.undabang.di
 
+import android.content.ContentResolver
+import android.content.Context
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfig
@@ -9,6 +11,7 @@ import com.project200.undabang.R
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import timber.log.Timber
 import javax.inject.Singleton
@@ -31,5 +34,11 @@ object AppModule {
         remoteConfig.setDefaultsAsync(R.xml.remote_config_defaults)
 
         return remoteConfig
+    }
+
+    @Provides
+    @Singleton
+    fun provideContentResolver(@ApplicationContext context: Context): ContentResolver {
+        return context.contentResolver
     }
 }

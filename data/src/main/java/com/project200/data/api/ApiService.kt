@@ -3,8 +3,10 @@ package com.project200.data.api
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetIsRegisteredData
+import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
+import okhttp3.MultipartBody
 import retrofit2.http.*
 
 interface ApiService {
@@ -23,4 +25,16 @@ interface ApiService {
     suspend fun getExerciseRecordDetail(
         @Path("recordId") recordId: Long
     ): BaseResponse<GetExerciseRecordData>
+
+    @POST("v1/exercises")
+    suspend fun postExerciseRecord(
+        @Body recordRequestDto: PostExerciseRequestDto
+    ): BaseResponse<Long>
+
+    @Multipart
+    @POST("v1/exercises/{exerciseId}/pictures")
+    suspend fun postExerciseImages(
+        @Path("exerciseId") exerciseId: Long,
+        @Part pictures: List<MultipartBody.Part>
+    ): BaseResponse<Long>
 }
