@@ -1,6 +1,7 @@
 package com.project200.feature.exercise.form
 
 import android.Manifest
+import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -16,7 +17,9 @@ import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.SubmissionResult
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
@@ -29,6 +32,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private val viewModel: ExerciseFormViewModel by viewModels()
     private lateinit var imageAdapter: ExerciseImageAdapter
+    private var fragmentNavigator: FragmentNavigator? = null
 
     private val pickMultipleMediaLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGE)) { uris ->
@@ -161,20 +165,21 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.progressBar.isVisible = isLoading
+            binding.loadingGroup.isVisible = isLoading
             binding.recordCompleteBtn.isEnabled = !isLoading
         }
 
         viewModel.createResult.observe(viewLifecycleOwner) { result ->
             when (result) {
-                is BaseResult.Success -> {
-                    findNavController().navigateUp()
+                is SubmissionResult.Success -> {
+                    // 기록 생성, 이미지 업로드 성공
+                    fragmentNavigator?.navigateFromExerciseListToExerciseDetail(result.recordId)
                 }
-                is BaseResult.Error -> {
-                    if (result.errorCode != UPLOAD_FAIL) { // 기록 생성 실패
-                    } else { // 기록 생성 성공, 이미지 업로드 실패
-                        findNavController().navigateUp()
-                    }
+                is SubmissionResult.PartialSuccess -> {
+                    // 부분 성공 (이미지 업로드 실패)
+                    fragmentNavigator?.navigateFromExerciseListToExerciseDetail(result.recordId)
+                }
+                is SubmissionResult.Failure -> { // 기록 생성 실패
                 }
             }
         }
@@ -193,10 +198,18 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.recordDescEt.setText(record.detail)
     }
 
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is FragmentNavigator) {
+            fragmentNavigator = context
+        } else {
+            throw ClassCastException("$context must implement FragmentNavigator")
+        }
+    }
+
     companion object {
         private const val GRID_SPAN_COUNT = 3
         private const val GRID_SPAN_MARGIN = 80f
         private const val RV_MARGIN = 20f
-        private const val UPLOAD_FAIL = "UPLOAD_FAIL"
     }
 }
