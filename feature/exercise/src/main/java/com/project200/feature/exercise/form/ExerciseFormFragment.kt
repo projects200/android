@@ -207,6 +207,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
     }
 
+    override fun onDetach() {
+        fragmentNavigator = null
+        super.onDetach()
+    }
+
     companion object {
         private const val GRID_SPAN_COUNT = 3
         private const val GRID_SPAN_MARGIN = 80f
