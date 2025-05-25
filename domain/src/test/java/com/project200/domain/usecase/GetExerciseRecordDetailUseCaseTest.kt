@@ -3,6 +3,7 @@ package com.project200.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.repository.ExerciseRecordRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -35,7 +36,7 @@ class GetExerciseRecordDetailUseCaseTest {
         startedAt = now.minusHours(2),
         endedAt = now.minusHours(1),
         location = "Community Pool",
-        pictureUrls = listOf("http://example.com/swim.jpg")
+        pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/swim.jpg"))
     )
 
     @Before
@@ -46,7 +47,7 @@ class GetExerciseRecordDetailUseCaseTest {
     @Test
     fun `invoke 호출 시 Repository의 getExerciseDetail을 호출하고 결과를 반환`() = runTest {
         // Given
-        val recordId = 789
+        val recordId = 789L
         val successResultFromRepo = BaseResult.Success(sampleRecord)
 
         coEvery { mockRepository.getExerciseDetail(recordId) } returns successResultFromRepo
@@ -63,7 +64,7 @@ class GetExerciseRecordDetailUseCaseTest {
     @Test
     fun `invoke 호출 시 Repository가 에러를 반환하면 해당 에러를 그대로 반환`() = runTest {
         // Given
-        val recordId = 101
+        val recordId = 101L
         val errorResultFromRepo = BaseResult.Error( "101", "Database error")
         coEvery { mockRepository.getExerciseDetail(recordId) } returns errorResultFromRepo
 

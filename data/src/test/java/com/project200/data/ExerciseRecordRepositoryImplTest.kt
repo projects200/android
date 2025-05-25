@@ -1,5 +1,7 @@
 package com.project200.data // 실제 테스트 파일 패키지
 
+import android.content.ContentResolver
+import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
@@ -39,6 +41,9 @@ class ExerciseRecordRepositoryImplTest {
     @MockK
     private lateinit var mockApiService: ApiService
 
+    @MockK
+    private lateinit var mockContext: Context
+
     private val testIoDispatcher: CoroutineDispatcher = StandardTestDispatcher()
     private lateinit var repository: ExerciseRecordRepositoryImpl
 
@@ -76,12 +81,12 @@ class ExerciseRecordRepositoryImplTest {
 
     @Before
     fun setUp() {
-        repository = ExerciseRecordRepositoryImpl(mockApiService, testIoDispatcher)
+        repository = ExerciseRecordRepositoryImpl(mockApiService, testIoDispatcher, mockContext)
     }
 
     @Test
     fun `getExerciseDetail - API 성공 (succeed=true), 사진 있는 데이터`() = runTest(testIoDispatcher) {
-        val recordId = 1
+        val recordId = 1L
         val apiResponse = BaseResponse(
             succeed = true, code = "SUCCESS", message = "요청이 성공적으로 처리되었습니다.", data = sampleDtoWithPictures
         )
@@ -93,12 +98,12 @@ class ExerciseRecordRepositoryImplTest {
         assertThat(result).isInstanceOf(BaseResult.Success::class.java)
         val domainData = (result as BaseResult.Success<ExerciseRecord>).data
         assertThat(domainData.title).isEqualTo(sampleDtoWithPictures.exerciseTitle)
-        assertThat(domainData.pictureUrls).isEqualTo(samplePictureDataList.map { it.pictureUrl })
+        assertThat(domainData.pictures?.map { it.url }).isEqualTo(samplePictureDataList.map { it.pictureUrl })
     }
 
     @Test
     fun `getExerciseDetail - API 성공 (succeed=true), 사진 없는 데이터 (pictureDataList=null)`() = runTest(testIoDispatcher) {
-        val recordId = 2
+        val recordId = 2L
         val apiResponse = BaseResponse(
             succeed = true, code = "SUCCESS", message = "요청이 성공적으로 처리되었습니다.", data = sampleDtoWithoutPictures
         )
@@ -110,12 +115,12 @@ class ExerciseRecordRepositoryImplTest {
         assertThat(result).isInstanceOf(BaseResult.Success::class.java)
         val domainData = (result as BaseResult.Success<ExerciseRecord>).data
         assertThat(domainData.title).isEqualTo(sampleDtoWithoutPictures.exerciseTitle)
-        assertThat(domainData.pictureUrls).isEmpty()
+        assertThat(domainData.pictures).isEmpty()
     }
 
     @Test
     fun `getExerciseDetail - API 성공 (succeed=true), 응답의 data 필드 자체가 null (NO_DATA)`() = runTest(testIoDispatcher) {
-        val recordId = 4
+        val recordId = 4L
         val apiResponse = BaseResponse<GetExerciseRecordData>(
             succeed = true, code = "SUCCESS_BUT_DATA_IS_NULL", message = "성공했으나 BaseResponse의 data가 null", data = null
         )
@@ -142,7 +147,7 @@ class ExerciseRecordRepositoryImplTest {
 
     @Test
     fun `getExerciseDetail - 접근 권한 없음 (AUTHORIZATION_DENIED, HTTP 403)`() = runTest(testIoDispatcher) {
-        val recordId = 10
+        val recordId = 10L
         val errorResponseObject = BaseResponse<Any?>(
             succeed = false,
             code = "AUTHORIZATION_DENIED",
@@ -168,7 +173,7 @@ class ExerciseRecordRepositoryImplTest {
 
     @Test
     fun `getExerciseDetail - 잘못된 입력 값 (INVALID_INPUT_VALUE, HTTP 400)`() = runTest(testIoDispatcher) {
-        val recordId = -1
+        val recordId = -1L
         val errorDataMap = mapOf("findMemberExerciseRecord.recordId" to "올바른 Record를 다시 입력해주세요")
         val errorResponseObject = BaseResponse<Map<String, String>>(
             succeed = false,
@@ -196,7 +201,7 @@ class ExerciseRecordRepositoryImplTest {
 
     @Test
     fun `getExerciseDetail - 운동 기록 없음 (EXERCISE_RECORD_NOT_FOUND, HTTP 404)`() = runTest(testIoDispatcher) {
-        val recordId = 99999
+        val recordId = 99999L
         val errorResponseObject = BaseResponse<Any?>( // data가 null
             succeed = false,
             code = "EXERCISE_RECORD_NOT_FOUND",

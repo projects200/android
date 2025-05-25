@@ -9,6 +9,8 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.feature.exercise.ExerciseListFragmentDirections
+import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
+import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.update.UpdateDialogFragment
@@ -128,12 +130,24 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         }
     }
 
-    override fun navigateFromExerciseListToExerciseDetail(recordId: Int) {
+    override fun navigateFromExerciseListToExerciseDetail(recordId: Long) {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
     }
 
     override fun navigateFromExerciseListToSetting() {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
+    }
+
+    override fun navigateFromExerciseListToExerciseForm() {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
+    }
+
+    override fun navigateFromExerciseDetailToExerciseForm(recordId: Long) {
+        navController.navigate(ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseFormFragment(recordId))
+    }
+
+    override fun navigateFromExerciseFormToExerciseDetail(recordId: Long) {
+        navController.navigate(ExerciseFormFragmentDirections.actionExerciseFormFragmentToExerciseDetailFragment(recordId))
     }
 
     override fun onDestroy() {

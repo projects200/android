@@ -1,5 +1,6 @@
-package com.project200.feature.exercise
+package com.project200.feature.exercise.detail
 
+import android.content.Context
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -13,11 +14,15 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
+import com.project200.feature.exercise.ExerciseMenuBottomSheet
+import com.project200.feature.exercise.ImageSliderAdapter
 import com.project200.presentation.base.BaseAlertDialog
+import com.project200.presentation.navigator.FragmentNavigator
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
-    private val viewModel: ExerciseViewModel by viewModels()
+    private val viewModel: ExerciseDetailViewModel by viewModels()
+    private var fragmentNavigator: FragmentNavigator? = null
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
@@ -54,7 +59,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
     private fun bindExerciseRecordData(record: ExerciseRecord) {
         with(binding) {
             // 이미지 ViewPager 설정
-            val currentPictureUrls = record.pictureUrls
+            val currentPictureUrls = record.pictures?.map { it.url }
             if (currentPictureUrls.isNullOrEmpty()) {
                 recordImgVp.visibility = View.GONE
             } else {
@@ -66,7 +71,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
             recordTypeTv.setTextOrHide(record.personalType, recordTypeTitleTv)
 
             // 시간 처리
-            val dateTimeFormatter = CommonDateTimeFormatters.MM_DD_DAY_HH_MM_KOREAN
+            val dateTimeFormatter = CommonDateTimeFormatters.YY_MM_DD_HH_MM
             val startTimeString = record.startedAt.format(dateTimeFormatter)
             val endTimeString = record.endedAt.format(dateTimeFormatter)
 
@@ -98,9 +103,10 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
+
     private fun showExerciseDetailMenu() {
         ExerciseMenuBottomSheet(
-            onEditClicked = { },
+            onEditClicked = { fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!) },
             onDeleteClicked = { showDeleteConfirmationDialog() }
         ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
     }
@@ -113,6 +119,20 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
                 // TODO: 삭제
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is FragmentNavigator) {
+            fragmentNavigator = context
+        } else {
+            throw ClassCastException("$context must implement FragmentNavigator")
+        }
+    }
+
+    override fun onDetach() {
+        fragmentNavigator = null
+        super.onDetach()
     }
 
     companion object {

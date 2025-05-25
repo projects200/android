@@ -1,11 +1,11 @@
-package com.project200.undabang
+package com.project200.feature.exercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.SavedStateHandle
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
-import com.project200.feature.exercise.ExerciseViewModel
+import com.project200.feature.exercise.detail.ExerciseDetailViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -18,13 +18,14 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import com.google.common.truth.Truth.assertThat
+import com.project200.domain.model.ExerciseRecordPicture
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDateTime
 
 @ExperimentalCoroutinesApi
-class ExerciseViewModelTest {
+class ExerciseDetailViewModelTest {
 
     @get:Rule
     val mockkRule = MockKRule(this)
@@ -37,7 +38,7 @@ class ExerciseViewModelTest {
 
     // SavedStateHandle은 mockk()로 직접 생성하거나 @MockK 사용 가능
     private lateinit var savedStateHandle: SavedStateHandle
-    private lateinit var viewModel: ExerciseViewModel
+    private lateinit var viewModel: ExerciseDetailViewModel
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -50,7 +51,7 @@ class ExerciseViewModelTest {
         startedAt = now.minusHours(1),
         endedAt = now,
         location = "여의도 공원",
-        pictureUrls = listOf("http://example.com/img1.jpg")
+        pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/img1.jpg"))
     )
 
     @Before
@@ -66,9 +67,9 @@ class ExerciseViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase를 실행하고 성공 결과를 LiveData에 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 123
+        val recordId = 123L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
         val successResult = BaseResult.Success(sampleRecord)
 
@@ -89,9 +90,9 @@ class ExerciseViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase가 에러를 반환하면 LiveData에 에러 상태 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 456
+        val recordId = 456L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
         val errorResult = BaseResult.Error("500", "Network error")
         coEvery { mockUseCase.invoke(recordId) } returns errorResult

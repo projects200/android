@@ -1,9 +1,12 @@
 package com.project200.data.mapper
 
 import com.project200.data.dto.GetExerciseRecordData
+import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordPicture
+import java.time.format.DateTimeFormatter
 
-fun GetExerciseRecordData.toDomain(): ExerciseRecord {
+fun GetExerciseRecordData.toModel(): ExerciseRecord {
     return ExerciseRecord(
         title = exerciseTitle,
         detail = exerciseDetail,
@@ -11,6 +14,18 @@ fun GetExerciseRecordData.toDomain(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
-        pictureUrls = pictureDataList?.map { it.pictureUrl } ?: emptyList()
+        pictures = pictureDataList?.map { ExerciseRecordPicture(it.pictureId, it.pictureUrl) } ?: emptyList()
+    )
+}
+
+fun ExerciseRecord.toPostExerciseDTO(): PostExerciseRequestDto {
+    val formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    return PostExerciseRequestDto(
+        exerciseTitle = this.title,
+        exercisePersonalType = this.personalType,
+        exerciseLocation = this.location,
+        exerciseDetail = this.detail,
+        exerciseStartedAt = this.startedAt.format(formatter),
+        exerciseEndedAt = this.endedAt.format(formatter)
     )
 }
