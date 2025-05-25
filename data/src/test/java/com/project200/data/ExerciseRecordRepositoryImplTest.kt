@@ -1,6 +1,7 @@
 package com.project200.data // 실제 테스트 파일 패키지
 
 import android.content.ContentResolver
+import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
@@ -40,8 +41,8 @@ class ExerciseRecordRepositoryImplTest {
     @MockK
     private lateinit var mockApiService: ApiService
 
-    @MockK // ContentResolver 모킹 추가
-    private lateinit var mockContentResolver: ContentResolver
+    @MockK
+    private lateinit var mockContext: Context
 
     private val testIoDispatcher: CoroutineDispatcher = StandardTestDispatcher()
     private lateinit var repository: ExerciseRecordRepositoryImpl
@@ -80,7 +81,7 @@ class ExerciseRecordRepositoryImplTest {
 
     @Before
     fun setUp() {
-        repository = ExerciseRecordRepositoryImpl(mockApiService, testIoDispatcher, mockContentResolver)
+        repository = ExerciseRecordRepositoryImpl(mockApiService, testIoDispatcher, mockContext)
     }
 
     @Test

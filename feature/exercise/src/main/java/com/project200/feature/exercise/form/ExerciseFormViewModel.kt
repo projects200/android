@@ -175,8 +175,8 @@ class ExerciseFormViewModel @Inject constructor(
         // 로딩 시작
         _isLoading.value = true
 
-        if(isEditMode) createExerciseRecord(title, type, location, detail)
-        else editExerciseRecord()
+        if(isEditMode) editExerciseRecord()
+        else createExerciseRecord(title, type, location, detail)
 
     }
 
