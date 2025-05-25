@@ -14,6 +14,7 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
+import com.project200.feature.exercise.ExerciseMenuBottomSheet
 import com.project200.feature.exercise.ImageSliderAdapter
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.navigator.FragmentNavigator
@@ -31,7 +32,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_record))
             showBackButton(true) { findNavController().navigateUp() }
-            setSubButton(R.drawable.ic_menu) { view -> showExerciseDetailMenu(view) }
+            setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }
     }
 
@@ -102,23 +103,12 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
-    private fun showExerciseDetailMenu(anchorView: View) {
-        val popup = PopupMenu(requireContext(), anchorView)
-        popup.menuInflater.inflate(R.menu.menu_exercise_detail, popup.menu)
-        popup.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.item_edit_record -> {
-                    fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!)
-                    true
-                }
-                R.id.item_delete_record -> {
-                    showDeleteConfirmationDialog()
-                    true
-                }
-                else -> false
-            }
-        }
-        popup.show()
+
+    private fun showExerciseDetailMenu() {
+        ExerciseMenuBottomSheet(
+            onEditClicked = { fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!) },
+            onDeleteClicked = { showDeleteConfirmationDialog() }
+        ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
     }
 
     private fun showDeleteConfirmationDialog() {
