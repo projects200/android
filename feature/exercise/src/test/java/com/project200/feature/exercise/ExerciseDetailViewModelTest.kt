@@ -18,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import com.google.common.truth.Truth.assertThat
+import com.project200.domain.model.ExerciseRecordPicture
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -50,7 +51,7 @@ class ExerciseDetailViewModelTest {
         startedAt = now.minusHours(1),
         endedAt = now,
         location = "여의도 공원",
-        pictureUrls = listOf("http://example.com/img1.jpg")
+        pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/img1.jpg"))
     )
 
     @Before
@@ -66,7 +67,7 @@ class ExerciseDetailViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase를 실행하고 성공 결과를 LiveData에 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 123
+        val recordId = 123L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
@@ -89,7 +90,7 @@ class ExerciseDetailViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase가 에러를 반환하면 LiveData에 에러 상태 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 456
+        val recordId = 456L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
 
