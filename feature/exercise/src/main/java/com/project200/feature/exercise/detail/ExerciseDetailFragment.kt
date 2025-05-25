@@ -140,6 +140,11 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
+    override fun onDetach() {
+        fragmentNavigator = null
+        super.onDetach()
+    }
+
     companion object {
         const val TAG = "ExerciseDetailFragment"
     }

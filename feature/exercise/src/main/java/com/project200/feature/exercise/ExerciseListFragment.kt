@@ -24,6 +24,11 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         }
     }
 
+    override fun onDetach() {
+        fragmentNavigator = null
+        super.onDetach()
+    }
+
     override fun setupViews() = with(binding) {
         btn.setOnClickListener {
             fragmentNavigator?.navigateFromExerciseListToExerciseDetail(1)

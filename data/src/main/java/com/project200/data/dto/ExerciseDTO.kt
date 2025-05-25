@@ -20,3 +20,13 @@ data class PictureData(
     val pictureName: String,
     val pictureExtension: String
 )
+
+@JsonClass(generateAdapter = true)
+data class PostExerciseRequestDto(
+    val exerciseTitle: String?,
+    val exercisePersonalType: String?,
+    val exerciseLocation: String?,
+    val exerciseDetail: String?,
+    val exerciseStartedAt: String?,
+    val exerciseEndedAt: String?
+)

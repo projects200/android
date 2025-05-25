@@ -16,5 +16,3 @@ data class ExerciseRecordPicture(
     val id: Long,
     val url: String
 )
-
-

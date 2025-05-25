@@ -23,12 +23,13 @@
             android:id="@+id/action_exerciseListFragment_to_settingFragment"
             app:destination="@id/settingFragment"
             app:enterAnim="@anim/slide_in_right"
-            app:popExitAnim="@anim/anim_fade_out"/>
+            app:popExitAnim="@anim/anim_fade_out" />
         <action
             android:id="@+id/action_exerciseListFragment_to_exerciseFormFragment"
             app:destination="@id/exerciseFormFragment"
             app:enterAnim="@anim/slide_in_right"
-            app:popExitAnim="@anim/anim_fade_out"/>
+            app:popExitAnim="@anim/anim_fade_out">
+        </action>
     </fragment>
 
     <fragment
@@ -44,6 +45,9 @@
             app:destination="@id/exerciseFormFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out">
+            <argument
+                android:name="recordId"
+                app:argType="long" />
         </action>
     </fragment>
 
@@ -61,7 +65,20 @@
         tools:layout="@layout/fragment_exercise_form">
         <argument
             android:name="recordId"
-            app:argType="long"
-            android:defaultValue="-1L" /> </fragment>
+            android:defaultValue="-1L"
+            app:argType="long" />
+        <action
+            android:id="@+id/action_exerciseFormFragment_to_exerciseDetailFragment"
+            app:destination="@id/exerciseDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out"
+            app:popUpTo="@id/exerciseFormFragment"
+            app:popUpToInclusive="true">
+            <argument
+                android:name="recordId"
+                app:argType="long" />
+        </action>
+    </fragment>
+
 
 </navigation>

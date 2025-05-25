@@ -5,4 +5,5 @@ interface FragmentNavigator {
     fun navigateFromExerciseListToSetting()
     fun navigateFromExerciseListToExerciseForm()
     fun navigateFromExerciseDetailToExerciseForm(recordId: Long)
+    fun navigateFromExerciseFormToExerciseDetail(recordId: Long)
 }
