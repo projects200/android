@@ -15,6 +15,7 @@ import timber.log.Timber
 import javax.inject.Inject
 import androidx.core.net.toUri
 import com.project200.data.mapper.toMultipartBodyPart
+import kotlin.coroutines.cancellation.CancellationException
 
 class ExerciseRecordRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
@@ -45,6 +46,9 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         val imageUris = images.mapNotNull {
             try {
                 it.toUri()
+            } catch (e: CancellationException) {
+                Timber.w(e, "Coroutine CancellationException: $it")
+                null
             } catch (e: Exception) {
                 Timber.w(e, "Invalid URI string: $it")
                 null
