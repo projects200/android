@@ -35,10 +35,4 @@ object AppModule {
 
         return remoteConfig
     }
-
-    @Provides
-    @Singleton
-    fun provideContentResolver(@ApplicationContext context: Context): ContentResolver {
-        return context.contentResolver
-    }
 }

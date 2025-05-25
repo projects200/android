@@ -1,6 +1,7 @@
 package com.project200.data.mapper
 
 import android.content.ContentResolver
+import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -12,9 +13,10 @@ import timber.log.Timber
 import java.io.IOException
 
 fun Uri.toMultipartBodyPart(
-    contentResolver: ContentResolver,
+    context: Context,
     partName: String
 ): MultipartBody.Part? {
+    val contentResolver = context.contentResolver
     return try {
         val fileName = contentResolver.getFileName(this) ?: "image_${System.currentTimeMillis()}"
         val mimeType = contentResolver.getType(this) ?: "image/*"

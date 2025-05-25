@@ -1,6 +1,7 @@
 package com.project200.data.impl
 
 import android.content.ContentResolver
+import android.content.Context
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetExerciseRecordData
@@ -15,12 +16,13 @@ import timber.log.Timber
 import javax.inject.Inject
 import androidx.core.net.toUri
 import com.project200.data.mapper.toMultipartBodyPart
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlin.coroutines.cancellation.CancellationException
 
 class ExerciseRecordRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-    private val contentResolver: ContentResolver
+    @ApplicationContext private val context: Context
 ) : ExerciseRecordRepository {
     override suspend fun getExerciseDetail(recordId: Long): BaseResult<ExerciseRecord> {
         return apiCallBuilder(
@@ -47,8 +49,8 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
             try {
                 it.toUri()
             } catch (e: CancellationException) {
-                Timber.w(e, "Coroutine CancellationException: $it")
-                null
+                Timber.w(e, "CancellationException: $it")
+                throw e
             } catch (e: Exception) {
                 Timber.w(e, "Invalid URI string: $it")
                 null
@@ -56,7 +58,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         }
 
         val imageParts = imageUris.mapNotNull { uri ->
-            uri.toMultipartBodyPart(contentResolver, "pictures")
+            uri.toMultipartBodyPart(context, "pictures")
         }
 
         if (imageParts.isEmpty() && imageUris.isNotEmpty()) {
