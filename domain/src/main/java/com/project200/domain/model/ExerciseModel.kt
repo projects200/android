@@ -16,3 +16,12 @@ data class ExerciseRecordPicture(
     val id: Long,
     val url: String
 )
+
+data class ExerciseListItem(
+    val recordId: Long,
+    val title: String,
+    val type: String,
+    val startTime: LocalDateTime,
+    val endTime: LocalDateTime,
+    val imageUrl: String?
+)
