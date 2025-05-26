@@ -8,9 +8,9 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.project200.domain.model.UpdateCheckResult
-import com.project200.feature.exercise.ExerciseListFragmentDirections
 import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
+import com.project200.feature.exercise.list.ExerciseListFragmentDirections
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.update.UpdateDialogFragment
@@ -138,8 +138,8 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
     }
 
-    override fun navigateFromExerciseListToExerciseForm() {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
+    override fun navigateFromExerciseListToExerciseForm(recordId: Long) {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment(recordId))
     }
 
     override fun navigateFromExerciseDetailToExerciseForm(recordId: Long) {
