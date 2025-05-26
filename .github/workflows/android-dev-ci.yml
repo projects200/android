@@ -58,7 +58,7 @@ jobs:
         firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
           --app ${{ secrets.FIREBASE_APP_ID }} \
           --release-notes "CI build from dev branch (via CLI)" \
-          --groups "testers" \ # 여기에 실제 테스터 그룹 이름 입력
+          --groups "testers" \
           --token ${{ secrets.FIREBASE_TOKEN }}
 
     - name: Run Android Instrumentation Tests
