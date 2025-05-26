@@ -1,22 +1,24 @@
 package com.project200.data.impl
 
-import android.content.ContentResolver
 import android.content.Context
+import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetExerciseRecordData
+import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.mapper.toModel
+import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.mapper.toPostExerciseDTO
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.repository.ExerciseRecordRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import timber.log.Timber
+import java.time.LocalDate
 import javax.inject.Inject
-import androidx.core.net.toUri
-import com.project200.data.mapper.toMultipartBodyPart
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlin.coroutines.cancellation.CancellationException
 
 class ExerciseRecordRepositoryImpl @Inject constructor(
@@ -31,6 +33,15 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
             mapper = { dto: GetExerciseRecordData -> dto.toModel() }
         )
     }
+
+    override suspend fun getExerciseRecordList(date: LocalDate): BaseResult<List<ExerciseListItem>> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getExerciseList(date) },
+            mapper = { dtoList: List<GetExerciseRecordListDto> -> dtoList.map() { it.toModel() } }
+        )
+    }
+
 
     override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<Long> {
         return apiCallBuilder(

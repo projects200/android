@@ -2,7 +2,6 @@ package com.project200.feature.exercise.detail
 
 import android.content.Context
 import android.view.View
-import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.viewModels
@@ -14,8 +13,7 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
-import com.project200.feature.exercise.ExerciseMenuBottomSheet
-import com.project200.feature.exercise.ImageSliderAdapter
+import com.project200.feature.exercise.form.ExerciseMenuBottomSheet
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.navigator.FragmentNavigator
 
@@ -30,7 +28,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
 
     override fun setupViews() {
         binding.baseToolbar.apply {
-            setTitle(getString(R.string.exercise_record))
+            setTitle(getString(R.string.exercise_detail))
             showBackButton(true) { findNavController().navigateUp() }
             setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }
