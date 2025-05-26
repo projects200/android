@@ -1,35 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white300"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    xmlns:tools="http://schemas.android.com/tools"
+    android:background="@color/white300">
+
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
 
     <TextView
-        android:id="@+id/btn"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:text="운동 기록"
-        android:background="@color/main"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"/>
+        android:id="@+id/exercise_list_date_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        android:layout_marginTop="12dp"
+        android:drawableEnd="@drawable/ic_arrow_down"
+        android:drawablePadding="8dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar" />
 
-    <TextView
-        android:id="@+id/btn2"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:text="설정"
-        android:background="@color/main"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-
-    <TextView
-        android:id="@+id/btn3"
-        android:layout_width="200dp"
-        android:layout_height="200dp"
-        android:background="@color/main"
-        android:text="운동 기록 생성/수정"
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/exercise_list_rv"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="12dp"
+        tools:listitem="@layout/item_exercise_list"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintTop_toBottomOf="@id/exercise_list_date_tv" />
 
+    <TextView
+        android:id="@+id/empty_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:text="@string/exercise_create_get_score"
+        android:gravity="center"
+        android:textColor="@color/gray200"
+        style="@style/content_regular"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/exercise_list_rv" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/exercise_create_btn"
+        style="@style/content_bold"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/btn_height"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginBottom="32dp"
+        android:background="@drawable/basic_activate_btn"
+        android:elevation="8dp"
+        android:gravity="center"
+        android:text="@string/exercise_create_get_score"
+        android:textColor="@color/white300"
+        app:layout_constraintBottom_toBottomOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>

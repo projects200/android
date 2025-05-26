@@ -44,4 +44,5 @@ fun LocalDateTime?.toFormattedString(formatter: DateTimeFormatter = DateTimeForm
 object CommonDateTimeFormatters {
     val YYYY_MM_DD: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE // "YYYY-MM-DD"
     val YY_MM_DD_HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("yy.MM.dd HH:mm", Locale.KOREAN)
+    val YYYY_MM_DD_KOR = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일")
 }
