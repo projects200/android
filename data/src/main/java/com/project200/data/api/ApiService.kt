@@ -2,12 +2,15 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetExerciseRecordData
+import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import okhttp3.MultipartBody
 import retrofit2.http.*
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 interface ApiService {
     // 회원 여부 확인
@@ -26,11 +29,19 @@ interface ApiService {
         @Path("recordId") recordId: Long
     ): BaseResponse<GetExerciseRecordData>
 
+    // 하루 운동 기록 리스트 조회
+    @GET("v1/exercises")
+    suspend fun getExerciseList(
+        @Query("date") date: LocalDate
+    ): BaseResponse<List<GetExerciseRecordListDto>>
+
+    // 운동 기록 생성
     @POST("v1/exercises")
     suspend fun postExerciseRecord(
         @Body recordRequestDto: PostExerciseRequestDto
     ): BaseResponse<Long>
 
+    // 운동 기록 이미지 업로드
     @Multipart
     @POST("v1/exercises/{exerciseId}/pictures")
     suspend fun postExerciseImages(

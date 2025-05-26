@@ -6,20 +6,11 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.project200.domain.model.ExerciseListItem
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.ItemExerciseListBinding
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-
-// 임시 모델
-data class ExerciseListItem(
-    val recordId: Long,
-    val title: String,
-    val type: String,
-    val startTime: LocalDateTime,
-    val endTime: LocalDateTime,
-    val imageUrl: String?
-)
 
 class ExerciseListAdapter(
     private val onItemClicked: (Long) -> Unit

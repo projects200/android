@@ -30,3 +30,13 @@ data class PostExerciseRequestDto(
     val exerciseStartedAt: String?,
     val exerciseEndedAt: String?
 )
+
+@JsonClass(generateAdapter = true)
+data class GetExerciseRecordListDto(
+    val exerciseId: Long,
+    val exerciseTitle: String,
+    val exercisePersonalType: String,
+    val exerciseStartedAt: LocalDateTime,
+    val exerciseEndedAt: LocalDateTime,
+    val pictureUrl: String?
+)

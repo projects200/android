@@ -2,6 +2,7 @@ package com.project200.feature.exercise.list
 
 import android.content.Context
 import android.view.View
+import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -66,6 +67,10 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         viewModel.currentDate.observe(viewLifecycleOwner) { monthText ->
             binding.exerciseListDateTv.text = monthText.format(YYYY_MM_DD_KOR)
         }
+
+        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun showDatePickerDialog() {
@@ -88,9 +93,5 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
     override fun onDetach() {
         fragmentNavigator = null
         super.onDetach()
-    }
-
-    companion object {
-        const val CREATE_RECORD_ID = -1L
     }
 }
