@@ -29,15 +29,18 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         super.onDetach()
     }
 
-    override fun setupViews() = with(binding) {
-        btn.setOnClickListener {
-            fragmentNavigator?.navigateFromExerciseListToExerciseDetail(1)
-        }
-        btn2.setOnClickListener {
-            fragmentNavigator?.navigateFromExerciseListToSetting()
-        }
-        btn3.setOnClickListener {
-            fragmentNavigator?.navigateFromExerciseListToExerciseForm()
+    override fun setupViews() {
+        with(binding) {
+            baseToolbar.apply {
+                setTitle(getString(R.string.exercise_record))
+                showBackButton(true) { findNavController().navigateUp() }
+                setSubButton(R.drawable.ic_setting) { fragmentNavigator?.navigateFromExerciseListToSetting() }
+            }
+
+            exerciseCreateBtn.setOnClickListener {
+                fragmentNavigator?.navigateFromExerciseListToExerciseForm()
+            }
+
         }
     }
 }
