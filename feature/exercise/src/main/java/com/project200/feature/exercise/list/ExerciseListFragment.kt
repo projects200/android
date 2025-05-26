@@ -40,7 +40,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
             }
 
             exerciseCreateBtn.setOnClickListener {
-                fragmentNavigator?.navigateFromExerciseListToExerciseForm(CREATE_RECORD_ID)
+                fragmentNavigator?.navigateFromExerciseListToExerciseForm()
             }
             setupRecyclerView()
         }
@@ -48,7 +48,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
 
     private fun setupRecyclerView() {
         exerciseAdapter = ExerciseListAdapter { recordId ->
-            fragmentNavigator?.navigateFromExerciseListToExerciseForm(recordId)
+            fragmentNavigator?.navigateFromExerciseListToExerciseDetail(recordId)
         }
 
         binding.exerciseListRv.apply {

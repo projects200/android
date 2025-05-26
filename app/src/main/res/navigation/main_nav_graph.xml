@@ -29,9 +29,6 @@
             app:destination="@id/exerciseFormFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out">
-            <argument
-                android:name="recordId"
-                app:argType="long"/>
         </action>
     </fragment>
 

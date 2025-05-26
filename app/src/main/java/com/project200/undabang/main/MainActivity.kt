@@ -138,8 +138,8 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
     }
 
-    override fun navigateFromExerciseListToExerciseForm(recordId: Long) {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment(recordId))
+    override fun navigateFromExerciseListToExerciseForm() {
+        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
     }
 
     override fun navigateFromExerciseDetailToExerciseForm(recordId: Long) {
