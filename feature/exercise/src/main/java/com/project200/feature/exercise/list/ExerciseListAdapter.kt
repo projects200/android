@@ -40,7 +40,6 @@ class ExerciseListAdapter(
         fun bind(item: ExerciseListItem) {
             with(binding) {
                 exerciseTitleTv.text = item.title
-                exerciseTypeTv.text = item.type
                 // 시간 포맷팅 적용
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
 
@@ -50,7 +49,7 @@ class ExerciseListAdapter(
                         .load(item.imageUrl)
                         .into(exerciseIv)
                 } else {
-                    exerciseIv.setImageResource(R.drawable.ic_record_edit) // 기본 이미지
+                    exerciseIv.setImageResource(R.drawable.ic_empty_img) // 기본 이미지
                 }
 
                 exerciseListCl.setOnClickListener {
