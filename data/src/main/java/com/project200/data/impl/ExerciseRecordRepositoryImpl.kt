@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.mapper.toModel
@@ -47,7 +48,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.postExerciseRecord(record.toPostExerciseDTO())},
-            mapper = { exerciseId: Long  -> exerciseId }
+            mapper = { exerciseIdDto: ExerciseIdDto  -> exerciseIdDto.exerciseId }
         )
     }
 
@@ -79,7 +80,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.postExerciseImages(recordId, imageParts) },
-            mapper = { responseId: Long -> responseId }
+            mapper = { exerciseIdDto: ExerciseIdDto  -> exerciseIdDto.exerciseId }
         )
     }
 }
