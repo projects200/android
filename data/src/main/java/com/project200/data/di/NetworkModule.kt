@@ -70,8 +70,14 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
+        val baseUrl = if (BuildConfig.DEBUG) {
+            "https://api.undabang.store/dev/"
+        } else {
+            "https://api.undabang.store/"
+        }
+
         return Retrofit.Builder()
-            .baseUrl("https://api.undabang.store/dev/")
+            .baseUrl(baseUrl)
             .client(okHttpClient)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()

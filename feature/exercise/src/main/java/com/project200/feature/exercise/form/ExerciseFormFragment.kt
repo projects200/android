@@ -173,11 +173,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             when (result) {
                 is SubmissionResult.Success -> {
                     // 기록 생성, 이미지 업로드 성공
-                    fragmentNavigator?.navigateFromExerciseListToExerciseDetail(result.recordId)
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)
-                    fragmentNavigator?.navigateFromExerciseListToExerciseDetail(result.recordId)
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
                 }
                 is SubmissionResult.Failure -> { // 기록 생성 실패
                 }
