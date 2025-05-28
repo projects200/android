@@ -12,18 +12,17 @@ import kotlinx.coroutines.CancellationException
 suspend fun <DTO, Domain> apiCallBuilder(
     ioDispatcher: CoroutineDispatcher,
     apiCall: suspend () -> BaseResponse<DTO>,
-    mapper: (dto: DTO) -> Domain
+    mapper: (dto: DTO?) -> Domain
 ): BaseResult<Domain> {
     return withContext(ioDispatcher) {
         runCatching {
             apiCall()
         }.fold(
             onSuccess = { response ->
-                if (response.succeed && response.data != null) {
+                if (response.succeed) {
                     try {
                         BaseResult.Success(mapper(response.data))
                     } catch (e: Exception) {
-                        // 매핑 과정에서 예외 발생 시 (예: DTO 필드가 예상과 다를 때)
                         Timber.e(e, "Data mapping failed")
                         BaseResult.Error(
                             errorCode = "MAPPING_ERROR",
@@ -31,13 +30,6 @@ suspend fun <DTO, Domain> apiCallBuilder(
                             cause = e
                         )
                     }
-                } else if (response.succeed && response.data == null) {
-                    Timber.w("API call successful but no data received. Code: ${response.code}, Message: ${response.message}")
-                    BaseResult.Error(
-                        errorCode = "NO_DATA",
-                        message = response.message ?: "데이터가 없습니다.",
-                        cause = NoSuchElementException("Data field was null in successful API response")
-                    )
                 } else { // response.succeed == false (서버에서 정의한 비즈니스 오류)
                     Timber.w("API call failed server-side. Code: ${response.code}, Message: ${response.message}")
                     BaseResult.Error(

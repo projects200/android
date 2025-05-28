@@ -19,6 +19,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import timber.log.Timber
 import java.time.LocalDate
+import java.util.NoSuchElementException
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
@@ -31,7 +32,9 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getExerciseRecordDetail(recordId) },
-            mapper = { dto: GetExerciseRecordData -> dto.toModel() }
+            mapper = { dto: GetExerciseRecordData? ->
+                dto?.toModel() ?: throw NoSuchElementException("운동 상세 정보 응답 데이터가 없습니다.")
+            }
         )
     }
 
@@ -39,7 +42,9 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getExerciseList(date) },
-            mapper = { dtoList: List<GetExerciseRecordListDto> -> dtoList.map() { it.toModel() } }
+            mapper = { dtoList: List<GetExerciseRecordListDto>? ->
+                dtoList?.map { it.toModel() } ?: emptyList()
+            }
         )
     }
 
@@ -47,8 +52,10 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
     override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<Long> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postExerciseRecord(record.toPostExerciseDTO())},
-            mapper = { exerciseIdDto: ExerciseIdDto  -> exerciseIdDto.exerciseId }
+            apiCall = { apiService.postExerciseRecord(record.toPostExerciseDTO()) },
+            mapper = { exerciseIdDto: ExerciseIdDto? ->
+                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
+            }
         )
     }
 
@@ -80,7 +87,9 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.postExerciseImages(recordId, imageParts) },
-            mapper = { exerciseIdDto: ExerciseIdDto  -> exerciseIdDto.exerciseId }
+            mapper = { exerciseIdDto: ExerciseIdDto? ->
+                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.")
+            }
         )
     }
 }
