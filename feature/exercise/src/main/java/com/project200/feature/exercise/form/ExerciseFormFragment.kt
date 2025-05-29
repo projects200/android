@@ -48,11 +48,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                launchGallery()
-            } else {
-                Toast.makeText(requireContext(), getString(R.string.exercise_record_image_access), Toast.LENGTH_SHORT).show()
-            }
+            launchGallery()
         }
 
     override fun getViewBinding(view: View): FragmentExerciseFormBinding {

@@ -20,36 +20,36 @@ import java.time.LocalDate
 
 interface ApiService {
     // 회원 여부 확인
-    @GET("v1/members/me/registration-status")
+    @GET("api/v1/members/me/registration-status")
     suspend fun getIsRegistered(): BaseResponse<GetIsRegisteredData>
 
     // 회원가입
-    @POST("auth/sign-up/v1")
+    @POST("auth/v1/sign-up")
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>
 
     // 운동 기록 상세 조회
-    @GET("v1/exercises/{recordId}")
+    @GET("api/v1/exercises/{exerciseId}")
     suspend fun getExerciseRecordDetail(
-        @Path("recordId") recordId: Long
+        @Path("exerciseId") recordId: Long
     ): BaseResponse<GetExerciseRecordData>
 
     // 하루 운동 기록 리스트 조회
-    @GET("v1/exercises")
+    @GET("api/v1/exercises")
     suspend fun getExerciseList(
         @Query("date") date: LocalDate
     ): BaseResponse<List<GetExerciseRecordListDto>>
 
     // 운동 기록 생성
-    @POST("v1/exercises")
+    @POST("api/v1/exercises")
     suspend fun postExerciseRecord(
         @Body recordRequestDto: PostExerciseRequestDto
     ): BaseResponse<ExerciseIdDto>
 
     // 운동 기록 이미지 업로드
     @Multipart
-    @POST("v1/exercises/{exerciseId}/pictures")
+    @POST("api/v1/exercises/{exerciseId}/pictures")
     suspend fun postExerciseImages(
         @Path("exerciseId") exerciseId: Long,
         @Part pictures: List<MultipartBody.Part>
