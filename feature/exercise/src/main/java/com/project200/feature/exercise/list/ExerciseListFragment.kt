@@ -23,6 +23,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
     private val viewModel: ExerciseListViewModel by viewModels()
     private var fragmentNavigator: FragmentNavigator? = null
     private lateinit var exerciseAdapter: ExerciseListAdapter
+    private var isInitialResume = true
 
     override fun getViewBinding(view: View): FragmentExerciseListBinding {
         return FragmentExerciseListBinding.bind(view)
@@ -44,6 +45,16 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
                 fragmentNavigator?.navigateFromExerciseListToExerciseForm()
             }
             setupRecyclerView()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (isInitialResume) { isInitialResume = false
+        } else {
+            viewModel.currentDate.value?.let {
+                viewModel.changeDate(it.toString())
+            }
         }
     }
 
