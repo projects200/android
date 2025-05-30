@@ -12,21 +12,28 @@ import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
+import com.project200.domain.usecase.DeleteExerciseRecordImagesUseCase
+import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
+import com.project200.domain.usecase.UpdateExerciseRecordUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class ExerciseFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
     private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
-    private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase
+    private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
+    private val editExerciseRecordUseCase: EditExerciseRecordUseCase
 ) : ViewModel() {
     val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
@@ -57,6 +64,9 @@ class ExerciseFormViewModel @Inject constructor(
     private val _createResult = MutableLiveData<SubmissionResult>()
     val createResult: LiveData<SubmissionResult> = _createResult
 
+    private val _editResult = MutableLiveData<SubmissionResult>()
+    val editResult: LiveData<SubmissionResult> = _editResult
+
     private val _toastMessage = MutableLiveData<String>()
     val toastMessage: LiveData<String> = _toastMessage
 
@@ -74,12 +84,8 @@ class ExerciseFormViewModel @Inject constructor(
             // 수정 모드
             viewModelScope.launch {
                 when (val result = getExerciseRecordDetailUseCase(recordId)) {
-                    is BaseResult.Success -> {
-                        setupEditMode(result.data)
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.value = LOAD_FAIL
-                    }
+                    is BaseResult.Success -> { setupEditMode(result.data) }
+                    is BaseResult.Error -> { _toastMessage.value = LOAD_FAIL }
                 }
             }
         }
@@ -137,31 +143,48 @@ class ExerciseFormViewModel @Inject constructor(
 
 
     fun getCurrentPermittedImageCount(): Int {
-        val imageCount = _imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
+        val imageCount =
+            _imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
         return MAX_IMAGE - imageCount
     }
 
     /** 변경 사항이 있는지 확인 */
-    private fun hasChanges(title: String, type: String, location: String, detail: String): Boolean {
-        initialRecord?.let { record ->
-            val imagesChanged = removedPictureIds.isNotEmpty() ||
-                    _imageItems.value?.any { it is ExerciseImageListItem.NewImageItem } == true
+    private fun hasChanges(record: ExerciseRecord): Boolean
+        = hasContentChanges(record) || hasImageChanges()
 
-            return record.title != title ||
-                    record.personalType != type ||
-                    record.location != location ||
-                    record.detail != detail ||
-                    record.startedAt != _startTime.value ||
-                    record.endedAt != _endTime.value ||
-                    imagesChanged
+    private fun hasContentChanges(record: ExerciseRecord): Boolean {
+        initialRecord?.let { initialRecord ->
+            return initialRecord.title != record.title ||
+                    initialRecord.personalType != record.personalType ||
+                    initialRecord.location != record.location ||
+                    initialRecord.detail != record.detail ||
+                    initialRecord.startedAt != _startTime.value ||
+                    initialRecord.endedAt != _endTime.value
         }
         return true
     }
 
+    /** 이미지 변경 사항이 있는지 확인 */
+    private fun hasImageChanges(): Boolean {
+        return removedPictureIds.isNotEmpty() ||
+                _imageItems.value?.any { it is ExerciseImageListItem.NewImageItem } == true
+    }
+
     /** 기록 생성 또는 수정 */
     fun submitRecord(title: String, type: String, location: String, detail: String) {
+        // 제출할 기록
+        val recordToSubmit = ExerciseRecord(
+            title = title,
+            detail = detail,
+            personalType = type,
+            startedAt = _startTime.value!!,
+            endedAt = _endTime.value!!,
+            location = location,
+            pictures = null
+        )
+
         // 변경 사항 확인 (수정 모드일 때)
-        if (isEditMode && !hasChanges(title, type, location, detail)) {
+        if (isEditMode && !hasChanges(recordToSubmit)) {
             _toastMessage.value = NO_CHANGE
             return
         }
@@ -175,30 +198,23 @@ class ExerciseFormViewModel @Inject constructor(
         // 로딩 시작
         _isLoading.value = true
 
-        if(isEditMode) editExerciseRecord()
-        else createExerciseRecord(title, type, location, detail)
-
-    }
-
-    /** 기록 생성 */
-    private fun createExerciseRecord(title: String, type: String, location: String, detail: String) {
-        val recordToSubmit = ExerciseRecord(
-            title = title,
-            detail = detail,
-            personalType = type,
-            startedAt = _startTime.value!!,
-            endedAt = _endTime.value!!,
-            location = location,
-            pictures = null // 생성 시에는 이미지 정보 불필요
-        )
-
         // 새로 추가된 이미지 URI 목록 가져오기
         val newImageUris = _imageItems.value
             ?.filterIsInstance<ExerciseImageListItem.NewImageItem>()
             ?.map { it.uri.toString() } ?: emptyList()
 
+        if (isEditMode) editExerciseRecord(recordToSubmit, newImageUris)
+        else createExerciseRecord(recordToSubmit, newImageUris)
+
+    }
+
+    /** 기록 생성 */
+    private fun createExerciseRecord(
+        record: ExerciseRecord,
+        newImageUris: List<String>
+    ) {
         viewModelScope.launch {
-            when (val createResult = createExerciseRecordUseCase(recordToSubmit)) {
+            when (val createResult = createExerciseRecordUseCase(record)) {
                 is BaseResult.Success -> {
                     val createdRecordId = createResult.data
                     // 기록 생성 성공 시 & 업로드할 이미지가 있을 경우 -> 이미지 업로드 요청
@@ -212,7 +228,8 @@ class ExerciseFormViewModel @Inject constructor(
 
                             is BaseResult.Error -> {
                                 // 이미지 업로드 실패 -> 부분 성공 (오류 메시지와 함께)
-                                _createResult.value = SubmissionResult.PartialSuccess(createdRecordId, UPLOAD_FAIL)
+                                _createResult.value =
+                                    SubmissionResult.PartialSuccess(createdRecordId, UPLOAD_FAIL)
                             }
                         }
                     } else {
@@ -233,10 +250,21 @@ class ExerciseFormViewModel @Inject constructor(
     }
 
     /** 기록 수정 */
-    private fun editExerciseRecord() {
-        // TODO: 수정 로직 구현 필요
-        _isLoading.value = false
+    private fun editExerciseRecord(
+        record: ExerciseRecord,
+        newImageUris: List<String>
+    ) {
+        viewModelScope.launch {
+            _editResult.value = editExerciseRecordUseCase(
+                recordId = recordId!!,
+                recordToUpdate = record,
+                isContentChanges = hasContentChanges(record),
+                imagesToDelete = removedPictureIds,
+                newImages = newImageUris
+            )
+        }
     }
+
 
     companion object {
         const val LOAD_FAIL = "기록을 불러오는데 실패했습니다"
@@ -244,5 +272,6 @@ class ExerciseFormViewModel @Inject constructor(
         const val INVALID_INPUT = "필수 항목을 입력해주세요."
         const val CREATE_FAIL = "기록 생성에 실패했습니다"
         const val UPLOAD_FAIL = "이미지 업로드에 실패했습니다"
+        const val TAG = "ExerciseViewModel"
     }
 }

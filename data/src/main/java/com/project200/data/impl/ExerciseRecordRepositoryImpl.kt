@@ -9,6 +9,7 @@ import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
+import com.project200.data.mapper.toPatchExerciseDTO
 import com.project200.data.mapper.toPostExerciseDTO
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -59,6 +60,16 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun updateExerciseRecord(record: ExerciseRecord, recordId: Long): BaseResult<Long> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchExerciseRecord(recordId, record.toPatchExerciseDTO()) },
+            mapper = { exerciseIdDto: ExerciseIdDto? ->
+                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("운동 기록 수정 응답 데이터가 없습니다.")
+            }
+        )
+    }
+
     override suspend fun uploadExerciseRecordImages(
         recordId: Long,
         images: List<String>,
@@ -91,5 +102,19 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
                 exerciseIdDto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.")
             }
         )
+    }
+
+    override suspend fun deleteExerciseRecordImages(
+        recordId: Long,
+        imageIds: List<Long>
+    ): BaseResult<Long> {
+        /*return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteExerciseImages(recordId, DeleteExerciseImagesRequestDto(imageIds)) },
+            mapper = { exerciseIdDto: ExerciseIdDto? ->
+                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("이미지 삭제 응답 데이터가 없습니다.")
+            }
+        )*/
+        return BaseResult.Success(1L)
     }
 }

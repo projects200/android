@@ -180,6 +180,23 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
         }
 
+        viewModel.editResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is SubmissionResult.Success -> {
+                    // 기록 수정, 이미지 삭제/업로드 성공
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+                is SubmissionResult.PartialSuccess -> {
+                    // 부분 성공 (내용 수정 or 이미지 삭제/업로드 실패)
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+                is SubmissionResult.Failure -> { // 내용, 이미지 삭제/업로드 실패
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
