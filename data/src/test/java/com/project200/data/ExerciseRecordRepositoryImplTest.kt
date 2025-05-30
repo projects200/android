@@ -131,9 +131,10 @@ class ExerciseRecordRepositoryImplTest {
         coVerify(exactly = 1) { mockApiService.getExerciseRecordDetail(recordId) }
         assertThat(result).isInstanceOf(BaseResult.Error::class.java)
         val errorResult = result as BaseResult.Error
-        assertThat(errorResult.errorCode).isEqualTo("NO_DATA")
-        assertThat(errorResult.message).isEqualTo("성공했으나 BaseResponse의 data가 null")
-        assertThat(errorResult.cause).isInstanceOf(NoSuchElementException::class.java)
+        assertThat(errorResult.errorCode).isEqualTo("MAPPING_ERROR") // apiCallBuilder가 반환하는 errorCode
+        assertThat(errorResult.message).isEqualTo("데이터를 변환하는 중 오류가 발생했습니다.") // apiCallBuilder가 반환하는 message
+        assertThat(errorResult.cause).isInstanceOf(NoSuchElementException::class.java) // mapper가 던진 예외
+        assertThat(errorResult.cause?.message).isEqualTo("운동 상세 정보 응답 데이터가 없습니다.") // NoSuchElementException의 메시지
     }
 
     // createHttpExceptionFromString 헬퍼 함수

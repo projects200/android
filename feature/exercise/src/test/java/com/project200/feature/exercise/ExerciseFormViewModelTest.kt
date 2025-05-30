@@ -8,6 +8,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
+import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
@@ -46,6 +47,9 @@ class ExerciseFormViewModelTest {
     @MockK
     private lateinit var mockUploadUseCase: UploadExerciseRecordImagesUseCase
 
+    @MockK
+    private lateinit var mockEditUseCase: EditExerciseRecordUseCase
+
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: ExerciseFormViewModel
 
@@ -68,7 +72,8 @@ class ExerciseFormViewModelTest {
             savedStateHandle,
             mockGetDetailUseCase,
             mockCreateUseCase,
-            mockUploadUseCase
+            mockUploadUseCase,
+            mockEditUseCase
         )
         // 테스트 시작 시 시간 설정 (유효성 검사 통과 목적)
         viewModel.setStartTime(now.minusHours(1))

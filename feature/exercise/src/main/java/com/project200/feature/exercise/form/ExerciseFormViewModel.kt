@@ -7,25 +7,20 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.domain.model.BaseResult
 import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
-import com.project200.domain.usecase.DeleteExerciseRecordImagesUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
-import com.project200.domain.usecase.UpdateExerciseRecordUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
-import kotlin.coroutines.cancellation.CancellationException
 
 @HiltViewModel
 class ExerciseFormViewModel @Inject constructor(

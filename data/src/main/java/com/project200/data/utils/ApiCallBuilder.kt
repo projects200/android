@@ -33,8 +33,8 @@ suspend fun <DTO, Domain> apiCallBuilder(
                 } else { // response.succeed == false (서버에서 정의한 비즈니스 오류)
                     Timber.w("API call failed server-side. Code: ${response.code}, Message: ${response.message}")
                     BaseResult.Error(
-                        errorCode = response.code ?: "UNKNOWN_SERVER_ERROR",
-                        message = response.message ?: "알 수 없는 서버 오류가 발생했습니다."
+                        errorCode = response.code,
+                        message = response.message
                     )
                 }
             },
