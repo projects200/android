@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
@@ -59,8 +60,8 @@ class ExerciseFormViewModel @Inject constructor(
     private val _createResult = MutableLiveData<SubmissionResult>()
     val createResult: LiveData<SubmissionResult> = _createResult
 
-    private val _editResult = MutableLiveData<SubmissionResult>()
-    val editResult: LiveData<SubmissionResult> = _editResult
+    private val _editResult = MutableLiveData<ExerciseEditResult>()
+    val editResult: LiveData<ExerciseEditResult> = _editResult
 
     private val _toastMessage = MutableLiveData<String>()
     val toastMessage: LiveData<String> = _toastMessage
