@@ -9,6 +9,7 @@ import com.bumptech.glide.Glide
 import com.project200.domain.model.ExerciseListItem
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.ItemExerciseListBinding
+import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -44,10 +45,13 @@ class ExerciseListAdapter(
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
 
 
-                if (item.imageUrl != null) {
+                val imageUrl = item.imageUrl
+                Timber.tag("asdasd").d("${item.imageUrl}")
+                if (!imageUrl.isNullOrEmpty()) {
                     Glide.with(exerciseIv)
-                        .load(item.imageUrl)
+                        .load(imageUrl[0])
                         .into(exerciseIv)
+                    Timber.tag("asdasd").e("${imageUrl[0]}")
                 } else {
                     exerciseIv.setImageResource(R.drawable.ic_empty_img) // 기본 이미지
                 }
