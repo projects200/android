@@ -31,12 +31,6 @@ class ExerciseListViewModel @Inject constructor(
     private val _toastMessage = MutableLiveData<String>()
     val toastMessage: LiveData<String> = _toastMessage
 
-    init {
-        _currentDate.value?.let { initialDate ->
-            loadExercises(initialDate)
-        }
-    }
-
     private fun loadExercises(date: LocalDate) {
         viewModelScope.launch {
             Timber.tag(TAG).d("loadExercises")
@@ -56,6 +50,13 @@ class ExerciseListViewModel @Inject constructor(
         val newDate = LocalDate.parse(date)
         _currentDate.value = newDate
         loadExercises(newDate)
+    }
+
+    fun loadCurrentDateExercises() {
+        _currentDate.value?.let { currentSelectedDate ->
+            Timber.tag(TAG).d("리스트 갱신: $currentSelectedDate")
+            loadExercises(currentSelectedDate)
+        }
     }
 
     companion object {
