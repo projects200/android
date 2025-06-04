@@ -23,5 +23,5 @@ data class ExerciseListItem(
     val type: String,
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
-    val imageUrl: String?
+    val imageUrl: List<String>?
 )
