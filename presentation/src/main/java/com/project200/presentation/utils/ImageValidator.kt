@@ -10,13 +10,6 @@ import com.project200.common.constants.RuleConstants.MAX_FILE_SIZE_BYTES
 object ImageValidator {
     // 파일 유효성 검사 함수
     fun validateImageFile(uri: Uri, context: Context): Pair<Boolean, String?> {
-        // 파일 크기 검사
-        context.contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
-            if (parcelFileDescriptor.statSize > MAX_FILE_SIZE_BYTES) {
-                return Pair(false, OVERSIZE)
-            }
-        } ?: return Pair(false, FAIL_TO_READ) // 파일 디스크립터를 열 수 없는 경우
-
         // 파일 확장자/MIME 타입 검사
         val fileExtension = getFileExtension(uri, context)
         if (fileExtension == null || !ALLOWED_EXTENSIONS.contains(fileExtension.lowercase())) {
@@ -26,6 +19,14 @@ object ImageValidator {
                 return Pair(false, INVALID_TYPE)
             }
         }
+
+        // 파일 크기 검사
+        context.contentResolver.openFileDescriptor(uri, "r")?.use { parcelFileDescriptor ->
+            if (parcelFileDescriptor.statSize > MAX_FILE_SIZE_BYTES) {
+                return Pair(false, OVERSIZE)
+            }
+        } ?: return Pair(false, FAIL_TO_READ) // 파일 디스크립터를 열 수 없는 경우
+
         return Pair(true, null)
     }
 

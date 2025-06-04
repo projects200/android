@@ -16,13 +16,13 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
-import com.project200.common.constants.RuleConstants.MAX_FILE_SIZE
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
+import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
 import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
 import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
@@ -52,7 +52,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     val (isValid, reason) = ImageValidator.validateImageFile(uri, requireContext())
                     if (isValid) {
                         validatedUris.add(uri)
-                    } else if (errorReason == null) {
+                    } else if (reason == OVERSIZE) {
+                        compressImage(requireContext(), uri)?.let { validatedUris.add(it) }
+                    } else {
                         errorReason = reason
                     }
                 }
@@ -60,7 +62,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 // 유효성 검사 에러가 있었다면 메시지 표시
                 errorReason?.let { reason ->
                     val errorMessage = when (reason) {
-                        OVERSIZE -> getString(R.string.image_error_oversized, "${MAX_FILE_SIZE}MB")
                         INVALID_TYPE -> getString(R.string.image_error_invalid_type, ALLOWED_EXTENSIONS.joinToString(", "))
                         FAIL_TO_READ -> getString(R.string.image_error_file_read)
                         else -> getString(R.string.unknown_error)
@@ -72,7 +73,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 if (validatedUris.size > viewModel.getCurrentPermittedImageCount()) {
                     Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_LONG).show()
                 } else {
-                    viewModel.addImage(validatedUris)
+                    if (validatedUris.isNotEmpty()) {
+                        viewModel.addImage(validatedUris)
+                    }
                 }
             }
         }
