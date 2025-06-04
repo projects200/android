@@ -5,7 +5,6 @@ import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
-import com.project200.data.dto.ImageIdDto
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostSignUpData
@@ -71,6 +70,6 @@ interface ApiService {
     @DELETE("api/v1/exercises/{exerciseId}/pictures")
     suspend fun deleteExerciseImages(
         @Path("exerciseId") exerciseId: Long,
-        @Body imageIds: ImageIdDto
-    ): BaseResponse<ExerciseIdDto>
+        @Query("pictureIds") pictureIds: List<Long>
+    ): BaseResponse<Unit>
 }

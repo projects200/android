@@ -55,8 +55,3 @@ data class GetExerciseRecordListDto(
 data class ExerciseIdDto(
     val exerciseId: Long
 )
-
-@JsonClass(generateAdapter = true)
-data class ImageIdDto(
-    val imageIds: List<Long>
-)

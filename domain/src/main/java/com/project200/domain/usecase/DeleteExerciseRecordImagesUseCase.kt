@@ -7,7 +7,7 @@ import javax.inject.Inject
 class DeleteExerciseRecordImagesUseCase @Inject constructor(
     private val exerciseRecordRepository: ExerciseRecordRepository
 ) {
-    suspend operator fun invoke(exerciseId: Long, imageIds: List<Long>): BaseResult<Long> {
+    suspend operator fun invoke(exerciseId: Long, imageIds: List<Long>): BaseResult<Unit> {
         return exerciseRecordRepository.deleteExerciseRecordImages(exerciseId, imageIds)
     }
 }
