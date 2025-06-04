@@ -10,6 +10,7 @@ import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import okhttp3.MultipartBody
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.POST
@@ -54,4 +55,9 @@ interface ApiService {
         @Path("exerciseId") exerciseId: Long,
         @Part pictures: List<MultipartBody.Part>
     ): BaseResponse<ExerciseIdDto>
+
+    @DELETE("api/v1/exercises/{exerciseId}")
+    suspend fun deleteExerciseRecord(
+        @Path("exerciseId") exerciseId: Long
+    ): BaseResponse<Any?>
 }

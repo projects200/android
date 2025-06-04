@@ -40,6 +40,7 @@ class BaseAlertDialog(
         cancelButton.setOnClickListener { dismiss() }
         confirmBtn.setOnClickListener {
             onConfirmClicked()
+            dismiss()
         }
     }
 }

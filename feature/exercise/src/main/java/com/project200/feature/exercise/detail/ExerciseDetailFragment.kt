@@ -40,12 +40,21 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
     }
 
     override fun setupObservers() {
-        super.setupObservers()
-
         viewModel.exerciseRecord.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is BaseResult.Success -> {
                     bindExerciseRecordData(result.data)
+                }
+                is BaseResult.Error -> {
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+
+        viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    findNavController().popBackStack()
                 }
                 is BaseResult.Error -> {
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
@@ -114,7 +123,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
             title = getString(R.string.exercise_record_delete_alert),
             desc = null,
             onConfirmClicked = {
-                // TODO: 삭제
+                viewModel.deleteExerciseRecord()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }
