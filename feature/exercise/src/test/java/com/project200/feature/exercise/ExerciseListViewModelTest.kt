@@ -49,7 +49,7 @@ class ExerciseListViewModelTest {
             type = "테스트 타입 1",
             startTime = LocalDateTime.now(),
             endTime = LocalDateTime.now().plusHours(1),
-            imageUrl = "http://images.com/1.png"
+            imageUrl = arrayListOf("http://images.com/1.png", "http://images.com/2.png")
         ),
         ExerciseListItem(
             recordId = 2L,
