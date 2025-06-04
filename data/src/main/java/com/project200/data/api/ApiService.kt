@@ -71,5 +71,5 @@ interface ApiService {
     suspend fun deleteExerciseImages(
         @Path("exerciseId") exerciseId: Long,
         @Query("pictureIds") pictureIds: List<Long>
-    ): BaseResponse<Unit>
+    ): BaseResponse<Any?>
 }
