@@ -95,9 +95,12 @@ class ExerciseFormViewModel @Inject constructor(
         _startTime.value = record.startedAt
         _endTime.value = record.endedAt
 
+        val imageListForEditMode = mutableListOf<ExerciseImageListItem>(ExerciseImageListItem.AddButtonItem)
         record.pictures?.forEach { picture ->
-            _imageItems.value?.add(ExerciseImageListItem.ExistingImageItem(picture.url, picture.id))
+            imageListForEditMode.add(ExerciseImageListItem.ExistingImageItem(picture.url, picture.id))
         }
+
+        _imageItems.value = imageListForEditMode
 
         _initialDataLoaded.value = record
     }
