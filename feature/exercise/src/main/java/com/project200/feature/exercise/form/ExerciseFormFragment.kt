@@ -3,6 +3,7 @@ package com.project200.feature.exercise.form
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -14,12 +15,18 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
+import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
+import com.project200.presentation.utils.ImageUtils.compressImage
+import com.project200.presentation.utils.ImageValidator
+import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
+import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
+import com.project200.presentation.utils.ImageValidator.OVERSIZE
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
@@ -37,22 +44,45 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     private val pickMultipleMediaLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGE)) { uris ->
             if (uris.isNotEmpty()) {
+                val validatedUris = mutableListOf<Uri>()
+                var errorReason: String? = null
+
+                // 유효성 검사 및 유효한 URI 수집
+                for (uri in uris) {
+                    val (isValid, reason) = ImageValidator.validateImageFile(uri, requireContext())
+                    if (isValid) {
+                        validatedUris.add(uri)
+                    } else if (reason == OVERSIZE) {
+                        compressImage(requireContext(), uri)?.let { validatedUris.add(it) }
+                    } else {
+                        errorReason = reason
+                    }
+                }
+
+                // 유효성 검사 에러가 있었다면 메시지 표시
+                errorReason?.let { reason ->
+                    val errorMessage = when (reason) {
+                        INVALID_TYPE -> getString(R.string.image_error_invalid_type, ALLOWED_EXTENSIONS.joinToString(", "))
+                        FAIL_TO_READ -> getString(R.string.image_error_file_read)
+                        else -> getString(R.string.unknown_error)
+                    }
+                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show()
+                }
+
                 // 최대 이미지 개수를 넘은 경우
-                if (uris.size > viewModel.getCurrentPermittedImageCount()) {
+                if (validatedUris.size > viewModel.getCurrentPermittedImageCount()) {
                     Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_LONG).show()
                 } else {
-                    viewModel.addImage(uris)
+                    if (validatedUris.isNotEmpty()) {
+                        viewModel.addImage(validatedUris)
+                    }
                 }
             }
         }
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                launchGallery()
-            } else {
-                Toast.makeText(requireContext(), getString(R.string.exercise_record_image_access), Toast.LENGTH_SHORT).show()
-            }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ : Boolean ->
+            launchGallery()
         }
 
     override fun getViewBinding(view: View): FragmentExerciseFormBinding {
@@ -180,6 +210,25 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
                 }
                 is SubmissionResult.Failure -> { // 기록 생성 실패
+                }
+            }
+        }
+
+        viewModel.editResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is ExerciseEditResult.Success -> { // 기록 수정, 이미지 삭제/업로드 성공
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+                is ExerciseEditResult.ContentFailure -> { // 내용 수정 실패
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+                is ExerciseEditResult.ImageFailure -> { // 이미지 삭제/업로드 실패
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+                is ExerciseEditResult.Failure -> { // 내용 수정, 이미지 삭제/업로드 실패
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }

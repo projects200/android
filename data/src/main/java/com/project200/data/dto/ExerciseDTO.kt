@@ -32,6 +32,16 @@ data class PostExerciseRequestDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class PatchExerciseRequestDto(
+    val exerciseTitle: String?,
+    val exercisePersonalType: String?,
+    val exerciseLocation: String?,
+    val exerciseDetail: String?,
+    val exerciseStartedAt: String?,
+    val exerciseEndedAt: String?
+)
+
+@JsonClass(generateAdapter = true)
 data class GetExerciseRecordListDto(
     val exerciseId: Long,
     val exerciseTitle: String,
