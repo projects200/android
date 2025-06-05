@@ -19,6 +19,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.ExerciseRecordPicture
+import com.project200.domain.usecase.DeleteExerciseRecordUseCase
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -34,7 +35,10 @@ class ExerciseDetailViewModelTest {
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @MockK
-    private lateinit var mockUseCase: GetExerciseRecordDetailUseCase
+    private lateinit var mockGetExerciseUseCase: GetExerciseRecordDetailUseCase
+
+    @MockK
+    private lateinit var mockDeleteExerciseUseCase: DeleteExerciseRecordUseCase
 
     // SavedStateHandle은 mockk()로 직접 생성하거나 @MockK 사용 가능
     private lateinit var savedStateHandle: SavedStateHandle
@@ -69,18 +73,18 @@ class ExerciseDetailViewModelTest {
         // Given
         val recordId = 123L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
 
         val successResult = BaseResult.Success(sampleRecord)
 
-        coEvery { mockUseCase.invoke(recordId) } returns successResult
+        coEvery { mockGetExerciseUseCase.invoke(recordId) } returns successResult
 
         // When
         viewModel.getExerciseRecord()
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        coVerify(exactly = 1) { mockUseCase.invoke(recordId) } // 정확히 1번 호출되었는지 검증
+        coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) } // 정확히 1번 호출되었는지 검증
 
         val actualResult = viewModel.exerciseRecord.value
         assertThat(actualResult).isEqualTo(successResult)
@@ -92,17 +96,17 @@ class ExerciseDetailViewModelTest {
         // Given
         val recordId = 456L
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockUseCase)
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
 
         val errorResult = BaseResult.Error("500", "Network error")
-        coEvery { mockUseCase.invoke(recordId) } returns errorResult
+        coEvery { mockGetExerciseUseCase.invoke(recordId) } returns errorResult
 
         // When
         viewModel.getExerciseRecord()
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        coVerify(exactly = 1) { mockUseCase.invoke(recordId) }
+        coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) }
         val actualResult = viewModel.exerciseRecord.value
         assertThat(actualResult).isEqualTo(errorResult)
         assertThat((actualResult as BaseResult.Error).message).isEqualTo("Network error")
