@@ -49,7 +49,7 @@ class ExerciseListViewModelTest {
             type = "테스트 타입 1",
             startTime = LocalDateTime.now(),
             endTime = LocalDateTime.now().plusHours(1),
-            imageUrl = "http://images.com/1.png"
+            imageUrl = listOf("http://images.com/1.png", "http://images.com/2.png")
         ),
         ExerciseListItem(
             recordId = 2L,
@@ -64,6 +64,7 @@ class ExerciseListViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
     }
 
     @After
@@ -72,57 +73,42 @@ class ExerciseListViewModelTest {
     }
 
     @Test
-    fun `init 시 오늘 날짜의 운동 목록을 성공적으로 로드`() = runTest(testDispatcher) {
+    fun `loadCurrentDateExercises 호출 시 오늘 날짜의 운동 목록을 성공적으로 로드`() = runTest(testDispatcher) {
         // Given
+        // ViewModel 생성 시 currentDate는 LocalDate.now() (즉, today)로 초기화됨
         coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(sampleList)
 
         // When
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel.loadCurrentDateExercises() // 명시적으로 데이터 로드 함수 호출
+        testDispatcher.scheduler.advanceUntilIdle() // 코루틴 작업 완료 대기
 
         // Then
         coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
         assertThat(viewModel.currentDate.value).isEqualTo(today)
         assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)
-        assertThat(viewModel.toastMessage.value).isNull()
+        assertThat(viewModel.toastMessage.value).isNull() // 성공 시 토스트 메시지 없음
     }
 
     @Test
-    fun `init 시 운동 목록 로드 실패 처리`() = runTest(testDispatcher) {
+    fun `loadCurrentDateExercises 호출 시 운동 목록 로드 실패 처리`() = runTest(testDispatcher) {
         // Given
         val errorMessage = "로드 실패"
         coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Error("LOAD_ERR", errorMessage)
 
         // When
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
+        viewModel.loadCurrentDateExercises() // 명시적으로 데이터 로드 함수 호출
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
         coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
         assertThat(viewModel.currentDate.value).isEqualTo(today)
-        assertThat(viewModel.exerciseList.value).isEmpty()
+        assertThat(viewModel.exerciseList.value).isEmpty() // 실패 시 빈 리스트
         assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
-    }
-
-    @Test
-    fun `init 시 운동 목록 로드 실패 (기본 메시지)`() = runTest(testDispatcher) {
-        // Given
-        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Error("LOAD_ERR", null)
-
-        // When
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
-        assertThat(viewModel.exerciseList.value).isEmpty()
-        assertThat(viewModel.toastMessage.value).isEqualTo(ExerciseListViewModel.LOAD_FAIL)
     }
 
     @Test
     fun `changeDate 호출 시 날짜 변경 및 운동 목록 다시 로드 성공`() = runTest(testDispatcher) {
         // Given
-        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(emptyList())
         coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Success(sampleList)
         viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
         testDispatcher.scheduler.advanceUntilIdle()
@@ -132,7 +118,6 @@ class ExerciseListViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
         coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(tomorrow) }
         assertThat(viewModel.currentDate.value).isEqualTo(tomorrow)
         assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)

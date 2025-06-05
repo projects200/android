@@ -72,4 +72,10 @@ interface ApiService {
         @Path("exerciseId") exerciseId: Long,
         @Query("pictureIds") pictureIds: List<Long>
     ): BaseResponse<Any?>
+
+    // 운동 기록 삭제
+    @DELETE("api/v1/exercises/{exerciseId}")
+    suspend fun deleteExerciseRecord(
+        @Path("exerciseId") exerciseId: Long
+    ): BaseResponse<Any?>
 }

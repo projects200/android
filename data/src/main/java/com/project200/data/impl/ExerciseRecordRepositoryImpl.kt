@@ -114,4 +114,11 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
             mapper = { Unit }
         )
     }
+    override suspend fun deleteExerciseRecord(recordId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteExerciseRecord(recordId) },
+            mapper = { Unit }
+        )
+    }
 }

@@ -48,7 +48,7 @@ data class GetExerciseRecordListDto(
     val exercisePersonalType: String,
     val exerciseStartedAt: LocalDateTime,
     val exerciseEndedAt: LocalDateTime,
-    val pictureUrl: String?
+    val pictureUrl: List<String>?
 )
 
 @JsonClass(generateAdapter = true)

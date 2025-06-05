@@ -69,6 +69,12 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadCurrentDateExercises()
+    }
+
+
     override fun setupObservers() {
         viewModel.exerciseList.observe(viewLifecycleOwner) { list ->
             exerciseAdapter.submitList(list)

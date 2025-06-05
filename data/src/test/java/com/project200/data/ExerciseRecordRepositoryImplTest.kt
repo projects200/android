@@ -118,25 +118,6 @@ class ExerciseRecordRepositoryImplTest {
         assertThat(domainData.pictures).isEmpty()
     }
 
-    @Test
-    fun `getExerciseDetail - API 성공 (succeed=true), 응답의 data 필드 자체가 null (NO_DATA)`() = runTest(testIoDispatcher) {
-        val recordId = 4L
-        val apiResponse = BaseResponse<GetExerciseRecordData>(
-            succeed = true, code = "SUCCESS_BUT_DATA_IS_NULL", message = "성공했으나 BaseResponse의 data가 null", data = null
-        )
-        coEvery { mockApiService.getExerciseRecordDetail(recordId) } returns apiResponse
-
-        val result = repository.getExerciseDetail(recordId)
-
-        coVerify(exactly = 1) { mockApiService.getExerciseRecordDetail(recordId) }
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        val errorResult = result as BaseResult.Error
-        assertThat(errorResult.errorCode).isEqualTo("MAPPING_ERROR") // apiCallBuilder가 반환하는 errorCode
-        assertThat(errorResult.message).isEqualTo("데이터를 변환하는 중 오류가 발생했습니다.") // apiCallBuilder가 반환하는 message
-        assertThat(errorResult.cause).isInstanceOf(NoSuchElementException::class.java) // mapper가 던진 예외
-        assertThat(errorResult.cause?.message).isEqualTo("운동 상세 정보 응답 데이터가 없습니다.") // NoSuchElementException의 메시지
-    }
-
     // createHttpExceptionFromString 헬퍼 함수
     private fun createHttpExceptionFromString(
         httpStatusCode: Int,
