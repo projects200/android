@@ -107,14 +107,11 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
     override suspend fun deleteExerciseRecordImages(
         recordId: Long,
         imageIds: List<Long>
-    ): BaseResult<Long> {
-        /*return apiCallBuilder(
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteExerciseImages(recordId, DeleteExerciseImagesRequestDto(imageIds)) },
-            mapper = { exerciseIdDto: ExerciseIdDto? ->
-                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("이미지 삭제 응답 데이터가 없습니다.")
-            }
-        )*/
-        return BaseResult.Success(1L)
+            apiCall = { apiService.deleteExerciseImages(recordId, imageIds) },
+            mapper = { Unit }
+        )
     }
 }
