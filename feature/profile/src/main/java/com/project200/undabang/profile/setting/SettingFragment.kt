@@ -11,6 +11,9 @@ import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.base.BaseAlertDialog
+import com.project200.presentation.terms.TermsDialogFragment
+import com.project200.presentation.terms.TermsDialogFragment.Companion.PRIVACY
+import com.project200.presentation.terms.TermsDialogFragment.Companion.TERMS
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentSettingBinding
 import com.project200.undabang.oauth.AuthManager
@@ -52,8 +55,8 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
             }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
         }
         withdrawLl.setOnClickListener {  }
-        termsLl.setOnClickListener {  }
-        privacyLl.setOnClickListener {  }
+        termsLl.setOnClickListener { showTermsDialog(TERMS) }
+        privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
         versionInfoLl.setOnClickListener {  }
     }
 
@@ -76,6 +79,10 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
                 }
             })
         }
+    }
+
+    private fun showTermsDialog(termsType: String) {
+        TermsDialogFragment(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
     }
 
     override fun onDestroy() {
