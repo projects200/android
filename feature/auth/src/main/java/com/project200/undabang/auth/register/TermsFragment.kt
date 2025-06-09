@@ -4,6 +4,9 @@ import android.view.View
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.terms.TermsDialogFragment
+import com.project200.presentation.terms.TermsDialogFragment.Companion.PRIVACY
+import com.project200.presentation.terms.TermsDialogFragment.Companion.TERMS
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentTermsBinding
 import timber.log.Timber
@@ -24,10 +27,10 @@ class TermsFragment : BindingFragment<FragmentTermsBinding>(R.layout.fragment_te
         notifyBtnImv.setOnClickListener { viewModel.toggleNotify() }*/
 
         serviceTitleTv.setOnClickListener {
-            //TODO: 이용약관 다이얼로그
+            showTermsDialog(TERMS)
         }
         privacyTitleTv.setOnClickListener {
-            //TODO: 개인정보수집이용동의 다이얼로그
+            showTermsDialog(PRIVACY)
         }
 
         termsNextBtn.setOnClickListener {
@@ -58,5 +61,9 @@ class TermsFragment : BindingFragment<FragmentTermsBinding>(R.layout.fragment_te
             Timber.d("isAllRequiredChecked $allChecked")
             binding.termsNextBtn.isEnabled = allChecked
         }
+    }
+
+    private fun showTermsDialog(termsType: String) {
+        TermsDialogFragment(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
     }
 }

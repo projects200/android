@@ -17,4 +17,8 @@
     <string name="update_desc">새로운 버전이 출시되었습니다.\n앱을 업데이트해주세요.</string>
     <string name="update_btn">업데이트</string>
     <string name="update_later_btn">나중에</string>
+
+    <!-- 이용약관, 개인정보처리방침 링크 -->
+    <string name="terms_link">https://fine-clarinet-5e2.notion.site/2005e05936ab8073b913e446d675dc84</string>
+    <string name="privacy_link">https://lydian-heliotrope-c1f.notion.site/20050c903a708026af52d95abd1adfb6</string>
 </resources>
