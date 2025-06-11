@@ -6,9 +6,12 @@
     android:background="@color/white300"
     android:layout_marginHorizontal="@dimen/base_horizontal_margin">
     <com.kizitonwose.calendar.view.CalendarView
+        android:id="@+id/exercise_calendar"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toTopOf="parent"/>
+        app:layout_constraintTop_toTopOf="parent"
+        app:cv_dayViewResource="@layout/calendar_day_layout"
+        app:cv_orientation="horizontal" />
     <androidx.appcompat.widget.AppCompatButton
         android:id="@+id/exercise_create_btn"
         style="@style/content_bold"
