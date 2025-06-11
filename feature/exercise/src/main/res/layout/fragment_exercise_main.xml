@@ -5,6 +5,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@color/white300"
     android:layout_marginHorizontal="@dimen/base_horizontal_margin">
+    <include android:id="@+id/calendar_day_header" layout="@layout/calendar_day_header" />
     <com.kizitonwose.calendar.view.CalendarView
         android:id="@+id/exercise_calendar"
         android:layout_width="match_parent"
