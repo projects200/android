@@ -41,4 +41,7 @@ dependencies {
     // Glide
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
+
+    // 캘린더
+    implementation(libs.kizitonwose.calendar.view)
 }
