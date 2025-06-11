@@ -64,7 +64,7 @@ appauth = "0.11.1"
 glide = "4.16.0"
 
 # Kizitonwose Calendar
-kizitonwoseCalendar = "2.7.0"
+kizitonwoseCalendar = "2.6.0"
 
 [libraries]
 
