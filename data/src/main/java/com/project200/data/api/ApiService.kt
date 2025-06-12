@@ -2,6 +2,7 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.ExerciseIdDto
+import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
@@ -32,6 +33,13 @@ interface ApiService {
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>
+
+    // 구간별 운동 기록 횟수 조회
+    @GET("api/v1/exercises/count")
+    suspend fun getExerciseCountsByRange(
+        @Query("start") startDate: LocalDate,
+        @Query("end") endDate: LocalDate
+    ): BaseResponse<List<GetExerciseCountByRangeDTO>>
 
     // 운동 기록 상세 조회
     @GET("api/v1/exercises/{exerciseId}")
