@@ -26,14 +26,23 @@ class ExerciseMainViewModel @Inject constructor(
     private val _toastMessage = MutableLiveData<String?>()
     val toastMessage: LiveData<String?> = _toastMessage
 
+    private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
+
     init {
-        onMonthChanged(YearMonth.now())
+        if (_selectedMonth.value == null) {
+            _selectedMonth.value = YearMonth.now()
+        }
     }
 
     fun onMonthChanged(newMonth: YearMonth) {
+        // 중복 호출 방지
+        if (_selectedMonth.value == newMonth) return
+
         _selectedMonth.value = newMonth
 
-        getExerciseCounts(newMonth)
+        if (!exerciseCache.containsKey(newMonth)) { // 캐시에 데이터가 있으면 캐시 데이터를 사용하고 api 호출 x
+            getExerciseCounts(newMonth)
+        }
     }
 
     private fun getExerciseCounts(yearMonth: YearMonth) {
@@ -51,12 +60,20 @@ class ExerciseMainViewModel @Inject constructor(
                         .map { it.date }
                         .toSet()
 
-                    _exerciseDates.value = datesWithExercise
+                    exerciseCache[yearMonth] = datesWithExercise
+                    _exerciseDates.value = exerciseCache.values.flatten().toSet()
                 }
                 is BaseResult.Error -> {
                     _toastMessage.value = result.message ?: DATA_ERROR
                 }
             }
+        }
+    }
+
+    fun refreshData() {
+        exerciseCache.clear()
+        _selectedMonth.value?.let {
+            getExerciseCounts(it)
         }
     }
 

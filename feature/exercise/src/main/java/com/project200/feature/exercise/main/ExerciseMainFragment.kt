@@ -38,41 +38,55 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         super.setupViews()
 
         setupBtnListeners()
+        setupCalendar()
+    }
 
+    private fun setupCalendar() {
         binding.exerciseCalendar.apply {
+            // 캘린더 범위, 요일, 초기 날짜 설정
             setup(
                 YearMonth.now().minusMonths(100),
                 YearMonth.now(),
                 daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first()
             )
-
             scrollToMonth(viewModel.selectedMonth.value ?: YearMonth.now())
-
-            dayBinder = object : MonthDayBinder<DayViewContainer> {
-                override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
-                override fun bind(container: DayViewContainer, data: CalendarDay) {
-                    container.day = data
-                    val textView = container.binding.calendarDayTv
-                    val todayView = container.binding.todayIv
-                    val completeView = container.binding.exerciseCompleteIv
-                    textView.text = data.date.dayOfMonth.toString()
-
-                    val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
-
-                    if (data.position == DayPosition.MonthDate) {
-                        todayView.isVisible = data.date == today
-                        completeView.isVisible = exerciseCompleteDates.contains(data.date)
-                    } else {
-                        textView.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
-                        todayView.isVisible = false
-                        completeView.isVisible = false
-                    }
-                }
-            }
 
             monthScrollListener = { calendarMonth ->
                 if (calendarMonth.yearMonth != viewModel.selectedMonth.value) {
                     viewModel.onMonthChanged(calendarMonth.yearMonth)
+                }
+            }
+
+            dayBinder = object : MonthDayBinder<DayViewContainer> {
+                override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
+                override fun bind(container: DayViewContainer, data: CalendarDay) = with(container.binding) {
+                    // 초기값 설정
+                    container.day = data
+                    calendarDayTv.text = data.date.dayOfMonth.toString()
+                    calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
+                    todayIv.isVisible = false
+                    exerciseCompleteIv.apply {
+                        isVisible = false
+                        animate().cancel()
+                        alpha = 1f
+                    }
+
+                    // 이번 달에 해당하는 날짜일 경우
+                    if (data.position == DayPosition.MonthDate) {
+                        calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.black))
+
+                        val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
+                        todayIv.isVisible = data.date == today
+
+                        // 운동 기록이 있는 날 && 애니메이션 중복 방지
+                        if (exerciseCompleteDates.contains(data.date) && !exerciseCompleteIv.isVisible) {
+                            exerciseCompleteIv.apply {
+                                alpha = 0f
+                                isVisible = true
+                                animate().alpha(1f).setDuration(300).start()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -109,11 +123,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
             // 다음 달 버튼 활성화 여부
             binding.nextMonthBtn.isVisible = month.isBefore(YearMonth.now())
-
-            // 캘린더 스크롤 위치 동기화
-            if (binding.exerciseCalendar.findFirstVisibleMonth()?.yearMonth != month) {
-                binding.exerciseCalendar.smoothScrollToMonth(month)
-            }
         }
 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
@@ -138,6 +147,11 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshData()
     }
 
     override fun onAttach(context: Context) {
