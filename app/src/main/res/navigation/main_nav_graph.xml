@@ -77,7 +77,7 @@
 
     <fragment
         android:id="@+id/exerciseMainFragment"
-        android:name="com.project200.feature.exercise.ExerciseMainFragment"
+        android:name="com.project200.feature.exercise.main.ExerciseMainFragment"
         android:label="exerciseMain"
         tools:layout="@layout/fragment_exercise_main">
         <action
