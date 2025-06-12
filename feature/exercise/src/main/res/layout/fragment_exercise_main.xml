@@ -5,7 +5,22 @@
     android:layout_height="match_parent"
     android:layout_marginHorizontal="@dimen/base_horizontal_margin"
     android:background="@color/white300">
-
+    <ImageView
+        android:id="@+id/logo_iv"
+        android:src="@drawable/ic_logo_appname"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+    <ImageView
+        android:id="@+id/setting_btn"
+        android:src="@drawable/ic_setting"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="@id/logo_iv"
+        app:layout_constraintBottom_toBottomOf="@id/logo_iv"
+        app:layout_constraintEnd_toEndOf="parent"/>
     <ImageView
         android:id="@+id/prev_month_btn"
         android:layout_width="wrap_content"
@@ -26,7 +41,7 @@
         android:layout_marginTop="20dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toBottomOf="@+id/logo_iv" />
 
     <ImageView
         android:id="@+id/next_month_btn"

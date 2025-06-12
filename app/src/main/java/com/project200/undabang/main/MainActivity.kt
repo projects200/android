@@ -24,6 +24,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import net.openid.appauth.AuthorizationService
 import timber.log.Timber
+import java.time.LocalDate
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -135,10 +136,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
     }
 
-    override fun navigateFromExerciseListToSetting() {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToSettingFragment())
-    }
-
     override fun navigateFromExerciseListToExerciseForm() {
         navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
     }
@@ -151,8 +148,16 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         navController.navigate(ExerciseFormFragmentDirections.actionExerciseFormFragmentToExerciseDetailFragment(recordId))
     }
 
-    override fun navigateFromExerciseMainToExerciseList() {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment())
+    override fun navigateFromExerciseMainToExerciseList(date: LocalDate) {
+        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment(date))
+    }
+
+    override fun navigateFromExerciseMainToSetting() {
+        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToSettingFragment())
+    }
+
+    override fun navigateFromExerciseMainToExerciseForm() {
+        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
     }
 
     override fun onDestroy() {

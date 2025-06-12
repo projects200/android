@@ -20,11 +20,6 @@
                 app:argType="long" />
         </action>
         <action
-            android:id="@+id/action_exerciseListFragment_to_settingFragment"
-            app:destination="@id/settingFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:popExitAnim="@anim/anim_fade_out" />
-        <action
             android:id="@+id/action_exerciseListFragment_to_exerciseFormFragment"
             app:destination="@id/exerciseFormFragment"
             app:enterAnim="@anim/slide_in_right"
@@ -90,7 +85,20 @@
             app:destination="@id/exerciseListFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out">
+            <argument
+                android:name="date"
+                app:argType="java.time.LocalDate" />
         </action>
+        <action
+            android:id="@+id/action_exerciseMainFragment_to_exerciseFormFragment"
+            app:destination="@+id/exerciseFormFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out" />
+        <action
+            android:id="@+id/action_exerciseMainFragment_to_settingFragment"
+            app:destination="@id/settingFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out" />
     </fragment>
 
 </navigation>

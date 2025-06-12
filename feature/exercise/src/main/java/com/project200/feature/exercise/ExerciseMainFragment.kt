@@ -1,5 +1,6 @@
 package com.project200.feature.exercise
 
+import android.content.Context
 import android.view.View
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.view.isVisible
@@ -95,6 +96,14 @@ class ExerciseMainFragment :
                 binding.exerciseCalendar.smoothScrollToMonth(nextMonth)
             }
         }
+
+        binding.settingBtn.setOnClickListener {
+            fragmentNavigator?.navigateFromExerciseMainToSetting()
+        }
+
+        binding.exerciseCreateBtn.setOnClickListener {
+            fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
+        }
     }
 
     private fun updateTitle() {
@@ -112,6 +121,15 @@ class ExerciseMainFragment :
                     // 날짜 클릭 시 로직
                 }
             }
+        }
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is FragmentNavigator) {
+            fragmentNavigator = context
+        } else {
+            throw ClassCastException("$context must implement FragmentNavigator")
         }
     }
 
