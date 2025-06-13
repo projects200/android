@@ -41,14 +41,13 @@ class ExerciseMainViewModel @Inject constructor(
         _selectedMonth.value = newMonth
 
         if (!exerciseCache.containsKey(newMonth)) { // 캐시에 데이터가 있으면 캐시 데이터를 사용하고 api 호출 x
-            getExerciseCounts(newMonth)
+            getExerciseCounts(newMonth, LocalDate.now())
         }
     }
 
-    private fun getExerciseCounts(yearMonth: YearMonth) {
+    private fun getExerciseCounts(yearMonth: YearMonth, today: LocalDate) {
         viewModelScope.launch {
             val startDate = yearMonth.atDay(1)
-            val today = LocalDate.now()
             // 이번 달인 경우, 끝 날짜를 오늘로 설정
             val endDate = if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
 
@@ -73,7 +72,7 @@ class ExerciseMainViewModel @Inject constructor(
     fun refreshData() {
         exerciseCache.clear()
         _selectedMonth.value?.let {
-            getExerciseCounts(it)
+            getExerciseCounts(it, LocalDate.now())
         }
     }
 }
