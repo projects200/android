@@ -1,5 +1,6 @@
 package com.project200.feature.exercise
 
+import android.content.Context
 import android.view.View
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
@@ -17,6 +18,16 @@ class ExerciseMainFragment: BindingFragment<FragmentExerciseMainBinding>(R.layou
             fragmentNavigator?.navigateFromExerciseMainToExerciseList()
         }
     }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        if (context is FragmentNavigator) {
+            fragmentNavigator = context
+        } else {
+            throw ClassCastException("$context must implement FragmentNavigator")
+        }
+    }
+
 
     override fun onDetach() {
         fragmentNavigator = null
