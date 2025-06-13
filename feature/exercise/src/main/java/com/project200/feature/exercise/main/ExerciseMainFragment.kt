@@ -49,7 +49,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                 YearMonth.now(),
                 daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first()
             )
-            scrollToMonth(viewModel.selectedMonth.value ?: YearMonth.now())
 
             monthScrollListener = { calendarMonth ->
                 if (calendarMonth.yearMonth != viewModel.selectedMonth.value) {
@@ -123,6 +122,9 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
             // 다음 달 버튼 활성화 여부
             binding.nextMonthBtn.isVisible = month.isBefore(YearMonth.now())
+
+            // 캘린더 스크롤 이동
+            binding.exerciseCalendar.scrollToMonth(month)
         }
 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
