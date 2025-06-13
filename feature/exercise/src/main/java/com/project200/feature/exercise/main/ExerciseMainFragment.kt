@@ -133,7 +133,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            message?.let { Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show() }
+            Toast.makeText(requireContext(), message ?: getText(R.string.data_error), Toast.LENGTH_SHORT).show()
         }
     }
 

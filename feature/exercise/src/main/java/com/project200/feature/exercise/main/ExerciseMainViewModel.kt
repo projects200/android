@@ -64,7 +64,7 @@ class ExerciseMainViewModel @Inject constructor(
                     _exerciseDates.value = exerciseCache.values.flatten().toSet()
                 }
                 is BaseResult.Error -> {
-                    _toastMessage.value = result.message ?: DATA_ERROR
+                    _toastMessage.value = result.message
                 }
             }
         }
