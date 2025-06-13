@@ -11,7 +11,7 @@ import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
-import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
@@ -119,7 +119,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
     override fun setupObservers() {
         viewModel.selectedMonth.observe(viewLifecycleOwner) { month ->
             // 날짜 헤더 업데이트
-            binding.dateTv.text = month.format(YYYY_M)
+            binding.dateTv.text = month.format(YYYY_M_KR)
 
             // 다음 달 버튼 활성화 여부
             binding.nextMonthBtn.isVisible = month.isBefore(YearMonth.now())
