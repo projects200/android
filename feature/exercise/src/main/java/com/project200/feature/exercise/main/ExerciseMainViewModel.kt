@@ -76,8 +76,4 @@ class ExerciseMainViewModel @Inject constructor(
             getExerciseCounts(it)
         }
     }
-
-    companion object {
-        const val DATA_ERROR = "데이터를 불러오는데 실패했습니다."
-    }
 }

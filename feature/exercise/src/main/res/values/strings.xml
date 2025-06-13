@@ -25,9 +25,10 @@
     <string name="exercise_empty">아직 등록된 기록이 없습니다.</string>
 
 
-    <!-- 이미지 -->
+    <!-- 에러 -->
     <string name="image_error_oversized">파일 크기가 너무 큽니다. (최대 %s)</string>
     <string name="image_error_invalid_type">지원하지 않는 파일 형식입니다. (허용: %s)</string>
     <string name="image_error_file_read">파일 정보를 읽는 데 실패했습니다. 다른 파일을 선택해주세요.</string>
     <string name="unknown_error">알 수 없는 오류가 발생했습니다.</string>
+    <string name="data_error">데이터를 불러오는데 실패했습니다.</string>
 </resources>
