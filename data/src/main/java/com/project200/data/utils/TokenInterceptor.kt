@@ -19,7 +19,7 @@ class TokenInterceptor @Inject constructor(
         val requestBuilder = originalRequest.newBuilder() // 원본 요청을 기반으로 빌더 생성
         Timber.tag("TokenInterceptor").d("Intercepting URL: $requestUrlString")
 
-        if (requestUrlString.contains("/sign-up")) {
+        if (requestUrlString.contains("auth")) {
             //idToken 사용
             currentAuthState.idToken?.let { idToken ->
                 requestBuilder.header("Authorization", "Bearer $idToken")

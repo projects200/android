@@ -24,7 +24,7 @@ import java.time.LocalDate
 
 interface ApiService {
     // 회원 여부 확인
-    @GET("api/v1/members/me/registration-status")
+    @GET("auth/v1/registration-status")
     suspend fun getIsRegistered(): BaseResponse<GetIsRegisteredData>
 
     // 회원가입
