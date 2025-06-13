@@ -40,7 +40,7 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
             mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
-                dtoList?.map { it.toModel() } ?: emptyList()
+                dtoList?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.")
             }
         )
     }
