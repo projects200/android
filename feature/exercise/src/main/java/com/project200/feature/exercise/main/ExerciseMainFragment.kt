@@ -114,7 +114,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
         }
     }
-
+    
     override fun setupObservers() {
         viewModel.selectedMonth.observe(viewLifecycleOwner) { month ->
             // 날짜 헤더 업데이트
