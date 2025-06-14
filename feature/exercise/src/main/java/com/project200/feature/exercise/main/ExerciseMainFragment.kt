@@ -1,41 +1,35 @@
-package com.project200.feature.exercise
+package com.project200.feature.exercise.main
 
 import android.content.Context
 import android.view.View
+import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.view.isVisible
+import androidx.fragment.app.viewModels
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
-import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KOR
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseMainBinding
+import dagger.hilt.android.AndroidEntryPoint
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
-class ExerciseMainFragment :
-    BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
-
+@AndroidEntryPoint
+class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
+    private val viewModel: ExerciseMainViewModel by viewModels()
     private var fragmentNavigator: FragmentNavigator? = null
+    private var exerciseCompleteDates: Set<LocalDate> = emptySet()
 
-    // 현재 캘린더가 보여주는 달
-    private var selectedMonth = YearMonth.now()
 
-    // 임시 데이터
-    private val exerciseCompleteDates = setOf(
-        LocalDate.now().minusDays(2),
-        LocalDate.now().minusDays(3),
-        LocalDate.now().minusDays(4),
-        LocalDate.now().plusDays(7),
-    )
     override fun getViewBinding(view: View): FragmentExerciseMainBinding {
         return FragmentExerciseMainBinding.bind(view)
     }
@@ -44,45 +38,57 @@ class ExerciseMainFragment :
         super.setupViews()
 
         setupBtnListeners()
+        setupCalendar()
+    }
 
+    private fun setupCalendar() {
         binding.exerciseCalendar.apply {
+            // 캘린더 범위, 요일, 초기 날짜 설정
             setup(
                 YearMonth.now().minusMonths(100),
                 YearMonth.now(),
                 daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first()
             )
-            scrollToMonth(selectedMonth)
 
-            dayBinder = object : MonthDayBinder<DayViewContainer> {
-                override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
-                override fun bind(container: DayViewContainer, data: CalendarDay) {
-                    container.day = data
-                    val textView = container.binding.calendarDayTv
-                    val todayView = container.binding.todayIv
-                    val completeView = container.binding.exerciseCompleteIv
-                    textView.text = data.date.dayOfMonth.toString()
-
-                    val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
-
-                    if (data.position == DayPosition.MonthDate) {
-                        todayView.isVisible = data.date == today
-                        completeView.isVisible = exerciseCompleteDates.contains(data.date)
-                    } else {
-                        textView.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
-                        todayView.isVisible = false
-                        completeView.isVisible = false
-                    }
+            monthScrollListener = { calendarMonth ->
+                if (calendarMonth.yearMonth != viewModel.selectedMonth.value) {
+                    viewModel.onMonthChanged(calendarMonth.yearMonth)
                 }
             }
 
-            monthScrollListener = { calendarMonth ->
-                selectedMonth = calendarMonth.yearMonth
-                updateTitle()
-                updateNextButtonState()
+            dayBinder = object : MonthDayBinder<DayViewContainer> {
+                override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
+                override fun bind(container: DayViewContainer, data: CalendarDay) = with(container.binding) {
+                    // 초기값 설정
+                    container.day = data
+                    calendarDayTv.text = data.date.dayOfMonth.toString()
+                    calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
+                    todayIv.isVisible = false
+                    exerciseCompleteIv.apply {
+                        isVisible = false
+                        animate().cancel()
+                        alpha = 1f
+                    }
+
+                    // 이번 달에 해당하는 날짜일 경우
+                    if (data.position == DayPosition.MonthDate) {
+                        calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.black))
+
+                        val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
+                        todayIv.isVisible = data.date == today
+
+                        // 운동 기록이 있는 날 && 애니메이션 중복 방지
+                        if (exerciseCompleteDates.contains(data.date) && !exerciseCompleteIv.isVisible) {
+                            exerciseCompleteIv.apply {
+                                alpha = 0f
+                                isVisible = true
+                                animate().alpha(1f).setDuration(300).start()
+                            }
+                        }
+                    }
+                }
             }
         }
-        updateTitle()
-        updateNextButtonState()
     }
 
     private fun setupBtnListeners() {
@@ -108,17 +114,29 @@ class ExerciseMainFragment :
             fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
         }
     }
+    
+    override fun setupObservers() {
+        viewModel.selectedMonth.observe(viewLifecycleOwner) { month ->
+            // 날짜 헤더 업데이트
+            binding.dateTv.text = month.format(YYYY_M_KR)
 
-    private fun updateTitle() {
-        binding.dateTv.text = selectedMonth.format(YYYY_M_KOR)
+            // 다음 달 버튼 활성화 여부
+            binding.nextMonthBtn.isVisible = month.isBefore(YearMonth.now())
+
+            // 캘린더 스크롤 이동
+            binding.exerciseCalendar.scrollToMonth(month)
+        }
+
+        viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
+            exerciseCompleteDates = dates
+            binding.exerciseCalendar.notifyCalendarChanged()
+        }
+
+        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
+            Toast.makeText(requireContext(), message ?: getText(R.string.data_error), Toast.LENGTH_SHORT).show()
+        }
     }
 
-    private fun updateNextButtonState() {
-        val currentMonth = YearMonth.now()
-        // 현재 선택된 달이 이번 달보다 이전이면 버튼 활성화, 아니면 비활성화
-        val isVisible = selectedMonth.isBefore(currentMonth)
-        binding.nextMonthBtn.visibility = if(isVisible) View.VISIBLE else View.GONE
-    }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
         ViewContainer(binding.root) {
@@ -131,6 +149,11 @@ class ExerciseMainFragment :
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.refreshData()
     }
 
     override fun onAttach(context: Context) {
