@@ -48,7 +48,7 @@ class ExerciseMainFragment :
         binding.exerciseCalendar.apply {
             setup(
                 YearMonth.now().minusMonths(100),
-                YearMonth.now().plusMonths(100),
+                YearMonth.now(),
                 daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first()
             )
             scrollToMonth(selectedMonth)
@@ -78,9 +78,11 @@ class ExerciseMainFragment :
             monthScrollListener = { calendarMonth ->
                 selectedMonth = calendarMonth.yearMonth
                 updateTitle()
+                updateNextButtonState()
             }
         }
         updateTitle()
+        updateNextButtonState()
     }
 
     private fun setupBtnListeners() {
@@ -97,10 +99,25 @@ class ExerciseMainFragment :
                 binding.exerciseCalendar.smoothScrollToMonth(nextMonth)
             }
         }
+
+        binding.settingBtn.setOnClickListener {
+            fragmentNavigator?.navigateFromExerciseMainToSetting()
+        }
+
+        binding.exerciseCreateBtn.setOnClickListener {
+            fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
+        }
     }
 
     private fun updateTitle() {
         binding.dateTv.text = selectedMonth.format(YYYY_M_KOR)
+    }
+
+    private fun updateNextButtonState() {
+        val currentMonth = YearMonth.now()
+        // 현재 선택된 달이 이번 달보다 이전이면 버튼 활성화, 아니면 비활성화
+        val isVisible = selectedMonth.isBefore(currentMonth)
+        binding.nextMonthBtn.visibility = if(isVisible) View.VISIBLE else View.GONE
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
@@ -109,8 +126,8 @@ class ExerciseMainFragment :
 
         init {
             binding.root.setOnClickListener {
-                if (day.position == DayPosition.MonthDate) {
-                    // 날짜 클릭 시 로직
+                if (day.position == DayPosition.MonthDate && !day.date.isAfter(LocalDate.now(ZoneId.of("Asia/Seoul")))) {
+                    fragmentNavigator?.navigateFromExerciseMainToExerciseList(day.date)
                 }
             }
         }
@@ -124,7 +141,6 @@ class ExerciseMainFragment :
             throw ClassCastException("$context must implement FragmentNavigator")
         }
     }
-
 
     override fun onDetach() {
         fragmentNavigator = null

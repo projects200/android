@@ -2,6 +2,7 @@ package com.project200.feature.exercise.list
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -19,10 +20,11 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ExerciseListViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val getExerciseRecordListUseCase: GetExerciseRecordListUseCase
 ) : ViewModel() {
 
-    private val _currentDate = MutableLiveData<LocalDate>(LocalDate.now())
+    private val _currentDate = MutableLiveData<LocalDate>()
     val currentDate: LiveData<LocalDate> = _currentDate
 
     private val _exerciseList = MutableLiveData<List<ExerciseListItem>>()
@@ -30,6 +32,12 @@ class ExerciseListViewModel @Inject constructor(
 
     private val _toastMessage = MutableLiveData<String>()
     val toastMessage: LiveData<String> = _toastMessage
+
+    init {
+        val initialDate: LocalDate? = savedStateHandle.get<LocalDate>("date")
+
+        _currentDate.value = initialDate ?: LocalDate.now()
+    }
 
     private fun loadExercises(date: LocalDate) {
         viewModelScope.launch {

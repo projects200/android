@@ -33,7 +33,6 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
             baseToolbar.apply {
                 setTitle(getString(R.string.exercise_record))
                 showBackButton(true) { findNavController().navigateUp() }
-                setSubButton(R.drawable.ic_setting) { fragmentNavigator?.navigateFromExerciseListToSetting() }
             }
 
             exerciseListDateTv.setOnClickListener {
