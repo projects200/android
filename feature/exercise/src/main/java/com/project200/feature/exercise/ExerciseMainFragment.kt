@@ -9,6 +9,7 @@ import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KOR
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
@@ -109,8 +110,7 @@ class ExerciseMainFragment :
     }
 
     private fun updateTitle() {
-        val formatter = DateTimeFormatter.ofPattern("yyyy년 M월")
-        binding.dateTv.text = selectedMonth.format(formatter)
+        binding.dateTv.text = selectedMonth.format(YYYY_M_KOR)
     }
 
     private fun updateNextButtonState() {
