@@ -8,6 +8,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import com.project200.domain.model.UpdateCheckResult
+import com.project200.feature.exercise.ExerciseMainFragmentDirections
 import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
 import com.project200.feature.exercise.list.ExerciseListFragmentDirections
@@ -148,6 +149,10 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
     override fun navigateFromExerciseFormToExerciseDetail(recordId: Long) {
         navController.navigate(ExerciseFormFragmentDirections.actionExerciseFormFragmentToExerciseDetailFragment(recordId))
+    }
+
+    override fun navigateFromExerciseMainToExerciseList() {
+        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment())
     }
 
     override fun onDestroy() {
