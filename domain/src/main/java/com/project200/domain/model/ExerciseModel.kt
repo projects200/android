@@ -1,5 +1,6 @@
 package com.project200.domain.model
 
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 data class ExerciseRecord(
@@ -24,4 +25,9 @@ data class ExerciseListItem(
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
     val imageUrl: List<String>?
+)
+
+data class ExerciseCount(
+    val date: LocalDate,
+    val count: Int
 )
