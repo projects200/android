@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.view.View
 import android.view.WindowManager
 import androidx.core.graphics.drawable.toDrawable
+import com.project200.common.constants.RuleConstants
+import com.project200.common.constants.RuleConstants.MIN_YEAR
 import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.presentation.R
 import com.project200.undabang.presentation.databinding.DialogDatePickerBinding
@@ -24,6 +26,7 @@ class DatePickerDialogFragment(
     override fun setupViews() = with(binding) {
         val today = Calendar.getInstance()
         datePicker.maxDate = today.timeInMillis // 오늘 이후 날짜 선택 불가
+        datePicker.minDate = LocalDate.of(MIN_YEAR, 8, 15).toEpochDay() * 24 * 60 * 60 * 1000L // 최소 날짜 설정
 
         // 초기 날짜 설정
         initialDateString?.let { dateStr ->

@@ -7,16 +7,13 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KOR
-import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseListBinding
 import dagger.hilt.android.AndroidEntryPoint
-import java.time.LocalDateTime
-import java.util.Date
 
 @AndroidEntryPoint
 class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layout.fragment_exercise_list) {
@@ -33,7 +30,6 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
             baseToolbar.apply {
                 setTitle(getString(R.string.exercise_record))
                 showBackButton(true) { findNavController().navigateUp() }
-                setSubButton(R.drawable.ic_setting) { fragmentNavigator?.navigateFromExerciseListToSetting() }
             }
 
             exerciseListDateTv.setOnClickListener {
@@ -71,7 +67,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         }
 
         viewModel.currentDate.observe(viewLifecycleOwner) { monthText ->
-            binding.exerciseListDateTv.text = monthText.format(YYYY_MM_DD_KOR)
+            binding.exerciseListDateTv.text = monthText.format(YYYY_MM_DD_KR)
         }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
