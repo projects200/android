@@ -29,7 +29,7 @@
         android:backgroundTint="@color/black"
         android:inputType="text"
         android:maxLength="30"
-        android:maxLines="2"
+        android:maxLines="1"
         app:layout_constraintBottom_toBottomOf="@id/nickname_title_tv"
         app:layout_constraintEnd_toEndOf="@+id/nickname_rule_tv"
         app:layout_constraintStart_toStartOf="@id/nickname_rule_tv"
