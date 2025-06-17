@@ -1,6 +1,7 @@
 package com.project200.feature.exercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseListItem
@@ -37,6 +38,8 @@ class ExerciseListViewModelTest {
 
     private lateinit var viewModel: ExerciseListViewModel
 
+    private lateinit var savedStateHandle: SavedStateHandle
+
     private val testDispatcher = StandardTestDispatcher()
 
     // 테스트용 샘플 데이터 (수정된 모델 반영)
@@ -64,7 +67,8 @@ class ExerciseListViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
+        savedStateHandle = SavedStateHandle()
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
     }
 
     @After
@@ -110,7 +114,7 @@ class ExerciseListViewModelTest {
     fun `changeDate 호출 시 날짜 변경 및 운동 목록 다시 로드 성공`() = runTest(testDispatcher) {
         // Given
         coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Success(sampleList)
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When
@@ -129,7 +133,7 @@ class ExerciseListViewModelTest {
         val errorMessage = "변경 실패"
         coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(sampleList)
         coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Error("CHANGE_ERR", errorMessage)
-        viewModel = ExerciseListViewModel(mockGetExerciseRecordListUseCase)
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When

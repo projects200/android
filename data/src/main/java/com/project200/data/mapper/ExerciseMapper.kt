@@ -1,14 +1,23 @@
 package com.project200.data.mapper
 
+import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
+import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
+fun GetExerciseCountByRangeDTO.toModel(): ExerciseCount {
+    return ExerciseCount(
+        date = date,
+        count = exerciseCount
+    )
+}
 
 fun GetExerciseRecordData.toModel(): ExerciseRecord {
     return ExerciseRecord(

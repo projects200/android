@@ -5,6 +5,7 @@ import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.ExerciseIdDto
+import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.mapper.toModel
@@ -13,6 +14,7 @@ import com.project200.data.mapper.toPatchExerciseDTO
 import com.project200.data.mapper.toPostExerciseDTO
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.repository.ExerciseRecordRepository
@@ -29,6 +31,20 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     @ApplicationContext private val context: Context
 ) : ExerciseRecordRepository {
+
+    override suspend fun getExerciseCountByRange(
+        startDate: LocalDate,
+        endDate: LocalDate
+    ): BaseResult<List<ExerciseCount>> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
+            mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
+                dtoList?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.")
+            }
+        )
+    }
+
     override suspend fun getExerciseDetail(recordId: Long): BaseResult<ExerciseRecord> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
