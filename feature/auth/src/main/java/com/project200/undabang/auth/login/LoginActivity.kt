@@ -38,13 +38,17 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.let { intent: Intent ->
                     authManager.handleAuthorizationResponse(authService, intent, authCallback)
-                } ?: Timber.tag(TAG).e("Authorization response data is null")
+                } ?: Timber.tag(TAG).e("로그인 응답이 없습니다.")
             } else {
-                result.data?.let {
-                    val ex = AuthorizationException.fromIntent(it)
-                    Timber.tag(TAG).e(ex, "Authorization Exception from launcher: ${ex?.errorDescription}")
-                    Toast.makeText(this, "로그인 실패", Toast.LENGTH_SHORT).show()
-                } ?: Timber.tag(TAG).w("Authorization flow canceled or failed without data.")
+                val ex = result.data?.let { AuthorizationException.fromIntent(it) }
+                if (ex?.code == AuthorizationException.GeneralErrors.USER_CANCELED_AUTH_FLOW.code) {
+                    // 사용자가 뒤로가기를 눌러서 직접 취소한 경우
+                    Timber.tag(TAG).i("로그인 사용자 취소")
+                } else {
+                    // 그 외 실제 오류 (네트워크, 서버, 인증 거부 등)
+                    Timber.tag(TAG).e(ex, "로그인에 실패했습니다.: ${ex?.errorDescription}")
+                    Toast.makeText(this, "로그인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
@@ -74,8 +78,6 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         authService = AuthorizationService(this)
-
-        // TODO: 자동 로그인
 
         intent?.let {
             checkIntent(it)
