@@ -1,11 +1,10 @@
 package com.project200.feature.exercise.form
 
 import android.graphics.Color
+import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.NumberPicker
-import android.widget.Toast
 import androidx.core.graphics.drawable.toDrawable
 import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.feature.exercise.R
@@ -21,8 +20,21 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
 
     private val calendarDays = ArrayList<Calendar>()
     private lateinit var dateDisplayValues: Array<String>
+    private var initialCalendar: Calendar? = null
 
     var onDateTimeSelected: ((Int, Int, Int, Int, Int) -> Unit)? = null
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // arguments에서 초기 시간을 가져옵니다
+        arguments?.let {
+            if (it.containsKey(ARG_INITIAL_CALENDAR)) {
+                initialCalendar = Calendar.getInstance().apply {
+                    timeInMillis = it.getLong(ARG_INITIAL_CALENDAR)
+                }
+            }
+        }
+    }
 
     override fun setupViews() {
         super.setupViews()
@@ -35,16 +47,15 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
         }
 
         setupDateAndTimePickers()
-        setupListeners() // 리스너 설정 분리
+        setupListeners()
 
         binding.confirmBtn.setOnClickListener {
-            // 이제 여기서는 값을 읽어 콜백만 호출하면 됩니다. (검사 불필요)
             val selectedCal = calendarDays[binding.datePicker.value]
             val year = selectedCal.get(Calendar.YEAR)
             val month = selectedCal.get(Calendar.MONTH)
             val day = selectedCal.get(Calendar.DAY_OF_MONTH)
             val hour = binding.hourPicker.value
-            val minute = binding.minutePicker.value
+            val minute = binding.minutePicker.value * 5
 
             onDateTimeSelected?.invoke(year, month, day, hour, minute)
             dismiss()
@@ -56,49 +67,58 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
     }
 
     private fun setupDateAndTimePickers() {
-        val currentCalendar = Calendar.getInstance()
+        // 전달받은 initialCalendar를 사용, 없으면 현재 시간으로 설정
+        val currentCalendar = initialCalendar ?: Calendar.getInstance()
 
         dateDisplayValues = Array(DAYS_IN_PICKER) { "" }
         val sdf = SimpleDateFormat("yy.MM.dd", Locale.KOREAN)
 
-        val tempCal = currentCalendar.clone() as Calendar
+        val tempCal = Calendar.getInstance()
         tempCal.add(Calendar.DAY_OF_MONTH, -TODAY_INDEX)
 
+        var initialDateIndex = TODAY_INDEX // 기본값은 오늘
+
         calendarDays.clear()
+        // 날짜 배열을 만들고, 초기 날짜의 인덱스를 찾음
         for (i in 0 until DAYS_IN_PICKER) {
-            calendarDays.add(tempCal.clone() as Calendar)
-            dateDisplayValues[i] = sdf.format(tempCal.time)
+            val day = tempCal.clone() as Calendar
+            calendarDays.add(day)
+            dateDisplayValues[i] = sdf.format(day.time)
+            // 초기 날짜와 일치하는 인덱스를 찾음
+            if (isSameDay(day, currentCalendar)) {
+                initialDateIndex = i
+            }
             tempCal.add(Calendar.DAY_OF_MONTH, 1)
         }
 
         with(binding.datePicker) {
             descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
             minValue = 0
-            maxValue = TODAY_INDEX
+            maxValue = DAYS_IN_PICKER - 1
             displayedValues = dateDisplayValues
-            value = TODAY_INDEX
+            value = initialDateIndex
             wrapSelectorWheel = false
         }
 
-        // 초기 시간/분 설정
         with(binding.hourPicker) {
             descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
             minValue = 0
             maxValue = 23
             setFormatter { value -> String.format(Locale.getDefault(), "%02d", value) }
             wrapSelectorWheel = true
+            value = currentCalendar.get(Calendar.HOUR_OF_DAY) // 시간 초기값 설정
         }
 
         with(binding.minutePicker) {
             descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
             minValue = 0
-            maxValue = 59
-            setFormatter { value -> String.format(Locale.getDefault(), "%02d", value) }
-            wrapSelectorWheel = true
+            maxValue = 11
+            displayedValues = Array(12) { String.format(Locale.getDefault(), "%02d", it * 5) }
+            value = currentCalendar.get(Calendar.MINUTE) / 5 // currentCalendar 기준으로 분 초기값 설정
         }
 
-        // 초기 상태 (오늘 날짜 기준) 시간/분 피커 조정
-        updateTimePickers(true)
+        // 현재 선택된 날짜가 오늘인지 확인하여 시간/분 피커 조정
+        updateTimePickers(initialDateIndex == TODAY_INDEX)
     }
 
     private fun setupListeners() {
@@ -112,8 +132,7 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
             }
         }
     }
-
-
+    // 현재 날짜가 오늘인지에 따라 시간/분 피커를 업데이트
     private fun updateTimePickers(isToday: Boolean) {
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
@@ -127,11 +146,11 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
             updateMinutePickerForToday(hourPicker.value)
         } else { // 과거 날짜
             hourPicker.maxValue = 23
-            binding.minutePicker.maxValue = 59
+            binding.minutePicker.maxValue = 11
         }
     }
 
-
+    // 현재 선택된 시간에 따라 분 피커를 업데이트
     private fun updateMinutePickerForToday(selectedHour: Int) {
         val now = Calendar.getInstance()
         val currentHour = now.get(Calendar.HOUR_OF_DAY)
@@ -139,17 +158,35 @@ class ExerciseTimeDialog : BaseDialogFragment<DialogExerciseTimeBinding>(R.layou
         val minutePicker = binding.minutePicker
 
         if (selectedHour < currentHour) {
-            minutePicker.maxValue = 59
-        } else {
-            minutePicker.maxValue = currentMinute
-            if (minutePicker.value > currentMinute) {
-                minutePicker.value = currentMinute
+            minutePicker.maxValue = 11
+        } else { // 현재 시간과 같은 경우
+            val maxMinuteIndex = currentMinute / 5 // 5로 나눈 몫으로 최대 인덱스 계산
+            minutePicker.maxValue = maxMinuteIndex
+            if (minutePicker.value > maxMinuteIndex) {
+                minutePicker.value = maxMinuteIndex
             }
         }
     }
 
+    // 두 Calendar가 같은 날짜인지 확인하는 유틸리티 함수
+    private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
     companion object {
+        private const val ARG_INITIAL_CALENDAR = "initialCalendar"
         private const val DAYS_IN_PICKER = 61
         private const val TODAY_INDEX = 60
+
+        fun newInstance(initialCalendar: Calendar?): ExerciseTimeDialog {
+            val args = Bundle()
+            initialCalendar?.let {
+                args.putLong(ARG_INITIAL_CALENDAR, it.timeInMillis)
+            }
+            val fragment = ExerciseTimeDialog()
+            fragment.arguments = args
+            return fragment
+        }
     }
 }
