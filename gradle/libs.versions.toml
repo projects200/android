@@ -63,6 +63,9 @@ appauth = "0.11.1"
 # Glide
 glide = "4.16.0"
 
+# CircleIndicator
+circleindicator = "2.1.6"
+
 [libraries]
 
 # Gradle 플러그인 아티팩트 정의
@@ -153,6 +156,9 @@ appauth = { group = "net.openid", name = "appauth", version.ref = "appauth" }
 # Glide
 glide = { group = "com.github.bumptech.glide", name = "glide", version.ref = "glide" }
 glide-compiler-ksp = { group = "com.github.bumptech.glide", name = "ksp", version.ref = "glide" }
+
+# CircleIndicator
+circleindicator = { group = "me.relex", name = "circleindicator", version.ref = "circleindicator" }
 
 [plugins]
 # Android Gradle Plugins

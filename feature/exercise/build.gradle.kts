@@ -41,4 +41,7 @@ dependencies {
     // Glide
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
+
+    // CirlceIndicator
+    implementation(libs.circleindicator)
 }

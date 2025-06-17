@@ -23,11 +23,25 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <androidx.viewpager2.widget.ViewPager2
-                android:id="@+id/record_img_vp"
-                android:background="@color/black"
+            <FrameLayout
+                android:id="@+id/record_img_container_fl"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/exercise_image_height"/>
+                android:layout_height="wrap_content"
+                android:background="@color/black"
+                android:visibility="gone">
+
+                <androidx.viewpager2.widget.ViewPager2
+                    android:id="@+id/record_img_vp"
+                    android:layout_width="match_parent"
+                    android:layout_height="@dimen/exercise_image_height"/>
+
+                <me.relex.circleindicator.CircleIndicator3
+                    android:id="@+id/record_img_indicator"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:layout_gravity="bottom"/>
+
+            </FrameLayout>
 
             <TextView
                 android:id="@+id/record_title_title_tv"
