@@ -6,7 +6,10 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.project200.domain.model.ExerciseListItem
+import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.ItemExerciseListBinding
 import timber.log.Timber
@@ -50,6 +53,7 @@ class ExerciseListAdapter(
                 if (!imageUrl.isNullOrEmpty()) {
                     Glide.with(exerciseIv)
                         .load(imageUrl[0])
+                        .transform(CenterCrop(), RoundedCorners(dpToPx(exerciseIv.context, 8f)))
                         .into(exerciseIv)
                     Timber.tag("asdasd").e("${imageUrl[0]}")
                 } else {
