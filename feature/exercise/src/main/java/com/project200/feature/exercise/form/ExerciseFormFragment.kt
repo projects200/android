@@ -33,6 +33,9 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.Calendar
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
@@ -155,7 +158,19 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     }
 
     private fun showTimePickerDialog(isStart: Boolean) {
-        val dialog = ExerciseTimeDialog().apply {
+        // 기존 선택된 시간이 있다면 해당 시간을 사용하고, 없다면 현재 시간을 기준으로 5분 단위로 내림한 시간으로 설정
+        val dateTimeToShow = (if (isStart) viewModel.startTime.value else viewModel.endTime.value) ?: run {
+            val now = LocalDateTime.now()
+            val flooredMinute = (now.minute / 5) * 5
+            now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
+        }
+
+        val initialCalendar = Calendar.getInstance().apply {
+            timeInMillis = dateTimeToShow.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+        }
+
+        // 다이얼로그 생성 및 표시
+        val dialog = ExerciseTimeDialog.newInstance(initialCalendar).apply {
             onDateTimeSelected = { year, month, day, hour, minute ->
                 val selectedDateTime = LocalDateTime.of(year, month + 1, day, hour, minute)
                 if (isStart) {

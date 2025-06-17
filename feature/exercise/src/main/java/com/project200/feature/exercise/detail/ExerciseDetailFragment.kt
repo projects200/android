@@ -65,13 +65,16 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
 
     private fun bindExerciseRecordData(record: ExerciseRecord) {
         with(binding) {
-            // 이미지 ViewPager 설정
+            // ViewPager2와 CircleIndicator3 설정
             val currentPictureUrls = record.pictures?.map { it.url }
             if (currentPictureUrls.isNullOrEmpty()) {
-                recordImgVp.visibility = View.GONE
+                recordImgContainerFl.visibility = View.GONE
             } else {
+                recordImgContainerFl.visibility = View.VISIBLE
                 recordImgVp.adapter = ImageSliderAdapter(currentPictureUrls)
-                recordImgVp.visibility = View.VISIBLE
+
+                val indicator = recordImgIndicator
+                indicator.setViewPager(recordImgVp)
             }
 
             recordTitleTv.text = record.title

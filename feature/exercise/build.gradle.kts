@@ -42,6 +42,10 @@ dependencies {
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
 
+
+    // CirlceIndicator
+    implementation(libs.circleindicator)
+
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)
 }

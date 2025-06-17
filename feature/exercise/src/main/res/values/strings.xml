@@ -8,7 +8,7 @@
     <string name="exercise_record_type">운동 종류</string>
     <string name="exercise_record_time">운동 시간 *</string>
     <string name="exercise_record_start_time">시작 시간</string>
-    <string name="exercise_record_end_time">끝 시간</string>
+    <string name="exercise_record_end_time">종료 시간</string>
     <string name="exercise_record_location">장소</string>
     <string name="exercise_record_title_hint">제목을 입력해주세요.</string>
     <string name="exercise_record_type_hint">운동 종류를 입력해주세요.</string>
@@ -21,7 +21,7 @@
     <string name="exercise_record_time_error">종료 시간은 시작 시간보다 빠를 수 없습니다.</string>
     <string name="exercise_record_delete">삭제하기</string>
     <string name="exercise_record_edit">수정하기</string>
-    <string name="exercise_create_get_score">오늘 운동 기록하고 점수 얻기</string>
+    <string name="exercise_create_get_score">운동 기록하고 점수 얻기</string>
     <string name="exercise_empty">아직 등록된 기록이 없습니다.</string>
 
 
