@@ -72,10 +72,14 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
                     // 이번 달에 해당하는 날짜일 경우
                     if (data.position == DayPosition.MonthDate) {
-                        calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.black))
-
                         val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
                         todayIv.isVisible = data.date == today
+
+                        // 오늘 날짜 이후는 회색, 이전 및 당일은 검은색으로 처리
+                        calendarDayTv.setTextColor(getColor(requireContext(),
+                            if (data.date.isAfter(today)) com.project200.undabang.presentation.R.color.gray200
+                            else com.project200.undabang.presentation.R.color.black)
+                        )
 
                         // 운동 기록이 있는 날 && 애니메이션 중복 방지
                         if (exerciseCompleteDates.contains(data.date) && !exerciseCompleteIv.isVisible) {
