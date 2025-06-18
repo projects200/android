@@ -18,7 +18,7 @@
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/white300</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_document</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/app_icon_small</item>
         <item name="postSplashScreenTheme">@style/Theme.Undabang</item>
     </style>
 </resources>
