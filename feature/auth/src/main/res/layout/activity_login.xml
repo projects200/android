@@ -13,7 +13,7 @@
         android:layout_width="200dp"
         android:layout_height="200dp"
         android:layout_marginTop="80dp"
-        android:background="@color/main"
+        android:src="@drawable/app_icon"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
