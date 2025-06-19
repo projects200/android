@@ -67,7 +67,7 @@
             app:destination="@id/exerciseDetailFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out"
-            app:popUpTo="@id/exerciseFormFragment"
+            app:popUpTo="@id/exerciseDetailFragment"
             app:popUpToInclusive="true">
             <argument
                 android:name="recordId"
