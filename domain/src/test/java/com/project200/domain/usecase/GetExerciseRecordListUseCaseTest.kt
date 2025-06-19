@@ -35,7 +35,7 @@ class GetExerciseRecordListUseCaseTest {
             type = "달리기",
             startTime = LocalDateTime.now().minusHours(2),
             endTime = LocalDateTime.now().minusHours(1),
-            imageUrl = "http://example.com/run.jpg"
+            imageUrl = listOf("http://example.com/run.jpg", "http://example.com/run.jpg")
         ),
         ExerciseListItem(
             recordId = 2L,
