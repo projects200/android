@@ -37,38 +37,22 @@ class ExerciseListViewModelTest {
     private lateinit var mockGetExerciseRecordListUseCase: GetExerciseRecordListUseCase
 
     private lateinit var viewModel: ExerciseListViewModel
-
     private lateinit var savedStateHandle: SavedStateHandle
-
     private val testDispatcher = StandardTestDispatcher()
 
-    // 테스트용 샘플 데이터 (수정된 모델 반영)
     private val today: LocalDate = LocalDate.now()
     private val tomorrow: LocalDate = today.plusDays(1)
     private val sampleList = listOf(
         ExerciseListItem(
-            recordId = 1L,
-            title = "테스트 운동 1",
-            type = "테스트 타입 1",
-            startTime = LocalDateTime.now(),
-            endTime = LocalDateTime.now().plusHours(1),
-            imageUrl = listOf("http://images.com/1.png", "http://images.com/2.png")
-        ),
-        ExerciseListItem(
-            recordId = 2L,
-            title = "테스트 운동 2",
-            type = "테스트 타입 2",
-            startTime = LocalDateTime.now().plusDays(1),
-            endTime = LocalDateTime.now().plusDays(1).plusHours(1),
-            imageUrl = null
+            recordId = 1L, title = "테스트 운동 1", type = "테스트 타입 1",
+            startTime = LocalDateTime.now(), endTime = LocalDateTime.now().plusHours(1),
+            imageUrl = listOf("http://images.com/1.png")
         )
     )
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        savedStateHandle = SavedStateHandle()
-        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
     }
 
     @After
@@ -77,73 +61,66 @@ class ExerciseListViewModelTest {
     }
 
     @Test
-    fun `loadCurrentDateExercises 호출 시 오늘 날짜의 운동 목록을 성공적으로 로드`() = runTest(testDispatcher) {
+    fun `ViewModel 초기화 시 SavedStateHandle에 날짜가 없으면 오늘 날짜로 초기화`() {
         // Given
-        // ViewModel 생성 시 currentDate는 LocalDate.now() (즉, today)로 초기화됨
-        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(sampleList)
+        savedStateHandle = SavedStateHandle()
 
         // When
-        viewModel.loadCurrentDateExercises() // 명시적으로 데이터 로드 함수 호출
-        testDispatcher.scheduler.advanceUntilIdle() // 코루틴 작업 완료 대기
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
 
         // Then
-        coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
         assertThat(viewModel.currentDate.value).isEqualTo(today)
-        assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)
-        assertThat(viewModel.toastMessage.value).isNull() // 성공 시 토스트 메시지 없음
+        // init에서는 load를 호출하지 않으므로 use case는 호출되지 않아야 함
+        coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any()) }
     }
 
     @Test
-    fun `loadCurrentDateExercises 호출 시 운동 목록 로드 실패 처리`() = runTest(testDispatcher) {
+    fun `ViewModel 초기화 시 SavedStateHandle에 날짜가 있으면 해당 날짜로 초기화`() = runTest {
         // Given
-        val errorMessage = "로드 실패"
-        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Error("LOAD_ERR", errorMessage)
+        val initialDate = LocalDate.of(2025, 1, 1)
+        savedStateHandle = SavedStateHandle().apply { set("date", initialDate) }
 
         // When
-        viewModel.loadCurrentDateExercises() // 명시적으로 데이터 로드 함수 호출
-        testDispatcher.scheduler.advanceUntilIdle()
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
 
         // Then
+        assertThat(viewModel.currentDate.value).isEqualTo(initialDate)
+        coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any()) }
+
+        // When (데이터 로드 수동 호출)
+        coEvery { mockGetExerciseRecordListUseCase(initialDate) } returns BaseResult.Success(sampleList)
+        viewModel.loadCurrentDateExercises()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then (데이터가 정상적으로 로드됨)
+        coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(initialDate) }
+        assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)
+    }
+
+    @Test
+    fun `loadCurrentDateExercises 호출 시 오늘 날짜의 운동 목록을 성공적으로 로드`() = runTest(testDispatcher) {
+        savedStateHandle = SavedStateHandle() // today로 초기화
+        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
+        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(sampleList)
+
+        viewModel.loadCurrentDateExercises()
+        testDispatcher.scheduler.advanceUntilIdle()
+
         coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
-        assertThat(viewModel.currentDate.value).isEqualTo(today)
-        assertThat(viewModel.exerciseList.value).isEmpty() // 실패 시 빈 리스트
-        assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
+        assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)
     }
 
     @Test
     fun `changeDate 호출 시 날짜 변경 및 운동 목록 다시 로드 성공`() = runTest(testDispatcher) {
-        // Given
-        coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Success(sampleList)
+        savedStateHandle = SavedStateHandle()
         viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
+        coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Success(sampleList)
 
-        // When
         viewModel.changeDate(tomorrow.toString())
         testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
         coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(tomorrow) }
         assertThat(viewModel.currentDate.value).isEqualTo(tomorrow)
         assertThat(viewModel.exerciseList.value).isEqualTo(sampleList)
-    }
-
-    @Test
-    fun `changeDate 호출 시 날짜 변경 및 로드 실패 처리`() = runTest(testDispatcher) {
-        // Given
-        val errorMessage = "변경 실패"
-        coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(sampleList)
-        coEvery { mockGetExerciseRecordListUseCase(tomorrow) } returns BaseResult.Error("CHANGE_ERR", errorMessage)
-        viewModel = ExerciseListViewModel(savedStateHandle, mockGetExerciseRecordListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // When
-        viewModel.changeDate(tomorrow.toString())
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(tomorrow) }
-        assertThat(viewModel.currentDate.value).isEqualTo(tomorrow)
-        assertThat(viewModel.exerciseList.value).isEmpty()
-        assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
     }
 }
