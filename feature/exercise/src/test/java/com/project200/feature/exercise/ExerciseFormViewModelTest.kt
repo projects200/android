@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
+import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
@@ -94,6 +95,137 @@ class ExerciseFormViewModelTest {
         viewModel = ExerciseFormViewModel(
             savedStateHandle, mockGetDetailUseCase, mockCreateUseCase, mockUploadUseCase, mockEditUseCase
         )
+        // 수정 모드 테스트를 위해 초기 데이터를 미리 로드합니다.
+        coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
+        viewModel.loadInitialRecord()
+        runTest { testDispatcher.scheduler.advanceUntilIdle() }
+    }
+
+    /** 폼 상태 관리 및 유효성 검증 테스트
+     * 이 테스트들은 ViewModel의 상태 관리 및 유효성 검증 로직을 검증합니다.
+     */
+
+    @Test
+    fun `loadInitialRecord - 생성 모드일 때 ViewModel이 올바르게 초기화된다`() {
+        // Given: recordId가 -1L인 생성 모드
+        setupViewModelForCreateMode()
+
+        // When: 초기 데이터 로드 실행
+        viewModel.loadInitialRecord()
+
+        // Then: 수정과 관련된 데이터는 null 또는 초기 상태여야 함
+        assertThat(viewModel.initialDataLoaded.value).isNull()
+        assertThat(viewModel.startTime.value).isNull()
+        assertThat(viewModel.imageItems.value).hasSize(1) // AddButton만 존재
+    }
+
+    @Test
+    fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 false를 반환하고 값이 변경되지 않는다`() {
+        // Given: 시작 시간이 설정된 상태
+        setupViewModelForCreateMode()
+        val startTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        viewModel.setStartTime(startTime)
+
+        // When: 시작 시간보다 이른 시간으로 종료 시간을 설정 시도
+        val invalidEndTime = startTime.minusHours(1)
+        val result = viewModel.setEndTime(invalidEndTime)
+
+        // Then: false를 반환하고, 종료 시간은 여전히 null이어야 함
+        assertThat(result).isFalse()
+        assertThat(viewModel.endTime.value).isNull()
+    }
+
+    @Test
+    fun `setStartTime - 기존 종료 시간보다 늦은 시작 시간을 설정하면 종료 시간이 초기화된다`() {
+        // Given: 시작과 종료 시간이 모두 설정된 상태
+        setupViewModelForCreateMode()
+        viewModel.setStartTime(LocalDateTime.of(2025, 6, 20, 9, 0))
+        viewModel.setEndTime(LocalDateTime.of(2025, 6, 20, 10, 0))
+        assertThat(viewModel.endTime.value).isNotNull()
+
+        // When: 기존 종료 시간보다 늦은 시간으로 시작 시간을 재설정
+        val newStartTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        viewModel.setStartTime(newStartTime)
+
+        // Then: 종료 시간이 null로 초기화되어야 함
+        assertThat(viewModel.endTime.value).isNull()
+    }
+
+    @Test
+    fun `removeImage - 새로 추가했던 이미지를 삭제하면 removedPictureIds에 추가되지 않는다`() {
+        // Given: 수정 모드에서 새로운 이미지를 추가한 상태
+        setupViewModelForEditMode()
+        val newImageUri = mockk<Uri>()
+        val newImageItem = ExerciseImageListItem.NewImageItem(newImageUri)
+        viewModel.addImage(listOf(newImageUri))
+        assertThat(viewModel.imageItems.value).contains(newImageItem)
+
+        // When: 새로 추가했던 이미지를 다시 삭제
+        viewModel.removeImage(newImageItem)
+
+        // Then: removedPictureIds는 비어있어야 하고, submit 시에도 빈 리스트로 전달되어야 함
+        coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+        viewModel.submitRecord("제목 변경", "타입", "장소", "상세") // hasChanges=true 만들기
+        runTest { testDispatcher.scheduler.advanceUntilIdle() }
+
+        coVerify {
+            mockEditUseCase(recordId = recordId, recordToUpdate = any(), isContentChanges = true, imagesToDelete = emptyList(), newImages = emptyList())
+        }
+    }
+
+    @Test
+    fun `hasContentChanges - 다른 내용은 그대로고 시간만 변경되어도 변경으로 감지한다`() = runTest {
+        // Given: 수정 모드
+        setupViewModelForEditMode()
+        coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+
+        // When: 다른 내용은 그대로 두고, 종료 시간만 변경하여 제출
+        viewModel.setEndTime(sampleRecord.endedAt!!.plusHours(1))
+        viewModel.submitRecord(
+            title = sampleRecord.title,
+            type = sampleRecord.personalType,
+            location = sampleRecord.location,
+            detail = sampleRecord.detail
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: useCase가 호출되어야 함 (변경 사항이 없다는 토스트 메시지가 뜨지 않아야 함)
+        assertThat(viewModel.toastMessage.value).isNotEqualTo(ExerciseFormViewModel.NO_CHANGE)
+        coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `hasImageChanges - 내용 변경 없이 새 이미지만 추가해도 변경으로 감지한다`() = runTest {
+        // Given: 수정 모드
+        setupViewModelForEditMode()
+        coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+
+        // When: 내용 변경 없이, 새 이미지만 추가하여 제출
+        viewModel.addImage(listOf(mockk()))
+        viewModel.submitRecord(
+            title = sampleRecord.title,
+            type = sampleRecord.personalType,
+            location = sampleRecord.location,
+            detail = sampleRecord.detail
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then: useCase가 호출되어야 함
+        assertThat(viewModel.toastMessage.value).isNotEqualTo(ExerciseFormViewModel.NO_CHANGE)
+        coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
+    }
+
+    @Test
+    fun `getCurrentPermittedImageCount - 이미지 개수에 따라 허용 개수를 올바르게 반환한다`() {
+        // Given: 생성 모드
+        setupViewModelForCreateMode()
+
+        // When & Then: 초기 상태에서는 최대 개수를 반환
+        assertThat(viewModel.getCurrentPermittedImageCount()).isEqualTo(MAX_IMAGE)
+
+        // When & Then: 이미지 3개 추가 후에는 (최대-3)개 반환
+        viewModel.addImage(listOf(mockk(), mockk(), mockk()))
+        assertThat(viewModel.getCurrentPermittedImageCount()).isEqualTo(MAX_IMAGE - 3)
     }
 
     /** 생성 모드 테스트
@@ -171,10 +303,6 @@ class ExerciseFormViewModelTest {
         // Given: 수정 모드로 ViewModel을 설정하고, getDetailUseCase가 성공을 반환하도록 설정
         setupViewModelForEditMode()
         coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-
-        // When: 초기 데이터 로드 함수를 호출
-        viewModel.loadInitialRecord()
-        testDispatcher.scheduler.advanceUntilIdle()
 
         // Then: useCase가 호출되고, LiveData가 올바른 데이터로 업데이트되었는지 검증
         coVerify(exactly = 1) { mockGetDetailUseCase(recordId) }
