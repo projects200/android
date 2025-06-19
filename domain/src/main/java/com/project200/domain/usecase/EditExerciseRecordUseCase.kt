@@ -26,8 +26,8 @@ class EditExerciseRecordUseCase @Inject constructor(
         isContentChanges: Boolean,
         imagesToDelete: List<Long>,
         newImages: List<String>
-    ): ExerciseEditResult = try {
-        coroutineScope {
+    ): ExerciseEditResult = coroutineScope {
+        try {
             // 내용 수정 작업
             val contentResultDeferred: Deferred<ExerciseEditResult> = async {
                 // 내용 변경 없을 시 return
@@ -88,11 +88,10 @@ class EditExerciseRecordUseCase @Inject constructor(
                     ExerciseEditResult.Success(recordId)
                 else -> ExerciseEditResult.Failure(UNEXPECTED_ERROR)
             }
+        } catch (e: Exception) {
+            if(e is CancellationException) { throw e }
+            ExerciseEditResult.Failure("기록 수정 중 오류 발생: ${e.message}", e)
         }
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        ExerciseEditResult.Failure("기록 수정 중 오류 발생: ${e.message}", e)
     }
 
     companion object {

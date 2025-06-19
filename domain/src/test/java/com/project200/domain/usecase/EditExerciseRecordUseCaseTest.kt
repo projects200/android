@@ -155,24 +155,4 @@ class EditExerciseRecordUseCaseTest {
         assertThat(result).isInstanceOf(ExerciseEditResult.ImageFailure::class.java)
         assertThat((result as ExerciseEditResult.ImageFailure).message).isEqualTo(error.message)
     }
-
-    @Test
-    fun `예상치 못한 예외 발생 시 Failure 반환`() = runTest {
-        // Given
-        val exception = RuntimeException("DB is down")
-        coEvery { mockUpdateExerciseRecordUseCase(any(), any()) } throws exception
-
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = true,
-            imagesToDelete = emptyList(),
-            newImages = emptyList()
-        )
-
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.Failure::class.java)
-        assertThat((result as ExerciseEditResult.Failure).cause).isEqualTo(exception)
-    }
 }

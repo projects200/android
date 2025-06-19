@@ -51,6 +51,7 @@ androidxTestEspresso = "3.6.1"
 mockk = "1.13.10"
 turbine = "1.1.0" # Flow 테스트용
 truth = "1.1.5"
+jacoco = "0.8.11" # 테스트 커버리지 측정 플러그인
 
 # DI - JSR 330
 javaxInject = "1"
@@ -144,7 +145,7 @@ truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
 
 # DI - JSR 330
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
-androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" } # 원래 있던 정의 유지
+androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 
 # Firebase BoM
 firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" }
@@ -188,3 +189,6 @@ navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref 
 # Firebase 플러그인
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
 firebase-performance = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
+
+# Jacoco Plugin
+jacoco = { id = "org.gradle.jacoco", version.ref = "jacoco" }

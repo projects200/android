@@ -38,6 +38,13 @@ gradlePlugin {
             id = "convention.kotlin.jvm"
             implementationClass = "com.project200.convention.KotlinJvmConventionPlugin"
         }
-        // 다른 클래스 기반 플러그인이 있다면 여기에 추가 등록
+        register("conventionJvmJacoco") {
+            id = "convention.jvm.jacoco"
+            implementationClass = "com.project200.convention.JvmJacocoConventionPlugin"
+        }
+        register("conventionAndroidJacoco") {
+            id = "convention.android.jacoco"
+            implementationClass = "com.project200.convention.AndroidJacocoConventionPlugin"
+        }
     }
 }
