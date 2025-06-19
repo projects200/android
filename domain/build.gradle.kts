@@ -1,5 +1,6 @@
 plugins {
     id("convention.kotlin.jvm")
+    id("convention.jvm.jacoco")
 }
 
 dependencies {

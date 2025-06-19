@@ -8,3 +8,5 @@ plugins {
     alias(libs.plugins.navigation.safeargs) apply false
     alias(libs.plugins.google.services) apply false
 }
+
+apply(from = "jacoco-report.gradle.kts")
