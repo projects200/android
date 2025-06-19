@@ -261,6 +261,8 @@ class ExerciseFormViewModel @Inject constructor(
                 imagesToDelete = removedPictureIds,
                 newImages = newImageUris
             )
+            // 로딩 종료
+            _isLoading.value = false
         }
     }
 

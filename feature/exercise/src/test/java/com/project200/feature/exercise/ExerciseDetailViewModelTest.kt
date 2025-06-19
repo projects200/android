@@ -40,7 +40,6 @@ class ExerciseDetailViewModelTest {
     @MockK
     private lateinit var mockDeleteExerciseUseCase: DeleteExerciseRecordUseCase
 
-    // SavedStateHandle은 mockk()로 직접 생성하거나 @MockK 사용 가능
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: ExerciseDetailViewModel
 
@@ -57,10 +56,13 @@ class ExerciseDetailViewModelTest {
         location = "여의도 공원",
         pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/img1.jpg"))
     )
+    private val recordId = 123L
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
+        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
     }
 
     @After
@@ -71,12 +73,7 @@ class ExerciseDetailViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase를 실행하고 성공 결과를 LiveData에 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 123L
-        savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
-
         val successResult = BaseResult.Success(sampleRecord)
-
         coEvery { mockGetExerciseUseCase.invoke(recordId) } returns successResult
 
         // When
@@ -84,8 +81,7 @@ class ExerciseDetailViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) } // 정확히 1번 호출되었는지 검증
-
+        coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) }
         val actualResult = viewModel.exerciseRecord.value
         assertThat(actualResult).isEqualTo(successResult)
         assertThat((actualResult as BaseResult.Success).data.title).isEqualTo("아침 조깅")
@@ -94,10 +90,6 @@ class ExerciseDetailViewModelTest {
     @Test
     fun `getExerciseRecord 호출 시 UseCase가 에러를 반환하면 LiveData에 에러 상태 반영`() = runTest(testDispatcher) {
         // Given
-        val recordId = 456L
-        savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
-
         val errorResult = BaseResult.Error("500", "Network error")
         coEvery { mockGetExerciseUseCase.invoke(recordId) } returns errorResult
 
@@ -110,5 +102,54 @@ class ExerciseDetailViewModelTest {
         val actualResult = viewModel.exerciseRecord.value
         assertThat(actualResult).isEqualTo(errorResult)
         assertThat((actualResult as BaseResult.Error).message).isEqualTo("Network error")
+    }
+
+    @Test
+    fun `deleteExerciseRecord 호출 시 UseCase를 실행하고 성공 결과를 LiveData에 반영`() = runTest(testDispatcher) {
+        // Given
+        val successResult = BaseResult.Success(Unit)
+        coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns successResult
+
+        // When
+        viewModel.deleteExerciseRecord()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        coVerify(exactly = 1) { mockDeleteExerciseUseCase.invoke(recordId) }
+        val actualResult = viewModel.deleteResult.value
+        assertThat(actualResult).isEqualTo(successResult)
+        assertThat(actualResult).isInstanceOf(BaseResult.Success::class.java)
+    }
+
+    @Test
+    fun `deleteExerciseRecord 호출 시 UseCase가 에러를 반환하면 LiveData에 에러 상태 반영`() = runTest(testDispatcher) {
+        // Given
+        val errorResult = BaseResult.Error("DELETE_FAIL", "삭제 실패")
+        coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns errorResult
+
+        // When
+        viewModel.deleteExerciseRecord()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        coVerify(exactly = 1) { mockDeleteExerciseUseCase.invoke(recordId) }
+        val actualResult = viewModel.deleteResult.value
+        assertThat(actualResult).isEqualTo(errorResult)
+        assertThat((actualResult as BaseResult.Error).message).isEqualTo("삭제 실패")
+    }
+
+    @Test
+    fun `recordId가 null일 때 deleteExerciseRecord 호출 시 아무 작업도 수행하지 않음`() = runTest(testDispatcher) {
+        // Given
+        val emptySavedStateHandle = SavedStateHandle()
+        viewModel = ExerciseDetailViewModel(emptySavedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
+
+        // When
+        viewModel.deleteExerciseRecord()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        coVerify(exactly = 0) { mockDeleteExerciseUseCase.invoke(any()) }
+        assertThat(viewModel.deleteResult.value).isNull()
     }
 }
