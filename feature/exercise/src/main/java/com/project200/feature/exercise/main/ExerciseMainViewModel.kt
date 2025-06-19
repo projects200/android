@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class ExerciseMainViewModel @Inject constructor(
-    private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase
+    private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
+    private val clockProvider: ClockProvider
 ) : ViewModel() {
 
     private val _selectedMonth = MutableLiveData<YearMonth>()
@@ -30,7 +32,7 @@ class ExerciseMainViewModel @Inject constructor(
 
     init {
         if (_selectedMonth.value == null) {
-            _selectedMonth.value = YearMonth.now()
+            _selectedMonth.value = clockProvider.yearMonthNow()
         }
     }
 
@@ -41,7 +43,7 @@ class ExerciseMainViewModel @Inject constructor(
         _selectedMonth.value = newMonth
 
         if (!exerciseCache.containsKey(newMonth)) { // 캐시에 데이터가 있으면 캐시 데이터를 사용하고 api 호출 x
-            getExerciseCounts(newMonth, LocalDate.now())
+            getExerciseCounts(newMonth, clockProvider.now())
         }
     }
 
@@ -72,7 +74,7 @@ class ExerciseMainViewModel @Inject constructor(
     fun refreshData() {
         exerciseCache.clear()
         _selectedMonth.value?.let {
-            getExerciseCounts(it, LocalDate.now())
+            getExerciseCounts(it, clockProvider.now())
         }
     }
 }

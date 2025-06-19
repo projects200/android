@@ -6,8 +6,11 @@ import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfigSettings
+import com.project200.common.utils.ClockProvider
+import com.project200.common.utils.SystemClockProvider
 import com.project200.undabang.BuildConfig
 import com.project200.undabang.R
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -34,5 +37,13 @@ object AppModule {
         remoteConfig.setDefaultsAsync(R.xml.remote_config_defaults)
 
         return remoteConfig
+    }
+
+    @Provides
+    @Singleton
+    fun provideClockProvider(
+        systemClockProvider: SystemClockProvider
+    ): ClockProvider {
+        return systemClockProvider
     }
 }
