@@ -12,6 +12,7 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.feature.exercise.list.ExerciseYearMonthDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
@@ -108,6 +109,23 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                 val nextMonth = it.yearMonth.plusMonths(1)
                 binding.exerciseCalendar.smoothScrollToMonth(nextMonth)
             }
+        }
+
+        binding.dateTv.setOnClickListener {
+            val initialDate = viewModel.selectedMonth.value ?: YearMonth.now()
+            // ExerciseYearMonthDialog를 생성하고 초기 날짜를 설정
+            val dialog = ExerciseYearMonthDialog.newInstance(initialDate)
+
+
+            dialog.onDateSelected = { selectedDate ->
+                val selectedYearMonth = YearMonth.from(selectedDate)
+                viewModel.onMonthChanged(selectedYearMonth)
+
+                viewModel.onMonthChanged(selectedDate)
+            }
+
+            // 다이얼로그 표시
+            dialog.show(childFragmentManager, "ExerciseYearMonthDialog")
         }
 
         binding.settingBtn.setOnClickListener {
