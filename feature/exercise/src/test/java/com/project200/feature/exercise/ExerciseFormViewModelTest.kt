@@ -86,8 +86,6 @@ class ExerciseFormViewModelTest {
             mockUploadUseCase,
             mockEditUseCase
         )
-        viewModel.setStartTime(now.minusHours(1))
-        viewModel.setEndTime(now)
     }
 
     private fun setupViewModelForEditMode() {
@@ -123,14 +121,17 @@ class ExerciseFormViewModelTest {
     fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 false를 반환하고 값이 변경되지 않는다`() {
         // Given: 시작 시간이 설정된 상태
         setupViewModelForCreateMode()
-        val startTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        viewModel.setStartTime(startTime)
+        val initialStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        viewModel.setStartTime(initialStartTime)
+
+        // Then: 현재 종료 시간이 null임을 확인
+        assertThat(viewModel.endTime.value).isNull()
 
         // When: 시작 시간보다 이른 시간으로 종료 시간을 설정 시도
-        val invalidEndTime = startTime.minusHours(1)
+        val invalidEndTime = initialStartTime.minusHours(1) // invalidEndTime은 09:00
         val result = viewModel.setEndTime(invalidEndTime)
 
-        // Then: false를 반환하고, 종료 시간은 여전히 null이어야 함
+        // Then: false를 반환하고, 종료 시간은 여전히 null
         assertThat(result).isFalse()
         assertThat(viewModel.endTime.value).isNull()
     }
@@ -236,6 +237,13 @@ class ExerciseFormViewModelTest {
     fun `submitRecord 호출 시 기록 생성 성공 (이미지 없음)`() = runTest(testDispatcher) {
         // Given
         setupViewModelForCreateMode()
+
+        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        viewModel.setStartTime(testStartTime)
+        viewModel.setEndTime(testEndTime)
+
+
         coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
 
         // When
@@ -257,6 +265,12 @@ class ExerciseFormViewModelTest {
         setupViewModelForCreateMode()
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
+
+        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        viewModel.setStartTime(testStartTime)
+        viewModel.setEndTime(testEndTime)
+
         coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
         coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Success(recordId)
 
@@ -278,6 +292,12 @@ class ExerciseFormViewModelTest {
         setupViewModelForCreateMode()
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
+
+        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        viewModel.setStartTime(testStartTime)
+        viewModel.setEndTime(testEndTime)
+
         coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
         coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Error("UPLOAD_ERROR", "Upload failed")
 
