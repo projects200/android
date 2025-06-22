@@ -1,6 +1,7 @@
 package com.project200.undabang.main
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -21,6 +22,7 @@ import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import net.openid.appauth.AuthorizationService
 import timber.log.Timber
@@ -47,6 +49,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
         setupObservers()
         performRouting()
+        observeAuthEvents()
     }
 
     private fun performRouting() {
@@ -120,6 +123,19 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         viewModel.isRegistered.observe(this) { isRegistered ->
             if (isRegistered) proceedToContent()
             else navigateToLogin()
+        }
+    }
+
+    // AuthManager의 강제 로그아웃 이벤트를 구독하는 함수
+    private fun observeAuthEvents() {
+        lifecycleScope.launch {
+            authManager.forceLogoutFlow.collectLatest {
+                Timber.d("토큰 재발급 실패, 강제 로그아웃 이벤트 수신")
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
+                    navigateToLogin()
+                }
+            }
         }
     }
 

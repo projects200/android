@@ -4,6 +4,8 @@ import android.content.Intent
 import androidx.core.net.toUri
 import com.project200.undabang.core.oauth.BuildConfig
 import com.project200.undabang.oauth.config.CognitoConfig
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
@@ -46,6 +48,8 @@ class AuthManager @Inject constructor(
     private val authStateManager: AuthStateManager,
     private val cognitoConfig: CognitoConfig
 ) {
+    private val _forceLogoutFlow = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val forceLogoutFlow: SharedFlow<Unit> = _forceLogoutFlow
 
     private suspend fun fetchServiceConfiguration(): AuthorizationServiceConfiguration {
         return suspendCancellableCoroutine { continuation ->
@@ -245,6 +249,9 @@ class AuthManager @Inject constructor(
                         Timber.tag(TAG_DEBUG).w("Refresh token is invalid (invalid_grant). Clearing local AuthState.")
                         authStateManager.clearAuthState() // 리프레시 토큰이 무효하므로 로컬 상태 삭제
                     }
+
+                    // 토큰 갱신 실패 시 강제 로그아웃 트리거
+                    _forceLogoutFlow.tryEmit(Unit)
                     continuation.resume(TokenRefreshResult.Error(ex))
                 }
             }

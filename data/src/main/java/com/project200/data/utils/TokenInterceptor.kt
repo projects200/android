@@ -13,6 +13,12 @@ class TokenInterceptor @Inject constructor(
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
+
+        // 이미 Authorization 헤더가 있다면, Authenticator가 설정한 것이므로 그대로 진행
+        if (originalRequest.header("Authorization") != null) {
+            return chain.proceed(originalRequest)
+        }
+
         val requestUrlString = originalRequest.url.toString()
         val currentAuthState = authStateManager.getCurrent()
 
