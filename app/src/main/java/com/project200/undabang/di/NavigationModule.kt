@@ -2,6 +2,7 @@ package com.project200.undabang.di
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.login.LoginActivity
 import com.project200.undabang.main.MainActivity
@@ -30,6 +31,11 @@ object NavigationModule {
                 val intent = Intent(context, LoginActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
                 }
+                context.startActivity(intent)
+            }
+
+            override fun navigateToWeb(context: Context, url: String) {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 context.startActivity(intent)
             }
         }
