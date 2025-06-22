@@ -37,7 +37,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
     private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
     private lateinit var binding: ActivityMainBinding
-    private lateinit var authService: AuthorizationService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -45,7 +44,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
-        authService = AuthorizationService(this)
 
         setupObservers()
         performRouting()
@@ -57,7 +55,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
             if (currentAuthState.isAuthorized) {
                 if (currentAuthState.needsTokenRefresh) {
                     Timber.i("Token needs refresh. Attempting refresh...")
-                    when (val refreshResult = authManager.refreshAccessToken(authService)) {
+                    when (val refreshResult = authManager.refreshAccessToken()) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
                             viewModel.checkIsRegistered() // 회원 여부 확인
@@ -158,12 +156,5 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
     override fun navigateFromExerciseMainToExerciseForm() {
         navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::authService.isInitialized) {
-            authService.dispose()
-        }
     }
 }
