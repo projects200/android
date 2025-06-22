@@ -9,6 +9,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import net.openid.appauth.AuthorizationService
 import javax.inject.Singleton
 
 @Module
@@ -26,11 +27,18 @@ object AuthCoreModule {
 
     @Provides
     @Singleton
+    fun provideAuthorizationService(@ApplicationContext context: Context): AuthorizationService {
+        return AuthorizationService(context)
+    }
+
+    @Provides
+    @Singleton
     fun provideAuthManager(
+        authService: AuthorizationService,
         authStateManager: AuthStateManager,
         cognitoConfig: CognitoConfig
     ): AuthManager {
-        return AuthManager(authStateManager, cognitoConfig)
+        return AuthManager(authService, authStateManager, cognitoConfig)
     }
 
     @Provides

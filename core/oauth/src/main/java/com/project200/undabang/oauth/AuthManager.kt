@@ -42,6 +42,7 @@ sealed class TokenRefreshResult {
 
 @Singleton
 class AuthManager @Inject constructor(
+    private val authService: AuthorizationService,
     private val authStateManager: AuthStateManager,
     private val cognitoConfig: CognitoConfig
 ) {
@@ -67,7 +68,6 @@ class AuthManager @Inject constructor(
     }
 
     suspend fun initiateAuthorization(
-        authService: AuthorizationService,
         identityProvider: String? = null,
         callback: AuthResultCallback
     ) {
@@ -211,7 +211,7 @@ class AuthManager @Inject constructor(
         }
     }
 
-    suspend fun refreshAccessToken(authService: AuthorizationService): TokenRefreshResult {
+    suspend fun refreshAccessToken(): TokenRefreshResult {
         Timber.tag(TAG_DEBUG).d("Attempting to refresh access token.")
         val currentState = authStateManager.getCurrent()
         val refreshToken = currentState.refreshToken
