@@ -54,10 +54,14 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
                 performLogout()
             }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
         }
-        withdrawLl.setOnClickListener {  }
+        withdrawLl.setOnClickListener { // 회원탈퇴 웹 페이지로 이동
+            appNavigator.navigateToWeb(requireContext(), getString(R.string.withdraw_url))
+        }
+        customerServiceLl.setOnClickListener { // 고객센터 웹 페이지로 이동
+            appNavigator.navigateToWeb(requireContext(), getString(R.string.customer_service_url))
+        }
         termsLl.setOnClickListener { showTermsDialog(TERMS) }
         privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
-        versionInfoLl.setOnClickListener {  }
     }
 
     private fun performLogout() {
