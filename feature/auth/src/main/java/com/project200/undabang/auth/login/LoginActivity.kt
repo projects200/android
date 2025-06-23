@@ -110,12 +110,12 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     override fun setupViews() {
         binding.googleLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                authManager.initiateAuthorization(authService, "Google", authCallback)
+                authManager.initiateAuthorization("Google", authCallback)
             }
         }
         binding.kakaoLoginBtn.setOnClickListener {
             lifecycleScope.launch {
-                authManager.initiateAuthorization(authService, "kakao", authCallback)
+                authManager.initiateAuthorization("kakao", authCallback)
             }
         }
     }

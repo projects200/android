@@ -3,6 +3,7 @@ package com.project200.data.di
 import com.project200.data.api.ApiService
 import com.project200.data.utils.LocalDateAdapter
 import com.project200.data.utils.LocalDateTimeAdapter
+import com.project200.data.utils.TokenAuthenticator
 import com.project200.data.utils.TokenInterceptor
 import com.project200.undabang.data.BuildConfig
 import com.project200.undabang.oauth.AuthStateManager
@@ -55,10 +56,12 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideOkHttpClient(
+        tokenAuthenticator: TokenAuthenticator,
         loggingInterceptor: HttpLoggingInterceptor,
         tokenInterceptor: TokenInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
+            .authenticator(tokenAuthenticator)
             .addInterceptor(loggingInterceptor)
             .addInterceptor(tokenInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)

@@ -1,6 +1,7 @@
 package com.project200.undabang.main
 
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
@@ -21,6 +22,7 @@ import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import net.openid.appauth.AuthorizationService
 import timber.log.Timber
@@ -37,7 +39,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
     private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
     private lateinit var binding: ActivityMainBinding
-    private lateinit var authService: AuthorizationService
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -45,10 +46,10 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
-        authService = AuthorizationService(this)
 
         setupObservers()
         performRouting()
+        observeAuthEvents()
     }
 
     private fun performRouting() {
@@ -57,7 +58,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
             if (currentAuthState.isAuthorized) {
                 if (currentAuthState.needsTokenRefresh) {
                     Timber.i("Token needs refresh. Attempting refresh...")
-                    when (val refreshResult = authManager.refreshAccessToken(authService)) {
+                    when (val refreshResult = authManager.refreshAccessToken()) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
                             viewModel.checkIsRegistered() // 회원 여부 확인
@@ -125,6 +126,19 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         }
     }
 
+    // AuthManager의 강제 로그아웃 이벤트를 구독하는 함수
+    private fun observeAuthEvents() {
+        lifecycleScope.launch {
+            authManager.forceLogoutFlow.collectLatest {
+                Timber.d("토큰 재발급 실패, 강제 로그아웃 이벤트 수신")
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
+                    navigateToLogin()
+                }
+            }
+        }
+    }
+
     private fun showUpdateDialog(isForceUpdate: Boolean) {
         if (supportFragmentManager.findFragmentByTag(UpdateDialogFragment::class.java.simpleName) == null) {
             val dialog = UpdateDialogFragment(isForceUpdate)
@@ -158,12 +172,5 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
     override fun navigateFromExerciseMainToExerciseForm() {
         navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        if (::authService.isInitialized) {
-            authService.dispose()
-        }
     }
 }

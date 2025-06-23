@@ -10,4 +10,7 @@
 
     <string name="alert_logout">정말 로그아웃 하시겠어요?</string>
     <string name="logout_error">로그아웃 중 오류가 발생했습니다</string>
+
+    <string name="withdraw_url">https://forms.gle/eiZW3iLYnsKjdPVr7</string>
+    <string name="customer_service_url">https://forms.gle/8b3kGK34PBfySBxm7</string>
 </resources>
