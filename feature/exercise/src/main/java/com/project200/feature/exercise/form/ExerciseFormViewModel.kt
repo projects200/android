@@ -171,6 +171,12 @@ class ExerciseFormViewModel @Inject constructor(
 
     /** 기록 생성 또는 수정 */
     fun submitRecord(title: String, type: String, location: String, detail: String) {
+        // 유효성 검사
+        if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
+            _toastMessage.value = INVALID_INPUT
+            return
+        }
+
         // 제출할 기록
         val recordToSubmit = ExerciseRecord(
             title = title,
@@ -185,12 +191,6 @@ class ExerciseFormViewModel @Inject constructor(
         // 변경 사항 확인 (수정 모드일 때)
         if (isEditMode && !hasChanges(recordToSubmit)) {
             _toastMessage.value = NO_CHANGE
-            return
-        }
-
-        // 유효성 검사
-        if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
-            _toastMessage.value = INVALID_INPUT
             return
         }
 
