@@ -19,11 +19,9 @@ abstract class BaseDialogFragment<VB : ViewBinding>(
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         _binding = getViewBinding(view)
-        setupObservers()
         setupViews()
     }
 
-    open fun setupObservers() {}
     open fun setupViews() {}
 
     override fun onDestroyView() {
