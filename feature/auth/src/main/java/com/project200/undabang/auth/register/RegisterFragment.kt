@@ -2,6 +2,8 @@ package com.project200.undabang.auth.register
 
 import android.view.View
 import android.widget.Toast
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.view.marginStart
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.domain.model.SignUpResult
@@ -11,6 +13,7 @@ import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.FragmentRegisterBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 // import timber.log.Timber // Timber 사용하지 않으면 제거
 import javax.inject.Inject
 
@@ -27,6 +30,8 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     }
 
     override fun setupViews() = with(binding) {
+        setupMargin()
+
         nicknameEt.doAfterTextChanged {
             viewModel.updateNickname(it.toString())
         }
@@ -85,9 +90,23 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         }
     }
 
+    // 시스템 폰트 크기에 따라 marginStart 조정
+    private fun setupMargin() {
+        val fontScale = resources.configuration.fontScale
+        Timber.tag("RegisterFragment").d("Font scale: $fontScale")
+
+        val layoutParams = binding.nicknameEt.layoutParams as ConstraintLayout.LayoutParams
+        layoutParams.marginStart = resources.getDimensionPixelSize(
+            if(fontScale > FONT_SCALE_THRESHOLD) R.dimen.nickname_horizontal_margin_large_font else R.dimen.nickname_horizontal_margin
+        )
+        binding.nicknameEt.layoutParams = layoutParams
+        binding.nicknameEt.requestLayout()
+    }
+
     companion object {
         const val MALE = "M"
         const val FEMALE = "F"
         const val HIDDEN = "U"
+        const val FONT_SCALE_THRESHOLD = 1.5f // 폰트 크기 임계값
     }
 }
