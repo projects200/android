@@ -37,6 +37,9 @@ class DatePickerDialogFragment(
                 val initialDate = LocalDate.parse(dateStr)
                 datePicker.updateDate(initialDate.year, initialDate.monthValue - 1, initialDate.dayOfMonth)
             }
+        }?: run {
+            // initialDateString이 null인 경우 2000/01/01로 설정
+            datePicker.updateDate(defaultDate.year, defaultDate.monthValue - 1, defaultDate.dayOfMonth)
         }
 
         dialog?.window?.let { window ->
