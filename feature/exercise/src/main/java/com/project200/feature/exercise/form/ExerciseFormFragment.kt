@@ -166,7 +166,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         val initialCalendar = Calendar.getInstance().apply {
-            timeInMillis = dateTimeToShow.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            timeInMillis = dateTimeToShow.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
         }
 
         // 다이얼로그 생성 및 표시
