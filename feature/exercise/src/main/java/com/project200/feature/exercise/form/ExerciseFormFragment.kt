@@ -166,7 +166,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         val initialCalendar = Calendar.getInstance().apply {
-            timeInMillis = dateTimeToShow.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+            timeInMillis = dateTimeToShow.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
         }
 
         // 다이얼로그 생성 및 표시
@@ -232,15 +232,15 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.editResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is ExerciseEditResult.Success -> { // 기록 수정, 이미지 삭제/업로드 성공
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ContentFailure -> { // 내용 수정 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ImageFailure -> { // 이미지 삭제/업로드 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    findNavController().popBackStack()
                 }
                 is ExerciseEditResult.Failure -> { // 내용 수정, 이미지 삭제/업로드 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
