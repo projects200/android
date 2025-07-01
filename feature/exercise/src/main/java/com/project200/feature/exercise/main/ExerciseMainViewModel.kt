@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetScoreUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -16,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ExerciseMainViewModel @Inject constructor(
     private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
+    private val getScoreUseCase: GetScoreUseCase,
     private val clockProvider: ClockProvider
 ) : ViewModel() {
 
@@ -74,12 +76,24 @@ class ExerciseMainViewModel @Inject constructor(
         }
     }
 
+    private fun getScore() {
+        viewModelScope.launch {
+            when (val result = getScoreUseCase()) {
+                is BaseResult.Success -> {
+                    _score.value = result.data.score
+                }
+                is BaseResult.Error -> {
+                    _toastMessage.value = result.message
+                }
+            }
+        }
+    }
+
     fun refreshData() {
         exerciseCache.clear()
         _selectedMonth.value?.let {
             getExerciseCounts(it, clockProvider.now())
         }
-
-        _score.value = (0..100).random()
+        getScore()
     }
 }
