@@ -1,7 +1,7 @@
 name: Android CI/CD (master)
 
 on:
-  push:
+  pull_request:
     branches: [ "master" ]
 
 jobs:
@@ -10,6 +10,12 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
+
+    - name: Enable KVM
+      run: |
+        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --name-match=kvm
 
     - name: Decode google-services.json
       env:
@@ -41,10 +47,10 @@ jobs:
     - name: Run Android Instrumentation Tests
       uses: reactivecircus/android-emulator-runner@v2
       with:
-        api-level: 30
-        target: google_apis
+        api-level: 29
+        target: default
         arch: x86_64
-        profile: pixel_3
+        profile: Nexus 6
         script: ./gradlew connectedDebugAndroidTest
 
     - name: Build Debug and Release APK
