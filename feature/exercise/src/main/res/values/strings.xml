@@ -26,8 +26,10 @@
     <string name="exercise_empty">아직 등록된 기록이 없습니다.</string>
 
     <!-- 점수 -->
-    <string name="exercise_score_format">%d 점</string>
-    <string name="exercise_count_format">이번 달 %d회 운동</string>
+    <string name="exercise_count_format">%d회</string>
+    <string name="exercise_score_format">%d점</string>
+    <string name="exercise_count_desc">이번 달 운동 횟수</string>
+    <string name="exercise_score_desc">운동 점수</string>
 
     <!-- 에러 -->
     <string name="image_error_oversized">파일 크기가 너무 큽니다. (최대 %s)</string>
