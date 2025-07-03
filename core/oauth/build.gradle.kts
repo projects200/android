@@ -10,11 +10,19 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
     }
 
-    defaultConfig {
-        buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID") ?: ""}\"")
-        buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID") ?: ""}\"")
-        buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION") ?: ""}\"")
-
+    buildTypes {
+        debug {
+            // 개발용 Cognito 사용자 풀 정보
+            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID_DEV") ?: ""}\"")
+            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID_DEV") ?: ""}\"")
+            buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION_DEV") ?: ""}\"")
+        }
+        release {
+            // 릴리즈용 Cognito 사용자 풀 정보
+            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID") ?: ""}\"")
+            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID") ?: ""}\"")
+            buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION") ?: ""}\"")
+        }
     }
 }
 
