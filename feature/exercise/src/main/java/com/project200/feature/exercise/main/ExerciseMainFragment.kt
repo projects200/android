@@ -41,12 +41,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         super.setupViews()
 
         setupBtnListeners()
-        setupScore()
         setupCalendar()
-    }
-
-    private fun setupScore() {
-
     }
 
     private fun setupCalendar() {
@@ -161,7 +156,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         viewModel.score.observe(viewLifecycleOwner) { score ->
             binding.scoreProgressBar.score = score
             binding.scoreTv.text = getString(R.string.exercise_score_format, score)
-            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, 0)
 
             binding.scoreLevelIv.setImageResource(
                  when {
