@@ -121,18 +121,11 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         binding.dateTv.setOnClickListener {
             val initialDate = viewModel.selectedMonth.value ?: YearMonth.now()
             // ExerciseYearMonthDialog를 생성하고 초기 날짜를 설정
-            val dialog = ExerciseYearMonthDialog.newInstance(initialDate)
-
-
-            dialog.onDateSelected = { selectedDate ->
-                val selectedYearMonth = YearMonth.from(selectedDate)
-                viewModel.onMonthChanged(selectedYearMonth)
-
-                viewModel.onMonthChanged(selectedDate)
-            }
-
-            // 다이얼로그 표시
-            dialog.show(childFragmentManager, "ExerciseYearMonthDialog")
+            ExerciseYearMonthDialog.newInstance(initialDate).apply {
+                onDateSelected = { selectedDate ->
+                    viewModel.onMonthChanged(YearMonth.from(selectedDate))
+                }
+            }.show(childFragmentManager, "ExerciseYearMonthDialog")
         }
 
         binding.settingBtn.setOnClickListener {
