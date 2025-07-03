@@ -165,6 +165,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                  }
              )
         }
+
+        viewModel.exerciseCount.observe(viewLifecycleOwner) { count ->
+            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, count)
+        }
     }
 
 
