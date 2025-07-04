@@ -6,6 +6,7 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
+import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostSignUpData
@@ -86,4 +87,8 @@ interface ApiService {
     suspend fun deleteExerciseRecord(
         @Path("exerciseId") exerciseId: Long
     ): BaseResponse<Any?>
+
+    // 점수 조회
+    @GET("api/v1/members/score")
+    suspend fun getScore(): BaseResponse<GetScoreDTO>
 }
