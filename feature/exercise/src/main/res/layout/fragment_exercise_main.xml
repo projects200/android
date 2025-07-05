@@ -32,7 +32,7 @@
     </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/score_cl"
+        android:id="@+id/exercise_cnt_score_cl"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginVertical="30dp"
@@ -58,35 +58,52 @@
             android:layout_height="wrap_content"
             android:text="@string/exercise_count_desc"
             android:textColor="@color/gray200"
-
-            app:layout_constraintBottom_toTopOf="@id/score_tv"
+            app:layout_constraintBottom_toTopOf="@id/score_cl"
             app:layout_constraintEnd_toStartOf="@+id/score_progress_bar"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/exercise_cnt_tv" />
-
-        <TextView
-            android:id="@+id/score_tv"
-            style="@style/header"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/score_cl"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
-            android:textSize="30sp"
-            app:layout_constraintBottom_toTopOf="@id/score_desc_tv"
-            app:layout_constraintEnd_toEndOf="@id/exercise_cnt_desc_tv"
-            app:layout_constraintStart_toStartOf="@id/exercise_cnt_desc_tv"
-            app:layout_constraintTop_toBottomOf="@id/exercise_cnt_desc_tv" />
-
-        <TextView
-            android:id="@+id/score_desc_tv"
-            style="@style/subtext_14"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/exercise_score_desc"
-            android:textColor="@color/gray200"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="@id/exercise_cnt_desc_tv"
             app:layout_constraintStart_toStartOf="@id/exercise_cnt_desc_tv"
-            app:layout_constraintTop_toBottomOf="@id/score_tv" />
+            app:layout_constraintTop_toBottomOf="@id/exercise_cnt_desc_tv">
+            <TextView
+                android:id="@+id/score_tv"
+                style="@style/header"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="30sp"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"/>
+
+            <TextView
+                android:id="@+id/score_desc_tv"
+                style="@style/subtext_14"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/exercise_score_desc"
+                android:textColor="@color/gray200"
+                app:layout_constraintHorizontal_chainStyle="packed"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/score_policy_iv"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/score_tv" />
+            <ImageView
+                android:id="@+id/score_policy_iv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:src="@drawable/ic_policy"
+                android:layout_marginStart="4dp"
+                app:layout_constraintStart_toEndOf="@id/score_desc_tv"
+                app:layout_constraintTop_toTopOf="@id/score_desc_tv"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintBottom_toBottomOf="@id/score_desc_tv"/>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <com.project200.presentation.view.CustomCircularProgressBar
             android:id="@+id/score_progress_bar"
@@ -115,7 +132,7 @@
         android:layout_height="10dp"
         android:background="@drawable/bg_divider_shadow"
         app:layout_constraintBottom_toTopOf="@id/calendar_cl"
-        app:layout_constraintTop_toBottomOf="@id/score_cl" />
+        app:layout_constraintTop_toBottomOf="@id/exercise_cnt_score_cl" />
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/calendar_cl"

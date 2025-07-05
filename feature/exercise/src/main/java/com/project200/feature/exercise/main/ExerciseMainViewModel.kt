@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.PolicyType
+import com.project200.domain.model.ScorePolicy
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,6 +37,9 @@ class ExerciseMainViewModel @Inject constructor(
     private val _score = MutableLiveData<Int>()
     val score: LiveData<Int> = _score
 
+    private val _policyData = MutableLiveData<List<ScorePolicy>>()
+    val policyData: LiveData<List<ScorePolicy>> = _policyData
+
     private val _exerciseCount = MutableLiveData<Int>()
     val exerciseCount: LiveData<Int> = _exerciseCount
 
@@ -43,6 +48,7 @@ class ExerciseMainViewModel @Inject constructor(
             _selectedMonth.value = clockProvider.yearMonthNow()
         }
         getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
+        loadPolicyData()
     }
 
     fun onMonthChanged(newMonth: YearMonth) {
@@ -79,6 +85,20 @@ class ExerciseMainViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    private fun loadPolicyData() {
+        // 임시 정책 데이터
+        val tempPolicies = listOf(
+            ScorePolicy(PolicyType.EXERCISE_SCORE_MAX_POINTS.key, 100, "POINTS"),
+            ScorePolicy(PolicyType.EXERCISE_SCORE_MIN_POINTS.key, 0, "POINTS"),
+            ScorePolicy(PolicyType.SIGNUP_INITIAL_POINTS.key, 35, "POINTS"),
+            ScorePolicy(PolicyType.POINTS_PER_EXERCISE.key, 3, "POINTS"),
+            ScorePolicy(PolicyType.EXERCISE_RECORD_VALIDITY_PERIOD.key, 2, "DAYS"),
+            ScorePolicy(PolicyType.PENALTY_INACTIVITY_THRESHOLD_DAYS.key, 7, "DAYS"),
+            ScorePolicy(PolicyType.PENALTY_SCORE_DECREMENT_POINTS.key, 1, "POINTS")
+        )
+        _policyData.value = tempPolicies
     }
 
     // 이번 달 운동 횟수 조회
