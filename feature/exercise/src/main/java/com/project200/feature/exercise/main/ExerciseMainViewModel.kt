@@ -30,6 +30,9 @@ class ExerciseMainViewModel @Inject constructor(
 
     private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
 
+    private val _score = MutableLiveData<Int>()
+    val score: LiveData<Int> = _score
+
     init {
         if (_selectedMonth.value == null) {
             _selectedMonth.value = clockProvider.yearMonthNow()
@@ -76,5 +79,7 @@ class ExerciseMainViewModel @Inject constructor(
         _selectedMonth.value?.let {
             getExerciseCounts(it, clockProvider.now())
         }
+
+        _score.value = (0..100).random()
     }
 }

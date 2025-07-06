@@ -9,4 +9,8 @@
     <color name="gray200">#9E9E9E</color>
     <color name="gray300">#E0E0E0</color>
     <color name="black">#212121</color>
+
+    <color name="score_high_level">#E53935</color>
+    <color name="score_middle_level">#FD8027</color>
+    <color name="score_low_level">#9E9E9E</color>
 </resources>

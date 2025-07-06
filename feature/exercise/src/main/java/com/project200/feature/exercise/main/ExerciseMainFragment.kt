@@ -11,6 +11,8 @@ import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
+import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
+import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.feature.exercise.list.ExerciseYearMonthDialog
 import com.project200.presentation.base.BindingFragment
@@ -39,7 +41,12 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         super.setupViews()
 
         setupBtnListeners()
+        setupScore()
         setupCalendar()
+    }
+
+    private fun setupScore() {
+
     }
 
     private fun setupCalendar() {
@@ -156,6 +163,20 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
             Toast.makeText(requireContext(), message ?: getText(R.string.data_error), Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.score.observe(viewLifecycleOwner) { score ->
+            binding.scoreProgressBar.score = score
+            binding.scoreTv.text = getString(R.string.exercise_score_format, score)
+            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, 0)
+
+            binding.scoreLevelIv.setImageResource(
+                 when {
+                     score >= SCORE_HIGH_LEVEL -> R.drawable.ic_score_high_level
+                     score >= SCORE_MIDDLE_LEVEL -> R.drawable.ic_score_middle_level
+                     else -> R.drawable.ic_score_low_level
+                 }
+             )
         }
     }
 
