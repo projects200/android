@@ -43,6 +43,9 @@
     <string name="exercise_policy_title_point_reduce">점수 차감</string>
     <string name="exercise_policy_penalty_format">- %1$d%2$s이상 운동 기록을 하지 않으면 %3$d%4$s마다 %5$d점이 차감됩니다.</string>
 
+    <string name="unit_days">일</string>
+    <string name="unit_hours">시간</string>
+
     <!-- 에러 -->
     <string name="image_error_oversized">파일 크기가 너무 큽니다. (최대 %s)</string>
     <string name="image_error_invalid_type">지원하지 않는 파일 형식입니다. (허용: %s)</string>
