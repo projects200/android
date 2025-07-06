@@ -41,12 +41,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         super.setupViews()
 
         setupBtnListeners()
-        setupScore()
         setupCalendar()
-    }
-
-    private fun setupScore() {
-
     }
 
     private fun setupCalendar() {
@@ -121,18 +116,11 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         binding.dateTv.setOnClickListener {
             val initialDate = viewModel.selectedMonth.value ?: YearMonth.now()
             // ExerciseYearMonthDialog를 생성하고 초기 날짜를 설정
-            val dialog = ExerciseYearMonthDialog.newInstance(initialDate)
-
-
-            dialog.onDateSelected = { selectedDate ->
-                val selectedYearMonth = YearMonth.from(selectedDate)
-                viewModel.onMonthChanged(selectedYearMonth)
-
-                viewModel.onMonthChanged(selectedDate)
-            }
-
-            // 다이얼로그 표시
-            dialog.show(childFragmentManager, "ExerciseYearMonthDialog")
+            ExerciseYearMonthDialog.newInstance(initialDate).apply {
+                onDateSelected = { selectedDate ->
+                    viewModel.onMonthChanged(YearMonth.from(selectedDate))
+                }
+            }.show(childFragmentManager, "ExerciseYearMonthDialog")
         }
 
         binding.settingBtn.setOnClickListener {
@@ -168,7 +156,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         viewModel.score.observe(viewLifecycleOwner) { score ->
             binding.scoreProgressBar.score = score
             binding.scoreTv.text = getString(R.string.exercise_score_format, score)
-            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, 0)
 
             binding.scoreLevelIv.setImageResource(
                  when {
@@ -177,6 +164,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                      else -> R.drawable.ic_score_low_level
                  }
              )
+        }
+
+        viewModel.exerciseCount.observe(viewLifecycleOwner) { count ->
+            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, count)
         }
     }
 
