@@ -19,13 +19,7 @@ class PolicyRepositoryImpl @Inject constructor(
 ) : PolicyRepository {
 
     override suspend fun getScorePolicy(): BaseResult<List<ScorePolicy>> {
-        /*return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.get() },
-            mapper = { dto: GetScoreDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException("점수 조회 데이터가 없습니다.")
-            }
-        )*/
+        // TODO: 실제 api와 연결
 
         return BaseResult.Success(
             listOf(
