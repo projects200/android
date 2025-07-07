@@ -11,10 +11,12 @@ import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ScorePolicy
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
+import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -29,7 +31,8 @@ class ExerciseFormViewModel @Inject constructor(
     private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
     private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
     private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
-    private val editExerciseRecordUseCase: EditExerciseRecordUseCase
+    private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
+    private val getScorePolicyUseCase: GetScorePolicyUseCase
 ) : ViewModel() {
     val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
@@ -63,8 +66,11 @@ class ExerciseFormViewModel @Inject constructor(
     private val _editResult = MutableLiveData<ExerciseEditResult>()
     val editResult: LiveData<ExerciseEditResult> = _editResult
 
-    private val _toastMessage = MutableLiveData<String>()
-    val toastMessage: LiveData<String> = _toastMessage
+    private val _policyData = MutableLiveData<List<ScorePolicy>>()
+    val policyData: LiveData<List<ScorePolicy>> = _policyData
+
+    private val _toastMessage = MutableLiveData<String?>()
+    val toastMessage: LiveData<String?> = _toastMessage
 
     /** 초기 데이터 설정 */
     fun loadInitialRecord() {
@@ -263,6 +269,20 @@ class ExerciseFormViewModel @Inject constructor(
             )
             // 로딩 종료
             _isLoading.value = false
+        }
+    }
+
+    // 점수 정책 조회
+    private fun loadPolicyData() {
+        viewModelScope.launch {
+            when (val result = getScorePolicyUseCase()) {
+                is BaseResult.Success -> {
+                    _policyData.value = result.data
+                }
+                is BaseResult.Error -> {
+                    _toastMessage.value = result.message
+                }
+            }
         }
     }
 

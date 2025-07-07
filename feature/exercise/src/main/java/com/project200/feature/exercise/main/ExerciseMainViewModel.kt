@@ -6,7 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.PolicyType
+import com.project200.domain.model.ScorePolicy
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -18,6 +21,7 @@ import javax.inject.Inject
 class ExerciseMainViewModel @Inject constructor(
     private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
     private val getScoreUseCase: GetScoreUseCase,
+    private val getScorePolicyUseCase: GetScorePolicyUseCase,
     private val clockProvider: ClockProvider
 ) : ViewModel() {
 
@@ -35,6 +39,9 @@ class ExerciseMainViewModel @Inject constructor(
     private val _score = MutableLiveData<Int>()
     val score: LiveData<Int> = _score
 
+    private val _policyData = MutableLiveData<List<ScorePolicy>>()
+    val policyData: LiveData<List<ScorePolicy>> = _policyData
+
     private val _exerciseCount = MutableLiveData<Int>()
     val exerciseCount: LiveData<Int> = _exerciseCount
 
@@ -43,6 +50,7 @@ class ExerciseMainViewModel @Inject constructor(
             _selectedMonth.value = clockProvider.yearMonthNow()
         }
         getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
+        loadPolicyData()
     }
 
     fun onMonthChanged(newMonth: YearMonth) {
@@ -73,6 +81,20 @@ class ExerciseMainViewModel @Inject constructor(
 
                     exerciseCache[yearMonth] = datesWithExercise
                     _exerciseDates.value = exerciseCache.values.flatten().toSet()
+                }
+                is BaseResult.Error -> {
+                    _toastMessage.value = result.message
+                }
+            }
+        }
+    }
+
+    // 점수 정책 조회
+    private fun loadPolicyData() {
+        viewModelScope.launch {
+            when (val result = getScorePolicyUseCase()) {
+                is BaseResult.Success -> {
+                    _policyData.value = result.data
                 }
                 is BaseResult.Error -> {
                     _toastMessage.value = result.message
