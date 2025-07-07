@@ -249,7 +249,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            if (message.isNotEmpty()) {
+            if (!message.isNullOrEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
             }
         }

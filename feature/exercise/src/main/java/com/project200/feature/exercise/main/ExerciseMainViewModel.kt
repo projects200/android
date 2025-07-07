@@ -28,7 +28,7 @@ class ExerciseMainViewModel @Inject constructor(
     private val _selectedMonth = MutableLiveData<YearMonth>()
     val selectedMonth: LiveData<YearMonth> = _selectedMonth
 
-    private val _exerciseDates = MutableLiveData<Set<LocalDate>>()
+    private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
     val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
     private val _toastMessage = MutableLiveData<String?>()
