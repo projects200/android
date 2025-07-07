@@ -16,6 +16,7 @@ import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
+import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +26,13 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
+// 점수 관련 UI 상태를 위한 sealed class 정의
+sealed class ScoreGuidanceState {
+    data object Hidden : ScoreGuidanceState() // 기본 상태 (경고 숨김, 버튼 텍스트 "기록 완료")
+    data class Warning(val message: String) : ScoreGuidanceState() // 경고 메시지 표시, 버튼 텍스트 "기록 완료"
+    data class PointsAvailable(val points: Int) : ScoreGuidanceState() // 점수 획득 가능, 버튼 텍스트 "기록 완료하고 N점 획득!"
+}
+
 @HiltViewModel
 class ExerciseFormViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -32,7 +40,7 @@ class ExerciseFormViewModel @Inject constructor(
     private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
     private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
     private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
-    private val getScorePolicyUseCase: GetScorePolicyUseCase
+    private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
 ) : ViewModel() {
     val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
@@ -72,6 +80,9 @@ class ExerciseFormViewModel @Inject constructor(
     private val _toastMessage = MutableLiveData<String?>()
     val toastMessage: LiveData<String?> = _toastMessage
 
+    private val _scoreGuidanceState = MutableLiveData<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
+    val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
+
     /** 초기 데이터 설정 */
     fun loadInitialRecord() {
         if (recordId == -1L || recordId == null) {
@@ -109,6 +120,7 @@ class ExerciseFormViewModel @Inject constructor(
         _imageItems.value = imageListForEditMode
 
         _initialDataLoaded.value = record
+        _scoreGuidanceState.value = ScoreGuidanceState.Hidden
     }
 
     fun setStartTime(dateTime: LocalDateTime) {
@@ -117,6 +129,8 @@ class ExerciseFormViewModel @Inject constructor(
         if (_endTime.value != null && dateTime.isAfter(_endTime.value)) {
             _endTime.value = null
         }
+        // 시작 시간 변경 시 점수 안내 업데이트
+        updateScoreGuidance()
     }
 
     fun setEndTime(dateTime: LocalDateTime): Boolean {
@@ -272,20 +286,66 @@ class ExerciseFormViewModel @Inject constructor(
         }
     }
 
-    // 점수 정책 조회
-    private fun loadPolicyData() {
+    /** 예상 획득 점수 정보 조회 및 UI 업데이트 */
+    private fun updateScoreGuidance() {
+        // 수정 모드일 경우 점수 안내 로직을 실행하지 않음
+        if (isEditMode) {
+            _scoreGuidanceState.value = ScoreGuidanceState.Hidden
+            return
+        }
+
+        val startTime = _startTime.value
+        // 시작 시간이 설정되지 않았으면 안내 숨김
+        if (startTime == null) {
+            _scoreGuidanceState.value = ScoreGuidanceState.Hidden
+            return
+        }
+
         viewModelScope.launch {
-            when (val result = getScorePolicyUseCase()) {
+            when (val result = getExpectedScoreInfoUseCase()) { // UseCase 호출
                 is BaseResult.Success -> {
-                    _policyData.value = result.data
+                    val expectedScoreInfo = result.data
+
+                    // 최대 점수 도달 여부 확인
+                    val currentUserScore = expectedScoreInfo.currentUserScore
+                    val maxScore = expectedScoreInfo.maxScore
+                    val pointsPerExercise = expectedScoreInfo.pointsPerExercise
+
+                    if (currentUserScore >= maxScore) {
+                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(MAX_SCORE_REACHED)
+                        return@launch
+                    }
+
+                    // 이미 점수 획득 여부 확인
+                    val recordDate = startTime.toLocalDate()
+                    if (expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
+                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
+                        return@launch
+                    }
+
+                    // 획득 가능 기간 지남 여부 확인
+                    val validStart = expectedScoreInfo.validWindow.startDateTime
+                    val validEnd = expectedScoreInfo.validWindow.endDateTime
+                    if (startTime.isBefore(validStart) || startTime.isAfter(validEnd)) {
+                        _scoreGuidanceState.value =
+                            ScoreGuidanceState.Warning(UPLOAD_PERIOD_EXPIRED)
+                        return@launch
+                    }
+
+                    // 점수 획득 가능 & 예상 획득 점수 계산
+                    val pointsToEarn = minOf(pointsPerExercise, maxScore - currentUserScore)
+                    _scoreGuidanceState.value = ScoreGuidanceState.PointsAvailable(pointsToEarn)
                 }
+
                 is BaseResult.Error -> {
-                    _toastMessage.value = result.message
+                    // API 호출 실패 시 에러 메시지 표시 및 안내 숨김
+                    Timber.e("Failed to fetch expected score info: ${result.message}")
+                    _toastMessage.value = FETCH_SCORE_INFO_FAIL // 새로운 상수 추가
+                    _scoreGuidanceState.value = ScoreGuidanceState.Hidden
                 }
             }
         }
     }
-
 
     companion object {
         const val LOAD_FAIL = "기록을 불러오는데 실패했습니다"
@@ -293,6 +353,12 @@ class ExerciseFormViewModel @Inject constructor(
         const val INVALID_INPUT = "필수 항목을 입력해주세요."
         const val CREATE_FAIL = "기록 생성에 실패했습니다"
         const val UPLOAD_FAIL = "이미지 업로드에 실패했습니다"
+        const val FETCH_SCORE_INFO_FAIL = "점수 정보를 불러오는데 실패했습니다."
         const val TAG = "ExerciseViewModel"
+
+        // 점수 안내 관련 상수
+        const val ALREADY_SCORED_TODAY = "이 날은 이미 점수를 획득했어요"
+        const val UPLOAD_PERIOD_EXPIRED = "점수를 획득할 수 있는 기간이 지났어요"
+        const val MAX_SCORE_REACHED = "점수가 최대치에 도달했어요!"
     }
 }
