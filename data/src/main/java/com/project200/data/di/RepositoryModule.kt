@@ -4,10 +4,12 @@ import com.project200.data.impl.AppUpdateRepositoryImpl
 import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
 import com.project200.data.impl.MemberRepositoryImpl
+import com.project200.data.impl.PolicyRepositoryImpl
 import com.project200.domain.repository.AppUpdateRepository
 import com.project200.domain.repository.AuthRepository
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.domain.repository.MemberRepository
+import com.project200.domain.repository.PolicyRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -41,4 +43,10 @@ abstract class RepositoryModule {
     abstract fun bindMemberRepository(
         memberRepositoryImpl: MemberRepositoryImpl
     ): MemberRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPolicyRepository(
+        policyRepositoryImpl: PolicyRepositoryImpl
+    ): PolicyRepository
 }

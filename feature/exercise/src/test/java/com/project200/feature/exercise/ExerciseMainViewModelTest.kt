@@ -5,8 +5,11 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
+import com.project200.domain.model.PolicyType
 import com.project200.domain.model.Score
+import com.project200.domain.model.ScorePolicy
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import com.project200.feature.exercise.main.ExerciseMainViewModel
 import io.mockk.coEvery
@@ -44,6 +47,9 @@ class ExerciseMainViewModelTest {
     @MockK
     private lateinit var mockGetScoreUseCase: GetScoreUseCase
 
+    @MockK
+    private lateinit var mockGetScorePolicyUseCase: GetScorePolicyUseCase
+
 
     private lateinit var viewModel: ExerciseMainViewModel
     private val testDispatcher = StandardTestDispatcher()
@@ -59,19 +65,30 @@ class ExerciseMainViewModelTest {
     )
     private val expectedDates = setOf(thisMonth.atDay(5), thisMonth.atDay(10))
 
+    // 정책 데이터 더미
+    private val samplePolicyData = listOf(
+        ScorePolicy(PolicyType.EXERCISE_SCORE_MAX_POINTS.key, 100, "POINTS"),
+        ScorePolicy(PolicyType.EXERCISE_SCORE_MIN_POINTS.key, 0, "POINTS"),
+        ScorePolicy(PolicyType.SIGNUP_INITIAL_POINTS.key, 35, "POINTS"),
+        ScorePolicy(PolicyType.POINTS_PER_EXERCISE.key, 3, "POINTS"),
+        ScorePolicy(PolicyType.EXERCISE_RECORD_VALIDITY_PERIOD.key, 2, "DAYS"),
+        ScorePolicy(PolicyType.PENALTY_INACTIVITY_THRESHOLD_DAYS.key, 7, "DAYS"),
+        ScorePolicy(PolicyType.PENALTY_SCORE_DECREMENT_POINTS.key, 1, "POINTS")
+    )
+
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         coEvery { mockClockProvider.yearMonthNow() } returns thisMonth
         coEvery { mockClockProvider.now() } returns today
 
-        // --- 수정된 부분 ---
         // ViewModel의 init()에서 호출되는 UseCase에 대한 기본 응답 설정
-        // 이 부분이 없으면 'no answer found' 오류가 발생합니다.
         coEvery { mockGetExerciseCountUseCase.invoke(any(), any()) } returns BaseResult.Success(emptyList())
         coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(0))
+        coEvery { mockGetScorePolicyUseCase.invoke() } returns BaseResult.Success(samplePolicyData)
 
-        viewModel = ExerciseMainViewModel(mockGetExerciseCountUseCase, mockGetScoreUseCase, mockClockProvider)
+        viewModel = ExerciseMainViewModel(mockGetExerciseCountUseCase, mockGetScoreUseCase, mockGetScorePolicyUseCase, mockClockProvider)
     }
 
     @After
@@ -89,8 +106,6 @@ class ExerciseMainViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        // --- 수정된 부분 ---
-        // init()에서 1번, refreshData()에서 2번(getExerciseCounts, getExerciseCntThisMonth) 호출되어 총 3번입니다.
         coVerify(exactly = 3) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
         assertThat(viewModel.exerciseDates.value).isEqualTo(expectedDates)
     }

@@ -9,10 +9,13 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
+import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.SubmissionResult
+import com.project200.domain.model.ValidWindow
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
+import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
 import com.project200.feature.exercise.form.ExerciseImageListItem
@@ -54,6 +57,9 @@ class ExerciseFormViewModelTest {
     @MockK
     private lateinit var mockEditUseCase: EditExerciseRecordUseCase
 
+    @MockK
+    private lateinit var mockExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
+
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: ExerciseFormViewModel
 
@@ -67,9 +73,22 @@ class ExerciseFormViewModelTest {
     private val recordId = 123L
     private val imageUriString = "content://image/1"
 
+    private val sampleExpectedScoreInfo = ExpectedScoreInfo(
+        pointsPerExercise = 3,
+        currentUserScore = 90,
+        maxScore = 100,
+        validWindow = ValidWindow(
+            startDateTime = LocalDateTime.of(2025, 7, 1, 0, 0), // 충분히 이전
+            endDateTime = LocalDateTime.of(2025, 7, 31, 23, 59, 59) // 충분히 이후
+        ),
+        earnableScoreDays = emptyList() // 기본적으로는 점수 획득 가능한 상태로 설정
+    )
+
+
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(sampleExpectedScoreInfo)
     }
 
     @After
@@ -84,14 +103,15 @@ class ExerciseFormViewModelTest {
             mockGetDetailUseCase,
             mockCreateUseCase,
             mockUploadUseCase,
-            mockEditUseCase
+            mockEditUseCase,
+            mockExpectedScoreInfoUseCase
         )
     }
 
     private fun setupViewModelForEditMode() {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel = ExerciseFormViewModel(
-            savedStateHandle, mockGetDetailUseCase, mockCreateUseCase, mockUploadUseCase, mockEditUseCase
+            savedStateHandle, mockGetDetailUseCase, mockCreateUseCase, mockUploadUseCase, mockEditUseCase, mockExpectedScoreInfoUseCase
         )
         // 수정 모드 테스트를 위해 초기 데이터를 미리 로드합니다.
         coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)

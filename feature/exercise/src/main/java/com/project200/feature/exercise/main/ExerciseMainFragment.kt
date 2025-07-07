@@ -130,6 +130,12 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         binding.exerciseCreateBtn.setOnClickListener {
             fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
         }
+
+        binding.scoreCl.setOnClickListener {
+            viewModel.policyData.value?.let {
+                ScorePolicyDialog().show(childFragmentManager, "ScorePolicyDialog")
+            }
+        }
     }
     
     override fun setupObservers() {
