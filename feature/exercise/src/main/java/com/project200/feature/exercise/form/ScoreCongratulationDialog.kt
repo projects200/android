@@ -16,6 +16,8 @@ class ScoreCongratulationDialog : BaseDialogFragment<DialogScoreCongratulationBi
     }
 
     override fun setupViews() {
+        isCancelable = false
+
         dialog?.window?.let { window ->
             val screenWidth = resources.displayMetrics.widthPixels
             val desiredWidth = (screenWidth * 0.70).toInt()

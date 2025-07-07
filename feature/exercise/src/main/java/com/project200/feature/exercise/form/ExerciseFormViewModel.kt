@@ -74,9 +74,6 @@ class ExerciseFormViewModel @Inject constructor(
     private val _editResult = MutableLiveData<ExerciseEditResult>()
     val editResult: LiveData<ExerciseEditResult> = _editResult
 
-    private val _policyData = MutableLiveData<List<ScorePolicy>>()
-    val policyData: LiveData<List<ScorePolicy>> = _policyData
-
     private val _toastMessage = MutableLiveData<String?>()
     val toastMessage: LiveData<String?> = _toastMessage
 
@@ -236,37 +233,39 @@ class ExerciseFormViewModel @Inject constructor(
             when (val createResult = createExerciseRecordUseCase(record)) {
                 is BaseResult.Success -> {
                     val createdRecordId = createResult.data
-                    // 기록 생성 성공 시 & 업로드할 이미지가 있을 경우 -> 이미지 업로드 요청
-                    if (newImageUris.isNotEmpty()) {
-                        when (uploadExerciseRecordImagesUseCase(createdRecordId, newImageUris)) {
-                            is BaseResult.Success -> {
-                                // 이미지 업로드 성공 -> 최종 성공
-                                Timber.tag("ExerciseFormViewModel").d("성공")
-                                _createResult.value = SubmissionResult.Success(createdRecordId)
-                            }
-
-                            is BaseResult.Error -> {
-                                // 이미지 업로드 실패 -> 부분 성공 (오류 메시지와 함께)
-                                _createResult.value =
-                                    SubmissionResult.PartialSuccess(createdRecordId, UPLOAD_FAIL)
-                            }
-                        }
-                    } else {
-                        // 업로드할 이미지 없음 -> 최종 성공
-                        _createResult.value = SubmissionResult.Success(createdRecordId)
-                    }
+                    // 기록 생성 성공 시, 이미지 업로드 로직 호출
+                    handleSuccessfulRecordCreation(createdRecordId, newImageUris)
                 }
-
                 is BaseResult.Error -> {
                     // 기록 생성 실패
                     _createResult.value = SubmissionResult.Failure(CREATE_FAIL, createResult.cause)
                     _toastMessage.value = CREATE_FAIL
+                    _isLoading.value = false
                 }
             }
-            // 로딩 종료
-            _isLoading.value = false
         }
     }
+
+    /** 기록 생성 후 이미지 업로드 처리 */
+    private suspend fun handleSuccessfulRecordCreation(recordId: Long, newImageUris: List<String>) {
+        if (newImageUris.isNotEmpty()) {
+            when (uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
+                is BaseResult.Success -> {
+                    // 이미지 업로드 성공 -> 최종 성공
+                    _createResult.value = SubmissionResult.Success(recordId)
+                }
+                is BaseResult.Error -> {
+                    // 이미지 업로드 실패 -> 부분 성공
+                    _createResult.value = SubmissionResult.PartialSuccess(recordId, UPLOAD_FAIL)
+                }
+            }
+        } else {
+            // 업로드할 이미지가 없음 -> 최종 성공
+            _createResult.value = SubmissionResult.Success(recordId)
+        }
+        _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
+    }
+
 
     /** 기록 수정 */
     private fun editExerciseRecord(
