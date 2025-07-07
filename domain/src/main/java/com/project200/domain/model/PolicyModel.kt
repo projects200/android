@@ -1,5 +1,8 @@
 package com.project200.domain.model
 
+import java.time.LocalDate
+import java.time.LocalDateTime
+
 data class ScorePolicy(
     val policyKey: String,
     val policyValue: Int,
@@ -28,3 +31,17 @@ enum class PolicyType(val key: String) {
         fun fromKey(key: String): PolicyType? = entries.find { it.key == key }
     }
 }
+
+// 예상 획득 점수
+data class ExpectedScoreInfo(
+    val pointsPerExercise: Int,
+    val currentUserScore: Int,
+    val maxScore: Int,
+    val validWindow: ValidWindow,
+    val earnableScoreDays: List<LocalDate>
+)
+
+data class ValidWindow(
+    val startDateTime: LocalDateTime,
+    val endDateTime: LocalDateTime
+)

@@ -249,8 +249,26 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            if (message.isNotEmpty()) {
+            if (!message.isNullOrEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.scoreGuidanceState.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                is ScoreGuidanceState.Hidden -> {
+                    binding.scoreWarningTv.isVisible = false
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
+                }
+                is ScoreGuidanceState.Warning -> {
+                    binding.scoreWarningTv.isVisible = true
+                    binding.scoreWarningTv.text = state.message
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
+                }
+                is ScoreGuidanceState.PointsAvailable -> {
+                    binding.scoreWarningTv.isVisible = false
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete_with_points, state.points)
+                }
             }
         }
     }
