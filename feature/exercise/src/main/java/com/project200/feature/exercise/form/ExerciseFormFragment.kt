@@ -130,12 +130,18 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.endTimeBtn.setOnClickListener { showTimePickerDialog(false) }
 
         binding.recordCompleteBtn.setOnClickListener {
-            viewModel.submitRecord(
+            ScoreCongratulationDialog().apply {
+                confirmClickListener = {
+                    // 다이얼로그에서 확인 버튼 클릭 시, ExerciseDetail 화면으로 이동
+                    //fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                }
+            }.show(parentFragmentManager, "ScoreCongratulationDialog")
+            /*viewModel.submitRecord(
                 title = binding.recordTitleEt.text.toString().trim(),
                 type = binding.recordTypeEt.text.toString().trim(),
                 location = binding.recordLocationEt.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim()
-            )
+            )*/
         }
     }
 
@@ -218,7 +224,22 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             when (result) {
                 is SubmissionResult.Success -> {
                     // 기록 생성, 이미지 업로드 성공
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    // 점수 획득 상태에 따라 다이얼로그 표시 또는 바로 화면 이동
+                    when (viewModel.scoreGuidanceState.value) {
+                        is ScoreGuidanceState.PointsAvailable -> {
+                            // 점수 획득 가능한 경우 축하 다이얼로그 표시
+                            ScoreCongratulationDialog().apply {
+                                confirmClickListener = {
+                                    // 다이얼로그에서 확인 버튼 클릭 시, ExerciseDetail 화면으로 이동
+                                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                                }
+                            }.show(parentFragmentManager, "ScoreCongratulationDialog")
+                        }
+                        else -> {
+                            // 점수 획득 상황이 아니면 바로 ExerciseDetail 화면으로 이동
+                            fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                        }
+                    }
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)

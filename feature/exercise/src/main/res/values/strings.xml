@@ -49,6 +49,8 @@
     <string name="exercise_record_complete_with_points">기록 완료하고 %d점 획득!</string>
     <string name="exercise_record_complete">기록 완료</string>
 
+    <string name="exercise_score_congratulation_title">축하해요!\n운동 점수를 획득했어요</string>
+
     <!-- 에러 -->
     <string name="image_error_oversized">파일 크기가 너무 큽니다. (최대 %s)</string>
     <string name="image_error_invalid_type">지원하지 않는 파일 형식입니다. (허용: %s)</string>
