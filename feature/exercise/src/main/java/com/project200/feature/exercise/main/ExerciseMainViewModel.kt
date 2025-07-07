@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetScoreUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -16,13 +17,14 @@ import javax.inject.Inject
 @HiltViewModel
 class ExerciseMainViewModel @Inject constructor(
     private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
+    private val getScoreUseCase: GetScoreUseCase,
     private val clockProvider: ClockProvider
 ) : ViewModel() {
 
     private val _selectedMonth = MutableLiveData<YearMonth>()
     val selectedMonth: LiveData<YearMonth> = _selectedMonth
 
-    private val _exerciseDates = MutableLiveData<Set<LocalDate>>()
+    private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
     val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
     private val _toastMessage = MutableLiveData<String?>()
@@ -30,10 +32,17 @@ class ExerciseMainViewModel @Inject constructor(
 
     private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
 
+    private val _score = MutableLiveData<Int>()
+    val score: LiveData<Int> = _score
+
+    private val _exerciseCount = MutableLiveData<Int>()
+    val exerciseCount: LiveData<Int> = _exerciseCount
+
     init {
         if (_selectedMonth.value == null) {
             _selectedMonth.value = clockProvider.yearMonthNow()
         }
+        getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
     }
 
     fun onMonthChanged(newMonth: YearMonth) {
@@ -47,6 +56,7 @@ class ExerciseMainViewModel @Inject constructor(
         }
     }
 
+    // 캘린더 한달 운동 조회
     private fun getExerciseCounts(yearMonth: YearMonth, today: LocalDate) {
         viewModelScope.launch {
             val startDate = yearMonth.atDay(1)
@@ -71,10 +81,41 @@ class ExerciseMainViewModel @Inject constructor(
         }
     }
 
+    // 이번 달 운동 횟수 조회
+    private fun getExerciseCntThisMonth(yearMonth: YearMonth, today: LocalDate) {
+        viewModelScope.launch {
+            when(val result = getExerciseCountInMonthUseCase(yearMonth.atDay(1), today)) {
+                is BaseResult.Success -> {
+                    val totalCount = result.data.sumOf { it.count }
+                    _exerciseCount.value = totalCount
+                }
+                is BaseResult.Error -> {
+                    _toastMessage.value = result.message
+                    _exerciseCount.value = 0 // 에러 발생 시 횟수를 0으로 설정
+                }
+            }
+        }
+    }
+
+    private fun getScore() {
+        viewModelScope.launch {
+            when (val result = getScoreUseCase()) {
+                is BaseResult.Success -> {
+                    _score.value = result.data.score
+                }
+                is BaseResult.Error -> {
+                    _toastMessage.value = result.message
+                }
+            }
+        }
+    }
+
     fun refreshData() {
         exerciseCache.clear()
         _selectedMonth.value?.let {
             getExerciseCounts(it, clockProvider.now())
         }
+        getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
+        getScore()
     }
 }
