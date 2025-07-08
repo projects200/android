@@ -32,6 +32,7 @@ import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -217,8 +218,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.createResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is SubmissionResult.Success -> {
-                    // 기록 생성, 이미지 업로드 성공
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    handleSuccessfulCreate()
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)
@@ -278,6 +278,23 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.recordTypeEt.setText(record.personalType)
         binding.recordLocationEt.setText(record.location)
         binding.recordDescEt.setText(record.detail)
+    }
+
+    private fun handleSuccessfulCreate() {
+        when (viewModel.scoreGuidanceState.value) {
+            is ScoreGuidanceState.PointsAvailable -> {
+                Timber.tag("ExerciseFormFragment").d("PointsAvailable")
+                ScoreCongratulationDialog().apply {
+                    confirmClickListener = {
+                        findNavController().popBackStack()
+                    }
+                }.show(parentFragmentManager, "ScoreCongratulationDialog")
+            }
+            else -> {
+                Timber.tag("ExerciseFormFragment").d("불가능")
+                findNavController().popBackStack()
+            }
+        }
     }
 
     override fun onAttach(context: Context) {
