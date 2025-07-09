@@ -44,28 +44,3 @@ jobs:
       
     - name: Build Debug APK
       run: ./gradlew assembleDebug
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
-
-    - name: Install Firebase CLI
-      run: npm install -g firebase-tools
-
-    - name: Upload Debug APK to Firebase App Distribution
-      run: |
-        firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
-          --app ${{ secrets.FIREBASE_APP_ID }} \
-          --release-notes "CI build from dev branch (via CLI)" \
-          --groups "testers" \
-          --token ${{ secrets.FIREBASE_TOKEN }}
-
-    - name: Run Android Instrumentation Tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: 30
-        target: default
-        arch: x86_64
-        profile: Nexus 6
-        script: ./gradlew connectedDebugAndroidTest
