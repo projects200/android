@@ -11,7 +11,10 @@ import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat.checkSelfPermission
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
@@ -96,6 +99,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.loadInitialRecord()
+        setupKeyboardAdjustments()
     }
 
     private fun setupRVAdapter(calculatedItemSize: Int) {
@@ -151,6 +155,28 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
             shouldShowRequestPermissionRationale(permission) -> { requestPermissionLauncher.launch(permission) }
             else -> { requestPermissionLauncher.launch(permission) }
+        }
+    }
+
+    private fun setupKeyboardAdjustments() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
+            Timber.tag("ExerciseFormFragment").d("setupKeyboardAdjustments called")
+            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+
+            // 키보드가 올라와 있으면 키보드 높이만큼, 아니면 네비게이션 바 높이만큼 패딩 적용
+            val paddingBottom = if (imeHeight > 0) {
+                imeHeight
+            } else {
+                // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
+                // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
+                val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
+                val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
+                buttonHeight + buttonMarginBottom + navigationBarHeight
+            }
+
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, paddingBottom)
+            insets
         }
     }
 

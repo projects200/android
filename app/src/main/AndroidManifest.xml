@@ -18,7 +18,7 @@
             android:name="com.project200.undabang.main.MainActivity"
             android:exported="true"
             android:theme="@style/Theme.Undabang"
-            android:windowSoftInputMode="adjustPan">
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
