@@ -1,4 +1,4 @@
-package com.project200.feature.exercise.list
+package com.project200.feature.exercise.main
 
 import android.graphics.Color
 import android.os.Build

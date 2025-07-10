@@ -14,7 +14,6 @@ import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
 import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
-import com.project200.feature.exercise.list.ExerciseYearMonthDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
