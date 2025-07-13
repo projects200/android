@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
@@ -11,17 +13,24 @@ android {
     }
 
     buildTypes {
+        val properties = Properties().apply { // java.util.Properties 대신 Properties() 사용 가능
+            val localPropertiesFile = rootProject.file("local.properties")
+            if (localPropertiesFile.exists()) {
+                localPropertiesFile.inputStream().use { load(it) }
+            }
+        }
+
         debug {
             // 개발용 Cognito 사용자 풀 정보
-            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID_DEV") ?: ""}\"")
-            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID_DEV") ?: ""}\"")
-            buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION_DEV") ?: ""}\"")
+            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${properties.getProperty("COGNITO_USER_POOL_ID_DEV") ?: ""}\"")
+            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${properties.getProperty("COGNITO_APP_CLIENT_ID_DEV") ?: ""}\"")
+            buildConfigField("String", "COGNITO_REGION", "\"${properties.getProperty("COGNITO_REGION_DEV") ?: ""}\"")
         }
         release {
             // 릴리즈용 Cognito 사용자 풀 정보
-            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${project.findProperty("COGNITO_USER_POOL_ID") ?: ""}\"")
-            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${project.findProperty("COGNITO_APP_CLIENT_ID") ?: ""}\"")
-            buildConfigField("String", "COGNITO_REGION", "\"${project.findProperty("COGNITO_REGION") ?: ""}\"")
+            buildConfigField("String", "COGNITO_USER_POOL_ID", "\"${properties.getProperty("COGNITO_USER_POOL_ID") ?: ""}\"")
+            buildConfigField("String", "COGNITO_APP_CLIENT_ID", "\"${properties.getProperty("COGNITO_APP_CLIENT_ID") ?: ""}\"")
+            buildConfigField("String", "COGNITO_REGION", "\"${properties.getProperty("COGNITO_REGION") ?: ""}\"")
         }
     }
 }
