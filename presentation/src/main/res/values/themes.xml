@@ -13,7 +13,7 @@
     </style>
 
     <style name="Theme.Undabang" parent="Theme.Undabang.Base">
-        <item name="android:windowBackground">@drawable/splash_background_legacy</item>
+        <item name="android:windowBackground">@drawable/splash_background</item>
     </style>
 
     <style name="Theme.App.Starting" parent="Theme.SplashScreen">
