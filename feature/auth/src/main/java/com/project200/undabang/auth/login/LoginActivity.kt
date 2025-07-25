@@ -44,6 +44,8 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
                 if (ex?.code == AuthorizationException.GeneralErrors.USER_CANCELED_AUTH_FLOW.code) {
                     // 사용자가 뒤로가기를 눌러서 직접 취소한 경우
                     Timber.tag(TAG).i("로그인 사용자 취소")
+                } else if (ex?.errorDescription?.contains("ACCOUNT_LINKED_SUCCESS") == true) {
+                    Toast.makeText(this, "기존의 계정과 성공적으로 통합되었습니다.\n다시 로그인해주세요.", Toast.LENGTH_LONG).show()
                 } else {
                     // 그 외 실제 오류 (네트워크, 서버, 인증 거부 등)
                     Timber.tag(TAG).e(ex, "로그인에 실패했습니다.: ${ex?.errorDescription}")
