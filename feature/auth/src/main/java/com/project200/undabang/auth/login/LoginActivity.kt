@@ -13,6 +13,7 @@ import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
+import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
 import com.project200.undabang.oauth.AuthResultCallback
 import dagger.hilt.android.AndroidEntryPoint
@@ -38,16 +39,16 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.let { intent: Intent ->
                     authManager.handleAuthorizationResponse(authService, intent, authCallback)
-                } ?: Timber.tag(TAG).e("로그인 응답이 없습니다.")
+                } ?: Timber.tag(TAG).e(getString(R.string.login_response_empty))
             } else {
                 val ex = result.data?.let { AuthorizationException.fromIntent(it) }
                 if (ex?.code == AuthorizationException.GeneralErrors.USER_CANCELED_AUTH_FLOW.code) {
                     // 사용자가 뒤로가기를 눌러서 직접 취소한 경우
-                    Timber.tag(TAG).i("로그인 사용자 취소")
+                    Timber.tag(TAG).i(getString(R.string.login_user_canceled))
                 } else {
                     // 그 외 실제 오류 (네트워크, 서버, 인증 거부 등)
-                    Timber.tag(TAG).e(ex, "authorizationLauncher 로그인에 실패했습니다.: ${ex?.errorDescription}")
-                    Toast.makeText(this, "로그인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    Timber.tag(TAG).e(ex, getString(R.string.login_failed_with_error, ex?.errorDescription))
+                    Toast.makeText(this, getString(R.string.login_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -58,27 +59,27 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         }
 
         override fun onSuccess(tokenResponse: TokenResponse) {
-            Timber.tag(TAG).i("로그인 성공: ${tokenResponse.accessToken}")
+            Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
             viewModel.checkIsRegistered()
         }
 
         override fun onError(exception: AuthorizationException?) {
-            Timber.tag(TAG).e(exception, "onError 로그인 실패: ${exception?.errorDescription}")
+            Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
             when {
                 // 이미 같은 이메일로 다른 소셜에 가입되어 있는 경우, 계정 통합 안내
                 exception?.errorDescription?.contains("ACCOUNT_LINKED_SUCCESS") == true -> {
-                    Timber.tag(TAG).e(exception, "onError 로그인 실패: ${exception?.errorDescription}")
-                    Toast.makeText(this@LoginActivity, "기존의 계정과 통합되었습니다.\n다시 로그인해주세요.", Toast.LENGTH_LONG).show()
+                    Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
+                    Toast.makeText(this@LoginActivity, getString(R.string.account_merged), Toast.LENGTH_LONG).show()
                 }
                 else -> {
                     // 그 외 일반적인 로그인 실패 오류 (네트워크, 서버 오류, 유효하지 않은 요청 등)
-                    Toast.makeText(this@LoginActivity, "로그인에 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@LoginActivity, getString(R.string.login_failed), Toast.LENGTH_SHORT).show()
                 }
             }
         }
 
         override fun onConfigurationError(exception: Exception) {
-            Timber.tag(TAG).e(exception, "서버 주소가 틀렸거나, 통신이 불가능합니다.")
+            Timber.tag(TAG).e(exception, getString(R.string.server_address_incorrect))
         }
     }
 
