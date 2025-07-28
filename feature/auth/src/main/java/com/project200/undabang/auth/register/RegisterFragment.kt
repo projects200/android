@@ -6,6 +6,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.marginStart
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
+import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.SignUpResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.ActivityNavigator
@@ -25,6 +26,9 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     @Inject
     lateinit var appNavigator: ActivityNavigator
 
+    @Inject
+    lateinit var clockProvider: ClockProvider
+
     override fun getViewBinding(view: View): FragmentRegisterBinding {
         return FragmentRegisterBinding.bind(view)
     }
@@ -37,7 +41,9 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         }
 
         birthDayTv.setOnClickListener {
-            val datePicker = DatePickerDialogFragment(viewModel.birth.value) { selectedDate ->
+            val datePicker = DatePickerDialogFragment(
+                initialDateString = viewModel.birth.value,
+                maxDate = clockProvider.now().minusDays(1)) { selectedDate ->
                 viewModel.updateBirth(selectedDate)
             }
             datePicker.show(parentFragmentManager, DatePickerDialogFragment::class.java.simpleName)

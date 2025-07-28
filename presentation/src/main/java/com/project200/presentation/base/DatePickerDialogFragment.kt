@@ -16,6 +16,7 @@ import java.util.Locale
 
 class DatePickerDialogFragment(
     private val initialDateString: String? = null,
+    private val maxDate: LocalDate? = null,
     private val onDateSelected: (String) -> Unit
 ) : BaseDialogFragment<DialogDatePickerBinding>(R.layout.dialog_date_picker) {
 
@@ -24,9 +25,16 @@ class DatePickerDialogFragment(
     }
 
     override fun setupViews() = with(binding) {
-        val today = Calendar.getInstance()
-        today.add(Calendar.DAY_OF_YEAR, -1) // 어제 날짜를 최대 날짜로 설정 (오늘 날짜 선택 불가)
-        datePicker.maxDate = today.timeInMillis
+        val calendarMaxDate = Calendar.getInstance().apply {
+            maxDate?.let {
+                set(it.year, it.monthValue - 1, it.dayOfMonth)
+            } ?: run {
+                // maxDate가 null이면 오늘 날짜로 설정
+                timeInMillis = System.currentTimeMillis()
+            }
+        }
+        datePicker.maxDate = calendarMaxDate.timeInMillis
+
         datePicker.minDate = LocalDate.of(MIN_YEAR, 8, 15).toEpochDay() * 24 * 60 * 60 * 1000L // 최소 날짜 설정
 
         val defaultDate = LocalDate.of(2000, 1, 1) // 기본값 2000년 1월 1일
