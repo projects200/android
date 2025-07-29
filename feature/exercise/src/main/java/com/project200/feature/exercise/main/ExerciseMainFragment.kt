@@ -131,7 +131,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         }
 
         binding.scoreCl.setOnClickListener {
-            viewModel.policyData.value?.let {
+            viewModel.scorePolicy.value?.let {
                 ScorePolicyDialog().show(childFragmentManager, "ScorePolicyDialog")
             }
         }

@@ -3,11 +3,11 @@ package com.project200.feature.exercise.main
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.PolicyType
-import com.project200.domain.model.ScorePolicy
+import com.project200.domain.model.PolicyGroup
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
@@ -39,8 +39,8 @@ class ExerciseMainViewModel @Inject constructor(
     private val _score = MutableLiveData<Int>()
     val score: LiveData<Int> = _score
 
-    private val _policyData = MutableLiveData<List<ScorePolicy>>()
-    val policyData: LiveData<List<ScorePolicy>> = _policyData
+    private val _scorePolicy = MutableLiveData<PolicyGroup?>()
+    val scorePolicy: LiveData<PolicyGroup?> = _scorePolicy
 
     private val _exerciseCount = MutableLiveData<Int>()
     val exerciseCount: LiveData<Int> = _exerciseCount
@@ -50,7 +50,7 @@ class ExerciseMainViewModel @Inject constructor(
             _selectedMonth.value = clockProvider.yearMonthNow()
         }
         getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
-        loadPolicyData()
+        loadScorePolicy()
     }
 
     fun onMonthChanged(newMonth: YearMonth) {
@@ -90,11 +90,11 @@ class ExerciseMainViewModel @Inject constructor(
     }
 
     // 점수 정책 조회
-    private fun loadPolicyData() {
+    private fun loadScorePolicy() {
         viewModelScope.launch {
             when (val result = getScorePolicyUseCase()) {
                 is BaseResult.Success -> {
-                    _policyData.value = result.data
+                    _scorePolicy.value = result.data
                 }
                 is BaseResult.Error -> {
                     _toastMessage.value = result.message

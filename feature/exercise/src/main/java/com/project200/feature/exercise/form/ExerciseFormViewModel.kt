@@ -303,6 +303,7 @@ class ExerciseFormViewModel @Inject constructor(
             when (val result = getExpectedScoreInfoUseCase()) { // UseCase 호출
                 is BaseResult.Success -> {
                     val expectedScoreInfo = result.data
+                    Timber.tag(TAG).d("Expected Score Info: $expectedScoreInfo")
 
                     // 최대 점수 도달 여부 확인
                     val currentUserScore = expectedScoreInfo.currentUserScore
