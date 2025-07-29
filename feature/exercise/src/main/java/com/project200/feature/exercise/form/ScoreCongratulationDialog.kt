@@ -8,7 +8,8 @@ import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.DialogScoreCongratulationBinding
 
-class ScoreCongratulationDialog : BaseDialogFragment<DialogScoreCongratulationBinding>(R.layout.dialog_score_congratulation) {
+class ScoreCongratulationDialog(private val earnedPoints: Int) :
+    BaseDialogFragment<DialogScoreCongratulationBinding>(R.layout.dialog_score_congratulation) {
     var confirmClickListener: (() -> Unit)? = null
 
     override fun getViewBinding(view: View): DialogScoreCongratulationBinding {
@@ -24,6 +25,8 @@ class ScoreCongratulationDialog : BaseDialogFragment<DialogScoreCongratulationBi
             window.setLayout(desiredWidth, WindowManager.LayoutParams.WRAP_CONTENT)
             window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         }
+
+        binding.titleTv.text = getString(R.string.exercise_score_congratulation_title, earnedPoints)
 
         binding.confirmBtn.setOnClickListener {
             confirmClickListener?.invoke()

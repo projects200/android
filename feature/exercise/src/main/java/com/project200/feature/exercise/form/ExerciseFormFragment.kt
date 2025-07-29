@@ -310,7 +310,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         when {
             (earnedPoints > 0) -> {
                 Timber.tag("ExerciseFormFragment").d("PointsAvailable")
-                ScoreCongratulationDialog().apply {
+                ScoreCongratulationDialog(earnedPoints).apply {
                     confirmClickListener = {
                         findNavController().popBackStack()
                     }
