@@ -8,6 +8,7 @@ import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PatchExerciseRequestDto
+import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
@@ -91,4 +92,10 @@ interface ApiService {
     // 점수 조회
     @GET("api/v1/members/score")
     suspend fun getScore(): BaseResponse<GetScoreDTO>
+
+    // 정책 그룹 조회
+    @GET("open/v1/policy-groups/{groupName}/policies")
+    suspend fun getPolicyGroup(
+        @Path("groupName") groupName: String
+    ): BaseResponse<PolicyGroupDTO>
 }

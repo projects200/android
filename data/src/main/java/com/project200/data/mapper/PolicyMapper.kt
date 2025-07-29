@@ -1,33 +1,24 @@
 package com.project200.data.mapper
 
-import com.project200.data.dto.ExpectedScoreInfoDTO
-import com.project200.data.dto.ScorePolicyDTO
-import com.project200.data.dto.ValidWindowDTO
-import com.project200.domain.model.ExpectedScoreInfo
-import com.project200.domain.model.ScorePolicy
-import com.project200.domain.model.ValidWindow
 
-fun ScorePolicyDTO.toDomainModel(): ScorePolicy {
-    return ScorePolicy(
-        policyKey = this.policyKey,
-        policyValue = this.policyValue,
-        policyUnit = this.policyUnit,
+import com.project200.data.dto.PolicyDTO
+import com.project200.data.dto.PolicyGroupDTO
+import com.project200.domain.model.Policy
+import com.project200.domain.model.PolicyGroup
+
+fun PolicyGroupDTO.toDomain(): PolicyGroup {
+    return PolicyGroup(
+        groupName = groupName,
+        size = size,
+        policies = policies.map { it.toDomain() }
     )
 }
 
-fun ExpectedScoreInfoDTO.toDomain(): ExpectedScoreInfo {
-    return ExpectedScoreInfo(
-        pointsPerExercise = this.pointsPerExercise,
-        currentUserScore = this.currentUserScore,
-        maxScore = this.maxScore,
-        validWindow = this.validWindow.toDomain(),
-        earnableScoreDays = this.earnableScoreDays
-    )
-}
-
-fun ValidWindowDTO.toDomain(): ValidWindow {
-    return ValidWindow(
-        startDateTime = this.startDateTime,
-        endDateTime = this.endDateTime
+fun PolicyDTO.toDomain(): Policy {
+    return Policy(
+        policyKey = policyKey,
+        policyValue = policyValue,
+        policyUnit = policyUnit,
+        policyDescription = policyDescription
     )
 }
