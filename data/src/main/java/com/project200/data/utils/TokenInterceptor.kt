@@ -32,6 +32,8 @@ class TokenInterceptor @Inject constructor(
             } ?: run {
                 Timber.w("ID Token is null")
             }
+        } else if(requestUrlString.contains("open")) {
+            Timber.w("open API called, skipping token header")
         } else {
             currentAuthState.accessToken?.let { accessToken ->
                 Timber.tag("TokenInterceptor").d("accessToken: $accessToken")
