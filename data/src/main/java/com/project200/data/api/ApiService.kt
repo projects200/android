@@ -2,6 +2,7 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.ExerciseIdDto
+import com.project200.data.dto.ExpectedScoreInfoDTO
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
@@ -92,6 +93,10 @@ interface ApiService {
     // 점수 조회
     @GET("api/v1/members/score")
     suspend fun getScore(): BaseResponse<GetScoreDTO>
+
+    // 예상 획득 점수 정보 조회
+    @GET("api/v1/scores/expected-points-info")
+    suspend fun getExpectedScoreInfo(): BaseResponse<ExpectedScoreInfoDTO>
 
     // 정책 그룹 조회
     @GET("open/v1/policy-groups/{groupName}/policies")
