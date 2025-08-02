@@ -26,7 +26,6 @@ class TokenInterceptor @Inject constructor(
         val tokenType: TokenType = when {
             method?.isAnnotationPresent(AccessTokenApi::class.java) == true -> TokenType.ACCESS
             method?.isAnnotationPresent(IdTokenApi::class.java) == true -> TokenType.ID
-            method?.isAnnotationPresent(OpenApi::class.java) == true -> TokenType.NONE
             else -> TokenType.ACCESS // 기본값으로 Access 토큰을 사용하도록 설정
         }
 
@@ -43,9 +42,6 @@ class TokenInterceptor @Inject constructor(
                     requestBuilder.header("Authorization", "Bearer $idToken")
                 } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
             }
-            TokenType.NONE -> {
-                Timber.d("No token required for $httpMethod ${originalRequest.url}")
-            }
         }
 
         return chain.proceed(requestBuilder.build())
@@ -53,5 +49,5 @@ class TokenInterceptor @Inject constructor(
 }
 
 enum class TokenType {
-    ACCESS, ID, NONE
+    ACCESS, ID
 }

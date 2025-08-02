@@ -14,7 +14,6 @@ import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.IdTokenApi
-import com.project200.data.utils.OpenApi
 import com.project200.domain.model.ExerciseRecordPicture
 import okhttp3.MultipartBody
 import retrofit2.http.Body
@@ -108,7 +107,6 @@ interface ApiService {
     suspend fun getScore(): BaseResponse<GetScoreDTO>
 
     // 정책 그룹 조회
-    @OpenApi
     @GET("open/v1/policy-groups/{groupName}/policies")
     suspend fun getPolicyGroup(
         @Path("groupName") groupName: String
