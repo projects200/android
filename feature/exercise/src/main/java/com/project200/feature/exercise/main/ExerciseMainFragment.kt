@@ -161,15 +161,21 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         viewModel.score.observe(viewLifecycleOwner) { score ->
             binding.scoreProgressBar.apply {
+                maxScore = score.maxScore
+                minScore = score.minScore
                 this.score = score.score
             }
             binding.scoreTv.text = getString(R.string.exercise_score_format, score.score)
 
+            // 점수 레벨 아이콘 설정
+            val scoreRange = score.maxScore - score.minScore
+            val highLevelScore = (score.minScore + scoreRange * SCORE_HIGH_LEVEL).toInt()
+            val middleLevelScore = (score.minScore + scoreRange * SCORE_MIDDLE_LEVEL).toInt()
 
             binding.scoreLevelIv.setImageResource(
                  when {
-                     score >= SCORE_HIGH_LEVEL -> R.drawable.ic_score_high_level
-                     score >= SCORE_MIDDLE_LEVEL -> R.drawable.ic_score_middle_level
+                     score.score >= highLevelScore -> R.drawable.ic_score_high_level
+                     score.score >= middleLevelScore -> R.drawable.ic_score_middle_level
                      else -> R.drawable.ic_score_low_level
                  }
              )

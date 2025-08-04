@@ -13,6 +13,8 @@ import androidx.core.content.withStyledAttributes
 import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
 import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.undabang.presentation.R
+import timber.log.Timber
+import kotlin.math.min
 
 class CustomCircularProgressBar @JvmOverloads constructor(
     context: Context,
@@ -27,22 +29,34 @@ class CustomCircularProgressBar @JvmOverloads constructor(
         color = ContextCompat.getColor(context, R.color.main) // 기본 진행 색상
     }
 
-    private val rectF = RectF() // 원형을 그릴 영역
-
-    // onDraw에서 사용되는 애니메이션 점수
-    private var _animatedScore: Int = 0
+    var minScore: Int = -100
         set(value) {
-            field = value.coerceIn(0, 100)
+            field = value
+            _animatedScore = value // 최소 점수로 초기화
+            invalidate()
+        }
+    var maxScore: Int = 10000
+        set(value) {
+            field = value
+            _animatedScore = min(_animatedScore, value) // 최대 점수로 제한
             invalidate()
         }
 
-    // score (0-100) 값
-    var score: Int = 0
+    private val rectF = RectF() // 원형을 그릴 영역
+
+    // onDraw에서 사용되는 애니메이션 점수
+    private var _animatedScore: Int = minScore
         set(value) {
-            field = value.coerceIn(0, 100) // 0-100 범위로 제한
+            field = value.coerceIn(minScore, maxScore)
+            invalidate()
+        }
+
+    var score: Int = minScore
+        set(value) {
+            field = value.coerceIn(minScore, maxScore)
             updateProgressAndColor() // 점수 변경 시 진행도와 색상 업데이트
 
-            animateProgress(0, field)
+            animateProgress(minScore, field)
         }
 
     // 프로그레스 바의 두께
@@ -60,7 +74,7 @@ class CustomCircularProgressBar @JvmOverloads constructor(
             defStyleAttr,
             0
         ) {
-            score = getInt(R.styleable.CustomCircularProgressBar_score, 0) // 기본값 0으로 시작
+            score = getInt(R.styleable.CustomCircularProgressBar_score, minScore) // 기본값 0으로 시작
             strokeWidth = getDimension(R.styleable.CustomCircularProgressBar_strokeWidth, strokeWidth)
         }
 
@@ -81,8 +95,12 @@ class CustomCircularProgressBar @JvmOverloads constructor(
         super.onDraw(canvas)
 
         // 진행도 링 그리기
-        val maxProgressAngle = 360f * 0.95f // 100점이어도 95%까지만 차도록 (360 * 0.95 = 342도)
-        val currentProgressAngle = (_animatedScore / 100f) * maxProgressAngle // 점수를 0-100% 비율로 변환 후, 최대 진행 각도에 매핑
+        val maxProgressAngle = 360f * 0.95f // 100점이어도 95%까지만 차도록
+
+        val scoreRange = maxScore - minScore
+        val currentProgressRatio = (_animatedScore - minScore).toFloat() / scoreRange
+        val currentProgressAngle = currentProgressRatio * maxProgressAngle
+
         val startAngle = 270f // 시작점 12시 방향
 
         canvas.drawArc(rectF, startAngle, currentProgressAngle, false, progressPaint)
@@ -90,9 +108,14 @@ class CustomCircularProgressBar @JvmOverloads constructor(
 
     // 점수에 따라 진행도와 색상을 업데이트
     private fun updateProgressAndColor() {
+        val scoreRange = maxScore - minScore
+        val highLevelScore = (minScore + scoreRange * SCORE_HIGH_LEVEL).toInt()
+        val middleLevelScore = (minScore + scoreRange * SCORE_MIDDLE_LEVEL).toInt()
+        Timber.d("Score: $score, High Level: $highLevelScore, Middle Level: $middleLevelScore")
+
         progressPaint.color = when {
-            score >= SCORE_HIGH_LEVEL -> ContextCompat.getColor(context, R.color.score_high_level)
-            score >= SCORE_MIDDLE_LEVEL -> ContextCompat.getColor(context, R.color.score_middle_level)
+            score >= highLevelScore -> ContextCompat.getColor(context, R.color.score_high_level)
+            score >= middleLevelScore -> ContextCompat.getColor(context, R.color.score_middle_level)
             else -> ContextCompat.getColor(context, R.color.score_low_level)
         }
     }
