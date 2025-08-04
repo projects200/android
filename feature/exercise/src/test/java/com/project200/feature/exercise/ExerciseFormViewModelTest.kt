@@ -8,6 +8,7 @@ import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.SubmissionResult
@@ -19,6 +20,7 @@ import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
 import com.project200.feature.exercise.form.ExerciseImageListItem
+import com.project200.feature.exercise.form.ScoreGuidanceState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -78,10 +80,14 @@ class ExerciseFormViewModelTest {
         currentUserScore = 90,
         maxScore = 100,
         validWindow = ValidWindow(
-            startDateTime = LocalDateTime.of(2025, 7, 1, 0, 0), // 충분히 이전
-            endDateTime = LocalDateTime.of(2025, 7, 31, 23, 59, 59) // 충분히 이후
+            startDateTime = now.minusDays(2),
+            endDateTime = now
         ),
-        earnableScoreDays = emptyList() // 기본적으로는 점수 획득 가능한 상태로 설정
+        earnableScoreDays = listOf(
+            now.minusDays(2).toLocalDate(),
+            now.minusDays(1).toLocalDate(),
+            now.toLocalDate()
+        )
     )
 
 
@@ -99,12 +105,12 @@ class ExerciseFormViewModelTest {
     private fun setupViewModelForCreateMode() {
         savedStateHandle = SavedStateHandle().apply { set("recordId", -1L) }
         viewModel = ExerciseFormViewModel(
-            savedStateHandle,
-            mockGetDetailUseCase,
-            mockCreateUseCase,
-            mockUploadUseCase,
-            mockEditUseCase,
-            mockExpectedScoreInfoUseCase
+            savedStateHandle= savedStateHandle,
+            getExerciseRecordDetailUseCase = mockGetDetailUseCase,
+            createExerciseRecordUseCase = mockCreateUseCase,
+            uploadExerciseRecordImagesUseCase = mockUploadUseCase,
+            editExerciseRecordUseCase = mockEditUseCase,
+            getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase
         )
     }
 
@@ -141,7 +147,7 @@ class ExerciseFormViewModelTest {
     fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 false를 반환하고 값이 변경되지 않는다`() {
         // Given: 시작 시간이 설정된 상태
         setupViewModelForCreateMode()
-        val initialStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        val initialStartTime = now
         viewModel.setStartTime(initialStartTime)
 
         // Then: 현재 종료 시간이 null임을 확인
@@ -160,13 +166,12 @@ class ExerciseFormViewModelTest {
     fun `setStartTime - 기존 종료 시간보다 늦은 시작 시간을 설정하면 종료 시간이 초기화된다`() {
         // Given: 시작과 종료 시간이 모두 설정된 상태
         setupViewModelForCreateMode()
-        viewModel.setStartTime(LocalDateTime.of(2025, 6, 20, 9, 0))
-        viewModel.setEndTime(LocalDateTime.of(2025, 6, 20, 10, 0))
+        viewModel.setStartTime(now.minusHours(1))
+        viewModel.setEndTime(now.minusMinutes(30))
         assertThat(viewModel.endTime.value).isNotNull()
 
         // When: 기존 종료 시간보다 늦은 시간으로 시작 시간을 재설정
-        val newStartTime = LocalDateTime.of(2025, 6, 20, 11, 0)
-        viewModel.setStartTime(newStartTime)
+        viewModel.setStartTime(now)
 
         // Then: 종료 시간이 null로 초기화되어야 함
         assertThat(viewModel.endTime.value).isNull()
@@ -201,7 +206,7 @@ class ExerciseFormViewModelTest {
         coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
 
         // When: 다른 내용은 그대로 두고, 종료 시간만 변경하여 제출
-        viewModel.setEndTime(sampleRecord.endedAt!!.plusHours(1))
+        viewModel.setEndTime(sampleRecord.endedAt.plusHours(1))
         viewModel.submitRecord(
             title = sampleRecord.title,
             type = sampleRecord.personalType,
@@ -258,13 +263,14 @@ class ExerciseFormViewModelTest {
         // Given
         setupViewModelForCreateMode()
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
+        val earnedPoints = 3
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
 
 
-        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
+        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, earnedPoints)) // 3점 획득
 
         // When
         viewModel.submitRecord("제목", "타입", "장소", "상세")
@@ -276,6 +282,7 @@ class ExerciseFormViewModelTest {
         val actual = viewModel.createResult.value
         assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
         assertThat((actual as SubmissionResult.Success).recordId).isEqualTo(recordId)
+        assertThat(actual.earnedPoints).isEqualTo(earnedPoints)
         assertThat(viewModel.isLoading.value).isFalse()
     }
 
@@ -286,12 +293,13 @@ class ExerciseFormViewModelTest {
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
+        val earnedPoints = 3
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
 
-        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
+        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, earnedPoints))
         coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Success(recordId)
 
         // When
@@ -304,6 +312,7 @@ class ExerciseFormViewModelTest {
         coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
         val actual = viewModel.createResult.value
         assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
+        assertThat((actual as SubmissionResult.Success).earnedPoints).isEqualTo(earnedPoints)
     }
 
     @Test
@@ -313,12 +322,12 @@ class ExerciseFormViewModelTest {
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
 
-        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(recordId)
+        coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, 3))
         coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Error("UPLOAD_ERROR", "Upload failed")
 
         viewModel.addImage(listOf(mockUri))
@@ -437,5 +446,102 @@ class ExerciseFormViewModelTest {
         assertThat(result).isInstanceOf(ExerciseEditResult.Failure::class.java)
         assertThat((result as ExerciseEditResult.Failure).message).isEqualTo(failureMessage)
         assertThat(viewModel.isLoading.value).isFalse()
+    }
+
+    /** 예상 점수 정보 테스트
+     * 이 테스트들은 예상 점수 정보를 올바르게 로드하고 표시하는 기능을 검증합니다.
+     */
+    @Test
+    fun `updateScoreGuidance - 시작 시간이 설정되면 점수 획득 가능 상태를 반영한다`() = runTest {
+        // Given
+        setupViewModelForCreateMode()
+        val testStartTime = now.minusMinutes(30)
+
+        // When
+        viewModel.setStartTime(testStartTime)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        val guidanceState = viewModel.scoreGuidanceState.value
+        assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.PointsAvailable::class.java)
+        assertThat((guidanceState as ScoreGuidanceState.PointsAvailable).points).isEqualTo(3)
+    }
+
+    @Test
+    fun `updateScoreGuidance - 이미 최대 점수에 도달하면 경고 메시지를 표시한다`() = runTest {
+        // Given
+        setupViewModelForCreateMode()
+        coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(
+            sampleExpectedScoreInfo.copy(currentUserScore = 100)
+        )
+        val testStartTime = LocalDateTime.now()
+
+        // When
+        viewModel.setStartTime(testStartTime)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        val guidanceState = viewModel.scoreGuidanceState.value
+        assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
+        assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.MAX_SCORE_REACHED)
+    }
+
+    @Test
+    fun `updateScoreGuidance - 이미 점수를 획득한 날짜에 기록을 생성하면 경고 메시지를 표시한다`() = runTest {
+        // Given
+        setupViewModelForCreateMode()
+        coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(
+            sampleExpectedScoreInfo.copy(earnableScoreDays = emptyList())
+        )
+        val testStartTime = now.minusHours(1)
+
+        // When
+        viewModel.setStartTime(testStartTime)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        val guidanceState = viewModel.scoreGuidanceState.value
+        assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
+        assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.ALREADY_SCORED_TODAY)
+    }
+
+    @Test
+    fun `updateScoreGuidance - 유효 기간이 지난 날짜에 기록을 생성하면 경고 메시지를 표시한다`() = runTest {
+        // Given
+        setupViewModelForCreateMode()
+        coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(
+            sampleExpectedScoreInfo.copy(
+                validWindow = ValidWindow(
+                    startDateTime = LocalDateTime.now().minusDays(30),
+                    endDateTime = LocalDateTime.now().minusDays(29)
+                )
+            )
+        )
+        val testStartTime = LocalDateTime.now()
+
+        // When
+        viewModel.setStartTime(testStartTime)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        val guidanceState = viewModel.scoreGuidanceState.value
+        assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
+        assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.UPLOAD_PERIOD_EXPIRED)
+    }
+
+    @Test
+    fun `updateScoreGuidance - 점수 정보 API 호출 실패 시 토스트 메시지를 표시한다`() = runTest {
+        // Given
+        setupViewModelForCreateMode()
+        coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Error("API_ERROR", "Failed to fetch")
+        val testStartTime = LocalDateTime.now()
+
+        // When
+        viewModel.setStartTime(testStartTime)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.toastMessage.value).isEqualTo(ExerciseFormViewModel.FETCH_SCORE_INFO_FAIL)
+        assertThat(viewModel.scoreGuidanceState.value).isEqualTo(ScoreGuidanceState.Hidden)
     }
 }
