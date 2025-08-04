@@ -15,6 +15,7 @@ jobs:
           GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_PROD_BASE64 }}
         run: |
           echo "Decoding google-services.json..."
+          mkdir -p app/src/release
           echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/src/release/google-services.json
           echo "google-services.json created successfully."
 
