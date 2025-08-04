@@ -11,7 +11,6 @@ import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.ScorePolicy
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
