@@ -493,7 +493,7 @@ class ExerciseFormViewModelTest {
         coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(
             sampleExpectedScoreInfo.copy(earnableScoreDays = emptyList())
         )
-        val testStartTime = LocalDateTime.now()
+        val testStartTime = now.minusHours(1)
 
         // When
         viewModel.setStartTime(testStartTime)
