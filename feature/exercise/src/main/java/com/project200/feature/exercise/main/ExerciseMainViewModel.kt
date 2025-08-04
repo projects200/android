@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PolicyGroup
+import com.project200.domain.model.Score
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
@@ -36,8 +37,8 @@ class ExerciseMainViewModel @Inject constructor(
 
     private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
 
-    private val _score = MutableLiveData<Int>()
-    val score: LiveData<Int> = _score
+    private val _score = MutableLiveData<Score>()
+    val score: LiveData<Score> = _score
 
     private val _scorePolicy = MutableLiveData<PolicyGroup?>()
     val scorePolicy: LiveData<PolicyGroup?> = _scorePolicy
@@ -123,7 +124,7 @@ class ExerciseMainViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = getScoreUseCase()) {
                 is BaseResult.Success -> {
-                    _score.value = result.data.score
+                    _score.value = result.data
                 }
                 is BaseResult.Error -> {
                     _toastMessage.value = result.message

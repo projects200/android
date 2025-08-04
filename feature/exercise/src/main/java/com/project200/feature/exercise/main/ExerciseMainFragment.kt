@@ -20,6 +20,7 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseMainBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -159,8 +160,11 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         }
 
         viewModel.score.observe(viewLifecycleOwner) { score ->
-            binding.scoreProgressBar.score = score
-            binding.scoreTv.text = getString(R.string.exercise_score_format, score)
+            binding.scoreProgressBar.apply {
+                this.score = score.score
+            }
+            binding.scoreTv.text = getString(R.string.exercise_score_format, score.score)
+
 
             binding.scoreLevelIv.setImageResource(
                  when {

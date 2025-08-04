@@ -6,5 +6,7 @@ import java.time.LocalDateTime
 @JsonClass(generateAdapter = true)
 data class GetScoreDTO(
     val memberId: String,
-    val memberScore: Int
+    val memberScore: Int,
+    val policyMaxScore: Int,
+    val policyMinScore: Int
 )

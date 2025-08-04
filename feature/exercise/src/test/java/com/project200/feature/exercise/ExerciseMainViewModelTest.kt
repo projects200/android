@@ -253,7 +253,6 @@ class ExerciseMainViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // Then
-        // --- 수정된 부분 ---
         // refreshData()가 한 번만 호출되었으므로 getScoreUseCase도 1번만 호출됩니다.
         coVerify(exactly = 1) { mockGetScoreUseCase.invoke() }
         assertThat(viewModel.score.value).isEqualTo(expectedScore)
