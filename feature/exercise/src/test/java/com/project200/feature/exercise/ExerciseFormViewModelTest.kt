@@ -80,10 +80,14 @@ class ExerciseFormViewModelTest {
         currentUserScore = 90,
         maxScore = 100,
         validWindow = ValidWindow(
-            startDateTime = LocalDateTime.of(2025, 7, 1, 0, 0), // 충분히 이전
-            endDateTime = LocalDateTime.of(2025, 7, 31, 23, 59, 59) // 충분히 이후
+            startDateTime = now.minusDays(2),
+            endDateTime = now
         ),
-        earnableScoreDays = emptyList() // 기본적으로는 점수 획득 가능한 상태로 설정
+        earnableScoreDays = listOf(
+            now.minusDays(2).toLocalDate(),
+            now.minusDays(1).toLocalDate(),
+            now.toLocalDate()
+        )
     )
 
 
@@ -143,7 +147,7 @@ class ExerciseFormViewModelTest {
     fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 false를 반환하고 값이 변경되지 않는다`() {
         // Given: 시작 시간이 설정된 상태
         setupViewModelForCreateMode()
-        val initialStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
+        val initialStartTime = now
         viewModel.setStartTime(initialStartTime)
 
         // Then: 현재 종료 시간이 null임을 확인
@@ -162,13 +166,12 @@ class ExerciseFormViewModelTest {
     fun `setStartTime - 기존 종료 시간보다 늦은 시작 시간을 설정하면 종료 시간이 초기화된다`() {
         // Given: 시작과 종료 시간이 모두 설정된 상태
         setupViewModelForCreateMode()
-        viewModel.setStartTime(LocalDateTime.of(2025, 6, 20, 9, 0))
-        viewModel.setEndTime(LocalDateTime.of(2025, 6, 20, 10, 0))
+        viewModel.setStartTime(now.minusHours(1))
+        viewModel.setEndTime(now.minusMinutes(30))
         assertThat(viewModel.endTime.value).isNotNull()
 
         // When: 기존 종료 시간보다 늦은 시간으로 시작 시간을 재설정
-        val newStartTime = LocalDateTime.of(2025, 6, 20, 11, 0)
-        viewModel.setStartTime(newStartTime)
+        viewModel.setStartTime(now)
 
         // Then: 종료 시간이 null로 초기화되어야 함
         assertThat(viewModel.endTime.value).isNull()
@@ -203,7 +206,7 @@ class ExerciseFormViewModelTest {
         coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
 
         // When: 다른 내용은 그대로 두고, 종료 시간만 변경하여 제출
-        viewModel.setEndTime(sampleRecord.endedAt!!.plusHours(1))
+        viewModel.setEndTime(sampleRecord.endedAt.plusHours(1))
         viewModel.submitRecord(
             title = sampleRecord.title,
             type = sampleRecord.personalType,
@@ -260,8 +263,8 @@ class ExerciseFormViewModelTest {
         // Given
         setupViewModelForCreateMode()
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
         val earnedPoints = 3
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
@@ -290,8 +293,8 @@ class ExerciseFormViewModelTest {
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
         val earnedPoints = 3
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
@@ -319,8 +322,8 @@ class ExerciseFormViewModelTest {
         val mockUri = mockk<Uri>()
         coEvery { mockUri.toString() } returns imageUriString
 
-        val testStartTime = LocalDateTime.of(2025, 6, 20, 10, 0)
-        val testEndTime = LocalDateTime.of(2025, 6, 20, 11, 0)
+        val testStartTime = now.minusHours(1)
+        val testEndTime = now
         viewModel.setStartTime(testStartTime)
         viewModel.setEndTime(testEndTime)
 
@@ -452,7 +455,7 @@ class ExerciseFormViewModelTest {
     fun `updateScoreGuidance - 시작 시간이 설정되면 점수 획득 가능 상태를 반영한다`() = runTest {
         // Given
         setupViewModelForCreateMode()
-        val testStartTime = LocalDateTime.now()
+        val testStartTime = now.minusMinutes(30)
 
         // When
         viewModel.setStartTime(testStartTime)
@@ -510,7 +513,7 @@ class ExerciseFormViewModelTest {
             sampleExpectedScoreInfo.copy(
                 validWindow = ValidWindow(
                     startDateTime = LocalDateTime.now().minusDays(30),
-                    endDateTime = LocalDateTime.now().minusDays(1)
+                    endDateTime = LocalDateTime.now().minusDays(29)
                 )
             )
         )

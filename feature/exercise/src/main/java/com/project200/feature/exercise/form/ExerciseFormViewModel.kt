@@ -314,19 +314,19 @@ class ExerciseFormViewModel @Inject constructor(
                         return@launch
                     }
 
-                    // 이미 점수 획득 여부 확인
-                    val recordDate = startTime.toLocalDate()
-                    if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
-                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
-                        return@launch
-                    }
-
                     // 획득 가능 기간 지남 여부 확인
                     val validStart = expectedScoreInfo.validWindow.startDateTime
                     val validEnd = expectedScoreInfo.validWindow.endDateTime
                     if (startTime.isBefore(validStart) || startTime.isAfter(validEnd)) {
                         _scoreGuidanceState.value =
                             ScoreGuidanceState.Warning(UPLOAD_PERIOD_EXPIRED)
+                        return@launch
+                    }
+
+                    // 이미 점수 획득 여부 확인
+                    val recordDate = startTime.toLocalDate()
+                    if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
+                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
                         return@launch
                     }
 
