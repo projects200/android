@@ -244,7 +244,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.createResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is SubmissionResult.Success -> {
-                    handleSuccessfulCreate()
+                    handleSuccessfulCreate(result.earnedPoints)
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)
@@ -306,11 +306,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.recordDescEt.setText(record.detail)
     }
 
-    private fun handleSuccessfulCreate() {
-        when (viewModel.scoreGuidanceState.value) {
-            is ScoreGuidanceState.PointsAvailable -> {
+    private fun handleSuccessfulCreate(earnedPoints: Int) {
+        when {
+            (earnedPoints > 0) -> {
                 Timber.tag("ExerciseFormFragment").d("PointsAvailable")
-                ScoreCongratulationDialog().apply {
+                ScoreCongratulationDialog(earnedPoints).apply {
                     confirmClickListener = {
                         findNavController().popBackStack()
                     }

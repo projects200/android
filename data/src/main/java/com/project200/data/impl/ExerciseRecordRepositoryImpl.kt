@@ -8,6 +8,7 @@ import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.mapper.toPatchExerciseDTO
@@ -17,6 +18,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.repository.ExerciseRecordRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -66,12 +68,12 @@ class ExerciseRecordRepositoryImpl @Inject constructor(
     }
 
 
-    override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<Long> {
+    override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.postExerciseRecord(record.toPostExerciseDTO()) },
-            mapper = { exerciseIdDto: ExerciseIdDto? ->
-                exerciseIdDto?.exerciseId ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
+            mapper = { dto: PostExerciseResponseDTO? ->
+                dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
             }
         )
     }

@@ -232,9 +232,8 @@ class ExerciseFormViewModel @Inject constructor(
         viewModelScope.launch {
             when (val createResult = createExerciseRecordUseCase(record)) {
                 is BaseResult.Success -> {
-                    val createdRecordId = createResult.data
                     // 기록 생성 성공 시, 이미지 업로드 로직 호출
-                    handleSuccessfulRecordCreation(createdRecordId, newImageUris)
+                    handleSuccessfulRecordCreation(createResult.data.recordId, newImageUris, createResult.data.earnedPoints)
                 }
                 is BaseResult.Error -> {
                     // 기록 생성 실패
@@ -247,12 +246,12 @@ class ExerciseFormViewModel @Inject constructor(
     }
 
     /** 기록 생성 후 이미지 업로드 처리 */
-    private suspend fun handleSuccessfulRecordCreation(recordId: Long, newImageUris: List<String>) {
+    private suspend fun handleSuccessfulRecordCreation(recordId: Long, newImageUris: List<String>, earnedPoints: Int) {
         if (newImageUris.isNotEmpty()) {
             when (uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
                 is BaseResult.Success -> {
                     // 이미지 업로드 성공 -> 최종 성공
-                    _createResult.value = SubmissionResult.Success(recordId)
+                    _createResult.value = SubmissionResult.Success(recordId, earnedPoints)
                 }
                 is BaseResult.Error -> {
                     // 이미지 업로드 실패 -> 부분 성공
@@ -261,7 +260,7 @@ class ExerciseFormViewModel @Inject constructor(
             }
         } else {
             // 업로드할 이미지가 없음 -> 최종 성공
-            _createResult.value = SubmissionResult.Success(recordId)
+            _createResult.value = SubmissionResult.Success(recordId, earnedPoints)
         }
         _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
     }
@@ -316,19 +315,19 @@ class ExerciseFormViewModel @Inject constructor(
                         return@launch
                     }
 
+                    // 이미 점수 획득 여부 확인
+                    val recordDate = startTime.toLocalDate()
+                    if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
+                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
+                        return@launch
+                    }
+
                     // 획득 가능 기간 지남 여부 확인
                     val validStart = expectedScoreInfo.validWindow.startDateTime
                     val validEnd = expectedScoreInfo.validWindow.endDateTime
                     if (startTime.isBefore(validStart) || startTime.isAfter(validEnd)) {
                         _scoreGuidanceState.value =
                             ScoreGuidanceState.Warning(UPLOAD_PERIOD_EXPIRED)
-                        return@launch
-                    }
-
-                    // 이미 점수 획득 여부 확인
-                    val recordDate = startTime.toLocalDate()
-                    if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
-                        _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
                         return@launch
                     }
 

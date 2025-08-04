@@ -11,6 +11,7 @@ import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostExerciseRequestDto
+import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.utils.AccessTokenApi
@@ -68,7 +69,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postExerciseRecord(
         @Body recordRequestDto: PostExerciseRequestDto
-    ): BaseResponse<ExerciseIdDto>
+    ): BaseResponse<PostExerciseResponseDTO>
 
     // 운동 기록 수정
     @PATCH("api/v1/exercises/{exerciseId}")
