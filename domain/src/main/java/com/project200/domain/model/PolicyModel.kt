@@ -3,6 +3,20 @@ package com.project200.domain.model
 import java.time.LocalDate
 import java.time.LocalDateTime
 
+data class Policy(
+    val policyKey: String,
+    val policyValue: String,
+    val policyUnit: String,
+    val policyDescription: String
+)
+
+data class PolicyGroup(
+    val groupName: String,
+    val size: Int,
+    val policies: List<Policy>
+)
+
+
 data class ScorePolicy(
     val policyKey: String,
     val policyValue: Int,

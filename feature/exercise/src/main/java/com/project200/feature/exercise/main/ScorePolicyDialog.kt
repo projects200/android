@@ -4,16 +4,15 @@ import android.content.Context
 import android.graphics.Color
 import android.view.View
 import android.view.WindowManager
-import androidx.annotation.StringRes
 import androidx.core.graphics.drawable.toDrawable
 import androidx.fragment.app.viewModels
-import com.project200.domain.model.PolicyType
-import com.project200.domain.model.ScorePolicy
+import com.project200.domain.model.Policy
 import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.DialogScorePolicyBinding
+import timber.log.Timber
 
-class ScorePolicyDialog() : BaseDialogFragment<DialogScorePolicyBinding>(R.layout.dialog_score_policy) {
+class ScorePolicyDialog : BaseDialogFragment<DialogScorePolicyBinding>(R.layout.dialog_score_policy) {
     private val viewModel: ExerciseMainViewModel by viewModels(ownerProducer = { requireParentFragment() })
 
     override fun getViewBinding(view: View): DialogScorePolicyBinding {
@@ -28,34 +27,27 @@ class ScorePolicyDialog() : BaseDialogFragment<DialogScorePolicyBinding>(R.layou
     override fun setupViews() {
         binding.backBtn.setOnClickListener { dismiss() }
 
-        viewModel.policyData.observe(viewLifecycleOwner) { policies ->
-            if (policies.isNotEmpty()) {
-                displayPolicyData(policies)
-            } else {
-                val errorMessage = getString(R.string.data_error)
-                binding.pointRangeDescTv.text = errorMessage
-                binding.pointWinDescTv.text = errorMessage
-                binding.pointReduceDescTv.text = errorMessage
-            }
+        viewModel.scorePolicy.observe(viewLifecycleOwner) { policyGroup ->
+            policyGroup?.let { displayPolicyData(it.policies) }
         }
     }
 
-    private fun displayPolicyData(policies: List<ScorePolicy>) {
-        val policyMap = policies.associateBy { PolicyType.fromKey(it.policyKey) }
+    private fun displayPolicyData(policies: List<Policy>) {
+        val policyMap = policies.associateBy { it.policyKey }
 
         // 점수 범위
-        val minScore = policyMap[PolicyType.EXERCISE_SCORE_MIN_POINTS]?.policyValue ?: 0
-        val maxScore = policyMap[PolicyType.EXERCISE_SCORE_MAX_POINTS]?.policyValue ?: 100
+        val minScore = policyMap["EXERCISE_SCORE_MIN_POINTS"]?.policyValue?.toIntOrNull()
+        val maxScore = policyMap["EXERCISE_SCORE_MAX_POINTS"]?.policyValue?.toIntOrNull()
         binding.pointRangeDescTv.text = formatPolicyDescription(
             getString(R.string.exercise_policy_min_point_format, minScore),
             getString(R.string.exercise_policy_max_point_format, maxScore)
         )
 
         // 점수 획득
-        val signupPoints = policyMap[PolicyType.SIGNUP_INITIAL_POINTS]?.policyValue ?: 35
-        val pointsPerExercise = policyMap[PolicyType.POINTS_PER_EXERCISE]?.policyValue ?: 3
-        val recordValidityValue = policyMap[PolicyType.EXERCISE_RECORD_VALIDITY_PERIOD]?.policyValue ?: 2
-        val recordValidityUnit = policyMap[PolicyType.EXERCISE_RECORD_VALIDITY_PERIOD]?.policyUnit?.toKoreanUnit() ?: getString(R.string.unit_days)
+        val signupPoints = policyMap["SIGNUP_INITIAL_POINTS"]?.policyValue?.toIntOrNull()
+        val pointsPerExercise = policyMap["POINTS_PER_EXERCISE"]?.policyValue?.toIntOrNull()
+        val recordValidityValue = policyMap["EXERCISE_RECORD_VALIDITY_PERIOD"]?.policyValue?.toIntOrNull()
+        val recordValidityUnit = policyMap["EXERCISE_RECORD_VALIDITY_PERIOD"]?.policyUnit?.toKoreanUnit()
 
         binding.pointWinDescTv.text = formatPolicyDescription(
             getString(R.string.exercise_policy_signup_points_format, signupPoints),
@@ -64,9 +56,9 @@ class ScorePolicyDialog() : BaseDialogFragment<DialogScorePolicyBinding>(R.layou
         )
 
         // 점수 차감
-        val penaltyThresholdValue = policyMap[PolicyType.PENALTY_INACTIVITY_THRESHOLD_DAYS]?.policyValue ?: 7
-        val penaltyThresholdUnit = policyMap[PolicyType.PENALTY_INACTIVITY_THRESHOLD_DAYS]?.policyUnit?.toKoreanUnit() ?: getString(R.string.unit_days)
-        val penaltyDecrementPoints = policyMap[PolicyType.PENALTY_SCORE_DECREMENT_POINTS]?.policyValue ?: 1
+        val penaltyThresholdValue = policyMap["PENALTY_INACTIVITY_THRESHOLD_DAYS"]?.policyValue?.toIntOrNull()
+        val penaltyThresholdUnit = policyMap["PENALTY_INACTIVITY_THRESHOLD_DAYS"]?.policyUnit?.toKoreanUnit()
+        val penaltyDecrementPoints = policyMap["PENALTY_SCORE_DECREMENT_POINTS"]?.policyValue?.toIntOrNull()
         binding.pointReduceDescTv.text = formatPolicyDescription(
             getString(R.string.exercise_policy_penalty_format, penaltyThresholdValue, penaltyThresholdUnit, penaltyThresholdValue, penaltyThresholdUnit, penaltyDecrementPoints)
         )
