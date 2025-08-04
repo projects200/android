@@ -66,6 +66,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                 "implementation"(platform(libs.library("firebase-bom")))
                 "implementation"(libs.library("firebase-analytics"))
                 "implementation"(libs.library("firebase-performance"))
+                "implementation"(libs.library("firebase-messaging"))
 
                 "testImplementation"(libs.library("junit"))
                 "testImplementation"(libs.library("mockk"))
