@@ -54,21 +54,29 @@ jobs:
         profile: Nexus 6
         script: ./gradlew connectedDebugAndroidTest
 
-    - name: Build Debug and Release APK
-      run: ./gradlew assembleDebug assembleRelease
-
-    - name: Upload Debug APK to Firebase
-      uses: wzieba/Firebase-Distribution-Github-Action@v1
+    - name: Decode Release Signing Key
+      id: decode_key
+      uses: timheuer/base64-to-file@v1.2
       with:
-        appId: ${{ secrets.FIREBASE_APP_ID }}
-        token: ${{ secrets.FIREBASE_TOKEN }}
-        groups: testers
-        file: app/build/outputs/apk/debug/app-debug.apk
+        fileName: 'release.jks'
+        encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
 
-    - name: Upload Release APK to Firebase
-      uses: wzieba/Firebase-Distribution-Github-Action@v1
+    - name: Build Release App Bundle (AAB)
+      run: ./gradlew bundleRelease
+      env:
+        SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+        SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+        SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+        SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
+
+    - name: Upload Release AAB to Google Play (Internal Testing)
+      uses: r0adkll/upload-google-play@v1
       with:
-        appId: ${{ secrets.FIREBASE_APP_ID }}
-        token: ${{ secrets.FIREBASE_TOKEN }}
-        groups: testers
-        file: app/build/outputs/apk/release/app-release.apk
+        serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+        packageName: com.project200.undabang
+        releaseFiles: app/build/outputs/bundle/release/app-release.aab
+        track: production
+        status: completed
+        releaseNotes: "docs/release-notes.txt"
+
+

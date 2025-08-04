@@ -9,6 +9,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
       - name: Decode google-services.json
         env:
@@ -37,10 +42,36 @@ jobs:
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
-      - name: Upload Release APK to Firebase App Distribution
-        uses: wzieba/Firebase-Distribution-Github-Action@v1
+      - name: Run Android Instrumentation Tests
+        uses: reactivecircus/android-emulator-runner@v2
         with:
-          appId: ${{ secrets.FIREBASE_APP_ID }}
-          token: ${{ secrets.FIREBASE_TOKEN }}
-          groups: production_testers
-          file: app/build/outputs/apk/release/app-release.apk
+          api-level: 29
+          target: default
+          arch: x86_64
+          profile: Nexus 6
+          script: ./gradlew connectedDebugAndroidTest
+
+      - name: Decode Release Signing Key
+        id: decode_key
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'release.jks'
+          encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
+
+      - name: Build Release App Bundle (AAB)
+        run: ./gradlew bundleRelease
+        env:
+          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
+          SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
+
+      - name: Upload Release AAB to Google Play (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.project200.undabang
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
+
