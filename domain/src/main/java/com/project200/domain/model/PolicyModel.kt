@@ -17,13 +17,6 @@ data class PolicyGroup(
 )
 
 
-data class ScorePolicy(
-    val policyKey: String,
-    val policyValue: Int,
-    val policyUnit: String
-)
-
-
 enum class PolicyType(val key: String) {
     // 점수 최소, 최대
     EXERCISE_SCORE_MAX_POINTS("EXERCISE_SCORE_MAX_POINTS"),

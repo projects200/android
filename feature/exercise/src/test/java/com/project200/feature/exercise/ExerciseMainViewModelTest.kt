@@ -5,9 +5,9 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
-import com.project200.domain.model.PolicyType
+import com.project200.domain.model.Policy
+import com.project200.domain.model.PolicyGroup
 import com.project200.domain.model.Score
-import com.project200.domain.model.ScorePolicy
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
@@ -66,16 +66,61 @@ class ExerciseMainViewModelTest {
     private val expectedDates = setOf(thisMonth.atDay(5), thisMonth.atDay(10))
 
     // 정책 데이터 더미
-    private val samplePolicyData = listOf(
-        ScorePolicy(PolicyType.EXERCISE_SCORE_MAX_POINTS.key, 100, "POINTS"),
-        ScorePolicy(PolicyType.EXERCISE_SCORE_MIN_POINTS.key, 0, "POINTS"),
-        ScorePolicy(PolicyType.SIGNUP_INITIAL_POINTS.key, 35, "POINTS"),
-        ScorePolicy(PolicyType.POINTS_PER_EXERCISE.key, 3, "POINTS"),
-        ScorePolicy(PolicyType.EXERCISE_RECORD_VALIDITY_PERIOD.key, 2, "DAYS"),
-        ScorePolicy(PolicyType.PENALTY_INACTIVITY_THRESHOLD_DAYS.key, 7, "DAYS"),
-        ScorePolicy(PolicyType.PENALTY_SCORE_DECREMENT_POINTS.key, 1, "POINTS")
+    private val samplePolicies = listOf(
+        Policy(
+            policyKey = "EXERCISE_SCORE_MAX_POINTS",
+            policyValue = "100",
+            policyUnit = "POINTS",
+            policyDescription = "회원이 가질 수 있는 최대 운동 점수"
+        ),
+        Policy(
+            policyKey = "EXERCISE_SCORE_MIN_POINTS",
+            policyValue = "0",
+            policyUnit = "POINTS",
+            policyDescription = "회원이 가질 수 있는 최소 운동 점수"
+        ),
+        Policy(
+            policyKey = "SIGNUP_INITIAL_POINTS",
+            policyValue = "35",
+            policyUnit = "POINTS",
+            policyDescription = "회원 가입 시 기본으로 부여되는 점수"
+        ),
+        Policy(
+            policyKey = "POINTS_PER_EXERCISE",
+            policyValue = "3",
+            policyUnit = "POINTS",
+            policyDescription = "운동 기록 1회당 부여되는 점수 (일 1회)"
+        ),
+        Policy(
+            policyKey = "EXERCISE_RECORD_VALIDITY_PERIOD",
+            policyValue = "2",
+            policyUnit = "DAYS",
+            policyDescription = "점수 획득이 가능한 운동 기록의 유효 기간. (단위: DAYS, HOURS, MINUTES)"
+        ),
+        Policy(
+            policyKey = "EXERCISE_RECORD_MAX_PER_DAY",
+            policyValue = "1",
+            policyUnit = "COUNT",
+            policyDescription = "하루에 기록할 수 있는 최대 운동 횟수"
+        ),
+        Policy(
+            policyKey = "PENALTY_INACTIVITY_THRESHOLD_DAYS",
+            policyValue = "7",
+            policyUnit = "DAYS",
+            policyDescription = "페널티가 시작되는 비활성 기준일 (이 기간 이상 운동 기록이 없을 경우)"
+        ),
+        Policy(
+            policyKey = "PENALTY_SCORE_DECREMENT_POINTS",
+            policyValue = "1",
+            policyUnit = "POINTS",
+            policyDescription = "비활성 상태일 때 매일 차감되는 점수"
+        )
     )
-
+    private val samplePolicyGroup = PolicyGroup(
+        groupName = "exercise-score",
+        size = samplePolicies.size,
+        policies = samplePolicies
+    )
 
     @Before
     fun setUp() {
@@ -86,7 +131,7 @@ class ExerciseMainViewModelTest {
         // ViewModel의 init()에서 호출되는 UseCase에 대한 기본 응답 설정
         coEvery { mockGetExerciseCountUseCase.invoke(any(), any()) } returns BaseResult.Success(emptyList())
         coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(0))
-        coEvery { mockGetScorePolicyUseCase.invoke() } returns BaseResult.Success(samplePolicyData)
+        coEvery { mockGetScorePolicyUseCase.invoke() } returns BaseResult.Success(samplePolicyGroup)
 
         viewModel = ExerciseMainViewModel(mockGetExerciseCountUseCase, mockGetScoreUseCase, mockGetScorePolicyUseCase, mockClockProvider)
     }
