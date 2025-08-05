@@ -239,7 +239,7 @@ class ExerciseMainViewModelTest {
         coVerify(exactly = 2) { mockGetScoreUseCase.invoke() }
         val newExpectedDates = setOf(today.withDayOfMonth(25))
         assertThat(viewModel.exerciseDates.value).isEqualTo(newExpectedDates)
-        assertThat(viewModel.score.value).isEqualTo(80)
+        assertThat(viewModel.score.value).isEqualTo(Score(80))
     }
 
     @Test
@@ -255,7 +255,7 @@ class ExerciseMainViewModelTest {
         // Then
         // refreshData()가 한 번만 호출되었으므로 getScoreUseCase도 1번만 호출됩니다.
         coVerify(exactly = 1) { mockGetScoreUseCase.invoke() }
-        assertThat(viewModel.score.value).isEqualTo(expectedScore)
+        assertThat(viewModel.score.value).isEqualTo(Score(expectedScore))
     }
 
     @Test
