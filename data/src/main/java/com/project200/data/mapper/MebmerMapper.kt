@@ -8,6 +8,8 @@ import com.project200.domain.model.Score
 
 fun GetScoreDTO.toModel(): Score {
     return Score(
-        score = memberScore
+        score = memberScore,
+        maxScore = policyMaxScore,
+        minScore = policyMinScore
     )
 }
