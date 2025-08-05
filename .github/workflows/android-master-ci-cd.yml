@@ -33,6 +33,13 @@ jobs:
         distribution: 'temurin'
         cache: gradle
 
+    - name: Create local.properties
+      run: |
+        echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID }}" >> local.properties
+        echo "COGNITO_APP_CLIENT_ID=${{ secrets.COGNITO_APP_CLIENT_ID }}" >> local.properties
+        echo "COGNITO_REGION=${{ secrets.COGNITO_REGION }}" >> local.properties
+      shell: bash
+
     - name: Grant execute permission for gradlew
       run: chmod +x ./gradlew
 
@@ -75,8 +82,7 @@ jobs:
         serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
         packageName: com.project200.undabang
         releaseFiles: app/build/outputs/bundle/release/app-release.aab
-        track: production
+        track: internal
         status: completed
-        releaseNotes: "docs/release-notes.txt"
 
 
