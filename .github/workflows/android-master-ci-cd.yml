@@ -1,7 +1,7 @@
 name: Android CI/CD (master)
 
 on:
-  pull_request:
+  push:
     branches: [ "master" ]
 
 jobs:
@@ -10,12 +10,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Enable KVM
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
 
       - name: Decode google-services.json
         env:
@@ -56,14 +50,6 @@ jobs:
           fileName: 'release.jks'
           encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
 
-      - name: Build Signed Release APK for Instrumentation Tests
-        run: ./gradlew assembleRelease
-        env:
-          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
-
       - name: Run Unit Tests (Release)
         run: ./gradlew testReleaseUnitTest
 
@@ -74,7 +60,7 @@ jobs:
           target: default
           arch: x86_64
           profile: Nexus 6
-          script: ./gradlew connectedReleaseAndroidTest
+          script: ./gradlew connectedAndroidTest -PtargetTestBuildType=release
 
       - name: Build Release App Bundle (AAB)
         run: ./gradlew bundleRelease
