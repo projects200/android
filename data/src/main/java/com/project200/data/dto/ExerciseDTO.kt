@@ -33,6 +33,12 @@ data class PostExerciseRequestDto(
 )
 
 @JsonClass(generateAdapter = true)
+data class PostExerciseResponseDTO(
+    val exerciseId: Long,
+    val earnedPoints: Int,
+)
+
+@JsonClass(generateAdapter = true)
 data class PatchExerciseRequestDto(
     val exerciseTitle: String?,
     val exercisePersonalType: String?,

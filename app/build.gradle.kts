@@ -14,8 +14,10 @@ android {
 
     buildTypes {
         release {
+            resValue("string", "app_name", "운다방")
         }
         debug {
+            resValue("string", "app_name", "운다방(Debug)")
         }
     }
 

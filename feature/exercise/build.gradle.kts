@@ -49,4 +49,7 @@ dependencies {
 
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)
+
+    // lottie animation
+    implementation(libs.lottie)
 }

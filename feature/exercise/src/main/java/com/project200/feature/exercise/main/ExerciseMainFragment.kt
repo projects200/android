@@ -11,14 +11,16 @@ import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
+import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
+import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
-import com.project200.feature.exercise.list.ExerciseYearMonthDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseMainBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -114,18 +116,11 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         binding.dateTv.setOnClickListener {
             val initialDate = viewModel.selectedMonth.value ?: YearMonth.now()
             // ExerciseYearMonthDialog를 생성하고 초기 날짜를 설정
-            val dialog = ExerciseYearMonthDialog.newInstance(initialDate)
-
-
-            dialog.onDateSelected = { selectedDate ->
-                val selectedYearMonth = YearMonth.from(selectedDate)
-                viewModel.onMonthChanged(selectedYearMonth)
-
-                viewModel.onMonthChanged(selectedDate)
-            }
-
-            // 다이얼로그 표시
-            dialog.show(childFragmentManager, "ExerciseYearMonthDialog")
+            ExerciseYearMonthDialog.newInstance(initialDate).apply {
+                onDateSelected = { selectedDate ->
+                    viewModel.onMonthChanged(YearMonth.from(selectedDate))
+                }
+            }.show(childFragmentManager, "ExerciseYearMonthDialog")
         }
 
         binding.settingBtn.setOnClickListener {
@@ -134,6 +129,12 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         binding.exerciseCreateBtn.setOnClickListener {
             fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
+        }
+
+        binding.scoreCl.setOnClickListener {
+            viewModel.scorePolicy.value?.let {
+                ScorePolicyDialog().show(childFragmentManager, "ScorePolicyDialog")
+            }
         }
     }
     
@@ -156,6 +157,32 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
             Toast.makeText(requireContext(), message ?: getText(R.string.data_error), Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.score.observe(viewLifecycleOwner) { score ->
+            binding.scoreProgressBar.apply {
+                maxScore = score.maxScore
+                minScore = score.minScore
+                this.score = score.score
+            }
+            binding.scoreTv.text = getString(R.string.exercise_score_format, score.score)
+
+            // 점수 레벨 아이콘 설정
+            val scoreRange = score.maxScore - score.minScore
+            val highLevelScore = (score.minScore + scoreRange * SCORE_HIGH_LEVEL).toInt()
+            val middleLevelScore = (score.minScore + scoreRange * SCORE_MIDDLE_LEVEL).toInt()
+
+            binding.scoreLevelIv.setImageResource(
+                 when {
+                     score.score >= highLevelScore -> R.drawable.ic_score_high_level
+                     score.score >= middleLevelScore -> R.drawable.ic_score_middle_level
+                     else -> R.drawable.ic_score_low_level
+                 }
+             )
+        }
+
+        viewModel.exerciseCount.observe(viewLifecycleOwner) { count ->
+            binding.exerciseCntTv.text = getString(R.string.exercise_count_format, count)
         }
     }
 

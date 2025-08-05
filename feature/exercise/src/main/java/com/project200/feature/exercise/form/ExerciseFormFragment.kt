@@ -11,7 +11,10 @@ import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat.checkSelfPermission
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
+import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
@@ -32,6 +35,7 @@ import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
@@ -95,6 +99,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.loadInitialRecord()
+        setupKeyboardAdjustments()
     }
 
     private fun setupRVAdapter(calculatedItemSize: Int) {
@@ -150,6 +155,28 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
             shouldShowRequestPermissionRationale(permission) -> { requestPermissionLauncher.launch(permission) }
             else -> { requestPermissionLauncher.launch(permission) }
+        }
+    }
+
+    private fun setupKeyboardAdjustments() {
+        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
+            Timber.tag("ExerciseFormFragment").d("setupKeyboardAdjustments called")
+            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
+            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
+
+            // 키보드가 올라와 있으면 키보드 높이만큼, 아니면 네비게이션 바 높이만큼 패딩 적용
+            val paddingBottom = if (imeHeight > 0) {
+                imeHeight
+            } else {
+                // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
+                // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
+                val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
+                val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
+                buttonHeight + buttonMarginBottom + navigationBarHeight
+            }
+
+            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, paddingBottom)
+            insets
         }
     }
 
@@ -217,8 +244,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.createResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is SubmissionResult.Success -> {
-                    // 기록 생성, 이미지 업로드 성공
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    handleSuccessfulCreate(result.earnedPoints)
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)
@@ -249,8 +275,26 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            if (message.isNotEmpty()) {
+            if (!message.isNullOrEmpty()) {
                 Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.scoreGuidanceState.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                is ScoreGuidanceState.Hidden -> {
+                    binding.scoreWarningTv.isVisible = false
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
+                }
+                is ScoreGuidanceState.Warning -> {
+                    binding.scoreWarningTv.isVisible = true
+                    binding.scoreWarningTv.text = state.message
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
+                }
+                is ScoreGuidanceState.PointsAvailable -> {
+                    binding.scoreWarningTv.isVisible = false
+                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete_with_points, state.points)
+                }
             }
         }
     }
@@ -260,6 +304,23 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.recordTypeEt.setText(record.personalType)
         binding.recordLocationEt.setText(record.location)
         binding.recordDescEt.setText(record.detail)
+    }
+
+    private fun handleSuccessfulCreate(earnedPoints: Int) {
+        when {
+            (earnedPoints > 0) -> {
+                Timber.tag("ExerciseFormFragment").d("PointsAvailable")
+                ScoreCongratulationDialog(earnedPoints).apply {
+                    confirmClickListener = {
+                        findNavController().popBackStack()
+                    }
+                }.show(parentFragmentManager, "ScoreCongratulationDialog")
+            }
+            else -> {
+                Timber.tag("ExerciseFormFragment").d("불가능")
+                findNavController().popBackStack()
+            }
+        }
     }
 
     override fun onAttach(context: Context) {

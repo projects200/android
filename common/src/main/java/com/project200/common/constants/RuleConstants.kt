@@ -6,4 +6,7 @@ object RuleConstants {
     val ALLOWED_EXTENSIONS = setOf("jpeg", "png", "jpg")
 
     const val MIN_YEAR = 1945
+
+    const val SCORE_HIGH_LEVEL = 0.70
+    const val SCORE_MIDDLE_LEVEL = 0.33
 }

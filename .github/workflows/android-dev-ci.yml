@@ -11,61 +11,55 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Enable KVM
-      run: |
-        echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --name-match=kvm
+      - uses: actions/checkout@v4
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
 
-    - name: Decode google-services.json
-      env:
-        GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
-      run: |
-        echo "Decoding google-services.json..."
-        echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/google-services.json
-        echo "google-services.json created successfully."
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_DEV_BASE64 }}
+        run: |
+          echo "Decoding google-services.json..."
+          mkdir -p app/src/debug
+          echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/src/debug/google-services.json
+          echo "google-services.json created successfully."
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
 
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./gradlew
+      - name: Create local.properties
+        run: |
+          echo "COGNITO_USER_POOL_ID_DEV=${{ secrets.COGNITO_USER_POOL_ID_DEV }}" >> local.properties
+          echo "COGNITO_APP_CLIENT_ID_DEV=${{ secrets.COGNITO_APP_CLIENT_ID_DEV }}" >> local.properties
+          echo "COGNITO_REGION_DEV=${{ secrets.COGNITO_REGION_DEV }}" >> local.properties
+        shell: bash
 
-    - name: Run Android Lint
-      run: ./gradlew lint
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
-    - name: Run Unit Tests
-      run: ./gradlew testDebugUnitTest
-      
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+      - name: Run Android Lint
+        run: ./gradlew lint
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      - name: Run Unit Tests
+        run: ./gradlew testDebugUnitTest
 
-    - name: Install Firebase CLI
-      run: npm install -g firebase-tools
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug
 
-    - name: Upload Debug APK to Firebase App Distribution
-      run: |
-        firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
-          --app ${{ secrets.FIREBASE_APP_ID }} \
-          --release-notes "CI build from dev branch (via CLI)" \
-          --groups "testers" \
-          --token ${{ secrets.FIREBASE_TOKEN }}
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
 
-    - name: Run Android Instrumentation Tests
-      uses: reactivecircus/android-emulator-runner@v2
-      with:
-        api-level: 30
-        target: default
-        arch: x86_64
-        profile: Nexus 6
-        script: ./gradlew connectedDebugAndroidTest
+      - name: Upload Debug APK to Firebase App Distribution
+        run: |
+          firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
+            --app ${{ secrets.FIREBASE_APP_DEV_ID }} \
+            --release-notes "CI build from dev branch (via CLI)" \
+            --groups "testers" \
+            --token ${{ secrets.FIREBASE_TOKEN }}

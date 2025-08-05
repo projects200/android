@@ -31,3 +31,8 @@ data class ExerciseCount(
     val date: LocalDate,
     val count: Int
 )
+
+data class ExerciseRecordCreationResult(
+    val recordId: Long,
+    val earnedPoints: Int
+)
