@@ -19,9 +19,6 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             extensions.configure<ApplicationExtension> {
                 compileSdk = libs.version("compileSdk").toInt()
 
-                val targetType = project.findProperty("targetTestBuildType")?.toString() ?: "debug"
-                testBuildType = targetType
-
                 defaultConfig {
                     minSdk = libs.version("minSdk").toInt()
                     targetSdk = libs.version("targetSdk").toInt()
