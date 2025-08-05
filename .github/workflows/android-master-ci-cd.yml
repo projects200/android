@@ -47,7 +47,7 @@ jobs:
         run: ./gradlew clean
 
       - name: Run Android Lint
-        run: ./gradlew lint
+        run: ./gradlew lintRelease
 
       - name: Decode Release Signing Key
         id: decode_key
