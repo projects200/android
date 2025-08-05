@@ -124,10 +124,17 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
           SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
 
+      - name: Decode service account JSON
+        id: decode_json
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'service_account_key.json'
+          encodedString: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
       - name: Upload Release AAB to Google Play (Internal Testing)
         uses: r0adkll/upload-google-play@v1
         with:
-          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          serviceAccountJson: ${{ steps.decode_json.outputs.filePath }}
           packageName: com.project200.undabang
           releaseFiles: app/build/outputs/bundle/release/app-release.aab
           track: internal
