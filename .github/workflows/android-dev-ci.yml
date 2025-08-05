@@ -34,6 +34,13 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
+      - name: Create local.properties
+        run: |
+          echo "COGNITO_USER_POOL_ID_DEV=${{ secrets.COGNITO_USER_POOL_ID_DEV }}" >> local.properties
+          echo "COGNITO_APP_CLIENT_ID_DEV=${{ secrets.COGNITO_APP_CLIENT_ID_DEV }}" >> local.properties
+          echo "COGNITO_REGION_DEV=${{ secrets.COGNITO_REGION_DEV }}" >> local.properties
+        shell: bash
+
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
