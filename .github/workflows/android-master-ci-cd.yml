@@ -117,12 +117,12 @@ jobs:
           encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
 
       - name: Build Release App Bundle (AAB)
-        run: ./gradlew bundleRelease
-        env:
-          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
+        run: ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=${{ steps.decode_key.outputs.filePath }} \
+            -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_STORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }}
+        shell: bash
 
       - name: Decode service account JSON
         id: decode_json
