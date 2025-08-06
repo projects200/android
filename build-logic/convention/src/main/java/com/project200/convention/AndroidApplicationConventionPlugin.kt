@@ -18,6 +18,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             // Android 애플리케이션 공통 설정
             extensions.configure<ApplicationExtension> {
                 compileSdk = libs.version("compileSdk").toInt()
+
                 defaultConfig {
                     minSdk = libs.version("minSdk").toInt()
                     targetSdk = libs.version("targetSdk").toInt()
@@ -25,6 +26,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
                     versionName = libs.version("versionName")
                     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
                 }
+
                 buildTypes {
                     release {
                         isMinifyEnabled = true
