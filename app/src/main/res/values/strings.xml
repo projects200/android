@@ -1,4 +1,7 @@
 <resources>
     <string name="app_name">undabang</string>
     <string name="error_token_refresh_failed">세션이 만료됐습니다. 로그인 화면으로 이동합니다.</string>
+
+    <string name="fcm_channel_id">undabang_channel_id</string>
+    <string name="fcm_channel_name">운다방 기본 알림 채널</string>
 </resources>

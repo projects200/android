@@ -155,6 +155,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
 firebase-performance = { group = "com.google.firebase", name = "firebase-perf-ktx" }
 firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx", version.ref = "firebaseConfigKtx" }
+firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 
 # Cognito
 appauth = { group = "net.openid", name = "appauth", version.ref = "appauth" }
