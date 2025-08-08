@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@id/exercise_nav_graph"
+        android:icon="@drawable/ic_nav_record"
+        android:title="기록" />
+    <item
+        android:id="@id/timer_nav_graph"
+        android:icon="@drawable/ic_nav_timer"
+        android:title="타이머" />
+    <item
+        android:id="@id/profile_nav_graph"
+        android:icon="@drawable/ic_nav_setting"
+        android:title="설정" />
+</menu>

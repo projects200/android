@@ -15,6 +15,7 @@ import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
 import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.presentation.base.BindingFragment
+import androidx.navigation.fragment.findNavController
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
@@ -29,7 +30,6 @@ import java.time.ZoneId
 @AndroidEntryPoint
 class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
     private val viewModel: ExerciseMainViewModel by viewModels()
-    private var fragmentNavigator: FragmentNavigator? = null
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
 
 
@@ -123,12 +123,8 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             }.show(childFragmentManager, "ExerciseYearMonthDialog")
         }
 
-        binding.settingBtn.setOnClickListener {
-            fragmentNavigator?.navigateFromExerciseMainToSetting()
-        }
-
         binding.exerciseCreateBtn.setOnClickListener {
-            fragmentNavigator?.navigateFromExerciseMainToExerciseForm()
+            findNavController().navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
         }
 
         binding.scoreCl.setOnClickListener {
@@ -194,7 +190,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         init {
             binding.root.setOnClickListener {
                 if (day.position == DayPosition.MonthDate && !day.date.isAfter(LocalDate.now(ZoneId.of("Asia/Seoul")))) {
-                    fragmentNavigator?.navigateFromExerciseMainToExerciseList(day.date)
+                    findNavController().navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment(day.date))
                 }
             }
         }
@@ -203,19 +199,5 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
     override fun onResume() {
         super.onResume()
         viewModel.refreshData()
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is FragmentNavigator) {
-            fragmentNavigator = context
-        } else {
-            throw ClassCastException("$context must implement FragmentNavigator")
-        }
-    }
-
-    override fun onDetach() {
-        fragmentNavigator = null
-        super.onDetach()
     }
 }
