@@ -8,6 +8,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.setupWithNavController
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
@@ -30,7 +31,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity(), FragmentNavigator {
+class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
@@ -88,7 +89,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
 
         setupViews()
@@ -102,6 +102,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
     private fun setupViews() {
         viewModel.checkForUpdate()
+        binding.bottomNavigation.setupWithNavController(navController)
     }
 
     private fun setupObservers() {
@@ -144,33 +145,5 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
             val dialog = UpdateDialogFragment(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
         }
-    }
-
-    override fun navigateFromExerciseListToExerciseDetail(recordId: Long) {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
-    }
-
-    override fun navigateFromExerciseListToExerciseForm() {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
-    }
-
-    override fun navigateFromExerciseDetailToExerciseForm(recordId: Long) {
-        navController.navigate(ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseFormFragment(recordId))
-    }
-
-    override fun navigateFromExerciseFormToExerciseDetail(recordId: Long) {
-        navController.navigate(ExerciseFormFragmentDirections.actionExerciseFormFragmentToExerciseDetailFragment(recordId))
-    }
-
-    override fun navigateFromExerciseMainToExerciseList(date: LocalDate) {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment(date))
-    }
-
-    override fun navigateFromExerciseMainToSetting() {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToSettingFragment())
-    }
-
-    override fun navigateFromExerciseMainToExerciseForm() {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
     }
 }
