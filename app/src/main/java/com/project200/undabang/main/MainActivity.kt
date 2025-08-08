@@ -75,6 +75,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                     Timber.i("User is authorized and token is fresh.")
                     viewModel.checkIsRegistered() // 회원 여부 확인
                 }
+                viewModel.sendFcmToken()
             } else {
                 Timber.i("User is not authorized.")
                 navigateToLogin()
