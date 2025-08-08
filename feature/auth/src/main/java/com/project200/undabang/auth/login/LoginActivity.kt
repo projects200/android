@@ -60,6 +60,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
         override fun onSuccess(tokenResponse: TokenResponse) {
             Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
+            viewModel.sendFcmToken()
             viewModel.checkIsRegistered()
         }
 

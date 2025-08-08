@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
+import com.project200.domain.usecase.SendFcmTokenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -15,7 +16,8 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
-    private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase
+    private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
+    private val sendFcmTokenUseCase: SendFcmTokenUseCase
 ) : ViewModel() {
 
     private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
@@ -47,6 +49,13 @@ class MainViewModel @Inject constructor(
     fun checkIsRegistered() {
         viewModelScope.launch {
             _isRegistered.value = checkIsRegisteredUseCase() ?: false
+        }
+    }
+
+    // fcm 토큰 전송
+    fun sendFcmToken() {
+        viewModelScope.launch {
+            sendFcmTokenUseCase()
         }
     }
 }
