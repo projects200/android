@@ -1,4 +1,4 @@
-package com.project200.undabnag.timer
+package com.project200.feature.timer
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
