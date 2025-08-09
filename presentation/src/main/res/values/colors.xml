@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="main">#4F7942</color>
+    <color name="main_background">#EBF1E5</color>
     <color name="error_led">#E53935</color>
     <color name="white300">#FFFFFFFF</color>
     <color name="white200">#FAFAFA</color>
