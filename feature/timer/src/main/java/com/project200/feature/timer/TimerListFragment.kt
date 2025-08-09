@@ -18,6 +18,7 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
         super.setupViews()
 
         initClickListeners()
+        initRecyclerView()
     }
 
     private fun initClickListeners() {
@@ -26,6 +27,24 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
         }
         binding.addCustomTimerBtn.setOnClickListener {
 
+        }
+    }
+
+    private fun initRecyclerView() {
+        customTimerRVAdapter = CustomTimerRVAdapter { customTimer ->
+
+        }
+
+        val dummyData = listOf(
+            CustomTimer("1", "타바타 타이머"),
+            CustomTimer("2", "휴식 타이머"),
+            CustomTimer("3", "운동 세트 타이머")
+        )
+        customTimerRVAdapter.submitList(dummyData)
+
+        binding.customTimerRv.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = customTimerRVAdapter
         }
     }
 }
