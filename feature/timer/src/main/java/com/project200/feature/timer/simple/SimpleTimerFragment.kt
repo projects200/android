@@ -1,5 +1,7 @@
 package com.project200.feature.timer.simple
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.media.MediaPlayer
 import android.media.RingtoneManager
@@ -18,7 +20,7 @@ import com.project200.undabang.feature.timer.databinding.FragmentSimpleTimerBind
 class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout.fragment_simple_timer) {
     private val viewModel: SimpleTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
-    private var mediaPlayer: MediaPlayer? = null // MediaPlayer 객체 추가
+    private var mediaPlayer: MediaPlayer? = null
 
     override fun getViewBinding(view: View): FragmentSimpleTimerBinding {
         return FragmentSimpleTimerBinding.bind(view)
@@ -30,9 +32,10 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             showBackButton(true) { findNavController().navigateUp() }
         }
 
-        // MediaPlayer 초기화
-        val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-        context?.let { mediaPlayer = MediaPlayer.create(it, notificationUri) }
+        context?.let {
+            val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            mediaPlayer = MediaPlayer.create(it, notificationUri)
+        }
 
         initClickListeners()
         initRecyclerView()
@@ -63,11 +66,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                         items = timerItems,
                         itemHeight = recyclerViewHeight / RV_ITEM_ROW_COUNT,
                         onItemClick = { simpleTimer ->
-                            // 프로그레스바 초기화
-                            progressAnimator?.cancel()
-                            progressAnimator = null
-                            binding.timerProgressbar.progress = 1.0f
-
+                            stopAndResetTimer()
                             viewModel.setTimer(simpleTimer.time)
                             viewModel.startTimer()
                         }
@@ -77,57 +76,66 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         }
     }
 
+    private fun stopAndResetTimer() {
+        progressAnimator?.cancel()
+        progressAnimator = null
+        binding.timerProgressbar.progress = 1.0f
+        if (mediaPlayer?.isPlaying == true) {
+            mediaPlayer?.pause()
+            mediaPlayer?.seekTo(0)
+        }
+    }
+
     override fun setupObservers() {
-        // 남은 시간 LiveData를 관찰하여 UI 업데이트
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTime()
-
-            // 타이머가 종료되었을 때, 프로그레스바를 0으로 설정하고 알림음 재생
-            if (remainingTime <= 0) {
-                binding.timerProgressbar.progress = 0f
-                progressAnimator?.cancel()
-                progressAnimator = null
-
-                // 알림음 재생 로직
-                mediaPlayer?.start()
-            }
+            updateProgressBar(remainingTime)
         }
 
-        // 타이머 진행 상태 LiveData를 관찰하여 버튼 아이콘 변경 및 애니메이터 제어
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
-            if (isRunning) {
-                binding.timerBtn.setImageResource(R.drawable.ic_stop)
-                val totalTime = viewModel.totalTime
-                val remainingTime = viewModel.remainingTime.value ?: 0
+            updateRunningState(isRunning)
+        }
+    }
 
-                // 알림음이 재생 중이었다면 중지
-                if (mediaPlayer?.isPlaying == true) {
-                    mediaPlayer?.pause()
-                    mediaPlayer?.seekTo(0)
+    private fun updateProgressBar(remainingTime: Int) {
+        val totalTime = viewModel.totalTime
+        if (totalTime > 0) {
+            progressAnimator?.cancel()
+            val currentProgress = binding.timerProgressbar.progress
+            val targetProgress = remainingTime.toFloat() / totalTime.toFloat()
+
+            progressAnimator = ValueAnimator.ofFloat(currentProgress, targetProgress).apply {
+                duration = 1000L
+                interpolator = LinearInterpolator()
+                addUpdateListener { animator ->
+                    binding.timerProgressbar.progress = animator.animatedValue as Float
                 }
-
-                if (progressAnimator == null || !progressAnimator!!.isStarted) {
-                    progressAnimator?.cancel()
-
-                    progressAnimator = ValueAnimator.ofFloat(remainingTime.toFloat() / totalTime.toFloat(), 0f).apply {
-                        duration = remainingTime.toLong() * 1000
-                        interpolator = LinearInterpolator()
-                        addUpdateListener { animator ->
-                            binding.timerProgressbar.progress = animator.animatedValue as Float
+                addListener(object : AnimatorListenerAdapter() {
+                    override fun onAnimationEnd(animation: Animator) {
+                        super.onAnimationEnd(animation)
+                        if (remainingTime <= 0) {
+                            binding.timerProgressbar.progress = 0f
+                            mediaPlayer?.start()
                         }
-                        start()
                     }
-                } else {
-                    progressAnimator?.resume()
-                }
-
-            } else {
-                binding.timerBtn.setImageResource(R.drawable.ic_play)
-                progressAnimator?.pause()
+                })
+                start()
             }
         }
     }
 
+    private fun updateRunningState(isRunning: Boolean) {
+        if (isRunning) {
+            binding.timerBtn.setImageResource(R.drawable.ic_stop)
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.pause()
+                mediaPlayer?.seekTo(0)
+            }
+        } else {
+            binding.timerBtn.setImageResource(R.drawable.ic_play)
+            progressAnimator?.pause()
+        }
+    }
 
     private fun initClickListeners() {
         binding.timerBtn.setOnClickListener {
@@ -144,9 +152,10 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
 
     override fun onDestroyView() {
         super.onDestroyView()
-        // 프래그먼트가 소멸될 때 MediaPlayer 리소스 해제
         mediaPlayer?.release()
         mediaPlayer = null
+        progressAnimator?.cancel()
+        progressAnimator = null
     }
 
     companion object {
