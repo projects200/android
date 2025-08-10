@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- 배경 링 -->
+    <item>
+        <shape android:shape="ring"
+            android:useLevel="false"
+            android:thickness="20dp"
+            android:innerRadius="108dp">
+            <solid android:color="@color/main_background" />
+        </shape>
+    </item>
+
+    <!-- 프로그레스바 (둥근 끝) -->
+    <item>
+        <rotate
+            android:fromDegrees="0"
+            android:toDegrees="360">
+            <vector
+                android:width="256dp"
+                android:height="256dp"
+                android:viewportWidth="256"
+                android:viewportHeight="256">
+                <path
+                    android:name="progress_path"
+                    android:pathData="M 128,10 a 118,118 0 1,1 0,236 a 118,118 0 1,1 0,-236"
+                    android:strokeWidth="20"
+                    android:strokeColor="@color/main"
+                    android:strokeLineCap="round"
+                    android:trimPathEnd="0.5"/>
+            </vector>
+        </rotate>
+    </item>
+
+</layer-list>
