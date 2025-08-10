@@ -1,6 +1,7 @@
 package com.project200.feature.timer
 
 import android.view.View
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.CustomTimer
 import com.project200.presentation.base.BindingFragment
@@ -23,7 +24,9 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
 
     private fun initClickListeners() {
         binding.simpleTimerBtn.setOnClickListener {
-
+            findNavController().navigate(
+                TimerListFragmentDirections.actionTimerListFragmentToSimpleTimerFragment()
+            )
         }
         binding.addCustomTimerBtn.setOnClickListener {
 
