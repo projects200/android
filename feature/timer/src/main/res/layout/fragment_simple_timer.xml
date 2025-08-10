@@ -16,12 +16,10 @@
         android:layout_height="wrap_content"
         android:background="@color/white300"
         app:layout_constraintTop_toBottomOf="@id/base_toolbar">
-        <ProgressBar
+        <com.project200.presentation.view.TimerCircularProgressBar
             android:id="@+id/timer_progressbar"
-            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
             android:layout_width="256dp"
             android:layout_height="256dp"
-            android:progressDrawable="@drawable/timer_progress_bar"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
