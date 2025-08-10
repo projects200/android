@@ -1,6 +1,8 @@
 package com.project200.feature.timer.simple
 
 import android.animation.ValueAnimator
+import android.media.MediaPlayer
+import android.media.RingtoneManager
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
@@ -12,11 +14,11 @@ import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentSimpleTimerBinding
-import timber.log.Timber
 
 class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout.fragment_simple_timer) {
     private val viewModel: SimpleTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
+    private var mediaPlayer: MediaPlayer? = null // MediaPlayer 객체 추가
 
     override fun getViewBinding(view: View): FragmentSimpleTimerBinding {
         return FragmentSimpleTimerBinding.bind(view)
@@ -27,6 +29,11 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             setTitle(getString(R.string.simple_timer))
             showBackButton(true) { findNavController().navigateUp() }
         }
+
+        // MediaPlayer 초기화
+        val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        context?.let { mediaPlayer = MediaPlayer.create(it, notificationUri) }
+
         initClickListeners()
         initRecyclerView()
         setupObservers()
@@ -75,11 +82,14 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTime()
 
-            // 타이머가 종료되었을 때, 프로그레스바를 0으로 설정하고 애니메이터를 취소
+            // 타이머가 종료되었을 때, 프로그레스바를 0으로 설정하고 알림음 재생
             if (remainingTime <= 0) {
                 binding.timerProgressbar.progress = 0f
                 progressAnimator?.cancel()
                 progressAnimator = null
+
+                // 알림음 재생 로직
+                mediaPlayer?.start()
             }
         }
 
@@ -90,9 +100,14 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                 val totalTime = viewModel.totalTime
                 val remainingTime = viewModel.remainingTime.value ?: 0
 
-                // 애니메이터가 null이거나 아직 시작되지 않았을 때만 새로 생성
+                // 알림음이 재생 중이었다면 중지
+                if (mediaPlayer?.isPlaying == true) {
+                    mediaPlayer?.pause()
+                    mediaPlayer?.seekTo(0)
+                }
+
                 if (progressAnimator == null || !progressAnimator!!.isStarted) {
-                    progressAnimator?.cancel() // 혹시 모를 이전 애니메이터 정리
+                    progressAnimator?.cancel()
 
                     progressAnimator = ValueAnimator.ofFloat(remainingTime.toFloat() / totalTime.toFloat(), 0f).apply {
                         duration = remainingTime.toLong() * 1000
@@ -103,13 +118,11 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                         start()
                     }
                 } else {
-                    // 이미 시작된 애니메이터는 재개
                     progressAnimator?.resume()
                 }
 
             } else {
                 binding.timerBtn.setImageResource(R.drawable.ic_play)
-                // 애니메이터 일시 정지
                 progressAnimator?.pause()
             }
         }
@@ -127,6 +140,13 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                 }
             }
         }
+    }
+
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // 프래그먼트가 소멸될 때 MediaPlayer 리소스 해제
+        mediaPlayer?.release()
+        mediaPlayer = null
     }
 
     companion object {
