@@ -9,6 +9,7 @@ import android.media.RingtoneManager
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
+import android.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
@@ -59,8 +60,8 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                     viewModel.setTimer(simpleTimer.time)
                     viewModel.startTimer()
                 },
-                onItemLongClick = { simpleTimer ->
-                    showTimePickerDialog(simpleTimer)
+                onMenuClick = { simpleTimer, view ->
+                    showPopupMenu(view, simpleTimer)
                 }
             )
             adapter = timerAdapter
@@ -167,6 +168,24 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             }
         }
     }
+
+    private fun showPopupMenu(view: View, simpleTimer: SimpleTimer) {
+        val popupMenu = PopupMenu(requireContext(), view)
+        popupMenu.menuInflater.inflate(R.menu.timer_item_menu, popupMenu.menu) // menu_timer_item.xml을 사용
+
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_edit -> { // 수정 메뉴
+                    showTimePickerDialog(simpleTimer)
+                    true
+                }
+                // TODO: 삭제 기능 추가 (추가/삭제 함께 구현 예정)
+                else -> false
+            }
+        }
+        popupMenu.show()
+    }
+
 
     private fun showTimePickerDialog(simpleTimer: SimpleTimer) {
         TimePickerDialog(

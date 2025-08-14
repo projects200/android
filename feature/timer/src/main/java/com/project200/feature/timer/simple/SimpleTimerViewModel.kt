@@ -17,7 +17,7 @@ class SimpleTimerViewModel @Inject constructor(
 
     // 타이머 아이템 리스트
     private val _timerItems = MutableLiveData<MutableList<SimpleTimer>>()
-    val timerItems: LiveData<MutableList<SimpleTimer>> get() = _timerItems
+    val timerItems: LiveData<MutableList<SimpleTimer>> = _timerItems
 
     private val _remainingTime = MutableLiveData<Long>()
     val remainingTime: LiveData<Long> = _remainingTime
