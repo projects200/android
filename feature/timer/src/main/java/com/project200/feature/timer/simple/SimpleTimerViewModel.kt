@@ -13,23 +13,22 @@ import javax.inject.Inject
 class SimpleTimerViewModel @Inject constructor(
 
 ): ViewModel() {
-    var totalTime: Int = 0
-        private set
+    var totalTime: Long = 0
 
     // 타이머 아이템 리스트
     private val _timerItems = MutableLiveData<MutableList<SimpleTimer>>()
     val timerItems: LiveData<MutableList<SimpleTimer>> get() = _timerItems
 
-    private val _remainingTime = MutableLiveData<Int>()
-    val remainingTime: LiveData<Int> get() = _remainingTime
+    private val _remainingTime = MutableLiveData<Long>()
+    val remainingTime: LiveData<Long> = _remainingTime
 
     private val _isTimerRunning = MutableLiveData<Boolean>()
-    val isTimerRunning: LiveData<Boolean> get() = _isTimerRunning
+    val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
     private var countDownTimer: CountDownTimer? = null
 
     init {
-        _remainingTime.value = 0
+        _remainingTime.value = 0L
         _isTimerRunning.value = false
         loadTimerItems()
     }
@@ -48,32 +47,31 @@ class SimpleTimerViewModel @Inject constructor(
     }
 
     // 심플 타이머 아이템 클릭 시 타이머를 설정
-    fun setTimer(time: Int) {
+    fun setTimer(timeInSeconds: Int) {
         // 기존 타이머가 있으면 취소
         countDownTimer?.cancel()
 
         // 새로운 타이머 시간으로 상태를 업데이트합니다.
-        totalTime = time
-        _remainingTime.value = time
+        totalTime = timeInSeconds * 1000L
+        _remainingTime.value = totalTime
         _isTimerRunning.value = false
     }
 
     // 타이머 시
     fun startTimer() {
-        if (_isTimerRunning.value == true || _remainingTime.value == 0) {
+        if (_isTimerRunning.value == true || _remainingTime.value == 0L) {
             return
         }
 
-        val remainingTimeMillis = (_remainingTime.value ?: 0) * 1000L
-        countDownTimer = object : CountDownTimer(remainingTimeMillis, 1000) {
+        val remainingTimeMillis = _remainingTime.value ?: 0L
+        countDownTimer = object : CountDownTimer(remainingTimeMillis, COUNTDOWN_INTERVAL) {
             override fun onTick(millisUntilFinished: Long) {
-                _remainingTime.value = (millisUntilFinished / 1000).toInt()
-                Timber.tag("SimpleTimerViewModel").d("Remaining time: ${_remainingTime.value} seconds")
+                _remainingTime.value = millisUntilFinished
             }
 
             override fun onFinish() {
                 _isTimerRunning.value = false
-                _remainingTime.value = 0
+                _remainingTime.value = 0L
             }
         }.start()
 
@@ -100,5 +98,9 @@ class SimpleTimerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         countDownTimer?.cancel()
+    }
+
+    companion object {
+        const val COUNTDOWN_INTERVAL = 50L // 50ms
     }
 }
