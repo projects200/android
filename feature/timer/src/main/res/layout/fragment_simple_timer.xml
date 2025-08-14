@@ -19,8 +19,8 @@
         <ProgressBar
             android:id="@+id/timer_progressbar"
             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
-            android:layout_width="256dp"
-            android:layout_height="256dp"
+            android:layout_width="230dp"
+            android:layout_height="230dp"
             android:progressDrawable="@drawable/timer_progress_bar"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
