@@ -13,6 +13,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.domain.model.SimpleTimer
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
+import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentSimpleTimerBinding
@@ -88,7 +89,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
 
     override fun setupObservers() {
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
-            binding.timerTv.text = remainingTime.toFormattedTime()
+            binding.timerTv.text = remainingTime.toFormattedTimeAsLong()
             updateProgressBar(remainingTime)
         }
 
@@ -97,7 +98,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         }
     }
 
-    private fun updateProgressBar(remainingTime: Int) {
+    private fun updateProgressBar(remainingTime: Long) {
         val totalTime = viewModel.totalTime
         if (totalTime > 0) {
             progressAnimator?.cancel()
@@ -105,14 +106,16 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             val targetProgress = remainingTime.toFloat() / totalTime.toFloat()
 
             progressAnimator = ValueAnimator.ofFloat(currentProgress, targetProgress).apply {
-                duration = 1000L
+                duration = 50L
                 interpolator = LinearInterpolator()
                 addUpdateListener { animator ->
-                    binding.timerProgressbar.progress = animator.animatedValue as Float
+                    // 뷰가 아직 생성되어 있는지 확인
+                    if(view !=null) binding.timerProgressbar.progress = animator.animatedValue as Float
                 }
                 addListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
                         super.onAnimationEnd(animation)
+                        // 타이머가 0ms 이하일 때
                         if (remainingTime <= 0) {
                             binding.timerProgressbar.progress = 0f
                             mediaPlayer?.start()
