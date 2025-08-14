@@ -46,6 +46,6 @@ class FcmRepositoryImpl @Inject constructor(
 
     companion object {
         private const val NO_FCM_TOKEN_ERROR_CODE = "-1"
-        private const val NO_FCM_TOKEN_ERROR_MESSAGE = "FCM 토큰이 SharedPreferences에 없습니다."
+        private const val NO_FCM_TOKEN_ERROR_MESSAGE = "fcm_token_not_found"
     }
 }

@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
@@ -25,6 +26,9 @@ class MainViewModel @Inject constructor(
 
     private val _isRegistered = MutableLiveData<Boolean>()
     val isRegistered: LiveData<Boolean> = _isRegistered
+
+    private val _fcmTokenEvent = MutableLiveData<BaseResult<Unit>>()
+    val fcmTokenEvent: LiveData<BaseResult<Unit>> = _fcmTokenEvent
 
     // 업데이트 확인
     fun checkForUpdate() {
@@ -55,7 +59,8 @@ class MainViewModel @Inject constructor(
     // fcm 토큰 전송
     fun sendFcmToken() {
         viewModelScope.launch {
-            sendFcmTokenUseCase()
+            val result = sendFcmTokenUseCase()
+            _fcmTokenEvent.value = result
         }
     }
 }
