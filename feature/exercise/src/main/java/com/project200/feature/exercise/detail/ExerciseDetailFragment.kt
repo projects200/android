@@ -119,7 +119,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
             onEditClicked = {
                 findNavController().navigate(
                     ExerciseDetailFragmentDirections
-                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId!!)
+                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId)
                 )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() }

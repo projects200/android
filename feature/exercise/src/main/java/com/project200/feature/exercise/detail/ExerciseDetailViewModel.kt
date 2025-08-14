@@ -19,7 +19,8 @@ class ExerciseDetailViewModel @Inject constructor(
     private val exerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
     private val deleteExerciseRecordUseCase: DeleteExerciseRecordUseCase
 ) : ViewModel() {
-    val recordId: Long? = savedStateHandle.get<Long>("recordId")
+    val recordId: Long = savedStateHandle.get<Long>("recordId")
+        ?: throw IllegalStateException("recordId is required for ExerciseDetailViewModel")
 
     private val _exerciseRecord = MutableLiveData<BaseResult<ExerciseRecord>>()
     val exerciseRecord: LiveData<BaseResult<ExerciseRecord>> = _exerciseRecord
