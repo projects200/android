@@ -3,13 +3,13 @@
     <item
         android:id="@id/exercise_nav_graph"
         android:icon="@drawable/ic_nav_record"
-        android:title="기록" />
+        android:title="@string/record_exercise" />
     <item
         android:id="@id/timer_nav_graph"
         android:icon="@drawable/ic_nav_timer"
-        android:title="타이머" />
+        android:title="@string/timer" />
     <item
         android:id="@id/profile_nav_graph"
         android:icon="@drawable/ic_nav_setting"
-        android:title="설정" />
+        android:title="@string/profile" />
 </menu>
