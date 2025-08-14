@@ -119,6 +119,7 @@ interface ApiService {
     ): BaseResponse<PolicyGroupDTO>
 
     // FCM 토큰 전송
+    // TODO: 토큰 전송 api 연결
     @POST("")
     suspend fun sendFcmToken(@Body fcmTokenRequest: FcmTokenRequest): BaseResponse<Unit>
 }
