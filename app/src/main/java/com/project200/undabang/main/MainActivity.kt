@@ -1,9 +1,16 @@
 package com.project200.undabang.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContentProviderCompat.requireContext
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -39,6 +46,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
     private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
     private lateinit var binding: ActivityMainBinding
+    private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -46,6 +54,15 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
+
+        requestNotificationPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    Timber.i("알림 권한 허용됨")
+                } else {
+                    Timber.w("알림 권한 거부됨")
+                }
+            }
 
         setupObservers()
         performRouting()
@@ -121,8 +138,24 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         }
         
         viewModel.isRegistered.observe(this) { isRegistered ->
-            if (isRegistered) proceedToContent()
+            if (isRegistered) {
+                proceedToContent()
+                checkNotificationPermission()
+            }
             else navigateToLogin()
+        }
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = Manifest.permission.POST_NOTIFICATIONS
+            // 권한이 이미 허용되었는지 확인
+            if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+                Timber.i("알림 권한이 이미 허용되어 있음")
+                return
+            }
+            // 권한 요청 실행
+            requestNotificationPermissionLauncher.launch(permission)
         }
     }
 
