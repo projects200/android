@@ -123,4 +123,9 @@ interface ApiService {
     @POST("api/v1/login")
     @AccessTokenWithFcmApi
     suspend fun postLogin(): BaseResponse<Any?>
+
+    // 로그아웃
+    @POST("api/v1/logout")
+    @AccessTokenWithFcmApi
+    suspend fun postLogout(): BaseResponse<Any?>
 }

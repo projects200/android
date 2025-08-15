@@ -46,7 +46,11 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout(): BaseResult<Unit> {
-        TODO("Not yet implemented")
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postLogout() },
+            mapper = { Unit }
+        )
     }
 
     override suspend fun signUp(
