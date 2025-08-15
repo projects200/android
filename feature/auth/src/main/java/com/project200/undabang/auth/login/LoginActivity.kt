@@ -135,9 +135,11 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     }
 
     override fun setupObservers() {
-        viewModel.isRegistered.observe(this) { isRegistered ->
-            if (isRegistered) appNavigator.navigateToMain(this)
-            else startActivity(Intent(this@LoginActivity, RegisterActivity::class.java ))
+        viewModel.loginResult.observe(this) { result ->
+            when (result) {
+                is BaseResult.Success -> appNavigator.navigateToMain(this)
+                is BaseResult.Error -> startActivity(Intent(this@LoginActivity, RegisterActivity::class.java ))
+            }
         }
         viewModel.fcmTokenEvent.observe(this) { result ->
             when (result) {

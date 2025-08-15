@@ -10,6 +10,7 @@ import okhttp3.Authenticator
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+import retrofit2.Invocation
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Provider // Provider를 사용하여 순환 참조 방지
@@ -25,6 +26,13 @@ class TokenAuthenticator @Inject constructor(
 ) : Authenticator {
 
     override fun authenticate(route: Route?, response: Response): Request? {
+        // AccessTokenAndFcmTokenApi일 경우 건너뛰기
+        val invocation = response.request.tag(Invocation::class.java)
+        if (invocation?.method()?.isAnnotationPresent(AccessTokenWithFcmApi::class.java) == true) {
+            Timber.tag("TokenAuthenticator").d("AccessTokenAndFcmTokenApi 요청, 인증 건너뜀")
+            return null
+        }
+
         // 이전에 사용된 토큰 (요청 실패한 토큰)
         val originalAccessToken = response.request.header("Authorization")?.substringAfter("Bearer ")
 

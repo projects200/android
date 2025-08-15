@@ -1,6 +1,7 @@
 package com.project200.data.di
 
 import com.project200.data.api.ApiService
+import com.project200.data.utils.FcmTokenProvider
 import com.project200.data.utils.LocalDateAdapter
 import com.project200.data.utils.LocalDateTimeAdapter
 import com.project200.data.utils.TokenAuthenticator
@@ -26,8 +27,11 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideAuthInterceptor(authStateManager: AuthStateManager): TokenInterceptor {
-        return TokenInterceptor(authStateManager)
+    fun provideAuthInterceptor(
+        authStateManager: AuthStateManager,
+        fcmTokenProvider: FcmTokenProvider
+    ): TokenInterceptor {
+        return TokenInterceptor(authStateManager, fcmTokenProvider)
     }
 
 

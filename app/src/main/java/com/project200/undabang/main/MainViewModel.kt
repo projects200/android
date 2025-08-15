@@ -8,6 +8,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
+import com.project200.domain.usecase.LoginUseCase
 import com.project200.domain.usecase.SendFcmTokenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -18,17 +19,14 @@ import javax.inject.Inject
 class MainViewModel @Inject constructor(
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
     private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
-    private val sendFcmTokenUseCase: SendFcmTokenUseCase
+    private val loginUseCase: LoginUseCase,
 ) : ViewModel() {
 
     private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
     val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
 
-    private val _isRegistered = MutableLiveData<Boolean>()
-    val isRegistered: LiveData<Boolean> = _isRegistered
-
-    private val _fcmTokenEvent = MutableLiveData<BaseResult<Unit>>()
-    val fcmTokenEvent: LiveData<BaseResult<Unit>> = _fcmTokenEvent
+    private val _loginResult = MutableLiveData<BaseResult<Unit>>()
+    val loginResult: LiveData<BaseResult<Unit>> = _loginResult
 
     // 업데이트 확인
     fun checkForUpdate() {
@@ -49,18 +47,11 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // 회원 확인
-    fun checkIsRegistered() {
+    // 로그인
+    fun login() {
         viewModelScope.launch {
-            _isRegistered.value = checkIsRegisteredUseCase() ?: false
-        }
-    }
-
-    // fcm 토큰 전송
-    fun sendFcmToken() {
-        viewModelScope.launch {
-            val result = sendFcmTokenUseCase()
-            _fcmTokenEvent.value = result
+            val result = loginUseCase()
+            _loginResult.value = result
         }
     }
 }
