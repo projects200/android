@@ -2,7 +2,7 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main_nav_graph"
+    android:id="@+id/exercise_nav_graph"
     app:startDestination="@id/exerciseMainFragment">
 
     <fragment
@@ -47,13 +47,6 @@
     </fragment>
 
     <fragment
-        android:id="@+id/settingFragment"
-        android:name="com.project200.undabang.profile.setting.SettingFragment"
-        android:label="setting"
-        tools:layout="@layout/fragment_setting">
-    </fragment>
-
-    <fragment
         android:id="@+id/exerciseFormFragment"
         android:name="com.project200.feature.exercise.form.ExerciseFormFragment"
         android:label="exerciseForm"
@@ -92,11 +85,6 @@
         <action
             android:id="@+id/action_exerciseMainFragment_to_exerciseFormFragment"
             app:destination="@+id/exerciseFormFragment"
-            app:enterAnim="@anim/slide_in_right"
-            app:popExitAnim="@anim/anim_fade_out" />
-        <action
-            android:id="@+id/action_exerciseMainFragment_to_settingFragment"
-            app:destination="@id/settingFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out" />
     </fragment>

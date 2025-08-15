@@ -14,13 +14,13 @@ import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDeta
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.feature.exercise.form.ExerciseMenuBottomSheet
+import com.project200.feature.exercise.list.ExerciseListFragmentDirections
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.navigator.FragmentNavigator
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
-    private var fragmentNavigator: FragmentNavigator? = null
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
@@ -116,7 +116,12 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
 
     private fun showExerciseDetailMenu() {
         ExerciseMenuBottomSheet(
-            onEditClicked = { fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!) },
+            onEditClicked = {
+                findNavController().navigate(
+                    ExerciseDetailFragmentDirections
+                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId)
+                )
+            },
             onDeleteClicked = { showDeleteConfirmationDialog() }
         ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
     }
@@ -129,20 +134,6 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
                 viewModel.deleteExerciseRecord()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is FragmentNavigator) {
-            fragmentNavigator = context
-        } else {
-            throw ClassCastException("$context must implement FragmentNavigator")
-        }
-    }
-
-    override fun onDetach() {
-        fragmentNavigator = null
-        super.onDetach()
     }
 
     companion object {
