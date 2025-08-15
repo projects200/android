@@ -130,14 +130,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        
-        viewModel.isRegistered.observe(this) { isRegistered ->
-            if (isRegistered) {
-                proceedToContent()
-                checkNotificationPermission()
-            }
-            else navigateToLogin()
-        }
 
         viewModel.loginResult.observe(this) { result ->
             when (result) {

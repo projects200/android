@@ -25,9 +25,6 @@ class MainViewModel @Inject constructor(
     private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
     val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
 
-    private val _isRegistered = MutableLiveData<Boolean>()
-    val isRegistered: LiveData<Boolean> = _isRegistered
-
     private val _loginResult = MutableLiveData<BaseResult<Unit>>()
     val loginResult: LiveData<BaseResult<Unit>> = _loginResult
 
@@ -47,13 +44,6 @@ class MainViewModel @Inject constructor(
                 .onFailure { error ->
                     Timber.e(error, "ViewModel: 업데이트 확인 실패")
                 }
-        }
-    }
-
-    // 회원 확인
-    fun checkIsRegistered() {
-        viewModelScope.launch {
-            _isRegistered.value = checkIsRegisteredUseCase() ?: false
         }
     }
 
