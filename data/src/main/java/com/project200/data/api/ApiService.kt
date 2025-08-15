@@ -16,6 +16,7 @@ import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.FcmTokenRequest
 import com.project200.data.utils.AccessTokenApi
+import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
 import okhttp3.MultipartBody
 import retrofit2.http.Body
@@ -118,8 +119,8 @@ interface ApiService {
         @Path("groupName") groupName: String
     ): BaseResponse<PolicyGroupDTO>
 
-    // FCM 토큰 전송
-    // TODO: 토큰 전송 api 연결
-    @POST("")
-    suspend fun sendFcmToken(@Body fcmTokenRequest: FcmTokenRequest): BaseResponse<Unit>
+    // 로그인
+    @POST("api/v1/login")
+    @AccessTokenWithFcmApi
+    suspend fun postLogin(): BaseResponse<Any?>
 }

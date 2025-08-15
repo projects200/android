@@ -2,8 +2,12 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
+import com.project200.data.mapper.toModel
+import com.project200.data.utils.apiCallBuilder
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SignUpResult
 import com.project200.domain.repository.AuthRepository
 import kotlinx.coroutines.withContext
@@ -13,6 +17,7 @@ import java.time.LocalDate
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import java.util.NoSuchElementException
 
 class AuthRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
@@ -30,6 +35,18 @@ class AuthRepositoryImpl @Inject constructor(
             Timber.tag(TAG).d("checkIsRegistered failed: $e")
             false
         }
+    }
+
+    override suspend fun login(): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postLogin() },
+            mapper = { Unit }
+        )
+    }
+
+    override suspend fun logout(): BaseResult<Unit> {
+        TODO("Not yet implemented")
     }
 
     override suspend fun signUp(

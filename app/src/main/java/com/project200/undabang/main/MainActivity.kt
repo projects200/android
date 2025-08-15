@@ -9,7 +9,6 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.content.ContentProviderCompat.requireContext
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
@@ -18,12 +17,7 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
-import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
-import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
-import com.project200.feature.exercise.list.ExerciseListFragmentDirections
-import com.project200.feature.exercise.main.ExerciseMainFragmentDirections
 import com.project200.presentation.navigator.ActivityNavigator
-import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.update.UpdateDialogFragment
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
@@ -33,9 +27,7 @@ import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import net.openid.appauth.AuthorizationService
 import timber.log.Timber
-import java.time.LocalDate
 import javax.inject.Inject
 
 @AndroidEntryPoint
@@ -80,7 +72,7 @@ class MainActivity : AppCompatActivity() {
                     when (val refreshResult = authManager.refreshAccessToken()) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
-                            viewModel.checkIsRegistered() // 회원 여부 확인
+                            viewModel.login()
                         }
                         is TokenRefreshResult.Error,
                         is TokenRefreshResult.NoRefreshToken,
@@ -92,9 +84,8 @@ class MainActivity : AppCompatActivity() {
                     }
                 } else {
                     Timber.i("User is authorized and token is fresh.")
-                    viewModel.checkIsRegistered() // 회원 여부 확인
+                    viewModel.login()
                 }
-                viewModel.sendFcmToken()
             } else {
                 Timber.i("User is not authorized.")
                 navigateToLogin()
@@ -148,13 +139,14 @@ class MainActivity : AppCompatActivity() {
             else navigateToLogin()
         }
 
-        viewModel.fcmTokenEvent.observe(this) { result ->
+        viewModel.loginResult.observe(this) { result ->
             when (result) {
                 is BaseResult.Success -> {
-                    Timber.d(getString(R.string.fcm_token_send_success))
+                    proceedToContent()
+                    checkNotificationPermission()
                 }
                 is BaseResult.Error -> {
-                    Timber.d(getString(R.string.fcm_token_not_found))
+                    navigateToLogin()
                 }
             }
         }
