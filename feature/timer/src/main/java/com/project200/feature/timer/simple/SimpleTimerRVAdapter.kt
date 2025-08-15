@@ -17,9 +17,9 @@ class SimpleTimerRVAdapter(
         private val binding: ItemSimpleTimerBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(timer: SimpleTimer) {
-            binding.simpleTimerBtn.text = timer.time.toFormattedTime()
-            binding.root.setOnClickListener {
-                onItemClick(timer)
+            binding.simpleTimerBtn.apply{
+                text = timer.time.toFormattedTime()
+                setOnClickListener { onItemClick(timer) }
             }
         }
     }
