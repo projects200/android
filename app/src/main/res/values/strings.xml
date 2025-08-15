@@ -1,4 +1,14 @@
 <resources>
     <string name="app_name">undabang</string>
     <string name="error_token_refresh_failed">세션이 만료됐습니다. 로그인 화면으로 이동합니다.</string>
+
+    <string name="fcm_token_send_success">fcm 토큰 저장 성공</string>
+    <string name="fcm_token_not_found">저장된 FCM 토큰이 없습니다.</string>
+
+    <string name="fcm_channel_id">undabang_channel_id</string>
+    <string name="fcm_channel_name">운다방 기본 알림 채널</string>
+
+    <string name="exercise_record">기록</string>
+    <string name="timer">기록</string>
+    <string name="profile">설정</string>
 </resources>

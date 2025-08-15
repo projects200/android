@@ -9,6 +9,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
+import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.oauth.AuthManager
@@ -60,6 +61,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
         override fun onSuccess(tokenResponse: TokenResponse) {
             Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
+            viewModel.sendFcmToken()
             viewModel.checkIsRegistered()
         }
 
@@ -136,6 +138,16 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         viewModel.isRegistered.observe(this) { isRegistered ->
             if (isRegistered) appNavigator.navigateToMain(this)
             else startActivity(Intent(this@LoginActivity, RegisterActivity::class.java ))
+        }
+        viewModel.fcmTokenEvent.observe(this) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    Timber.d(getString(R.string.fcm_token_send_success))
+                }
+                is BaseResult.Error -> {
+                    Timber.d(getString(R.string.fcm_token_not_found))
+                }
+            }
         }
     }
     override fun onDestroy() {
