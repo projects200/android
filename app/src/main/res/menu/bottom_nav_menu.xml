@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@id/exercise_nav_graph"
+        android:icon="@drawable/ic_nav_record"
+        android:title="@string/record_exercise" />
+    <item
+        android:id="@id/timer_nav_graph"
+        android:icon="@drawable/ic_nav_timer"
+        android:title="@string/timer" />
+    <item
+        android:id="@id/profile_nav_graph"
+        android:icon="@drawable/ic_nav_setting"
+        android:title="@string/profile" />
+</menu>

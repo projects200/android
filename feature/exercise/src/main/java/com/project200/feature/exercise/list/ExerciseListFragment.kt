@@ -8,6 +8,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
+import com.project200.feature.exercise.main.ExerciseMainFragmentDirections
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.base.DatePickerDialogFragment
 import com.project200.presentation.navigator.FragmentNavigator
@@ -18,7 +19,6 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layout.fragment_exercise_list) {
     private val viewModel: ExerciseListViewModel by viewModels()
-    private var fragmentNavigator: FragmentNavigator? = null
     private lateinit var exerciseAdapter: ExerciseListAdapter
 
     override fun getViewBinding(view: View): FragmentExerciseListBinding {
@@ -37,7 +37,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
             }
 
             exerciseCreateBtn.setOnClickListener {
-                fragmentNavigator?.navigateFromExerciseListToExerciseForm()
+                findNavController().navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
             }
             setupRecyclerView()
         }
@@ -45,7 +45,7 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
 
     private fun setupRecyclerView() {
         exerciseAdapter = ExerciseListAdapter { recordId ->
-            fragmentNavigator?.navigateFromExerciseListToExerciseDetail(recordId)
+            findNavController().navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
         }
 
         binding.exerciseListRv.apply {
@@ -81,19 +81,5 @@ class ExerciseListFragment: BindingFragment<FragmentExerciseListBinding>(R.layou
         DatePickerDialogFragment(currentDateString) { selectedDateString ->
             viewModel.changeDate(selectedDateString)
         }.show(parentFragmentManager, DatePickerDialogFragment::class.java.simpleName)
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is FragmentNavigator) {
-            fragmentNavigator = context
-        } else {
-            throw ClassCastException("$context must implement FragmentNavigator")
-        }
-    }
-
-    override fun onDetach() {
-        fragmentNavigator = null
-        super.onDetach()
     }
 }

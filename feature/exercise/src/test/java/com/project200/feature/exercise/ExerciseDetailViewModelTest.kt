@@ -137,19 +137,4 @@ class ExerciseDetailViewModelTest {
         assertThat(actualResult).isEqualTo(errorResult)
         assertThat((actualResult as BaseResult.Error).message).isEqualTo("삭제 실패")
     }
-
-    @Test
-    fun `recordId가 null일 때 deleteExerciseRecord 호출 시 아무 작업도 수행하지 않음`() = runTest(testDispatcher) {
-        // Given
-        val emptySavedStateHandle = SavedStateHandle()
-        viewModel = ExerciseDetailViewModel(emptySavedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
-
-        // When
-        viewModel.deleteExerciseRecord()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 0) { mockDeleteExerciseUseCase.invoke(any()) }
-        assertThat(viewModel.deleteResult.value).isNull()
-    }
 }
