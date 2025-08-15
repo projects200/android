@@ -1,6 +1,7 @@
 package com.project200.feature.timer.simple
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.SimpleTimer
@@ -8,18 +9,25 @@ import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.undabang.feature.timer.databinding.ItemSimpleTimerBinding
 
 class SimpleTimerRVAdapter(
-    private val items: List<SimpleTimer>,
-    private val itemHeight: Int,
-    private val onItemClick: (SimpleTimer) -> Unit
+    var items: List<SimpleTimer> = emptyList(),
+    var itemHeight: Int = 0,
+    private val onItemClick: (SimpleTimer) -> Unit,
+    private val onMenuClick: (SimpleTimer, View) -> Unit
 ) : RecyclerView.Adapter<SimpleTimerRVAdapter.SimpleTimerViewHolder>() {
 
     inner class SimpleTimerViewHolder(
         private val binding: ItemSimpleTimerBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(timer: SimpleTimer) {
+            binding.root.layoutParams.height = itemHeight
+
             binding.simpleTimerBtn.apply{
                 text = timer.time.toFormattedTime()
                 setOnClickListener { onItemClick(timer) }
+            }
+
+            binding.menuBtn.setOnClickListener {
+                onMenuClick(timer, binding.menuBtn)
             }
         }
     }
@@ -30,12 +38,6 @@ class SimpleTimerRVAdapter(
             parent,
             false
         )
-
-        // 아이템 높이 설정
-        val params = binding.root.layoutParams
-        params.height = itemHeight
-        binding.root.layoutParams = params
-
         return SimpleTimerViewHolder(binding)
     }
 

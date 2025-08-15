@@ -4,6 +4,7 @@ import android.os.CountDownTimer
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.project200.domain.model.SimpleTimer
 import dagger.hilt.android.lifecycle.HiltViewModel
 import timber.log.Timber
 import javax.inject.Inject
@@ -13,6 +14,10 @@ class SimpleTimerViewModel @Inject constructor(
 
 ): ViewModel() {
     var totalTime: Long = 0
+
+    // 타이머 아이템 리스트
+    private val _timerItems = MutableLiveData<MutableList<SimpleTimer>>()
+    val timerItems: LiveData<MutableList<SimpleTimer>> = _timerItems
 
     private val _remainingTime = MutableLiveData<Long>()
     val remainingTime: LiveData<Long> = _remainingTime
@@ -25,6 +30,20 @@ class SimpleTimerViewModel @Inject constructor(
     init {
         _remainingTime.value = 0L
         _isTimerRunning.value = false
+        loadTimerItems()
+    }
+
+    fun loadTimerItems() {
+        _timerItems.value = mutableListOf(
+            SimpleTimer("1", 1, 30),
+            SimpleTimer("2", 2, 45),
+            SimpleTimer("3", 3, 60),
+            SimpleTimer("4", 4, 90),
+            SimpleTimer("5", 5, 120),
+            SimpleTimer("6", 6, 150)
+        )
+
+        //TODO: API 연결
     }
 
     // 심플 타이머 아이템 클릭 시 타이머를 설정
@@ -63,6 +82,17 @@ class SimpleTimerViewModel @Inject constructor(
     fun pauseTimer() {
         countDownTimer?.cancel()
         _isTimerRunning.value = false
+    }
+
+    // 타이머 아이템을 수정하는 함수
+    fun updateTimerItem(updatedTimer: SimpleTimer) {
+        val currentItems = _timerItems.value ?: return
+        val index = currentItems.indexOfFirst { it.id == updatedTimer.id }
+        if (index != -1) {
+            currentItems[index] = updatedTimer
+            _timerItems.value = currentItems
+        }
+        // TODO: API 호출 로직을 여기에 추가
     }
 
     override fun onCleared() {

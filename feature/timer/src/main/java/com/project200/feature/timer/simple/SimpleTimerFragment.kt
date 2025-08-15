@@ -3,11 +3,13 @@ package com.project200.feature.timer.simple
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import com.project200.feature.timer.TimePickerDialog
 import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
+import android.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
@@ -22,6 +24,10 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
     private val viewModel: SimpleTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
     private var mediaPlayer: MediaPlayer? = null
+    private lateinit var timerAdapter: SimpleTimerRVAdapter
+
+    // 뷰 높이가 계산되었는지 확인하는 플래그
+    private var isHeightCalculated = false
 
     override fun getViewBinding(view: View): FragmentSimpleTimerBinding {
         return FragmentSimpleTimerBinding.bind(view)
@@ -39,39 +45,41 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         }
 
         initClickListeners()
-        initRecyclerView()
+        setupRecyclerView()
         setupObservers()
     }
 
-    private fun initRecyclerView() {
-        val timerItems = listOf(
-            SimpleTimer("1", 30),
-            SimpleTimer("2", 45),
-            SimpleTimer("3", 60),
-            SimpleTimer("4", 90),
-            SimpleTimer("5", 120),
-            SimpleTimer("6", 150)
-        )
-
+    private fun setupRecyclerView() {
         binding.simpleTimerRv.apply {
             layoutManager = GridLayoutManager(requireContext(), RV_ITEM_COL_COUNT)
+
+            // 어댑터만 미리 생성, 데이터는 옵저버에서 설정
+            timerAdapter = SimpleTimerRVAdapter(
+                onItemClick = { simpleTimer ->
+                    stopAndResetTimer()
+                    viewModel.setTimer(simpleTimer.time)
+                    viewModel.startTimer()
+                },
+                onMenuClick = { simpleTimer, view ->
+                    showPopupMenu(view, simpleTimer)
+                }
+            )
+            adapter = timerAdapter
+
+            // onGlobalLayout 리스너를 사용해 높이를 한 번만 계산
             viewTreeObserver.addOnGlobalLayoutListener(object :
                 ViewTreeObserver.OnGlobalLayoutListener {
                 override fun onGlobalLayout() {
-                    binding.simpleTimerRv.viewTreeObserver.removeOnGlobalLayoutListener(this)
+                    if (isHeightCalculated) return
 
+                    binding.simpleTimerRv.viewTreeObserver.removeOnGlobalLayoutListener(this)
                     val paddingInPixels = resources.getDimensionPixelSize(com.project200.undabang.presentation.R.dimen.base_horizontal_margin)
                     val recyclerViewHeight = binding.simpleTimerRv.height - paddingInPixels
+                    timerAdapter.itemHeight = recyclerViewHeight / RV_ITEM_ROW_COUNT
 
-                    binding.simpleTimerRv.adapter = SimpleTimerRVAdapter(
-                        items = timerItems,
-                        itemHeight = recyclerViewHeight / RV_ITEM_ROW_COUNT,
-                        onItemClick = { simpleTimer ->
-                            stopAndResetTimer()
-                            viewModel.setTimer(simpleTimer.time)
-                            viewModel.startTimer()
-                        }
-                    )
+                    // 높이 계산 후 notifyDataSetChanged() 호출
+                    timerAdapter.notifyDataSetChanged()
+                    isHeightCalculated = true
                 }
             })
         }
@@ -95,6 +103,14 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
 
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
             updateRunningState(isRunning)
+        }
+
+        // ViewModel의 타이머 아이템 목록을 관찰
+        viewModel.timerItems.observe(viewLifecycleOwner) { newItems ->
+            timerAdapter.items = newItems
+            if (isHeightCalculated) {
+                timerAdapter.notifyDataSetChanged()
+            }
         }
     }
 
@@ -153,6 +169,33 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         }
     }
 
+    private fun showPopupMenu(view: View, simpleTimer: SimpleTimer) {
+        val popupMenu = PopupMenu(requireContext(), view)
+        popupMenu.menuInflater.inflate(R.menu.timer_item_menu, popupMenu.menu) // menu_timer_item.xml을 사용
+
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.action_edit -> { // 수정 메뉴
+                    showTimePickerDialog(simpleTimer)
+                    true
+                }
+                // TODO: 삭제 기능 추가 (추가/삭제 함께 구현 예정)
+                else -> false
+            }
+        }
+        popupMenu.show()
+    }
+
+
+    private fun showTimePickerDialog(simpleTimer: SimpleTimer) {
+        TimePickerDialog(
+            simpleTimer.time,
+            onTimeSelected = { newTime ->
+                viewModel.updateTimerItem(simpleTimer.copy(time = newTime))
+            }
+        ).show(parentFragmentManager, TAG)
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         mediaPlayer?.release()
@@ -162,6 +205,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
     }
 
     companion object {
+        private const val TAG = "SimpleTimerFragment"
         private const val RV_ITEM_COL_COUNT = 2
         private const val RV_ITEM_ROW_COUNT = 3
     }
