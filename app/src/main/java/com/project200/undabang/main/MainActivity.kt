@@ -15,6 +15,7 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
@@ -92,6 +93,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                     Timber.i("User is authorized and token is fresh.")
                     viewModel.checkIsRegistered() // 회원 여부 확인
                 }
+                viewModel.sendFcmToken()
             } else {
                 Timber.i("User is not authorized.")
                 navigateToLogin()
@@ -143,6 +145,17 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                 checkNotificationPermission()
             }
             else navigateToLogin()
+        }
+
+        viewModel.fcmTokenEvent.observe(this) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    Timber.d(getString(R.string.fcm_token_send_success))
+                }
+                is BaseResult.Error -> {
+                    Timber.d(getString(R.string.fcm_token_not_found))
+                }
+            }
         }
     }
 
