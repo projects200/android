@@ -1,6 +1,5 @@
 package com.project200.feature.exercise.detail
 
-import android.content.Context
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -13,10 +12,8 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
-import com.project200.feature.exercise.form.ExerciseMenuBottomSheet
-import com.project200.feature.exercise.list.ExerciseListFragmentDirections
+import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.presentation.base.BaseAlertDialog
-import com.project200.presentation.navigator.FragmentNavigator
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
@@ -115,7 +112,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
 
 
     private fun showExerciseDetailMenu() {
-        ExerciseMenuBottomSheet(
+        MenuBottomSheetDialog(
             onEditClicked = {
                 findNavController().navigate(
                     ExerciseDetailFragmentDirections
@@ -123,7 +120,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
                 )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() }
-        ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
+        ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
     private fun showDeleteConfirmationDialog() {
