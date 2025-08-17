@@ -14,7 +14,8 @@ class StepRVAdapter(
         private val binding: ItemCustomTimerStepBinding
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(timer: Step) {
-
+            binding.stepNameTv.text = timer.name
+            binding.stepTimeTv.text = "${timer.time / 60}:${timer.time % 60}"
         }
     }
 
