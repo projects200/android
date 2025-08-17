@@ -1,7 +1,7 @@
 package com.project200.domain.model
 
 data class CustomTimer(
-    val id: String,
+    val id: Long,
     val name: String
 )
 
