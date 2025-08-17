@@ -14,6 +14,6 @@ data class SimpleTimer(
 data class Step(
     val id: Long,
     val order: Int,
-    val time: Int,
+    val time: Long,
     val name: String
 )
