@@ -16,6 +16,7 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
+    private val viewModel: CustomTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
     private var mediaPlayer: MediaPlayer? = null
 
@@ -34,6 +35,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             mediaPlayer = MediaPlayer.create(it, notificationUri)
         }
         initClickListeners()
+        initRecyclerView()
     }
 
     private fun initClickListeners() {
@@ -45,6 +47,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
     }
 
+    private fun initRecyclerView() {
+        binding.customTimerStepRv.apply {
+            layoutManager = LinearLayoutManager(requireContext())
+            adapter = StepRVAdapter(viewModel.steps.value ?: emptyList())
+            addItemDecoration(StepItemDecoration(ITEM_MARGIN))
+        }
+    }
 
     private fun showMenu() {
         MenuBottomSheetDialog(
@@ -72,5 +81,9 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         mediaPlayer = null
         progressAnimator?.cancel()
         progressAnimator = null
+    }
+
+    companion object {
+        const val ITEM_MARGIN = 6
     }
 }

@@ -10,3 +10,10 @@ data class SimpleTimer(
     val order: Int,
     val time: Int
 )
+
+data class Step(
+    val id: Long,
+    val order: Int,
+    val time: Int,
+    val name: String
+)
