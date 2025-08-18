@@ -44,7 +44,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         initClickListeners()
         initRecyclerView()
         setupObservers()
-        updateEndButtonState(viewModel.isTimerFinished.value ?: true)
+        binding.timerEndBtn.isClickable = viewModel.isTimerFinished.value == false
     }
 
     private fun initClickListeners() {
@@ -96,7 +96,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.isTimerFinished.observe(viewLifecycleOwner) { isFinished ->
-            updateEndButtonState(isFinished)
+            binding.timerEndBtn.isClickable = !isFinished
             if (isFinished && viewModel.isTimerRunning.value == false) {
                 updateUIForTimerEnd()
             }
@@ -137,20 +137,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         binding.timerPlayBtn.text = getString(R.string.timer_start)
         binding.timerProgressbar.progress = 1f // 종료 후엔 다시 100%로 설정
         progressAnimator?.cancel()
-    }
-
-    private fun updateEndButtonState(isFinished: Boolean) {
-        if (isFinished) {
-            binding.timerEndBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray300)
-            )
-            binding.timerEndBtn.isClickable = false
-        } else {
-            binding.timerEndBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led)
-            )
-            binding.timerEndBtn.isClickable = true
-        }
     }
 
     private fun updateRecyclerView(currentStepIndex: Int) {

@@ -60,7 +60,7 @@
                 android:layout_height="45dp"
                 android:layout_weight="1"
                 android:background="@drawable/bg_simple_timer"
-                android:backgroundTint="@color/error_led"
+                android:backgroundTint="@color/gray200"
                 android:gravity="center"
                 android:text="@string/timer_end"
                 android:textColor="@color/white300" />
