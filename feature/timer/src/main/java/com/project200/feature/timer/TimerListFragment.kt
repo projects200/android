@@ -29,7 +29,9 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
             )
         }
         binding.addCustomTimerBtn.setOnClickListener {
-
+            findNavController().navigate(
+                TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFormFragment()
+            )
         }
     }
 

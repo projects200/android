@@ -12,8 +12,18 @@ data class SimpleTimer(
 )
 
 data class Step(
-    val id: Long,
+    val id: Long = -1,
     val order: Int,
-    val time: Long,
+    val time: Int,
     val name: String
 )
+
+/**
+ * 유효성 검사 결과를 나타내는 Sealed Class
+ */
+sealed class ValidationResult {
+    object Success : ValidationResult()
+    object EmptyTitle : ValidationResult()
+    object NoSteps : ValidationResult()
+    object InvalidStepTime : ValidationResult()
+}

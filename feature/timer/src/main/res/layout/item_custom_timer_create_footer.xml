@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/new_step_ll"
+    style="@style/header"
+    android:layout_width="match_parent"
+    android:layout_height="60dp"
+    android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+    android:layout_marginTop="@dimen/new_step_margin_top_default"
+    android:layout_marginBottom="20dp"
+    android:background="@drawable/bg_custom_timer"
+    android:elevation="2dp"
+    android:gravity="center"
+    android:orientation="horizontal"
+    android:paddingStart="12dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:id="@+id/clock_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_clock"
+        app:tint="@color/gray200" />
+
+    <EditText
+        android:id="@+id/step_name_et"
+        style="@style/content_bold"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:layout_weight="1"
+        android:background="@android:color/transparent"
+        android:hint="@string/custom_timer_step_hint"
+        android:maxLines="1"
+        android:textColorHint="@color/gray200"
+        android:textSize="18sp" />
+
+    <TextView
+        android:id="@+id/step_time_tv"
+        style="@style/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:text="01:00" />
+
+    <ImageView
+        android:id="@+id/add_step_iv"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="16dp"
+        android:src="@drawable/ic_plus" />
+</LinearLayout>
