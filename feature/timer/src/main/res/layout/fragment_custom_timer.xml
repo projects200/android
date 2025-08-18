@@ -53,27 +53,6 @@
             android:orientation="horizontal"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintTop_toBottomOf="@id/timer_progressbar">
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/timer_play_btn"
-                style="@style/content_bold"
-                android:layout_width="wrap_content"
-                android:layout_height="45dp"
-                android:layout_weight="1"
-                android:background="@drawable/bg_simple_timer"
-                android:gravity="center"
-                android:text="@string/timer_start"
-                android:textColor="@color/white300" />
-
-            <ImageView
-                android:id="@+id/timer_repeat_btn"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginHorizontal="20dp"
-                android:src="@drawable/ic_repeat"
-                android:visibility="invisible" />
-
             <androidx.appcompat.widget.AppCompatButton
                 style="@style/content_bold"
                 android:id="@+id/timer_end_btn"
@@ -84,6 +63,25 @@
                 android:backgroundTint="@color/error_led"
                 android:gravity="center"
                 android:text="@string/timer_end"
+                android:textColor="@color/white300" />
+
+            <ImageView
+                android:id="@+id/timer_repeat_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginHorizontal="20dp"
+                android:src="@drawable/ic_repeat"
+                android:visibility="invisible" />
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/timer_play_btn"
+                style="@style/content_bold"
+                android:layout_width="wrap_content"
+                android:layout_height="45dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_simple_timer"
+                android:gravity="center"
+                android:text="@string/timer_start"
                 android:textColor="@color/white300" />
         </LinearLayout>
     </androidx.constraintlayout.widget.ConstraintLayout>
