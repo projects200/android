@@ -4,14 +4,28 @@ import android.os.CountDownTimer
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
+import com.project200.domain.usecase.EditSimpleTimerUseCase
+import com.project200.domain.usecase.GetSimpleTimersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
+sealed class TimerEvent {
+    object NavigateToErrorScreen : TimerEvent()
+    data class ShowToast(val code: String) : TimerEvent()
+}
+
 @HiltViewModel
 class SimpleTimerViewModel @Inject constructor(
-
+    private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
+    private val editSimpleTimerUseCase: EditSimpleTimerUseCase
 ): ViewModel() {
     var totalTime: Long = 0
 
@@ -25,6 +39,10 @@ class SimpleTimerViewModel @Inject constructor(
     private val _isTimerRunning = MutableLiveData<Boolean>()
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
+    // 이벤트를 전달할 SharedFlow 생성
+    private val _eventFlow = MutableSharedFlow<TimerEvent>()
+    val eventFlow: SharedFlow<TimerEvent> = _eventFlow.asSharedFlow()
+
     private var countDownTimer: CountDownTimer? = null
 
     init {
@@ -34,17 +52,18 @@ class SimpleTimerViewModel @Inject constructor(
     }
 
     fun loadTimerItems() {
-        _timerItems.value = mutableListOf(
-            SimpleTimer("1", 1, 30),
-            SimpleTimer("2", 2, 45),
-            SimpleTimer("3", 3, 60),
-            SimpleTimer("4", 4, 90),
-            SimpleTimer("5", 5, 120),
-            SimpleTimer("6", 6, 150)
-        )
-
-        //TODO: API 연결
+        viewModelScope.launch {
+            when (val result = getSimpleTimersUseCase()) {
+                is BaseResult.Success -> {
+                    _timerItems.value = result.data.toMutableList()
+                }
+                is BaseResult.Error -> {
+                    _eventFlow.emit(TimerEvent.NavigateToErrorScreen)
+                }
+            }
+        }
     }
+
 
     // 심플 타이머 아이템 클릭 시 타이머를 설정
     fun setTimer(timeInSeconds: Int) {
@@ -92,7 +111,6 @@ class SimpleTimerViewModel @Inject constructor(
             currentItems[index] = updatedTimer
             _timerItems.value = currentItems
         }
-        // TODO: API 호출 로직을 여기에 추가
     }
 
     override fun onCleared() {

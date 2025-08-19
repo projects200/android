@@ -6,7 +6,6 @@ data class CustomTimer(
 )
 
 data class SimpleTimer(
-    val id: String,
-    val order: Int,
+    val id: Long,
     val time: Int
 )

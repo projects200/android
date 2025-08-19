@@ -10,7 +10,11 @@ import android.view.View
 import android.view.ViewTreeObserver
 import android.view.animation.LinearInterpolator
 import android.widget.PopupMenu
+import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.domain.model.SimpleTimer
@@ -19,7 +23,10 @@ import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentSimpleTimerBinding
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout.fragment_simple_timer) {
     private val viewModel: SimpleTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
@@ -110,6 +117,22 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             timerAdapter.items = newItems
             if (isHeightCalculated) {
                 timerAdapter.notifyDataSetChanged()
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // UI가 STARTED 상태일 때만 수집하고, STOPPED 상태가 되면 중단
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.eventFlow.collect { event ->
+                    when (event) {
+                        is TimerEvent.NavigateToErrorScreen -> {
+                            findNavController().navigateUp()
+                        }
+                        is TimerEvent.ShowToast -> {
+                            Toast.makeText(requireContext(), getString(R.string.edit_simple_timer_error), Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
         }
     }
