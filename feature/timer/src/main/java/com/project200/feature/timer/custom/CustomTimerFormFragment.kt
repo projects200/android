@@ -9,7 +9,7 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.view.marginTop
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
-import androidx.navigation.findNavController
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.resources.MaterialResources.getDimensionPixelSize
 import com.project200.domain.model.ValidationResult
@@ -100,6 +100,14 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
                 is ValidationResult.Success -> return@observe
             }
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.createResult.observe(viewLifecycleOwner) {
+            if (it != null) {
+                findNavController().navigate(
+                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(it)
+                )
+            }
         }
     }
 

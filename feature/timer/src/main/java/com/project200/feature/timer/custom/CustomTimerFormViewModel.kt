@@ -34,12 +34,14 @@ class CustomTimerFormViewModel @Inject constructor(
     private val validateCustomTimerUseCase: ValidateCustomTimerUseCase
 ) : ViewModel() {
 
-    // private MutableLiveData, public LiveData로 외부 노출을 제한
     private val _uiState = MutableLiveData<CustomTimerFormUiState>()
     val uiState: LiveData<CustomTimerFormUiState> = _uiState
 
     private val _toast = MutableLiveData<ValidationResult>()
     val toast: LiveData<ValidationResult> = _toast
+
+    private val _createResult = MutableLiveData<Long>()
+    val createResult: LiveData<Long> = _createResult
 
     // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
     private var localIdCounter = -1L
@@ -140,6 +142,7 @@ class CustomTimerFormViewModel @Inject constructor(
         if (validationResult is ValidationResult.Success) {
             val finalSteps = getStepsWithFinalOrder()
             // TODO: 서버에 전송
+            _createResult.value = 1L // 임시로 1L 반환, 실제로는 서버 응답 ID 사용
         } else {
             _toast.value = validationResult
         }

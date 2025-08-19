@@ -41,5 +41,15 @@
         android:id="@+id/customTimerFormFragment"
         android:name="com.project200.feature.timer.custom.CustomTimerFormFragment"
         android:label="CustomTimerCreateFormFragment"
-        tools:layout="@layout/fragment_custom_timer_form" />
+        tools:layout="@layout/fragment_custom_timer_form">
+        <action
+            android:id="@+id/action_customTimerFormFragment_to_customTimerFragment"
+            app:destination="@id/customTimerFragment"
+            app:popUpTo="@id/customTimerFormFragment"
+            app:popUpToInclusive="true">
+            <argument
+                android:name="customTimerId"
+                app:argType="long" />
+        </action>
+    </fragment>
 </navigation>
