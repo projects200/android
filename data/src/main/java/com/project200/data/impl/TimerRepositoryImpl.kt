@@ -27,6 +27,13 @@ class TimerRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun editSimpleTimer(simpleTimer: SimpleTimer): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchSimpleTimer(simpleTimer.id, PatchSimpleTimerRequest(simpleTimer.time)) },
+            mapper = { Unit }
+        )
+    }
 
 
 }

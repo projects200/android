@@ -110,6 +110,14 @@ class SimpleTimerViewModel @Inject constructor(
         if (index != -1) {
             currentItems[index] = updatedTimer
             _timerItems.value = currentItems
+
+            viewModelScope.launch {
+                val result = editSimpleTimerUseCase(updatedTimer)
+                if (result is BaseResult.Error) {
+                    Timber.e("타이머 수정 실패: ${result.message}")
+                    _eventFlow.emit(TimerEvent.ShowToast(result.errorCode.toString()))
+                }
+            }
         }
     }
 
