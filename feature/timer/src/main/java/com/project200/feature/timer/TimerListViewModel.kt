@@ -29,7 +29,7 @@ class TimerListViewModel @Inject constructor(
         loadCustomTimers()
     }
 
-    private fun loadCustomTimers() {
+    fun loadCustomTimers() {
         viewModelScope.launch {
             when (val result = getCustomTimerListUseCase()) {
                 is BaseResult.Success -> {

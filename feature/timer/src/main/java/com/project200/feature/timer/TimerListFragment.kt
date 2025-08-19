@@ -14,6 +14,8 @@ import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentTimerListBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.util.Timer
 
 @AndroidEntryPoint
 class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.fragment_timer_list) {
@@ -69,5 +71,20 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
                 }
             }
         }
+
+        // 이전 화면으로부터 'REFRESH_LIST_KEY'로 전달되는 결과를 관찰합니다.
+        // 이전 화면에서 새로고침 요청이 있을 경우에만 데이터를 새로고침합니다.
+        val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>(REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                Timber.tag("TimerListFragment").d("커스텀 타이머 리프레시")
+                viewModel.loadCustomTimers()
+                savedStateHandle.remove<Boolean>(REFRESH_KEY)
+            }
+        }
+    }
+
+    companion object {
+        const val REFRESH_KEY = "refresh_list_key"
     }
 }
