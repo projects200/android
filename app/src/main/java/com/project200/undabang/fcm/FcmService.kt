@@ -1,12 +1,20 @@
 package com.project200.undabang.fcm
 
-import android.content.Context
+import android.content.SharedPreferences
+import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import androidx.core.content.edit
+import javax.inject.Inject
 
+@AndroidEntryPoint
 class FcmService : FirebaseMessagingService() {
+
+    @Inject
+    lateinit var sharedPreferences: SharedPreferences
+
     /**
      * 새로운 FCM 토큰이 발급되거나 갱신될 때 호출됩니다.
      * 이 토큰은 백엔드 서버로 전송되어 특정 기기에 알림을 보내는 데 사용됩니다.
@@ -39,19 +47,15 @@ class FcmService : FirebaseMessagingService() {
     }
 
     /**
-     * FCM 토큰을 저장하는 메서드입니다.
+     * FCM 토큰을 암호화된 SharedPreferences에 저장하는 메서드입니다.
      * 이 토큰은 백엔드 서버로 전송되어 특정 기기에 알림을 보내는 데 사용됩니다.
      */
     private fun saveFcmToken(token: String) {
-        val sharedPrefs = getSharedPreferences(PREF_NAME, Context.MODE_PRIVATE)
-        sharedPrefs.edit() { putString(KEY_FCM_TOKEN, token) }
-
-        Timber.tag(TAG).d("sp에 FCM token 저장")
+        sharedPreferences.edit { putString(KEY_FCM_TOKEN, token) }
+        Timber.tag(TAG).d("FCM token saved to encrypted preferences.")
     }
 
     companion object {
         private const val TAG = "FcmService"
-        private const val PREF_NAME = "undabangPrefs"
-        private const val KEY_FCM_TOKEN = "fcmToken"
     }
 }
