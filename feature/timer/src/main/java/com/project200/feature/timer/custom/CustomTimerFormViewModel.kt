@@ -88,7 +88,7 @@ class CustomTimerFormViewModel @Inject constructor(
         )
 
         val newStepItem = TimerFormListItem.StepItem(newStep)
-        val newList = currentState.listItems.dropLast(1) + newStepItem + footer.copy(name = "", time = 60)
+        val newList = currentState.listItems.dropLast(1) + newStepItem + footer.copy(name = "", time = DEFAULT_TIME)
         _uiState.value = currentState.copy(listItems = newList)
     }
 
@@ -146,5 +146,9 @@ class CustomTimerFormViewModel @Inject constructor(
         } else {
             _toast.value = validationResult
         }
+    }
+
+    companion object {
+        const val DEFAULT_TIME = 60 // 기본 시간 60초
     }
 }
