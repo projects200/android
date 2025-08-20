@@ -47,7 +47,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
     }
 
     private fun initRecyclerView() {
-        stepAdapter = AddedStepRVAdapter(object : AddedStepRVAdapter.OnStepItemClickListener {
+        stepAdapter = AddedStepRVAdapter(object : OnStepItemClickListener {
             // 스텝 아이템 이벤트
             override fun onDeleteClick(id: Long) {
                 viewModel.removeStep(id)
