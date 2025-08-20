@@ -10,30 +10,26 @@ class StepViewHolder(
     private val binding: ItemCustomTimerCreateStepBinding,
     private val listener: OnStepItemClickListener
 ) : RecyclerView.ViewHolder(binding.root) {
-    private var currentStep: Step? = null
 
-    init {
-        binding.stepDeleteIv.setOnClickListener {
-            currentStep?.id?.let { id -> listener.onDeleteClick(id) }
-        }
-        binding.stepTimeTv.setOnClickListener {
-            currentStep?.id?.let { id -> listener.onTimeClick(id, currentStep!!.time) }
-        }
-        binding.stepNameEt.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) {
-                currentStep?.id?.let { id ->
-                    listener.onStepNameChanged(id, binding.stepNameEt.text.toString())
-                }
-            }
-        }
-    }
     fun bind(step: Step) {
-        this.currentStep = step // 현재 스텝 정보 업데이트
-
         if (binding.stepNameEt.text.toString() != step.name) {
             binding.stepNameEt.setText(step.name)
         }
+        binding.stepTimeTv.apply{
+            text = step.time.toFormattedTime()
+            setOnClickListener {
+                listener.onTimeClick(step.id, step.time)
+            }
+        }
 
-        binding.stepTimeTv.text = step.time.toFormattedTime()
+        binding.stepDeleteIv.setOnClickListener {
+            listener.onDeleteClick(step.id)
+        }
+
+        binding.stepNameEt.setOnFocusChangeListener { _, hasFocus ->
+            if (!hasFocus) {
+                listener.onStepNameChanged(step.id, binding.stepNameEt.text.toString())
+            }
+        }
     }
 }
