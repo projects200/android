@@ -4,7 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.project200.domain.model.Step
-import com.project200.domain.model.ValidationResult
+import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -37,8 +37,8 @@ class CustomTimerFormViewModel @Inject constructor(
     private val _uiState = MutableLiveData<CustomTimerFormUiState>()
     val uiState: LiveData<CustomTimerFormUiState> = _uiState
 
-    private val _toast = MutableLiveData<ValidationResult>()
-    val toast: LiveData<ValidationResult> = _toast
+    private val _toast = MutableLiveData<CustomTimerValidationResult>()
+    val toast: LiveData<CustomTimerValidationResult> = _toast
 
     private val _createResult = MutableLiveData<Long>()
     val createResult: LiveData<Long> = _createResult
@@ -139,7 +139,7 @@ class CustomTimerFormViewModel @Inject constructor(
         val currentSteps = currentState.listItems.mapNotNull { (it as? TimerFormListItem.StepItem)?.step }
         val validationResult = validateCustomTimerUseCase(currentState.title, currentSteps)
 
-        if (validationResult is ValidationResult.Success) {
+        if (validationResult is CustomTimerValidationResult.Success) {
             val finalSteps = getStepsWithFinalOrder()
             // TODO: 서버에 전송
             _createResult.value = 1L // 임시로 1L 반환, 실제로는 서버 응답 ID 사용

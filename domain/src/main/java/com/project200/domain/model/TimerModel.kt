@@ -17,13 +17,3 @@ data class Step(
     val time: Int,
     val name: String
 )
-
-/**
- * 유효성 검사 결과를 나타내는 Sealed Class
- */
-sealed class ValidationResult {
-    object Success : ValidationResult()
-    object EmptyTitle : ValidationResult()
-    object NoSteps : ValidationResult()
-    object InvalidStepTime : ValidationResult()
-}

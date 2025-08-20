@@ -3,18 +3,13 @@ package com.project200.feature.timer.custom
 import android.content.Context
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.LinearLayout
 import android.widget.Toast
-import androidx.constraintlayout.widget.ConstraintLayout
-import androidx.core.view.marginTop
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.google.android.material.resources.MaterialResources.getDimensionPixelSize
-import com.project200.domain.model.ValidationResult
+import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.feature.timer.TimePickerDialog
-import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerFormBinding
@@ -94,10 +89,10 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
 
         viewModel.toast.observe(viewLifecycleOwner) { toast ->
             val messageResId = when (toast) {
-                is ValidationResult.EmptyTitle -> R.string.custom_timer_error_empty_title
-                is ValidationResult.NoSteps -> R.string.custom_timer_error_no_steps
-                is ValidationResult.InvalidStepTime -> R.string.custom_timer_error_invalid_time
-                is ValidationResult.Success -> return@observe
+                is CustomTimerValidationResult.EmptyTitle -> R.string.custom_timer_error_empty_title
+                is CustomTimerValidationResult.NoSteps -> R.string.custom_timer_error_no_steps
+                is CustomTimerValidationResult.InvalidStepTime -> R.string.custom_timer_error_invalid_time
+                is CustomTimerValidationResult.Success -> return@observe
             }
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
