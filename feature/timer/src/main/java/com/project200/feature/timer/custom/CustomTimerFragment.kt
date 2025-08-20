@@ -77,11 +77,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTimeAsLong()
-            // 타이머가 실행 중이지 않을 때만(타이머 종료 시) 프로그레스바 업데이트
-            if (viewModel.isTimerRunning.value == false) {
-                val totalStepTime = viewModel.totalStepTime
-                binding.timerProgressbar.progress = if (totalStepTime > 0) remainingTime.toFloat() / totalStepTime.toFloat() else 0f
-            }
         }
 
         viewModel.currentStepIndex.observe(viewLifecycleOwner) { index ->
