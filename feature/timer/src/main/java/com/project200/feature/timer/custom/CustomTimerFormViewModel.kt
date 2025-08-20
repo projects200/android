@@ -9,25 +9,6 @@ import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
-sealed interface TimerFormListItem {
-    val id: Long
-
-    data class StepItem(val step: Step) : TimerFormListItem {
-        override val id: Long = step.id
-    }
-
-    data class FooterItem(
-        val name: String,
-        val time: Int
-    ) : TimerFormListItem {
-        override val id: Long = 0L
-    }
-}
-
-data class CustomTimerFormUiState(
-    val title: String = "",
-    val listItems: List<TimerFormListItem> = emptyList()
-)
 
 @HiltViewModel
 class CustomTimerFormViewModel @Inject constructor(
