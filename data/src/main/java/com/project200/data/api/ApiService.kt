@@ -15,6 +15,8 @@ import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.FcmTokenRequest
+import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.PatchSimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.IdTokenApi
 import okhttp3.MultipartBody
@@ -122,4 +124,18 @@ interface ApiService {
     // TODO: 토큰 전송 api 연결
     @POST("")
     suspend fun sendFcmToken(@Body fcmTokenRequest: FcmTokenRequest): BaseResponse<Unit>
+
+    // 심플 타이머 조회
+    @GET("api/v1/simple-timers")
+    @AccessTokenApi
+    suspend fun getSimpleTimers(): BaseResponse<GetSimpleTimersDTO>
+
+    // 심플 타이머 수정
+    @PATCH("api/v1/simple-timers/{simpleTimerId}")
+    @AccessTokenApi
+    suspend fun patchSimpleTimer(
+        @Path("simpleTimerId") simpleTimerId: Long,
+        @Body time: PatchSimpleTimerRequest
+    ): BaseResponse<Any?>
+
 }
