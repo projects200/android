@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/timer_cl"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/white300"
+
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar">
+
+        <com.project200.presentation.view.TimerCircularProgressBar
+            android:id="@+id/timer_progressbar"
+            style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+            android:layout_width="230dp"
+            android:layout_height="230dp"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="28dp"
+            android:progressDrawable="@drawable/timer_progress_bar"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/timer_tv"
+            style="@style/header"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:text="00:00"
+            android:textSize="40sp"
+            app:layout_constraintBottom_toBottomOf="@id/timer_progressbar"
+            app:layout_constraintEnd_toEndOf="@id/timer_progressbar"
+            app:layout_constraintStart_toStartOf="@id/timer_progressbar"
+            app:layout_constraintTop_toTopOf="@id/timer_progressbar" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginHorizontal="45dp"
+            android:layout_marginTop="30dp"
+            android:layout_marginBottom="20dp"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/timer_progressbar">
+
+            <androidx.appcompat.widget.AppCompatButton
+                android:id="@+id/timer_play_btn"
+                style="@style/content_bold"
+                android:layout_width="wrap_content"
+                android:layout_height="45dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_simple_timer"
+                android:gravity="center"
+                android:text="@string/timer_start"
+                android:textColor="@color/white300" />
+
+            <ImageView
+                android:id="@+id/timer_repeat_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginHorizontal="20dp"
+                android:src="@drawable/ic_repeat"
+                android:visibility="invisible" />
+
+            <androidx.appcompat.widget.AppCompatButton
+                style="@style/content_bold"
+                android:id="@+id/timer_end_btn"
+                android:layout_width="wrap_content"
+                android:layout_height="45dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_simple_timer"
+                android:backgroundTint="@color/error_led"
+                android:gravity="center"
+                android:text="@string/timer_end"
+                android:textColor="@color/white300" />
+        </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/custom_timer_step_rv"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="@color/main_background"
+        tools:listitem="@layout/item_custom_timer_step"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/timer_cl" />
+</androidx.constraintlayout.widget.ConstraintLayout>
