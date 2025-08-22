@@ -15,8 +15,10 @@ import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.FcmTokenRequest
+import com.project200.data.dto.GetCustomTimerDTO
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.IdTokenApi
+import com.project200.domain.model.CustomTimer
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -122,4 +124,9 @@ interface ApiService {
     // TODO: 토큰 전송 api 연결
     @POST("")
     suspend fun sendFcmToken(@Body fcmTokenRequest: FcmTokenRequest): BaseResponse<Unit>
+
+    // 커스텀 타이머 리스트 조회
+    @GET("api/v1/custom-timers")
+    @AccessTokenApi
+    suspend fun getCustomTimers(): BaseResponse<GetCustomTimerDTO>
 }
