@@ -57,6 +57,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
         binding.timerEndBtn.setOnClickListener {
             viewModel.resetTimer()
+            updateUIForTimerEnd()
+        }
+        binding.timerRepeatBtn.setOnClickListener {
+            viewModel.toggleRepeat()
         }
     }
 
@@ -92,9 +96,23 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
         viewModel.isTimerFinished.observe(viewLifecycleOwner) { isFinished ->
             binding.timerEndBtn.isClickable = !isFinished
-            if (isFinished && viewModel.isTimerRunning.value == false) {
-                updateUIForTimerEnd()
+            if (isFinished) {
+                // 반복이 활성화 되어있으면 타이머를 재시작
+                if (viewModel.isRepeatEnabled.value == true) {
+                    viewModel.restartTimer()
+                } else {
+                    // 반복이 비활성화 되어있으면 종료 상태로 변경
+                    updateUIForTimerEnd()
+                    viewModel.resetTimer()
+                }
             }
+        }
+
+        // 반복 버튼 UI 상태 업데이트를 위한 Observer
+        viewModel.isRepeatEnabled.observe(viewLifecycleOwner) { isEnabled ->
+            binding.timerRepeatBtn.setImageResource(
+                if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off
+            )
         }
 
         viewModel.alarm.observe(viewLifecycleOwner) { shouldPlay ->
@@ -162,14 +180,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                         binding.timerProgressbar.progress = animator.animatedValue as Float
                     }
                 }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        super.onAnimationEnd(animation)
-                        if (view != null) {
-                            binding.timerProgressbar.progress = 0f
-                        }
-                    }
-                })
                 start()
             }
         }
