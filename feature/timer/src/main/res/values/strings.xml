@@ -2,10 +2,12 @@
 <resources>
     <string name="simple_timer">심플 타이머</string>
     <string name="custom_timer_default">나만의 타이머</string>
-
+    
     <string name="custom_timer_delete_alert">정말 타이머를 삭제할까요?</string>
 
     <string name="timer_start">시작</string>
     <string name="timer_stop">일시 정지</string>
     <string name="timer_end">종료</string>
+
+    <string name="edit_simple_timer_error">타이머 수정에 실패했습니다.</string>
 </resources>
