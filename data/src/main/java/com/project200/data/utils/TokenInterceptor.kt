@@ -10,7 +10,8 @@ import javax.inject.Singleton
 
 @Singleton
 class TokenInterceptor @Inject constructor(
-    private val authStateManager: AuthStateManager
+    private val authStateManager: AuthStateManager,
+    private val fcmTokenProvider: FcmTokenProvider
 ) : Interceptor {
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
@@ -25,6 +26,7 @@ class TokenInterceptor @Inject constructor(
         // 토큰 타입 결정
         val tokenType: TokenType = when {
             method?.isAnnotationPresent(AccessTokenApi::class.java) == true -> TokenType.ACCESS
+            method?.isAnnotationPresent(AccessTokenWithFcmApi::class.java) == true -> TokenType.ACCESS_WITH_FCM
             method?.isAnnotationPresent(IdTokenApi::class.java) == true -> TokenType.ID
             else -> TokenType.ACCESS // 기본값으로 Access 토큰을 사용하도록 설정
         }
@@ -42,6 +44,14 @@ class TokenInterceptor @Inject constructor(
                     requestBuilder.header("Authorization", "Bearer $idToken")
                 } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
             }
+            TokenType.ACCESS_WITH_FCM -> {
+                authStateManager.getCurrent().accessToken?.let { accessToken ->
+                    requestBuilder.header("Authorization", "Bearer $accessToken")
+                }
+                fcmTokenProvider.getFcmToken()?.let { fcmToken ->
+                    requestBuilder.header("X-Fcm-Token", fcmToken)
+                }
+            }
         }
 
         return chain.proceed(requestBuilder.build())
@@ -49,5 +59,5 @@ class TokenInterceptor @Inject constructor(
 }
 
 enum class TokenType {
-    ACCESS, ID
+    ACCESS, ID, ACCESS_WITH_FCM
 }
