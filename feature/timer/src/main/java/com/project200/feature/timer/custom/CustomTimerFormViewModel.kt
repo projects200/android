@@ -10,6 +10,7 @@ import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import java.util.Collections
 import javax.inject.Inject
 
 
@@ -127,6 +128,17 @@ class CustomTimerFormViewModel @Inject constructor(
                 }
             }
             currentState.copy(listItems = updatedList)
+        }
+    }
+
+    fun moveStep(fromPosition: Int, toPosition: Int) {
+        _uiState.value = _uiState.value?.let { currentState ->
+            val mutableList = currentState.listItems.toMutableList()
+            // Footer는 항상 마지막에 있어야 하므로, Footer가 아닌 아이템만 스왑 대상으로 간주
+            if (fromPosition < mutableList.size - 1 && toPosition < mutableList.size - 1) {
+                Collections.swap(mutableList, fromPosition, toPosition)
+            }
+            currentState.copy(listItems = mutableList)
         }
     }
 

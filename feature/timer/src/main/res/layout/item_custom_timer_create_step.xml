@@ -22,7 +22,6 @@
             android:id="@+id/step_order_handler_iv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone"
             android:paddingStart="8dp"
             android:paddingVertical="6dp"
             android:src="@drawable/ic_order_handler"/>

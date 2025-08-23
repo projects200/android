@@ -9,7 +9,9 @@ import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.feature.timer.TimePickerDialog
 import com.project200.presentation.base.BindingFragment
@@ -22,6 +24,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
 
     private val viewModel: CustomTimerFormViewModel by viewModels()
     private lateinit var stepAdapter: AddedStepRVAdapter
+    private lateinit var itemTouchHelper: ItemTouchHelper
 
     private val args: CustomTimerFormFragmentArgs by navArgs()
 
@@ -56,6 +59,11 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
     }
 
     private fun initRecyclerView() {
+        val itemTouchHelperCallback = StepItemMoveCallback { from, to ->
+            viewModel.moveStep(from, to)
+        }
+        itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
+
         stepAdapter = AddedStepRVAdapter(object : OnStepItemClickListener {
             // 스텝 아이템 이벤트
             override fun onDeleteClick(id: Long) {
@@ -66,6 +74,9 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
             }
             override fun onStepNameChanged(id: Long, name: String) {
                 viewModel.updateStepName(id, name)
+            }
+            override fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
+                itemTouchHelper.startDrag(viewHolder)
             }
 
             // 입력 필드 이벤트
@@ -83,6 +94,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
         binding.stepRv.apply {
             adapter = stepAdapter
             layoutManager = LinearLayoutManager(requireContext())
+            itemTouchHelper.attachToRecyclerView(this)
         }
     }
 
