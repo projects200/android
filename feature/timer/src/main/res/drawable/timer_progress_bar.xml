@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item>
+        <shape
+            android:shape="ring"
+            android:useLevel="false"
+            android:thickness="17.25dp"
+            android:innerRadius="97.75dp">
+            <solid android:color="@color/main_background" />
+        </shape>
+    </item>
+
+    <item>
+        <rotate
+            android:fromDegrees="0"
+            android:toDegrees="360">
+            <vector
+                android:width="230dp"
+                android:height="230dp"
+                android:viewportWidth="230"
+                android:viewportHeight="230">
+                <path
+                    android:name="progress_path"
+                    android:pathData="M 115,8.625 a 106.375,106.375 0 1,1 0,212.75 a 106.375,106.375 0 1,1 0,-212.75"
+                    android:strokeWidth="17.25"
+                    android:strokeColor="@color/main"
+                    android:strokeLineCap="round"
+                    android:trimPathEnd="0.5"/>
+            </vector>
+        </rotate>
+    </item>
+
+</layer-list>
