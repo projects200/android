@@ -3,10 +3,13 @@ package com.project200.feature.timer.custom
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.CustomTimer
 import com.project200.domain.model.Step
 import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 
@@ -21,17 +24,36 @@ class CustomTimerFormViewModel @Inject constructor(
     private val _toast = MutableLiveData<CustomTimerValidationResult>()
     val toast: LiveData<CustomTimerValidationResult> = _toast
 
-    private val _createResult = MutableLiveData<Long>()
-    val createResult: LiveData<Long> = _createResult
+    private val _confirmResult = MutableLiveData<Long>()
+    val confirmResult: LiveData<Long> = _confirmResult
+
+    // 타이머 id 저장
+    private var customTimerId: Long? = null
+    val isEditMode: Boolean
+        get() = customTimerId != null
 
     // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
-    private var localIdCounter = -1L
+    private var localIdCounter = DEFAULT_DUMMY_ID
 
     init {
         // 초기 상태: 푸터 아이템만 있는 리스트
         _uiState.value = CustomTimerFormUiState(
-            listItems = listOf(TimerFormListItem.FooterItem(name = "", time = 60))
+            listItems = listOf(TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME))
         )
+    }
+
+    fun loadData(timerId: Long) {
+        if (timerId != DEFAULT_DUMMY_ID) {
+            customTimerId = timerId
+            // 수정 모드: 조회 api
+            viewModelScope.launch {
+            }
+        } else {
+            // 생성 모드: 기존 초기 상태 설정
+            _uiState.value = CustomTimerFormUiState(
+                listItems = listOf(TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME))
+            )
+        }
     }
 
     fun updateTimerTitle(title: String) {
@@ -123,7 +145,7 @@ class CustomTimerFormViewModel @Inject constructor(
         if (validationResult is CustomTimerValidationResult.Success) {
             val finalSteps = getStepsWithFinalOrder()
             // TODO: 서버에 전송
-            _createResult.value = 1L // 임시로 1L 반환, 실제로는 서버 응답 ID 사용
+            _confirmResult.value = 1L // 임시로 1L 반환, 실제로는 서버 응답 ID 사용
         } else {
             _toast.value = validationResult
         }
@@ -131,5 +153,6 @@ class CustomTimerFormViewModel @Inject constructor(
 
     companion object {
         const val DEFAULT_TIME = 60 // 기본 시간 60초
+        const val DEFAULT_DUMMY_ID = -1L // 임시 ID
     }
 }

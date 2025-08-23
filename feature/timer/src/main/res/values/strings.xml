@@ -8,6 +8,7 @@
     <string name="custom_timer_step_hint">Step</string>
 
     <string name="custom_timer_create">타이머 생성</string>
+    <string name="custom_timer_edit">타이머 수정</string>
 
     <string name="timer_start">시작</string>
     <string name="timer_stop">일시 정지</string>
