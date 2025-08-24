@@ -16,11 +16,13 @@ import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.feature.exercise.form.ExerciseMenuBottomSheet
 import com.project200.feature.exercise.list.ExerciseListFragmentDirections
 import com.project200.presentation.base.BaseAlertDialog
+import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.navigator.FragmentNavigator
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
+    private var bottomNavController: BottomNavigationController? = null
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
