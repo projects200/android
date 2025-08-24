@@ -31,11 +31,17 @@ class CustomTimerViewModel @Inject constructor(
     private val _isTimerFinished = MutableLiveData<Boolean>()
     val isTimerFinished: LiveData<Boolean> = _isTimerFinished
 
-    private val _alarm = MutableLiveData<Boolean>(false)
-    val alarm: LiveData<Boolean> = _alarm
+    // 스텝이 끝났을 때 알림
+    private val _stepFinishedAlarm = MutableLiveData<Boolean>(false)
+    val stepFinishedAlarm: LiveData<Boolean> = _stepFinishedAlarm
 
+    // 3, 2, 1초 카운트다운 알림
+    private val _playTickSound = MutableLiveData<Boolean>(false)
+    val playTickSound: LiveData<Boolean> = _playTickSound
     private val _isRepeatEnabled = MutableLiveData<Boolean>(false)
     val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
+
+    private var lastTickedSecond = -1
 
     // Step의 time은 '초' 단위
     private val _steps = MutableLiveData<List<Step>>(listOf(
@@ -65,6 +71,13 @@ class CustomTimerViewModel @Inject constructor(
     private fun setupTimerManager() {
         timerManager.setOnTickListener { millisUntilFinished ->
             _remainingTime.value = millisUntilFinished
+
+            // 3, 2, 1초 카운트다운 알림 재생
+            val currentSecond = (millisUntilFinished / 1000).toInt() + 1
+            if (currentSecond in 1..3 && currentSecond != lastTickedSecond) {
+                _playTickSound.value = true
+                lastTickedSecond = currentSecond
+            }
         }
         timerManager.setOnFinishListener {
             _remainingTime.value = 0L
@@ -95,7 +108,7 @@ class CustomTimerViewModel @Inject constructor(
     // 현재 스텝을 종료하고 다음 스텝으로 전환하거나, 모든 스텝이 끝났을 경우 타이머를 종료합니다.
     private fun moveToNextStep() {
         // 알림 재생
-        _alarm.value = true
+        _stepFinishedAlarm.value = true
 
         val nextIndex = (_currentStepIndex.value ?: -1) + 1
         if (nextIndex < (_steps.value?.size ?: 0)) {
@@ -154,8 +167,12 @@ class CustomTimerViewModel @Inject constructor(
         _currentStepIndex.value = 0
     }
 
-    fun onAlarmPlayed() {
-        _alarm.value = false
+    fun onStepFinishedAlarmPlayed() {
+        _stepFinishedAlarm.value = false
+    }
+
+    fun onTickSoundPlayed() {
+        _playTickSound.value = false
     }
 
     fun toggleRepeat() {
