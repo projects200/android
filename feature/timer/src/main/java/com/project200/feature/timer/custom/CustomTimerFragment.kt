@@ -70,8 +70,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             viewModel.steps.observe(viewLifecycleOwner) { steps ->
                 adapter = StepRVAdapter(steps) { position ->
                     viewModel.jumpToStep(position)
-                    progressAnimator?.cancel()
-                    binding.timerProgressbar.progress = 1f
                 }
             }
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
@@ -91,6 +89,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             if (view != null) { // Fragment View가 살아있는지 확인
                 updateRecyclerView(index)
                 smoothScrollToPosition(index)
+
+                progressAnimator?.cancel()
+                binding.timerProgressbar.progress = 1f
+
                 // 타이머가 실행 중일 때만 애니메이션을 시작 (초기 로드나 리셋 시 불필요한 호출 방지)
                 if (viewModel.isTimerRunning.value == true) {
                     startProgressBarAnimation()

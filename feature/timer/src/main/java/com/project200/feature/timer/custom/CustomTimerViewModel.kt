@@ -139,6 +139,8 @@ class CustomTimerViewModel @Inject constructor(
         totalStepTime = targetStep.time * 1000L
         _remainingTime.value = totalStepTime
         _currentStepIndex.value = index
+
+        startTimer()
     }
 
     // 사용자가 '종료' 버튼을 누르거나, 타이머가 끝났을 때 모든 상태를 초기화합니다.
