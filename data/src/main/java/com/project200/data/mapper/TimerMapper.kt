@@ -1,6 +1,7 @@
 package com.project200.data.mapper
 
-
+import com.project200.data.dto.GetCustomTimerDTO
+import com.project200.domain.model.CustomTimer
 import com.project200.data.dto.GetCustomTimerDTO
 import com.project200.domain.model.CustomTimer
 import com.project200.data.dto.GetSimpleTimersDTO

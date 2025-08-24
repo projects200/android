@@ -123,11 +123,6 @@ interface ApiService {
         @Path("groupName") groupName: String
     ): BaseResponse<PolicyGroupDTO>
 
-    // FCM 토큰 전송
-    // TODO: 토큰 전송 api 연결
-    @POST("")
-    suspend fun sendFcmToken(@Body fcmTokenRequest: FcmTokenRequest): BaseResponse<Unit>
-
     // 커스텀 타이머 리스트 조회
     @GET("api/v1/custom-timers")
     @AccessTokenApi
@@ -155,5 +150,4 @@ interface ApiService {
     @POST("api/v1/logout")
     @AccessTokenWithFcmApi
     suspend fun postLogout(): BaseResponse<Any?>
-
 }

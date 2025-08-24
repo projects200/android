@@ -1,13 +1,17 @@
 package com.project200.feature.timer.custom
 
 import android.content.Context
+import android.os.Bundle
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.feature.timer.TimePickerDialog
 import com.project200.presentation.base.BindingFragment
@@ -20,14 +24,22 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
 
     private val viewModel: CustomTimerFormViewModel by viewModels()
     private lateinit var stepAdapter: AddedStepRVAdapter
+    private lateinit var itemTouchHelper: ItemTouchHelper
+
+    private val args: CustomTimerFormFragmentArgs by navArgs()
 
     override fun getViewBinding(view: View): FragmentCustomTimerFormBinding {
         return FragmentCustomTimerFormBinding.bind(view)
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.loadData(args.customTimerId)
+    }
+
     override fun setupViews() {
         binding.baseToolbar.apply {
-            setTitle(getString(R.string.custom_timer_create))
+            val titleRes = if (viewModel.isEditMode) R.string.custom_timer_edit else R.string.custom_timer_create
             showBackButton(true) { findNavController().navigateUp() }
         }
         initRecyclerView()
@@ -47,6 +59,11 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
     }
 
     private fun initRecyclerView() {
+        val itemTouchHelperCallback = StepItemMoveCallback { from, to ->
+            viewModel.moveStep(from, to)
+        }
+        itemTouchHelper = ItemTouchHelper(itemTouchHelperCallback)
+
         stepAdapter = AddedStepRVAdapter(object : OnStepItemClickListener {
             // 스텝 아이템 이벤트
             override fun onDeleteClick(id: Long) {
@@ -57,6 +74,9 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
             }
             override fun onStepNameChanged(id: Long, name: String) {
                 viewModel.updateStepName(id, name)
+            }
+            override fun onStartDrag(viewHolder: RecyclerView.ViewHolder) {
+                itemTouchHelper.startDrag(viewHolder)
             }
 
             // 입력 필드 이벤트
@@ -74,6 +94,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
         binding.stepRv.apply {
             adapter = stepAdapter
             layoutManager = LinearLayoutManager(requireContext())
+            itemTouchHelper.attachToRecyclerView(this)
         }
     }
 
@@ -97,7 +118,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
 
-        viewModel.createResult.observe(viewLifecycleOwner) {
+        viewModel.confirmResult.observe(viewLifecycleOwner) {
             if (it != null) {
                 findNavController().navigate(
                     CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(it)

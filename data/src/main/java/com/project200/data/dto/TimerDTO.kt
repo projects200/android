@@ -1,6 +1,5 @@
 package com.project200.data.dto
 
-
 data class GetCustomTimerDTO(
     val customTimerCount: Int,
     val customTimers: List<CustomTimerDTO>

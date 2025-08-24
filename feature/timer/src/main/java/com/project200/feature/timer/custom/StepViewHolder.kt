@@ -1,5 +1,7 @@
 package com.project200.feature.timer.custom
 
+import android.annotation.SuppressLint
+import android.view.MotionEvent
 import android.view.View
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.Step
@@ -11,6 +13,7 @@ class StepViewHolder(
     private val listener: OnStepItemClickListener
 ) : RecyclerView.ViewHolder(binding.root) {
 
+    @SuppressLint("ClickableViewAccessibility")
     fun bind(step: Step) {
         if (binding.stepNameEt.text.toString() != step.name) {
             binding.stepNameEt.setText(step.name)
@@ -30,6 +33,13 @@ class StepViewHolder(
             if (!hasFocus) {
                 listener.onStepNameChanged(step.id, binding.stepNameEt.text.toString())
             }
+        }
+
+        binding.stepOrderHandlerIv.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                listener.onStartDrag(this)
+            }
+            false
         }
     }
 }
