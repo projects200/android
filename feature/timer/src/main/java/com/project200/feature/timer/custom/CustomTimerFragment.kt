@@ -68,7 +68,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
             viewModel.steps.observe(viewLifecycleOwner) { steps ->
-                adapter = StepRVAdapter(steps)
+                adapter = StepRVAdapter(steps) { position ->
+                    viewModel.jumpToStep(position)
+                    progressAnimator?.cancel()
+                    binding.timerProgressbar.progress = 1f
+                }
             }
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
         }
