@@ -1,17 +1,18 @@
 package com.project200.feature.timer.custom
 
-import android.os.CountDownTimer
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import com.project200.domain.model.Step
+import com.project200.domain.manager.TimerManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 
 @HiltViewModel
 class CustomTimerViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
+    private val timerManager: TimerManager
 ): ViewModel() {
     // 전체 타이머 시간 (밀리초 단위)
     var totalTime: Long = 0L
@@ -33,6 +34,9 @@ class CustomTimerViewModel @Inject constructor(
     private val _alarm = MutableLiveData<Boolean>(false)
     val alarm: LiveData<Boolean> = _alarm
 
+    private val _isRepeatEnabled = MutableLiveData<Boolean>(false)
+    val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
+
     // Step의 time은 '초' 단위
     private val _steps = MutableLiveData<List<Step>>(listOf(
         Step(1, 1, 3 ,"준비 운동"),
@@ -52,11 +56,22 @@ class CustomTimerViewModel @Inject constructor(
     private val _isTimerRunning = MutableLiveData<Boolean>()
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
-    private var countDownTimer: CountDownTimer? = null
-
     init {
+        setupTimerManager()
         resetTimer()
     }
+
+    // TimerManager의 콜백을 설정하는 초기화 함수
+    private fun setupTimerManager() {
+        timerManager.setOnTickListener { millisUntilFinished ->
+            _remainingTime.value = millisUntilFinished
+        }
+        timerManager.setOnFinishListener {
+            _remainingTime.value = 0L
+            moveToNextStep()
+        }
+    }
+
 
     // 타이머를 시작하거나, 일시정지 상태에서 재개합니다.
     fun startTimer() {
@@ -74,22 +89,11 @@ class CustomTimerViewModel @Inject constructor(
         val remainingTimeMillis = _remainingTime.value ?: 0L
         if (remainingTimeMillis <= 0) return
 
-        countDownTimer = object : CountDownTimer(remainingTimeMillis, COUNTDOWN_INTERVAL) {
-            override fun onTick(millisUntilFinished: Long) {
-                _remainingTime.value = millisUntilFinished
-            }
-
-            override fun onFinish() {
-                _remainingTime.value = 0L
-                moveToNextStep()
-            }
-        }.start()
+        timerManager.start(remainingTimeMillis)
     }
 
     // 현재 스텝을 종료하고 다음 스텝으로 전환하거나, 모든 스텝이 끝났을 경우 타이머를 종료합니다.
     private fun moveToNextStep() {
-        countDownTimer?.cancel()
-
         // 알림 재생
         _alarm.value = true
 
@@ -111,21 +115,19 @@ class CustomTimerViewModel @Inject constructor(
             // 모든 스텝 완료
             _isTimerRunning.value = false
             _isTimerFinished.value = true
-            resetTimer() // 모든 스텝이 끝나면 초기 상태로 리셋
         }
     }
 
     // 타이머를 일시정지합니다.
     fun pauseTimer() {
-        countDownTimer?.cancel()
+        timerManager.pause()
         _isTimerRunning.value = false
     }
 
     // 사용자가 '종료' 버튼을 누르거나, 타이머가 끝났을 때 모든 상태를 초기화합니다.
     fun resetTimer() {
-        countDownTimer?.cancel()
+        timerManager.cancel()
         _isTimerRunning.value = false
-        _isTimerFinished.value = true
 
         // 전체 시간 및 첫 스텝 시간 계산
         totalTime = _steps.value?.sumOf { it.time * 1000L } ?: 0L
@@ -139,12 +141,17 @@ class CustomTimerViewModel @Inject constructor(
         _alarm.value = false
     }
 
-    override fun onCleared() {
-        super.onCleared()
-        countDownTimer?.cancel()
+    fun toggleRepeat() {
+        _isRepeatEnabled.value = _isRepeatEnabled.value != true
     }
 
-    companion object {
-        const val COUNTDOWN_INTERVAL = 50L // 50ms
+    fun restartTimer() {
+        resetTimer() // 타이머 상태를 초기 상태로 되돌립니다.
+        startTimer() // 타이머를 다시 시작합니다.
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        timerManager.cancel()
     }
 }

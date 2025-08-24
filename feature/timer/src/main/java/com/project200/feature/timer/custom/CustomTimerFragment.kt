@@ -48,7 +48,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         initClickListeners()
         initRecyclerView()
         setupObservers()
-        updateEndButtonState(viewModel.isTimerFinished.value ?: true)
+        binding.timerEndBtn.isClickable = viewModel.isTimerFinished.value == false
     }
 
     private fun initClickListeners() {
@@ -61,6 +61,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
         binding.timerEndBtn.setOnClickListener {
             viewModel.resetTimer()
+            updateUIForTimerEnd()
+        }
+        binding.timerRepeatBtn.setOnClickListener {
+            viewModel.toggleRepeat()
         }
     }
 
@@ -81,11 +85,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTimeAsLong()
-            // 타이머가 실행 중이지 않을 때만(타이머 종료 시) 프로그레스바 업데이트
-            if (viewModel.isTimerRunning.value == false) {
-                val totalStepTime = viewModel.totalStepTime
-                binding.timerProgressbar.progress = if (totalStepTime > 0) remainingTime.toFloat() / totalStepTime.toFloat() else 0f
-            }
         }
 
         viewModel.currentStepIndex.observe(viewLifecycleOwner) { index ->
@@ -100,10 +99,24 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.isTimerFinished.observe(viewLifecycleOwner) { isFinished ->
-            updateEndButtonState(isFinished)
-            if (isFinished && viewModel.isTimerRunning.value == false) {
-                updateUIForTimerEnd()
+            binding.timerEndBtn.isClickable = !isFinished
+            if (isFinished) {
+                // 반복이 활성화 되어있으면 타이머를 재시작
+                if (viewModel.isRepeatEnabled.value == true) {
+                    viewModel.restartTimer()
+                } else {
+                    // 반복이 비활성화 되어있으면 종료 상태로 변경
+                    updateUIForTimerEnd()
+                    viewModel.resetTimer()
+                }
             }
+        }
+
+        // 반복 버튼 UI 상태 업데이트를 위한 Observer
+        viewModel.isRepeatEnabled.observe(viewLifecycleOwner) { isEnabled ->
+            binding.timerRepeatBtn.setImageResource(
+                if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off
+            )
         }
 
         viewModel.alarm.observe(viewLifecycleOwner) { shouldPlay ->
@@ -143,20 +156,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         progressAnimator?.cancel()
     }
 
-    private fun updateEndButtonState(isFinished: Boolean) {
-        if (isFinished) {
-            binding.timerEndBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray300)
-            )
-            binding.timerEndBtn.isClickable = false
-        } else {
-            binding.timerEndBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led)
-            )
-            binding.timerEndBtn.isClickable = true
-        }
-    }
-
     private fun updateRecyclerView(currentStepIndex: Int) {
         val adapter = binding.customTimerStepRv.adapter as? StepRVAdapter
         adapter?.highlightItem(currentStepIndex)
@@ -185,14 +184,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                         binding.timerProgressbar.progress = animator.animatedValue as Float
                     }
                 }
-                addListener(object : AnimatorListenerAdapter() {
-                    override fun onAnimationEnd(animation: Animator) {
-                        super.onAnimationEnd(animation)
-                        if (view != null) {
-                            binding.timerProgressbar.progress = 0f
-                        }
-                    }
-                })
                 start()
             }
         }
