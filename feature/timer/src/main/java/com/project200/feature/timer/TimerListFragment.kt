@@ -27,6 +27,7 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
     }
 
     override fun setupViews() {
+        super.setupViews()
         initClickListeners()
         initRecyclerView()
     }
