@@ -16,7 +16,10 @@ import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.FcmTokenRequest
 import com.project200.data.dto.GetCustomTimerDTO
+import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.PatchSimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
+import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
 import com.project200.domain.model.CustomTimer
 import okhttp3.MultipartBody
@@ -129,4 +132,28 @@ interface ApiService {
     @GET("api/v1/custom-timers")
     @AccessTokenApi
     suspend fun getCustomTimers(): BaseResponse<GetCustomTimerDTO>
+
+    // 심플 타이머 조회
+    @GET("api/v1/simple-timers")
+    @AccessTokenApi
+    suspend fun getSimpleTimers(): BaseResponse<GetSimpleTimersDTO>
+
+    // 심플 타이머 수정
+    @PATCH("api/v1/simple-timers/{simpleTimerId}")
+    @AccessTokenApi
+    suspend fun patchSimpleTimer(
+        @Path("simpleTimerId") simpleTimerId: Long,
+        @Body time: PatchSimpleTimerRequest
+    ): BaseResponse<Any?>
+
+    // 로그인
+    @POST("api/v1/login")
+    @AccessTokenWithFcmApi
+    suspend fun postLogin(): BaseResponse<Any?>
+
+    // 로그아웃
+    @POST("api/v1/logout")
+    @AccessTokenWithFcmApi
+    suspend fun postLogout(): BaseResponse<Any?>
+
 }

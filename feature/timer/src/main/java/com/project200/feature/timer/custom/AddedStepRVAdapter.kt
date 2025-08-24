@@ -15,16 +15,6 @@ class AddedStepRVAdapter(
     private val listener: OnStepItemClickListener
 ) : ListAdapter<TimerFormListItem, RecyclerView.ViewHolder>(DiffCallback) { // 제네릭 타입 변경
 
-    interface OnStepItemClickListener {
-        fun onDeleteClick(id: Long)
-        fun onTimeClick(id: Long, time: Int)
-        fun onStepNameChanged(id: Long, name: String)
-        // 입력 필드용 메서드
-        fun onNewStepNameChanged(name: String)
-        fun onNewStepTimeClick(time: Int)
-        fun onAddStepClick()
-    }
-
     override fun getItemViewType(position: Int): Int {
         return when (getItem(position)) {
             is TimerFormListItem.StepItem -> VIEW_TYPE_STEP
@@ -50,71 +40,6 @@ class AddedStepRVAdapter(
         when (val item = getItem(position)) {
             is TimerFormListItem.StepItem -> (holder as StepViewHolder).bind(item.step)
             is TimerFormListItem.FooterItem -> (holder as FooterViewHolder).bind(item)
-        }
-    }
-
-    class StepViewHolder(
-        private val binding: ItemCustomTimerCreateStepBinding,
-        private val listener: OnStepItemClickListener
-    ) : RecyclerView.ViewHolder(binding.root) {
-        private var currentStep: Step? = null
-
-        init {
-            binding.stepDeleteIv.setOnClickListener {
-                currentStep?.id?.let { id -> listener.onDeleteClick(id) }
-            }
-            binding.stepTimeTv.setOnClickListener {
-                currentStep?.id?.let { id -> listener.onTimeClick(id, currentStep!!.time) }
-            }
-            binding.stepNameEt.setOnFocusChangeListener { _, hasFocus ->
-                if (!hasFocus) {
-                    Timber.tag("ddd").d("Step name changed: ${binding.stepNameEt.text}")
-                    currentStep?.id?.let { id ->
-                        listener.onStepNameChanged(id, binding.stepNameEt.text.toString())
-                    }
-                }
-            }
-        }
-        fun bind(step: Step) {
-            this.currentStep = step // 현재 스텝 정보 업데이트
-
-            if (binding.stepNameEt.text.toString() != step.name) {
-                binding.stepNameEt.setText(step.name)
-            }
-
-            binding.stepTimeTv.text = step.time.toFormattedTime()
-        }
-    }
-
-    class FooterViewHolder(
-        private val binding: ItemCustomTimerCreateFooterBinding,
-        private val listener: OnStepItemClickListener
-    ) : RecyclerView.ViewHolder(binding.root) {
-        // 현재 바인딩된 FooterItem
-        private var currentFooterItem: TimerFormListItem.FooterItem? = null
-
-        init {
-            binding.stepNameEt.setOnFocusChangeListener { _, hasFocus ->
-                // 포커스를 잃었을 때만 ViewModel에 변경사항 전달
-                if (!hasFocus) {
-                    listener.onNewStepNameChanged(binding.stepNameEt.text.toString())
-                }
-            }
-            binding.stepTimeTv.setOnClickListener {
-                currentFooterItem?.let { footer ->
-                    listener.onNewStepTimeClick(footer.time)
-                }
-            }
-            binding.addStepIv.setOnClickListener {
-                listener.onAddStepClick()
-            }
-        }
-
-        fun bind(item: TimerFormListItem.FooterItem) {
-            if (binding.stepNameEt.text.toString() != item.name) {
-                binding.stepNameEt.setText(item.name)
-            }
-            binding.stepTimeTv.text = item.time.toFormattedTime()
         }
     }
 

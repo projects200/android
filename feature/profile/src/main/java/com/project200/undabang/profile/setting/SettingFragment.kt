@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BindingFragment
@@ -33,6 +34,7 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
     @Inject lateinit var appNavigator: ActivityNavigator
     @Inject lateinit var authManager: AuthManager
     private lateinit var authService: AuthorizationService
+    private val viewModel: SettingViewModel by viewModels()
 
     // Cognito 로그아웃 페이지를 열기 위한 ActivityResultLauncher
     private val logoutPageLauncher: ActivityResultLauncher<Intent> =
@@ -66,6 +68,9 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
 
     private fun performLogout() {
         viewLifecycleOwner.lifecycleScope.launch { // Fragment의 viewLifecycleOwner 사용
+            try { viewModel.logout() }
+            catch (e: Exception) { Timber.e(e, "로그아웃 실패") }
+            
             authManager.logout(authService, object : LogoutResultCallback {
                 override fun onLogoutPageIntentReady(logoutIntent: Intent) {
                     logoutPageLauncher.launch(logoutIntent)
