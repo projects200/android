@@ -27,6 +27,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private val viewModel: CustomTimerViewModel by viewModels()
     private var progressAnimator: ValueAnimator? = null
     private var mediaPlayer: MediaPlayer? = null
+    private lateinit var stepRVAdapter: StepRVAdapter
 
     override fun getViewBinding(view: View): FragmentCustomTimerBinding {
         return FragmentCustomTimerBinding.bind(view)
@@ -69,16 +70,21 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     }
 
     private fun initRecyclerView() {
+        stepRVAdapter = StepRVAdapter { position ->
+            viewModel.jumpToStep(position)
+        }
+
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            viewModel.steps.observe(viewLifecycleOwner) { steps ->
-                adapter = StepRVAdapter(steps)
-            }
+            adapter = stepRVAdapter
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
         }
     }
 
     override fun setupObservers() {
+        viewModel.steps.observe(viewLifecycleOwner) { steps ->
+            stepRVAdapter.submitList(steps)
+        }
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
             updateRunningState(isRunning)
         }
@@ -91,6 +97,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             if (view != null) { // Fragment View가 살아있는지 확인
                 updateRecyclerView(index)
                 smoothScrollToPosition(index)
+
+                // 스텝이 바뀌면 프로그레스바를 100%로 조정
+                progressAnimator?.cancel()
+                binding.timerProgressbar.progress = 1f
+
                 // 타이머가 실행 중일 때만 애니메이션을 시작 (초기 로드나 리셋 시 불필요한 호출 방지)
                 if (viewModel.isTimerRunning.value == true) {
                     startProgressBarAnimation()

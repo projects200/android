@@ -11,10 +11,16 @@ import com.project200.undabang.feature.timer.databinding.ItemCustomTimerStepBind
 import com.project200.undabang.presentation.R
 
 class StepRVAdapter(
-    private val items: List<Step>,
+    private val onItemClicked: (Int) -> Unit
 ) : RecyclerView.Adapter<StepRVAdapter.StepViewHolder>() {
 
+    private var items: List<Step> = emptyList()
     private var highlightedPosition = -1
+
+    fun submitList(newItems: List<Step>) {
+        items = newItems
+        notifyDataSetChanged()
+    }
 
     fun highlightItem(position: Int) {
         val oldPosition = highlightedPosition
@@ -43,6 +49,10 @@ class StepRVAdapter(
                 binding.clockIv.imageTintList = ColorStateList.valueOf(getColor(binding.customTimerTitle.context, R.color.black))
                 binding.stepNameTv.setTextColor(getColor(binding.customTimerTitle.context, R.color.black))
                 binding.stepTimeTv.setTextColor(getColor(binding.customTimerTitle.context, R.color.black))
+            }
+
+            binding.customTimerTitle.setOnClickListener {
+                onItemClicked(bindingAdapterPosition)
             }
         }
     }
