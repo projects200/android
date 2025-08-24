@@ -11,11 +11,16 @@ import com.project200.undabang.feature.timer.databinding.ItemCustomTimerStepBind
 import com.project200.undabang.presentation.R
 
 class StepRVAdapter(
-    private val items: List<Step>,
     private val onItemClicked: (Int) -> Unit
 ) : RecyclerView.Adapter<StepRVAdapter.StepViewHolder>() {
 
+    private var items: List<Step> = emptyList()
     private var highlightedPosition = -1
+
+    fun submitList(newItems: List<Step>) {
+        items = newItems
+        notifyDataSetChanged()
+    }
 
     fun highlightItem(position: Int) {
         val oldPosition = highlightedPosition
