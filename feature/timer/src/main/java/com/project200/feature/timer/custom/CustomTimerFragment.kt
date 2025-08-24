@@ -12,6 +12,7 @@ import androidx.core.content.ContextCompat.getColor
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
@@ -33,7 +34,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     override fun setupViews() {
         binding.baseToolbar.apply {
-            showBackButton(true) { findNavController().navigateUp() }
+            showBackButton(true) {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                findNavController().popBackStack()
+            }
             setSubButton(R.drawable.ic_menu, onClick = { showMenu() })
         }
 
