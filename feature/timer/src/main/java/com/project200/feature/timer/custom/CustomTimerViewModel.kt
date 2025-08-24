@@ -34,6 +34,9 @@ class CustomTimerViewModel @Inject constructor(
     private val _alarm = MutableLiveData<Boolean>(false)
     val alarm: LiveData<Boolean> = _alarm
 
+    private val _isRepeatEnabled = MutableLiveData<Boolean>(false)
+    val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
+
     // Step의 time은 '초' 단위
     private val _steps = MutableLiveData<List<Step>>(listOf(
         Step(1, 1, 3 ,"준비 운동"),
@@ -112,7 +115,6 @@ class CustomTimerViewModel @Inject constructor(
             // 모든 스텝 완료
             _isTimerRunning.value = false
             _isTimerFinished.value = true
-            resetTimer() // 모든 스텝이 끝나면 초기 상태로 리셋
         }
     }
 
@@ -126,7 +128,6 @@ class CustomTimerViewModel @Inject constructor(
     fun resetTimer() {
         timerManager.cancel()
         _isTimerRunning.value = false
-        _isTimerFinished.value = true
 
         // 전체 시간 및 첫 스텝 시간 계산
         totalTime = _steps.value?.sumOf { it.time * 1000L } ?: 0L
@@ -138,6 +139,15 @@ class CustomTimerViewModel @Inject constructor(
 
     fun onAlarmPlayed() {
         _alarm.value = false
+    }
+
+    fun toggleRepeat() {
+        _isRepeatEnabled.value = _isRepeatEnabled.value != true
+    }
+
+    fun restartTimer() {
+        resetTimer() // 타이머 상태를 초기 상태로 되돌립니다.
+        startTimer() // 타이머를 다시 시작합니다.
     }
 
     override fun onCleared() {
