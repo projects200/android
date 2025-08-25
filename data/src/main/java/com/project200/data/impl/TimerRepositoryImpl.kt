@@ -56,7 +56,13 @@ class TimerRepositoryImpl @Inject constructor(
 
     // 커스텀 타이머 상세 조회
     override suspend fun getCustomTimer(customTimerId: Long): BaseResult<CustomTimer> {
-        TODO("Not yet implemented")
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getCustomTimer(customTimerId) },
+            mapper = { dto: GetCustomTimerDetailDTO? ->
+                dto?.toModel() ?: CustomTimer(-1L, "")
+            }
+        )
     }
 
     // 커스텀 타이머 생성
