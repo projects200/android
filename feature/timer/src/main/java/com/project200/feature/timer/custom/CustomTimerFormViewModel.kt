@@ -4,7 +4,6 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project200.domain.model.CustomTimer
 import com.project200.domain.model.Step
 import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.domain.usecase.ValidateCustomTimerUseCase

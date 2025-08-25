@@ -2,7 +2,8 @@ package com.project200.domain.model
 
 data class CustomTimer(
     val id: Long,
-    val name: String
+    val name: String,
+    val steps: List<Step> = emptyList()
 )
 
 data class SimpleTimer(
