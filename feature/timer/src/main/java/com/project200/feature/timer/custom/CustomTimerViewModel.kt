@@ -153,6 +153,7 @@ class CustomTimerViewModel @Inject constructor(
         _remainingTime.value = totalStepTime
         _currentStepIndex.value = index
 
+        // 타이머를 자동으로 시작
         startTimer()
     }
 
