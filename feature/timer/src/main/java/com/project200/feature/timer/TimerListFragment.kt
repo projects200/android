@@ -8,14 +8,12 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.project200.domain.model.CustomTimer
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentTimerListBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import timber.log.Timber
-import java.util.Timer
 
 @AndroidEntryPoint
 class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.fragment_timer_list) {

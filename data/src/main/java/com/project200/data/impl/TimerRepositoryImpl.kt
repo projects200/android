@@ -2,7 +2,8 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
-import com.project200.data.dto.GetCustomTimerDTO
+import com.project200.data.dto.GetCustomTimerDetailDTO
+import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -11,13 +12,8 @@ import com.project200.domain.repository.TimerRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchSimpleTimerRequest
-import com.project200.data.mapper.toModel
-import com.project200.data.utils.apiCallBuilder
-import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
-import com.project200.domain.repository.TimerRepository
-import kotlinx.coroutines.CoroutineDispatcher
-import okhttp3.Dispatcher
+import com.project200.domain.model.Step
 import javax.inject.Inject
 
 class TimerRepositoryImpl @Inject constructor(
@@ -25,16 +21,8 @@ class TimerRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher
 ): TimerRepository {
 
-    override suspend fun getCustomTimers(): BaseResult<List<CustomTimer>> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getCustomTimers() },
-            mapper = { dto: GetCustomTimerDTO? ->
-                dto?.toModel() ?: emptyList()
-            }
-        )
-    }
-
+    /** 심플 타이머 */
+    // 심플 타이머 전체 조회
     override suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
@@ -45,11 +33,50 @@ class TimerRepositoryImpl @Inject constructor(
         )
     }
 
+    // 심플 타이머 수정
     override suspend fun editSimpleTimer(simpleTimer: SimpleTimer): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.patchSimpleTimer(simpleTimer.id, PatchSimpleTimerRequest(simpleTimer.time)) },
             mapper = { Unit }
         )
+    }
+
+    /** 커스텀 타이머 */
+    // 커스텀 타이머 전체 조회
+    override suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getCustomTimerList() },
+            mapper = { dto: GetCustomTimerListDTO? ->
+                dto?.toModel() ?: emptyList()
+            }
+        )
+    }
+
+    // 커스텀 타이머 상세 조회
+    override suspend fun getCustomTimer(customTimerId: Long): BaseResult<CustomTimer> {
+        TODO("Not yet implemented")
+    }
+
+    // 커스텀 타이머 생성
+    override suspend fun createCustomTimer(
+        title: String,
+        steps: List<Step>
+    ): BaseResult<Unit> {
+        TODO("Not yet implemented")
+    }
+
+    // 커스텀 타이머 삭제
+    override suspend fun deleteCustomTimer(customTimerId: Long): BaseResult<Unit> {
+        TODO("Not yet implemented")
+    }
+
+    // 커스텀 타이머 이름 수정
+    override suspend fun editCustomTimerTitle(
+        customTimerId: Long,
+        title: String
+    ): BaseResult<Long> {
+        TODO("Not yet implemented")
     }
 }

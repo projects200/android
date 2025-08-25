@@ -9,6 +9,6 @@ class GetCustomTimerListUseCase @Inject constructor(
     private val timerRepository: TimerRepository
 ) {
     suspend operator fun invoke(): BaseResult<List<CustomTimer>> {
-        return timerRepository.getCustomTimers()
+        return timerRepository.getCustomTimerList()
     }
 }
