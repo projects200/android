@@ -16,6 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.project200.domain.model.BaseResult
 import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
@@ -145,6 +146,15 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             binding.baseToolbar.setTitle(title)
         }
 
+        viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
+            findNavController().navigateUp()
+            val messageRes = when(result) {
+                is BaseResult.Success -> R.string.custom_timer_delete_success
+                is BaseResult.Error -> R.string.custom_timer_error_delete_failed
+            }
+            Toast.makeText(requireContext(), getString(messageRes), Toast.LENGTH_SHORT).show()
+        }
+
         // 에러 이벤트 처리
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -243,7 +253,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             title = getString(R.string.custom_timer_delete_alert),
             desc = null,
             onConfirmClicked = {
-                // TODO: 커스텀 타이머 삭제
+                viewModel.deleteTimer()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }

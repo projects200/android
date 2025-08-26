@@ -9,6 +9,7 @@ import com.project200.domain.model.Step
 import com.project200.domain.manager.TimerManager
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.CustomTimer
+import com.project200.domain.usecase.DeleteCustomTimerUseCase
 import com.project200.domain.usecase.GetCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @HiltViewModel
 class CustomTimerViewModel @Inject constructor(
     private val timerManager: TimerManager,
-    private val getCustomTimerUseCase: GetCustomTimerUseCase
+    private val getCustomTimerUseCase: GetCustomTimerUseCase,
+    private val deleteCustomTimerUseCase: DeleteCustomTimerUseCase,
 ): ViewModel() {
     // 전체 타이머 시간 (밀리초 단위)
     var totalTime: Long = 0L
@@ -29,7 +31,7 @@ class CustomTimerViewModel @Inject constructor(
     var totalStepTime: Long = 0L
         private set
 
-    var customTimerId: Long? = null
+    var customTimerId: Long = -1L
         private set
 
     private val _title = MutableLiveData<String>()
@@ -60,6 +62,9 @@ class CustomTimerViewModel @Inject constructor(
     private val _errorEvent = MutableSharedFlow<Boolean>()
     val errorEvent: SharedFlow<Boolean> = _errorEvent
 
+    private val _deleteResult = MutableLiveData<BaseResult<Unit>>()
+    val deleteResult: LiveData<BaseResult<Unit>> = _deleteResult
+
     init {
         setupTimerManager()
         resetTimer()
@@ -80,6 +85,13 @@ class CustomTimerViewModel @Inject constructor(
                     _errorEvent.emit(true)
                 }
             }
+        }
+    }
+
+    fun deleteTimer() {
+        viewModelScope.launch {
+            if (customTimerId == -1L) return@launch
+            _deleteResult.value = deleteCustomTimerUseCase(customTimerId)
         }
     }
 
