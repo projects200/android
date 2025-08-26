@@ -12,6 +12,7 @@ import com.project200.domain.model.CustomTimer
 import com.project200.domain.repository.TimerRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchSimpleTimerRequest
 import com.project200.data.dto.PostCustomTimerRequest
 import com.project200.data.mapper.toDTO
@@ -102,7 +103,32 @@ class TimerRepositoryImpl @Inject constructor(
     override suspend fun editCustomTimerTitle(
         customTimerId: Long,
         title: String
-    ): BaseResult<Long> {
-        TODO("Not yet implemented")
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchCustomTimerTitle(customTimerId, PatchCustomTimerTitleRequest(title)) },
+            mapper = { Unit }
+        )
+    }
+
+    // 커스텀 타이머 전체 수정
+    override suspend fun editCustomTimer(
+        customTimerId: Long,
+        title: String,
+        steps: List<Step>
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = {
+                apiService.putCustomTimer(
+                    customTimerId,
+                    PostCustomTimerRequest(
+                        customTimerName = title,
+                        customTimerSteps = steps.toDTO()
+                    )
+                )
+            },
+            mapper = { Unit }
+        )
     }
 }
