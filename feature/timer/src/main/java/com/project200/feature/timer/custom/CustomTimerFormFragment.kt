@@ -25,26 +25,24 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
     private val viewModel: CustomTimerFormViewModel by viewModels()
     private lateinit var stepAdapter: AddedStepRVAdapter
     private lateinit var itemTouchHelper: ItemTouchHelper
-
     private val args: CustomTimerFormFragmentArgs by navArgs()
 
     override fun getViewBinding(view: View): FragmentCustomTimerFormBinding {
         return FragmentCustomTimerFormBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         viewModel.loadData(args.customTimerId)
     }
 
     override fun setupViews() {
         binding.baseToolbar.apply {
-            val titleRes = if (viewModel.isEditMode) R.string.custom_timer_edit else R.string.custom_timer_create
+            setTitle(getString(if (viewModel.isEditMode) R.string.custom_timer_edit else R.string.custom_timer_create))
             showBackButton(true) { findNavController().navigateUp() }
         }
         initRecyclerView()
         initListeners()
-        setupObservers()
     }
 
     private fun initListeners() {
