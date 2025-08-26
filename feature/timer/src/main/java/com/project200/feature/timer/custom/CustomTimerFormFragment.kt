@@ -123,10 +123,10 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
 
-        viewModel.confirmResult.observe(viewLifecycleOwner) {
-            if (it != null) {
+        viewModel.confirmResult.observe(viewLifecycleOwner) { id ->
+            if (id != null) {
                 findNavController().navigate(
-                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(it)
+                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id)
                 )
             }
         }
