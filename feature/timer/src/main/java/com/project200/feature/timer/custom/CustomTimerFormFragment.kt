@@ -114,6 +114,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
                 ToastMessageType.EMPTY_TITLE -> R.string.custom_timer_error_empty_title
                 ToastMessageType.NO_STEPS -> R.string.custom_timer_error_no_steps
                 ToastMessageType.INVALID_STEP_TIME -> R.string.custom_timer_error_invalid_time
+                ToastMessageType.MAX_STEPS -> R.string.custom_timer_error_max_steps
                 // API 에러 메시지 매핑
                 ToastMessageType.CREATE_ERROR -> R.string.custom_timer_error_create_failed
                 ToastMessageType.EDIT_ERROR -> R.string.custom_timer_error_edit_failed

@@ -86,6 +86,10 @@ class CustomTimerFormViewModel @Inject constructor(
 
     fun addStep() {
         val currentState = _uiState.value ?: return
+        if(currentState.listItems.size >= MAX_STEP_SIZE) {
+            _toast.value = ToastMessageType.MAX_STEPS
+            return
+        }
         val footer = currentState.listItems.last() as? TimerFormListItem.FooterItem ?: return
 
         val newStep = Step(
@@ -187,5 +191,6 @@ class CustomTimerFormViewModel @Inject constructor(
     companion object {
         const val DEFAULT_TIME = 60 // 기본 시간 60초
         const val DEFAULT_DUMMY_ID = -1L // 임시 ID
+        const val MAX_STEP_SIZE = 51 // 최대 스텝 개수 (50 + Footer)
     }
 }
