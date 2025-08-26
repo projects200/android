@@ -180,12 +180,12 @@ interface ApiService {
     suspend fun patchCustomTimerTitle(
         @Path("customTimerId") customTimerId: Long,
         @Body title: PatchCustomTimerTitleRequest
-    ): BaseResponse<Long>
+    ): BaseResponse<CustomTimerIdDTO>
 
     // 커스텀 타이머 전체 수정
     @PUT("api/v1/custom-timers/{customTimerId}")
     suspend fun putCustomTimer(
         @Path("customTimerId") customTimerId: Long,
         @Body customTimer: PostCustomTimerRequest
-    ): BaseResponse<Any?>
+    ): BaseResponse<CustomTimerIdDTO>
 }

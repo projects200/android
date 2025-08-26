@@ -8,6 +8,8 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
 import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.domain.usecase.CreateCustomTimerUseCase
+import com.project200.domain.usecase.EditCustomTimerNameUseCase
+import com.project200.domain.usecase.EditCustomTimerUseCase
 import com.project200.domain.usecase.GetCustomTimerUseCase
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class CustomTimerFormViewModel @Inject constructor(
     private val validateCustomTimerUseCase: ValidateCustomTimerUseCase,
-    private val createCustomTimerUseCase: CreateCustomTimerUseCase
+    private val getCustomTimerUseCase: GetCustomTimerUseCase,
+    private val createCustomTimerUseCase: CreateCustomTimerUseCase,
+    private val editCustomTimerUseCase: EditCustomTimerUseCase,
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData<CustomTimerFormUiState>()
@@ -29,8 +33,12 @@ class CustomTimerFormViewModel @Inject constructor(
     private val _toast = MutableLiveData<ToastMessageType>()
     val toast: LiveData<ToastMessageType> = _toast
 
-    private val _confirmResult = MutableLiveData<Long>()
-    val confirmResult: LiveData<Long> = _confirmResult
+    private val _submitResult = MutableLiveData<Long>()
+    val submitResult: LiveData<Long> = _submitResult
+
+    // 원본 데이터 저장 (수정 모드에서 변경 사항 취소 시 사용)
+    private var originalTitle: String = ""
+    private var originalSteps: List<Step> = emptyList()
 
     // 타이머 id 저장
     private var customTimerId: Long? = null
@@ -52,6 +60,22 @@ class CustomTimerFormViewModel @Inject constructor(
             customTimerId = timerId
             // 수정 모드: 조회 api
             viewModelScope.launch {
+                when ( val result = getCustomTimerUseCase(timerId)) {
+                    is BaseResult.Success -> {
+                        originalTitle = result.data.name
+                        originalSteps = result.data.steps
+
+                        // 리스트에 푸터 아이템 추가하고 아이템화합니다.
+                        _uiState.value = CustomTimerFormUiState(
+                            title = result.data.name,
+                            listItems = result.data.steps.map { TimerFormListItem.StepItem(it) }
+                                    + TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME)
+                        )
+                    }
+                    is BaseResult.Error -> {
+                        _toast.value = ToastMessageType.GET_ERROR
+                    }
+                }
             }
         } else {
             // 생성 모드: 기존 초기 상태 설정
@@ -157,14 +181,15 @@ class CustomTimerFormViewModel @Inject constructor(
         }
     }
 
-    fun completeCustomTimerCreation() {
+    fun submitCustomTimer() {
         val currentState = _uiState.value ?: return
         val currentSteps = currentState.listItems.mapNotNull { (it as? TimerFormListItem.StepItem)?.step }
         val validationResult = validateCustomTimerUseCase(currentState.title, currentSteps)
 
         if (validationResult is CustomTimerValidationResult.Success) {
             Timber.d("Validation passed, creating timer")
-            createCustomTimer(currentState.title, getStepsWithFinalOrder())
+            if (isEditMode) editCustomTimer(currentState.title, getStepsWithFinalOrder())
+            else createCustomTimer(currentState.title, getStepsWithFinalOrder())
         } else {
             _toast.value = when (validationResult) {
                 is CustomTimerValidationResult.EmptyTitle -> ToastMessageType.EMPTY_TITLE
@@ -179,10 +204,31 @@ class CustomTimerFormViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = createCustomTimerUseCase(title, steps)) {
                 is BaseResult.Success -> {
-                    _confirmResult.value = result.data
+                    _submitResult.value = result.data
                 }
                 is BaseResult.Error -> {
                     _toast.value = ToastMessageType.CREATE_ERROR
+                }
+            }
+        }
+    }
+
+    private fun editCustomTimer(title: String, steps: List<Step>) {
+        val timerId = customTimerId ?: return
+        val hasTitleChanged = originalTitle != title
+        val hasStepsChanged = originalSteps != steps
+        if (!hasTitleChanged && !hasStepsChanged) {
+            // 변경 사항이 없으면 api 호출 없이 토스트 메세지 출력
+            _toast.value = ToastMessageType.NO_CHANGES
+            return
+        }
+        viewModelScope.launch {
+            when (editCustomTimerUseCase(hasTitleChanged, hasStepsChanged, timerId, title, steps)) {
+                is BaseResult.Success -> {
+                    _submitResult.value = customTimerId
+                }
+                is BaseResult.Error -> {
+                    _toast.value = ToastMessageType.EDIT_ERROR
                 }
             }
         }

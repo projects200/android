@@ -30,5 +30,6 @@ enum class ToastMessageType {
     GET_ERROR, // 조회 에러
     CREATE_ERROR, // 생성 에러
     EDIT_ERROR, // 수정 에러
+    NO_CHANGES, // 수정 에러
     UNKNOWN_ERROR
 }

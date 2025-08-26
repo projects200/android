@@ -12,7 +12,6 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.project200.domain.model.CustomTimerValidationResult
 import com.project200.feature.timer.TimePickerDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
@@ -52,7 +51,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
 
         binding.completeBtn.setOnClickListener {
             clearFocusAndHideKeyboard()
-            viewModel.completeCustomTimerCreation()
+            viewModel.submitCustomTimer()
         }
     }
 
@@ -113,6 +112,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
                 ToastMessageType.NO_STEPS -> R.string.custom_timer_error_no_steps
                 ToastMessageType.INVALID_STEP_TIME -> R.string.custom_timer_error_invalid_time
                 ToastMessageType.MAX_STEPS -> R.string.custom_timer_error_max_steps
+                ToastMessageType.NO_CHANGES -> R.string.custom_timer_error_no_changes
                 // API 에러 메시지 매핑
                 ToastMessageType.CREATE_ERROR -> R.string.custom_timer_error_create_failed
                 ToastMessageType.EDIT_ERROR -> R.string.custom_timer_error_edit_failed
@@ -122,11 +122,15 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
 
-        viewModel.confirmResult.observe(viewLifecycleOwner) { id ->
+        viewModel.submitResult.observe(viewLifecycleOwner) { id ->
             if (id != null &&  findNavController().currentDestination?.id == R.id.customTimerFormFragment) {
-                findNavController().navigate(
-                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id)
-                )
+                if (viewModel.isEditMode) {
+                    findNavController().navigateUp()
+                } else {
+                    findNavController().navigate(
+                        CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id)
+                    )
+                }
             }
         }
     }
@@ -135,6 +139,10 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
         TimePickerDialog(
             time,
             onTimeSelected = { newTimeInSeconds ->
+                if(newTimeInSeconds <= 0) {
+                    Toast.makeText(requireContext(), R.string.custom_timer_error_invalid_time, Toast.LENGTH_SHORT).show()
+                    return@TimePickerDialog
+                }
                 id?.let { viewModel.updateStepTime(id, newTimeInSeconds)} ?: run {
                     // id가 null인 경우는 새 스텝을 추가할 때이므로 새 스텝 시간 업데이트
                     viewModel.updateNewStepTime(newTimeInSeconds)

@@ -41,7 +41,12 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.loadTimerData(args.customTimerId)
+        viewModel.setTimerId(args.customTimerId)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadTimerData()
     }
 
     override fun setupViews() {
