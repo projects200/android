@@ -50,3 +50,7 @@ data class PostCustomTimerStepDTO(
     val customTimerStepOrder: Int,
     val customTimerStepTime: Int
 )
+
+data class CustomTimerIdDTO(
+    val customTimerId: Long
+)

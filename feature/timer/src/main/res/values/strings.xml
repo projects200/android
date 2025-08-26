@@ -18,7 +18,10 @@
     <string name="custom_timer_error_no_steps">스텝을 1개 이상 추가해주세요.</string>
     <string name="custom_timer_error_invalid_time">모든 스텝의 시간을 1초 이상으로 설정해주세요.</string>
 
-    <string name="error_failed_to_load_list">커스텀 타이머를 불러오는데 실패했습니다.</string>
+    <string name="error_failed_to_load_list">타이머를 불러오는데 실패했습니다.</string>
+    <string name="custom_timer_error_create_failed">타이머를 생성하는데 실패했습니다.</string>
+    <string name="custom_timer_error_edit_failed">타이머를 수정하는데 실패했습니다.</string>
+    <string name="unknown_error">알 수 없는 오류가 발생했습니다.</string>
 
     <string name="edit_simple_timer_error">타이머 수정에 실패했습니다.</string>
 </resources>
