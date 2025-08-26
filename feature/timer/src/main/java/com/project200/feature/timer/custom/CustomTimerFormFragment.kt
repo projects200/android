@@ -125,7 +125,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
         }
 
         viewModel.confirmResult.observe(viewLifecycleOwner) { id ->
-            if (id != null) {
+            if (id != null &&  findNavController().currentDestination?.id == R.id.customTimerFormFragment) {
                 findNavController().navigate(
                     CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id)
                 )
