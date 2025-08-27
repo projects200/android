@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.feature.timer.TimePickerDialog
+import com.project200.feature.timer.TimerListFragment
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerFormBinding
@@ -38,7 +39,13 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
     override fun setupViews() {
         binding.baseToolbar.apply {
             setTitle(getString(if (viewModel.isEditMode) R.string.custom_timer_edit else R.string.custom_timer_create))
-            showBackButton(true) { findNavController().navigateUp() }
+            showBackButton(true) {
+                if(viewModel.isEditMode) findNavController().navigateUp()
+                else {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
+                }
+            }
         }
         initRecyclerView()
         initListeners()

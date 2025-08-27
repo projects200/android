@@ -101,7 +101,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         viewModel.steps.observe(viewLifecycleOwner) { steps ->
             stepRVAdapter.submitList(steps)
         }
-        
+
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
             updateRunningState(isRunning)
         }
@@ -167,7 +167,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
-            findNavController().navigateUp()
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+            findNavController().popBackStack()
             val messageRes = when(result) {
                 is BaseResult.Success -> R.string.custom_timer_delete_success
                 is BaseResult.Error -> R.string.custom_timer_error_delete_failed
@@ -180,7 +181,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.errorEvent.collect { error ->
                     Toast.makeText(requireContext(), getString(R.string.error_failed_to_load_list), Toast.LENGTH_SHORT).show()
-                    findNavController().navigateUp()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
                 }
             }
         }

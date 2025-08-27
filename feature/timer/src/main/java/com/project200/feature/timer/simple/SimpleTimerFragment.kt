@@ -18,6 +18,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.domain.model.SimpleTimer
+import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BindingFragment
@@ -43,7 +44,10 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
     override fun setupViews() {
         binding.baseToolbar.apply {
             setTitle(getString(R.string.simple_timer))
-            showBackButton(true) { findNavController().navigateUp() }
+            showBackButton(true) {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                findNavController().popBackStack()
+            }
         }
 
         context?.let { mediaPlayer = MediaPlayer.create(it, R.raw.simple_alarm) }
@@ -123,7 +127,8 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                 viewModel.eventFlow.collect { event ->
                     when (event) {
                         is TimerEvent.NavigateToErrorScreen -> {
-                            findNavController().navigateUp()
+                            findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                            findNavController().popBackStack()
                         }
                         is TimerEvent.ShowToast -> {
                             Toast.makeText(requireContext(), getString(R.string.edit_simple_timer_error), Toast.LENGTH_SHORT).show()
