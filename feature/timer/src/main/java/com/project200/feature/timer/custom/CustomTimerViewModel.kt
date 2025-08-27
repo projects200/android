@@ -31,8 +31,7 @@ class CustomTimerViewModel @Inject constructor(
     var totalStepTime: Long = 0L
         private set
 
-    var customTimerId: Long = -1L
-        private set
+    private var customTimerId: Long = -1L
 
     private val _title = MutableLiveData<String>()
     val title: LiveData<String> = _title
