@@ -4,10 +4,21 @@
     <string name="custom_timer_default">나만의 타이머</string>
     
     <string name="custom_timer_delete_alert">정말 타이머를 삭제할까요?</string>
+    <string name="custom_timer_title_hint">나만의 타이머 이름</string>
+    <string name="custom_timer_step_hint">Step</string>
+
+    <string name="custom_timer_create">타이머 생성</string>
+    <string name="custom_timer_edit">타이머 수정</string>
 
     <string name="timer_start">시작</string>
     <string name="timer_stop">일시 정지</string>
     <string name="timer_end">종료</string>
+
+    <string name="custom_timer_error_empty_title">타이머 제목을 입력해주세요.</string>
+    <string name="custom_timer_error_no_steps">스텝을 1개 이상 추가해주세요.</string>
+    <string name="custom_timer_error_invalid_time">모든 스텝의 시간을 1초 이상으로 설정해주세요.</string>
+
+    <string name="error_failed_to_load_list">커스텀 타이머를 불러오는데 실패했습니다.</string>
 
     <string name="edit_simple_timer_error">타이머 수정에 실패했습니다.</string>
 </resources>
