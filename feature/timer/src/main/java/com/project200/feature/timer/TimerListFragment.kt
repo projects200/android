@@ -35,13 +35,15 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
 
     private fun initRecyclerView() {
         customTimerRVAdapter = CustomTimerRVAdapter { customTimer ->
-
+            findNavController().navigate(
+                TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFragment(customTimer.id)
+            )
         }
 
         val dummyData = listOf(
-            CustomTimer("1", "타바타 타이머"),
-            CustomTimer("2", "휴식 타이머"),
-            CustomTimer("3", "운동 세트 타이머")
+            CustomTimer(1, "타바타 타이머"),
+            CustomTimer(2, "휴식 타이머"),
+            CustomTimer(3, "운동 세트 타이머")
         )
         customTimerRVAdapter.submitList(dummyData)
 

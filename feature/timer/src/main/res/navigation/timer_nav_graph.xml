@@ -13,6 +13,13 @@
         <action
             android:id="@+id/action_timerListFragment_to_simpleTimerFragment"
             app:destination="@id/simpleTimerFragment" />
+        <action
+            android:id="@+id/action_timerListFragment_to_customTimerFragment"
+            app:destination="@id/customTimerFragment" >
+            <argument
+                android:name="customTimerId"
+                app:argType="long" />
+        </action>
     </fragment>
 
     <fragment
@@ -20,5 +27,11 @@
         android:name="com.project200.feature.timer.simple.SimpleTimerFragment"
         android:label="SimpleTimerFragment"
         tools:layout="@layout/fragment_simple_timer" />
+
+    <fragment
+        android:id="@+id/customTimerFragment"
+        android:name="com.project200.feature.timer.custom.CustomTimerFragment"
+        android:label="CustomTimerFragment"
+        tools:layout="@layout/fragment_custom_timer" />
 
 </navigation>
