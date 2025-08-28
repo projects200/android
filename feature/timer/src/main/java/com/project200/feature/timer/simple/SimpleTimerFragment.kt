@@ -73,7 +73,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                 viewModel.startTimer()
             },
             onMenuClick = { simpleTimer, view -> showPopupMenu(view, simpleTimer) },
-            onAddClick = { viewModel.addTimerItem() }
+            onAddClick = { showTimePickerDialog() }
         )
         binding.simpleTimerRv.apply {
             layoutManager = GridLayoutManager(requireContext(), RV_ITEM_COL_COUNT)
@@ -202,11 +202,20 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         }
     }
 
-    private fun showTimePickerDialog(simpleTimer: SimpleTimer) {
+    private fun showTimePickerDialog(simpleTimer: SimpleTimer? = null) {
+        val isEditMode = simpleTimer != null
+        val initialTime = simpleTimer?.time ?: SimpleTimerViewModel.DEFAULT_ADD_TIME_SEC
+
         TimePickerDialog(
-            simpleTimer.time,
+            initialTime = initialTime,
             onTimeSelected = { newTime ->
-                viewModel.updateTimerItem(simpleTimer.copy(time = newTime))
+                if(newTime <= 0) {
+                    Toast.makeText(requireContext(), getString(R.string.simple_timer), Toast.LENGTH_SHORT).show()
+                    return@TimePickerDialog
+                }
+
+                if (isEditMode) viewModel.updateTimerItem(simpleTimer!!.copy(time = newTime))
+                else viewModel.addTimerItem(newTime)
             }
         ).show(parentFragmentManager, TAG)
     }

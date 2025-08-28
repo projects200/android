@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
+import com.project200.domain.usecase.AddSimpleTimerUseCase
+import com.project200.domain.usecase.DeleteSimpleTimerUseCase
 import com.project200.domain.usecase.EditSimpleTimerUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,9 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class SimpleTimerViewModel @Inject constructor(
     private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
-    //private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
+    private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
     private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
-    //private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase
+    private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase
 ): ViewModel() {
     var totalTime: Long = 0
 
@@ -78,35 +80,31 @@ class SimpleTimerViewModel @Inject constructor(
         }
     }
 
-    fun addTimerItem() {
+    fun addTimerItem(time: Int) {
         val currentItems = _timerItems.value ?: emptyList()
         if (currentItems.size >= MAX_TIMER_COUNT) return
 
-        // TODO: UseCase를 통한 비동기 추가 로직 구현
-        // viewModelScope.launch {
-        //     when(val result = addSimpleTimerUseCase(DEFAULT_ADD_TIME_SEC)) {
-        //         is BaseResult.Success -> loadTimerItems() // 성공 시 리스트 새로고침
-        //         is BaseResult.Error -> _toastMessage.value = SimpleTimerToastMessage.ADD_ERROR
-        //     }
-        // }
-
-        // 임시 로직
-        val newTimer = SimpleTimer(id = System.currentTimeMillis(), time = DEFAULT_ADD_TIME_SEC)
-        _timerItems.value = currentItems + newTimer
+        viewModelScope.launch {
+            when (val result = addSimpleTimerUseCase(time)) {
+                is BaseResult.Success -> {
+                    val newTimer = SimpleTimer(id = result.data, time = time)
+                    _timerItems.value = currentItems + newTimer
+                }
+                is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.ADD_ERROR)
+            }
+        }
     }
 
     fun deleteTimerItem(timerId: Long) {
-        // TODO: UseCase를 통한 비동기 삭제 로직 구현
-        // viewModelScope.launch {
-        //     when(val result = deleteSimpleTimerUseCase(timerId)) {
-        //         is BaseResult.Success -> loadTimerItems() // 성공 시 리스트 새로고침
-        //         is BaseResult.Error -> _toastMessage.value = SimpleTimerToastMessage.DELETE_ERROR
-        //     }
-        // }
-
-        // 임시 로직
-        val currentItems = _timerItems.value ?: return
-        _timerItems.value = currentItems.filterNot { it.id == timerId }
+        viewModelScope.launch {
+            when (deleteSimpleTimerUseCase(timerId)) {
+                is BaseResult.Success -> {
+                    val currentItems = _timerItems.value ?: return@launch
+                    _timerItems.value = currentItems.filterNot { it.id == timerId }
+                }
+                is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.DELETE_ERROR)
+            }
+        }
     }
 
 

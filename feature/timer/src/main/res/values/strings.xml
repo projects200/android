@@ -6,6 +6,8 @@
     <string name="simple_timer_sort">정렬</string>
 
 
+    <string name="invalid_simple_timer_error">타이머를 1초 이상으로 설정해주세요</string>
+
     <string name="load_simple_timer_error">타이머를 불러오는데 실패했습니다.</string>
     <string name="edit_simple_timer_error">타이머 수정에 실패했습니다.</string>
     <string name="add_simple_timer_error">타이머 추가에 실패했습니다.</string>

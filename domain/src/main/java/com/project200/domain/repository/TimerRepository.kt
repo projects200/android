@@ -6,4 +6,6 @@ import com.project200.domain.model.SimpleTimer
 interface TimerRepository {
     suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>>
     suspend fun editSimpleTimer(simpleTimer: SimpleTimer): BaseResult<Unit>
+    suspend fun addSimpleTimer(time: Int): BaseResult<Long>
+    suspend fun deleteSimpleTimer(id: Long): BaseResult<Unit>
 }
