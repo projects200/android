@@ -36,6 +36,8 @@ class SimpleTimerViewModel @Inject constructor(
     private val _isTimerRunning = MutableLiveData<Boolean>()
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
+    private var isAscending = true
+
     // 이벤트를 전달할 SharedFlow 생성
     private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
     val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage
@@ -58,6 +60,21 @@ class SimpleTimerViewModel @Inject constructor(
                     _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
                 }
             }
+        }
+    }
+
+    fun changeSortOrder() {
+        isAscending = !isAscending
+        _timerItems.value?.let { currentList ->
+            _timerItems.value = sortTimers(currentList, isAscending)
+        }
+    }
+
+    private fun sortTimers(timers: List<SimpleTimer>, ascending: Boolean): List<SimpleTimer> {
+        return if (ascending) {
+            timers.sortedBy { it.time }
+        } else {
+            timers.sortedByDescending { it.time }
         }
     }
 

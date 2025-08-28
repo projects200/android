@@ -3,6 +3,8 @@
     <string name="simple_timer">심플 타이머</string>
     <string name="custom_timer_default">나만의 타이머</string>
 
+    <string name="simple_timer_sort">정렬</string>
+
 
     <string name="load_simple_timer_error">타이머를 불러오는데 실패했습니다.</string>
     <string name="edit_simple_timer_error">타이머 수정에 실패했습니다.</string>

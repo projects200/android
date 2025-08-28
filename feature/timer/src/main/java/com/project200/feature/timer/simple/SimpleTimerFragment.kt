@@ -88,7 +88,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                     // 리스너를 즉시 제거하여 중복 호출 방지
                     viewTreeObserver.removeOnGlobalLayoutListener(this)
 
-                    val paddingInPixels = resources.getDimensionPixelSize(com.project200.undabang.presentation.R.dimen.base_horizontal_margin)
+                    val paddingInPixels = resources.getDimensionPixelSize(R.dimen.simple_timer_padding)
                     val recyclerViewHeight = height - paddingInPixels
                     timerAdapter.itemHeight = recyclerViewHeight / RV_ITEM_ROW_COUNT
 
@@ -195,6 +195,10 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
                     viewModel.startTimer()
                 }
             }
+        }
+
+        binding.sortBtn.setOnClickListener {
+            viewModel.changeSortOrder()
         }
     }
 
