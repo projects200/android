@@ -10,7 +10,7 @@ data class SimpleTimerDTO(
     val time: Int
 )
 
-data class PatchSimpleTimerRequest(
+data class SimpleTimerRequest(
     val time: Int
 )
 
@@ -57,4 +57,8 @@ data class CustomTimerIdDTO(
 
 data class PatchCustomTimerTitleRequest(
     val customTimerName: String
+)
+
+data class SimpleTimerIdDTO(
+    val simpleTimerId: Long
 )

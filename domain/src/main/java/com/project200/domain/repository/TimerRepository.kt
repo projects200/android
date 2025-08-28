@@ -8,6 +8,8 @@ import com.project200.domain.model.Step
 interface TimerRepository {
     suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>> // 심플 타이머 전체 조회
     suspend fun editSimpleTimer(simpleTimer: SimpleTimer): BaseResult<Unit> // 심플 타이머 수정
+    suspend fun addSimpleTimer(time: Int): BaseResult<Long> // 심플 타이머 생성
+    suspend fun deleteSimpleTimer(id: Long): BaseResult<Unit> // 심플 타이머 삭제
 
     suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>> // 커스텀 타이머 전체 조회
     suspend fun getCustomTimer(customTimerId: Long): BaseResult<CustomTimer> // 특정 커스텀 타이머 조회
