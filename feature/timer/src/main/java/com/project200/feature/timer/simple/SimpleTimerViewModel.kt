@@ -17,21 +17,18 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-sealed class TimerEvent {
-    object NavigateToErrorScreen : TimerEvent()
-    data class ShowToast(val code: String) : TimerEvent()
-}
-
 @HiltViewModel
 class SimpleTimerViewModel @Inject constructor(
     private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
-    private val editSimpleTimerUseCase: EditSimpleTimerUseCase
+    //private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
+    private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
+    //private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase
 ): ViewModel() {
     var totalTime: Long = 0
 
     // 타이머 아이템 리스트
-    private val _timerItems = MutableLiveData<MutableList<SimpleTimer>>()
-    val timerItems: LiveData<MutableList<SimpleTimer>> = _timerItems
+    private val _timerItems = MutableLiveData<List<SimpleTimer>>()
+    val timerItems: LiveData<List<SimpleTimer>> = _timerItems
 
     private val _remainingTime = MutableLiveData<Long>()
     val remainingTime: LiveData<Long> = _remainingTime
@@ -40,8 +37,8 @@ class SimpleTimerViewModel @Inject constructor(
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
     // 이벤트를 전달할 SharedFlow 생성
-    private val _eventFlow = MutableSharedFlow<TimerEvent>()
-    val eventFlow: SharedFlow<TimerEvent> = _eventFlow.asSharedFlow()
+    private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
+    val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage
 
     private var countDownTimer: CountDownTimer? = null
 
@@ -58,10 +55,41 @@ class SimpleTimerViewModel @Inject constructor(
                     _timerItems.value = result.data.toMutableList()
                 }
                 is BaseResult.Error -> {
-                    _eventFlow.emit(TimerEvent.NavigateToErrorScreen)
+                    _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
                 }
             }
         }
+    }
+
+    fun addTimerItem() {
+        val currentItems = _timerItems.value ?: emptyList()
+        if (currentItems.size >= MAX_TIMER_COUNT) return
+
+        // TODO: UseCase를 통한 비동기 추가 로직 구현
+        // viewModelScope.launch {
+        //     when(val result = addSimpleTimerUseCase(DEFAULT_ADD_TIME_SEC)) {
+        //         is BaseResult.Success -> loadTimerItems() // 성공 시 리스트 새로고침
+        //         is BaseResult.Error -> _toastMessage.value = SimpleTimerToastMessage.ADD_ERROR
+        //     }
+        // }
+
+        // 임시 로직
+        val newTimer = SimpleTimer(id = System.currentTimeMillis(), time = DEFAULT_ADD_TIME_SEC)
+        _timerItems.value = currentItems + newTimer
+    }
+
+    fun deleteTimerItem(timerId: Long) {
+        // TODO: UseCase를 통한 비동기 삭제 로직 구현
+        // viewModelScope.launch {
+        //     when(val result = deleteSimpleTimerUseCase(timerId)) {
+        //         is BaseResult.Success -> loadTimerItems() // 성공 시 리스트 새로고침
+        //         is BaseResult.Error -> _toastMessage.value = SimpleTimerToastMessage.DELETE_ERROR
+        //     }
+        // }
+
+        // 임시 로직
+        val currentItems = _timerItems.value ?: return
+        _timerItems.value = currentItems.filterNot { it.id == timerId }
     }
 
 
@@ -105,17 +133,18 @@ class SimpleTimerViewModel @Inject constructor(
 
     // 타이머 아이템을 수정하는 함수
     fun updateTimerItem(updatedTimer: SimpleTimer) {
-        val currentItems = _timerItems.value ?: return
+        val currentItems = _timerItems.value?.toMutableList() ?: return
         val index = currentItems.indexOfFirst { it.id == updatedTimer.id }
+
         if (index != -1) {
             currentItems[index] = updatedTimer
-            _timerItems.value = currentItems
+            _timerItems.value = currentItems // 새 리스트 할당
 
             viewModelScope.launch {
                 val result = editSimpleTimerUseCase(updatedTimer)
                 if (result is BaseResult.Error) {
                     Timber.e("타이머 수정 실패: ${result.message}")
-                    _eventFlow.emit(TimerEvent.ShowToast(result.errorCode.toString()))
+                    _toastMessage.emit(SimpleTimerToastMessage.EDIT_ERROR)
                 }
             }
         }
@@ -128,5 +157,7 @@ class SimpleTimerViewModel @Inject constructor(
 
     companion object {
         const val COUNTDOWN_INTERVAL = 50L // 50ms
+        const val MAX_TIMER_COUNT = 6
+        const val DEFAULT_ADD_TIME_SEC = 60
     }
 }
