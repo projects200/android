@@ -46,10 +46,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             showBackButton(true) { findNavController().navigateUp() }
         }
 
-        context?.let {
-            val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            mediaPlayer = MediaPlayer.create(it, notificationUri)
-        }
+        context?.let { mediaPlayer = MediaPlayer.create(it, R.raw.simple_alarm) }
 
         initClickListeners()
         setupRecyclerView()
