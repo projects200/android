@@ -2,9 +2,11 @@ package com.project200.data.mapper
 
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
+import com.project200.data.dto.PostCustomTimerStepDTO
 import com.project200.domain.model.CustomTimer
 import com.project200.data.dto.SimpleTimerDTO
 import com.project200.domain.model.SimpleTimer
+import com.project200.domain.model.Step
 
 fun SimpleTimerDTO.toModel(): SimpleTimer {
     return SimpleTimer(
@@ -27,7 +29,7 @@ fun GetCustomTimerDetailDTO.toModel(): CustomTimer {
         id = this.customTimerId,
         name = this.customTimerName,
         steps = this.customTimerSteps.map {
-            com.project200.domain.model.Step(
+            Step(
                 id = it.customTimerStepId,
                 order = it.customTimerStepOrder,
                 time = it.customTimerStepTime,
@@ -35,4 +37,14 @@ fun GetCustomTimerDetailDTO.toModel(): CustomTimer {
             )
         }
     )
+}
+
+fun List<Step>.toDTO(): List<PostCustomTimerStepDTO> {
+    return this.map {
+        PostCustomTimerStepDTO(
+            customTimerStepName = it.name,
+            customTimerStepOrder = it.order,
+            customTimerStepTime = it.time
+        )
+    }
 }

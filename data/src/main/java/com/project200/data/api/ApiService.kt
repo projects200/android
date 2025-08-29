@@ -1,6 +1,7 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -164,7 +165,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postCustomTimer(
         @Body customTimer: PostCustomTimerRequest
-    ): BaseResponse<Any?>
+    ): BaseResponse<CustomTimerIdDTO>
 
     // 커스텀 타이머 삭제
     @DELETE("api/v1/custom-timers/{customTimerId}")

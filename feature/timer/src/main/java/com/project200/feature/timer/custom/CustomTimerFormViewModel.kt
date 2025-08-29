@@ -4,25 +4,30 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
 import com.project200.domain.model.CustomTimerValidationResult
+import com.project200.domain.usecase.CreateCustomTimerUseCase
+import com.project200.domain.usecase.GetCustomTimerUseCase
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.util.Collections
 import javax.inject.Inject
 
 
 @HiltViewModel
 class CustomTimerFormViewModel @Inject constructor(
-    private val validateCustomTimerUseCase: ValidateCustomTimerUseCase
+    private val validateCustomTimerUseCase: ValidateCustomTimerUseCase,
+    private val createCustomTimerUseCase: CreateCustomTimerUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableLiveData<CustomTimerFormUiState>()
     val uiState: LiveData<CustomTimerFormUiState> = _uiState
 
-    private val _toast = MutableLiveData<CustomTimerValidationResult>()
-    val toast: LiveData<CustomTimerValidationResult> = _toast
+    private val _toast = MutableLiveData<ToastMessageType>()
+    val toast: LiveData<ToastMessageType> = _toast
 
     private val _confirmResult = MutableLiveData<Long>()
     val confirmResult: LiveData<Long> = _confirmResult
@@ -81,6 +86,10 @@ class CustomTimerFormViewModel @Inject constructor(
 
     fun addStep() {
         val currentState = _uiState.value ?: return
+        if(currentState.listItems.size >= MAX_STEP_SIZE) {
+            _toast.value = ToastMessageType.MAX_STEPS
+            return
+        }
         val footer = currentState.listItems.last() as? TimerFormListItem.FooterItem ?: return
 
         val newStep = Step(
@@ -144,7 +153,7 @@ class CustomTimerFormViewModel @Inject constructor(
     fun getStepsWithFinalOrder(): List<Step> {
         val currentSteps = _uiState.value?.listItems?.mapNotNull { it as? TimerFormListItem.StepItem } ?: emptyList()
         return currentSteps.mapIndexed { index, stepItem ->
-            stepItem.step.copy(order = index + 1)
+            stepItem.step.copy(order = index)
         }
     }
 
@@ -154,16 +163,34 @@ class CustomTimerFormViewModel @Inject constructor(
         val validationResult = validateCustomTimerUseCase(currentState.title, currentSteps)
 
         if (validationResult is CustomTimerValidationResult.Success) {
-            val finalSteps = getStepsWithFinalOrder()
-            // TODO: 서버에 전송
-            _confirmResult.value = 1L // 임시로 1L 반환, 실제로는 서버 응답 ID 사용
+            Timber.d("Validation passed, creating timer")
+            createCustomTimer(currentState.title, getStepsWithFinalOrder())
         } else {
-            _toast.value = validationResult
+            _toast.value = when (validationResult) {
+                is CustomTimerValidationResult.EmptyTitle -> ToastMessageType.EMPTY_TITLE
+                is CustomTimerValidationResult.NoSteps -> ToastMessageType.NO_STEPS
+                is CustomTimerValidationResult.InvalidStepTime -> ToastMessageType.INVALID_STEP_TIME
+                else -> null
+            }
+        }
+    }
+
+    private fun createCustomTimer(title: String, steps: List<Step>) {
+        viewModelScope.launch {
+            when (val result = createCustomTimerUseCase(title, steps)) {
+                is BaseResult.Success -> {
+                    _confirmResult.value = result.data
+                }
+                is BaseResult.Error -> {
+                    _toast.value = ToastMessageType.CREATE_ERROR
+                }
+            }
         }
     }
 
     companion object {
         const val DEFAULT_TIME = 60 // 기본 시간 60초
         const val DEFAULT_DUMMY_ID = -1L // 임시 ID
+        const val MAX_STEP_SIZE = 51 // 최대 스텝 개수 (50 + Footer)
     }
 }

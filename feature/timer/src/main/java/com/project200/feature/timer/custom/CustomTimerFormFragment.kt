@@ -110,18 +110,24 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
 
         viewModel.toast.observe(viewLifecycleOwner) { toast ->
             val messageResId = when (toast) {
-                is CustomTimerValidationResult.EmptyTitle -> R.string.custom_timer_error_empty_title
-                is CustomTimerValidationResult.NoSteps -> R.string.custom_timer_error_no_steps
-                is CustomTimerValidationResult.InvalidStepTime -> R.string.custom_timer_error_invalid_time
-                is CustomTimerValidationResult.Success -> return@observe
+                // 검증 결과에 따른 메시지 매핑
+                ToastMessageType.EMPTY_TITLE -> R.string.custom_timer_error_empty_title
+                ToastMessageType.NO_STEPS -> R.string.custom_timer_error_no_steps
+                ToastMessageType.INVALID_STEP_TIME -> R.string.custom_timer_error_invalid_time
+                ToastMessageType.MAX_STEPS -> R.string.custom_timer_error_max_steps
+                // API 에러 메시지 매핑
+                ToastMessageType.CREATE_ERROR -> R.string.custom_timer_error_create_failed
+                ToastMessageType.EDIT_ERROR -> R.string.custom_timer_error_edit_failed
+                ToastMessageType.GET_ERROR -> R.string.error_failed_to_load_list
+                ToastMessageType.UNKNOWN_ERROR -> R.string.unknown_error
             }
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
 
-        viewModel.confirmResult.observe(viewLifecycleOwner) {
-            if (it != null) {
+        viewModel.confirmResult.observe(viewLifecycleOwner) { id ->
+            if (id != null &&  findNavController().currentDestination?.id == R.id.customTimerFormFragment) {
                 findNavController().navigate(
-                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(it)
+                    CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id)
                 )
             }
         }

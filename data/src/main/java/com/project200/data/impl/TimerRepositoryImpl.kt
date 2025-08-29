@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.mapper.toModel
@@ -12,6 +13,8 @@ import com.project200.domain.repository.TimerRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchSimpleTimerRequest
+import com.project200.data.dto.PostCustomTimerRequest
+import com.project200.data.mapper.toDTO
 import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.Step
 import javax.inject.Inject
@@ -69,8 +72,21 @@ class TimerRepositoryImpl @Inject constructor(
     override suspend fun createCustomTimer(
         title: String,
         steps: List<Step>
-    ): BaseResult<Unit> {
-        TODO("Not yet implemented")
+    ): BaseResult<Long> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = {
+                apiService.postCustomTimer(
+                    PostCustomTimerRequest(
+                        customTimerName = title,
+                        customTimerSteps = steps.toDTO()
+                    )
+                )
+            },
+            mapper = { dto: CustomTimerIdDTO? ->
+                dto?.customTimerId ?: throw IllegalStateException()
+            }
+        )
     }
 
     // 커스텀 타이머 삭제
