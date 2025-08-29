@@ -41,9 +41,9 @@ class CustomTimerFormViewModel @Inject constructor(
     private var originalSteps: List<Step> = emptyList()
 
     // 타이머 id 저장
-    private var customTimerId: Long? = null
+    private var customTimerId: Long = DEFAULT_DUMMY_ID
     val isEditMode: Boolean
-        get() = customTimerId != null
+        get() = customTimerId != DEFAULT_DUMMY_ID
 
     // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
     private var localIdCounter = DEFAULT_DUMMY_ID
@@ -195,6 +195,7 @@ class CustomTimerFormViewModel @Inject constructor(
                 is CustomTimerValidationResult.EmptyTitle -> ToastMessageType.EMPTY_TITLE
                 is CustomTimerValidationResult.NoSteps -> ToastMessageType.NO_STEPS
                 is CustomTimerValidationResult.InvalidStepTime -> ToastMessageType.INVALID_STEP_TIME
+                is CustomTimerValidationResult.EmptyStepName -> ToastMessageType.EMPTY_STEP_NAME
                 else -> null
             }
         }

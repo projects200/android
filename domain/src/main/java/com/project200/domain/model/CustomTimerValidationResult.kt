@@ -8,4 +8,5 @@ sealed class CustomTimerValidationResult {
     object EmptyTitle : CustomTimerValidationResult()
     object NoSteps : CustomTimerValidationResult()
     object InvalidStepTime : CustomTimerValidationResult()
+    object EmptyStepName : CustomTimerValidationResult()
 }
