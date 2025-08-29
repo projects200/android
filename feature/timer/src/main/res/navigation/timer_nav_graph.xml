@@ -36,7 +36,12 @@
         android:id="@+id/customTimerFragment"
         android:name="com.project200.feature.timer.custom.CustomTimerFragment"
         android:label="CustomTimerFragment"
-        tools:layout="@layout/fragment_custom_timer" />
+        tools:layout="@layout/fragment_custom_timer" >
+        <argument
+            android:name="customTimerId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
 
     <fragment
         android:id="@+id/customTimerFormFragment"
