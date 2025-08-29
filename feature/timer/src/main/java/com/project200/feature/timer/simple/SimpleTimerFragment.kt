@@ -210,7 +210,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
             initialTime = initialTime,
             onTimeSelected = { newTime ->
                 if(newTime <= 0) {
-                    Toast.makeText(requireContext(), getString(R.string.simple_timer), Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), getString(R.string.invalid_simple_timer_error), Toast.LENGTH_SHORT).show()
                     return@TimePickerDialog
                 }
 
