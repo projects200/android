@@ -160,12 +160,17 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
-            findNavController().navigateUp()
-            val messageRes = when(result) {
-                is BaseResult.Success -> R.string.custom_timer_delete_success
-                is BaseResult.Error -> R.string.custom_timer_error_delete_failed
+            when(result) {
+                is BaseResult.Success -> {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
+                    Toast.makeText(requireContext(), getString(R.string.custom_timer_delete_success), Toast.LENGTH_SHORT).show()
+                }
+                is BaseResult.Error -> {
+                    Toast.makeText(requireContext(), getString(R.string.custom_timer_error_delete_failed), Toast.LENGTH_SHORT).show()
+                }
             }
-            Toast.makeText(requireContext(), getString(messageRes), Toast.LENGTH_SHORT).show()
+
         }
 
         // 에러 이벤트 처리
