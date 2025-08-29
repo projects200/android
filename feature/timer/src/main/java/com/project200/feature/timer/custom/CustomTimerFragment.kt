@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat.getColor
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -57,6 +58,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             }
             setSubButton(R.drawable.ic_menu, onClick = { showMenu() })
         }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                findNavController().popBackStack()
+            }
+        })
 
         context?.let {
             val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
