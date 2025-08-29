@@ -41,7 +41,12 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.loadTimerData(args.customTimerId)
+        viewModel.setTimerId(args.customTimerId)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadTimerData()
     }
 
     override fun setupViews() {
@@ -241,10 +246,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private fun showMenu() {
         MenuBottomSheetDialog(
             onEditClicked = {
-                // TODO: 타이머 수정 기능이 추가되면 구현 예정
+                findNavController().navigate(
+                    CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
+                        viewModel.customTimerId
+                    )
+                )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() },
-            isEditVisible = false // TODO: 타이머 수정 기능이 추가되면 제거 예정
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 

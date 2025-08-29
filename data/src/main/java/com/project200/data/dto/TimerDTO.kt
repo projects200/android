@@ -54,3 +54,7 @@ data class PostCustomTimerStepDTO(
 data class CustomTimerIdDTO(
     val customTimerId: Long
 )
+
+data class PatchCustomTimerTitleRequest(
+    val customTimerName: String
+)

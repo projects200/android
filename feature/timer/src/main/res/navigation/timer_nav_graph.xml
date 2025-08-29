@@ -41,6 +41,13 @@
             android:name="customTimerId"
             app:argType="long"
             android:defaultValue="-1L" />
+        <action
+            android:id="@+id/action_customTimer_to_customTimerFormFragment"
+            app:destination="@id/customTimerFormFragment">
+            <argument
+                android:name="customTimerId"
+                app:argType="long" />
+        </action>
     </fragment>
 
     <fragment

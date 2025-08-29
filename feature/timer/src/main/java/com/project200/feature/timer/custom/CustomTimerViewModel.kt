@@ -31,7 +31,7 @@ class CustomTimerViewModel @Inject constructor(
     var totalStepTime: Long = 0L
         private set
 
-    private var customTimerId: Long = -1L
+    private var customTimerId: Long = DUMMY_TIMER_ID
 
     private val _title = MutableLiveData<String>()
     val title: LiveData<String> = _title
@@ -69,11 +69,14 @@ class CustomTimerViewModel @Inject constructor(
         resetTimer()
     }
 
-    fun loadTimerData(id: Long) {
-        if (customTimerId == id) return
+    fun setTimerId(id: Long) {
+        if(id == DUMMY_TIMER_ID) return
         this.customTimerId = id
+    }
+
+    fun loadTimerData() {
         viewModelScope.launch {
-            when (val result = getCustomTimerUseCase(id)) {
+            when (val result = getCustomTimerUseCase(customTimerId)) {
                 is BaseResult.Success -> {
                     val customTimer = result.data
                     _title.value = customTimer.name
@@ -186,5 +189,9 @@ class CustomTimerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerManager.cancel()
+    }
+
+    companion object {
+        private const val DUMMY_TIMER_ID = -1L
     }
 }
