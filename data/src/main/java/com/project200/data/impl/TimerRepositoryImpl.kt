@@ -91,7 +91,11 @@ class TimerRepositoryImpl @Inject constructor(
 
     // 커스텀 타이머 삭제
     override suspend fun deleteCustomTimer(customTimerId: Long): BaseResult<Unit> {
-        TODO("Not yet implemented")
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteCustomTimer(customTimerId) },
+            mapper = { Unit }
+        )
     }
 
     // 커스텀 타이머 이름 수정
