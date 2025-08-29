@@ -1,11 +1,8 @@
 package com.project200.feature.timer.custom
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
 import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.view.View
 import android.view.animation.LinearInterpolator
 import androidx.core.content.ContextCompat.getColor
@@ -19,7 +16,6 @@ import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerBinding
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
 
 @AndroidEntryPoint
 class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
@@ -42,8 +38,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         context?.let {
-            stepFinishPlayer = MediaPlayer.create(it, R.raw.custom_alarm)
-            tickPlayer = MediaPlayer.create(it, R.raw.custom_count_down_alarm)
+            stepFinishPlayer = MediaPlayer.create(it, R.raw.custom_finish_alarm)
+            tickPlayer = MediaPlayer.create(it, R.raw.custom_tick_alarm)
         }
         initClickListeners()
         initRecyclerView()
