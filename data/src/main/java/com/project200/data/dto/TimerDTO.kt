@@ -10,6 +10,10 @@ data class SimpleTimerDTO(
     val time: Int
 )
 
-data class PatchSimpleTimerRequest(
+data class SimpleTimerRequest(
     val time: Int
+)
+
+data class SimpleTimerIdDTO(
+    val simpleTimerId: Long
 )

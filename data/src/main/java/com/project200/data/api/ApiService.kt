@@ -14,9 +14,9 @@ import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
-import com.project200.data.dto.FcmTokenRequest
 import com.project200.data.dto.GetSimpleTimersDTO
-import com.project200.data.dto.PatchSimpleTimerRequest
+import com.project200.data.dto.SimpleTimerIdDTO
+import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
@@ -131,7 +131,21 @@ interface ApiService {
     @AccessTokenApi
     suspend fun patchSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
-        @Body time: PatchSimpleTimerRequest
+        @Body time: SimpleTimerRequest
+    ): BaseResponse<Any?>
+
+    // 심플 타이머 추가
+    @POST("api/v1/simple-timers")
+    @AccessTokenApi
+    suspend fun postSimpleTimer(
+        @Body time: SimpleTimerRequest
+    ): BaseResponse<SimpleTimerIdDTO>
+
+    // 심플 타이머 삭제
+    @DELETE("api/v1/simple-timers/{simpleTimerId}")
+    @AccessTokenApi
+    suspend fun deleteSimpleTimer(
+        @Path("simpleTimerId") simpleTimerId: Long
     ): BaseResponse<Any?>
 
     // 로그인
