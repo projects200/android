@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white300"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"/>
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/complete_btn"
+        android:layout_width="60dp"
+        android:layout_height="32dp"
+        android:gravity="center"
+        android:textColor="@color/white300"
+        android:background="@drawable/bg_form_complete_btn"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        app:layout_constraintTop_toTopOf="@id/base_toolbar"
+        app:layout_constraintBottom_toBottomOf="@id/base_toolbar"
+        app:layout_constraintEnd_toEndOf="@id/base_toolbar"
+        android:text="@string/complete"
+        style="@style/content_bold"/>
+
+    <EditText
+        android:id="@+id/timer_title_et"
+        style="@style/header"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginTop="30dp"
+        android:background="@android:color/transparent"
+        android:hint="@string/custom_timer_title_hint"
+        android:inputType="text"
+        android:maxLines="1"
+        android:maxLength="100"
+        android:textColorHint="@color/gray200"
+        android:textSize="24sp"
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar" />
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/step_rv"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="20dp"
+        android:background="@color/main_background"
+        android:clipToPadding="false"
+        android:paddingVertical="14dp"
+        app:layout_constraintTop_toBottomOf="@id/timer_title_et"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:listitem="@layout/item_custom_timer_create_step" />
+</androidx.constraintlayout.widget.ConstraintLayout>

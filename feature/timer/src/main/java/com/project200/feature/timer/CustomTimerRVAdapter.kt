@@ -37,7 +37,7 @@ class CustomTimerRVAdapter(
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(timer: CustomTimer) {
             binding.customTimerTitle.text = timer.name
-            binding.root.setOnClickListener {
+            binding.customTimerTitle.setOnClickListener {
                 onItemClick(timer)
             }
         }
