@@ -4,15 +4,24 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.Step
 import com.project200.domain.manager.TimerManager
+import com.project200.domain.model.BaseResult
+import com.project200.domain.model.CustomTimer
+import com.project200.domain.usecase.DeleteCustomTimerUseCase
+import com.project200.domain.usecase.GetCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class CustomTimerViewModel @Inject constructor(
-    private val savedStateHandle: SavedStateHandle,
-    private val timerManager: TimerManager
+    private val timerManager: TimerManager,
+    private val getCustomTimerUseCase: GetCustomTimerUseCase,
+    private val deleteCustomTimerUseCase: DeleteCustomTimerUseCase,
 ): ViewModel() {
     // 전체 타이머 시간 (밀리초 단위)
     var totalTime: Long = 0L
@@ -22,8 +31,10 @@ class CustomTimerViewModel @Inject constructor(
     var totalStepTime: Long = 0L
         private set
 
-    private val customTimerId: Long = savedStateHandle.get<Long>("customTimerId")
-        ?: throw IllegalStateException("customTimerId is required for CustomTimerViewModel")
+    private var customTimerId: Long = DUMMY_TIMER_ID
+
+    private val _title = MutableLiveData<String>()
+    val title: LiveData<String> = _title
 
     private val _currentStepIndex = MutableLiveData<Int>()
     val currentStepIndex: LiveData<Int> = _currentStepIndex
@@ -38,16 +49,7 @@ class CustomTimerViewModel @Inject constructor(
     val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
 
     // Step의 time은 '초' 단위
-    private val _steps = MutableLiveData<List<Step>>(listOf(
-        Step(1, 1, 3 ,"준비 운동"),
-        Step(2, 2, 5, "고강도 운동"),
-        Step(3, 3, 3, "휴식"),
-        Step(4, 4, 5, "마무리 운동"),
-        Step(5, 5, 2, "마무리 운동1"),
-        Step(6, 6, 2, "마무리 운동2"),
-        Step(7, 7, 3, "마무리 운동3"),
-        Step(8, 8, 4, "마무리 운동4"),
-    ))
+    private val _steps = MutableLiveData<List<Step>>()
     val steps: LiveData<List<Step>> = _steps
 
     private val _remainingTime = MutableLiveData<Long>()
@@ -56,9 +58,43 @@ class CustomTimerViewModel @Inject constructor(
     private val _isTimerRunning = MutableLiveData<Boolean>()
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
+    private val _errorEvent = MutableSharedFlow<Boolean>()
+    val errorEvent: SharedFlow<Boolean> = _errorEvent
+
+    private val _deleteResult = MutableLiveData<BaseResult<Unit>>()
+    val deleteResult: LiveData<BaseResult<Unit>> = _deleteResult
+
     init {
         setupTimerManager()
         resetTimer()
+    }
+
+    fun setTimerId(id: Long) {
+        if(id == DUMMY_TIMER_ID) return
+        this.customTimerId = id
+    }
+
+    fun loadTimerData() {
+        viewModelScope.launch {
+            when (val result = getCustomTimerUseCase(customTimerId)) {
+                is BaseResult.Success -> {
+                    val customTimer = result.data
+                    _title.value = customTimer.name
+                    _steps.value = customTimer.steps.sortedBy { it.order }
+                    resetTimer()
+                }
+                is BaseResult.Error -> {
+                    _errorEvent.emit(true)
+                }
+            }
+        }
+    }
+
+    fun deleteTimer() {
+        viewModelScope.launch {
+            if (customTimerId == -1L) return@launch
+            _deleteResult.value = deleteCustomTimerUseCase(customTimerId)
+        }
     }
 
     // TimerManager의 콜백을 설정하는 초기화 함수
@@ -172,5 +208,9 @@ class CustomTimerViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         timerManager.cancel()
+    }
+
+    companion object {
+        private const val DUMMY_TIMER_ID = -1L
     }
 }

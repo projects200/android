@@ -16,6 +16,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.project200.domain.model.BaseResult
 import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
@@ -40,7 +41,12 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.loadTimerData(args.customTimerId)
+        viewModel.setTimerId(args.customTimerId)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadTimerData()
     }
 
     override fun setupViews() {
@@ -152,6 +158,15 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             binding.baseToolbar.setTitle(title)
         }
 
+        viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
+            findNavController().navigateUp()
+            val messageRes = when(result) {
+                is BaseResult.Success -> R.string.custom_timer_delete_success
+                is BaseResult.Error -> R.string.custom_timer_error_delete_failed
+            }
+            Toast.makeText(requireContext(), getString(messageRes), Toast.LENGTH_SHORT).show()
+        }
+
         // 에러 이벤트 처리
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -238,10 +253,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private fun showMenu() {
         MenuBottomSheetDialog(
             onEditClicked = {
-                // TODO: 타이머 수정 기능이 추가되면 구현 예정
+                findNavController().navigate(
+                    CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
+                        viewModel.customTimerId
+                    )
+                )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() },
-            isEditVisible = false // TODO: 타이머 수정 기능이 추가되면 제거 예정
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
@@ -250,7 +268,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             title = getString(R.string.custom_timer_delete_alert),
             desc = null,
             onConfirmClicked = {
-                // TODO: 커스텀 타이머 삭제
+                viewModel.deleteTimer()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }

@@ -1,6 +1,7 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -17,6 +18,7 @@ import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchSimpleTimerRequest
 import com.project200.data.dto.PostCustomTimerRequest
 import com.project200.data.utils.AccessTokenApi
@@ -29,6 +31,7 @@ import retrofit2.http.GET
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -164,7 +167,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postCustomTimer(
         @Body customTimer: PostCustomTimerRequest
-    ): BaseResponse<Any?>
+    ): BaseResponse<CustomTimerIdDTO>
 
     // 커스텀 타이머 삭제
     @DELETE("api/v1/custom-timers/{customTimerId}")
@@ -172,9 +175,17 @@ interface ApiService {
         @Path("customTimerId") customTimerId: Long
     ): BaseResponse<Any?>
 
+    // 커스텀 타이머 이름 수정
     @PATCH("api/v1/custom-timers/{customTimerId}")
-    suspend fun editCustomTimerTitle(
+    suspend fun patchCustomTimerTitle(
         @Path("customTimerId") customTimerId: Long,
-        @Body title: String
-    ): BaseResponse<Long>
+        @Body title: PatchCustomTimerTitleRequest
+    ): BaseResponse<CustomTimerIdDTO>
+
+    // 커스텀 타이머 전체 수정
+    @PUT("api/v1/custom-timers/{customTimerId}")
+    suspend fun putCustomTimer(
+        @Path("customTimerId") customTimerId: Long,
+        @Body customTimer: PostCustomTimerRequest
+    ): BaseResponse<CustomTimerIdDTO>
 }

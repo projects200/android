@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.mapper.toModel
@@ -11,7 +12,10 @@ import com.project200.domain.model.CustomTimer
 import com.project200.domain.repository.TimerRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchSimpleTimerRequest
+import com.project200.data.dto.PostCustomTimerRequest
+import com.project200.data.mapper.toDTO
 import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.Step
 import javax.inject.Inject
@@ -56,27 +60,75 @@ class TimerRepositoryImpl @Inject constructor(
 
     // 커스텀 타이머 상세 조회
     override suspend fun getCustomTimer(customTimerId: Long): BaseResult<CustomTimer> {
-        TODO("Not yet implemented")
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getCustomTimer(customTimerId) },
+            mapper = { dto: GetCustomTimerDetailDTO? ->
+                dto?.toModel() ?: CustomTimer(-1L, "")
+            }
+        )
     }
 
     // 커스텀 타이머 생성
     override suspend fun createCustomTimer(
         title: String,
         steps: List<Step>
-    ): BaseResult<Unit> {
-        TODO("Not yet implemented")
+    ): BaseResult<Long> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = {
+                apiService.postCustomTimer(
+                    PostCustomTimerRequest(
+                        customTimerName = title,
+                        customTimerSteps = steps.toDTO()
+                    )
+                )
+            },
+            mapper = { dto: CustomTimerIdDTO? ->
+                dto?.customTimerId ?: throw IllegalStateException()
+            }
+        )
     }
 
     // 커스텀 타이머 삭제
     override suspend fun deleteCustomTimer(customTimerId: Long): BaseResult<Unit> {
-        TODO("Not yet implemented")
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteCustomTimer(customTimerId) },
+            mapper = { Unit }
+        )
     }
 
     // 커스텀 타이머 이름 수정
     override suspend fun editCustomTimerTitle(
         customTimerId: Long,
         title: String
-    ): BaseResult<Long> {
-        TODO("Not yet implemented")
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchCustomTimerTitle(customTimerId, PatchCustomTimerTitleRequest(title)) },
+            mapper = { Unit }
+        )
+    }
+
+    // 커스텀 타이머 전체 수정
+    override suspend fun editCustomTimer(
+        customTimerId: Long,
+        title: String,
+        steps: List<Step>
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = {
+                apiService.putCustomTimer(
+                    customTimerId,
+                    PostCustomTimerRequest(
+                        customTimerName = title,
+                        customTimerSteps = steps.toDTO()
+                    )
+                )
+            },
+            mapper = { Unit }
+        )
     }
 }
