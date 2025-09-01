@@ -87,6 +87,15 @@
             app:destination="@+id/exerciseFormFragment"
             app:enterAnim="@anim/slide_in_right"
             app:popExitAnim="@anim/anim_fade_out" />
+        <action
+            android:id="@+id/action_exerciseMainFragment_to_exerciseDetailFragment"
+            app:destination="@id/exerciseDetailFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out">
+            <argument
+                android:name="recordId"
+                app:argType="long" />
+        </action>
     </fragment>
 
 </navigation>
