@@ -5,9 +5,11 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
+import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.Policy
 import com.project200.domain.model.PolicyGroup
 import com.project200.domain.model.Score
+import com.project200.domain.model.ValidWindow
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetExerciseRecordListUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
@@ -29,6 +31,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.YearMonth
 
 @ExperimentalCoroutinesApi
@@ -140,6 +143,20 @@ class ExerciseMainViewModelTest {
         coEvery { mockGetExerciseCountUseCase.invoke(any(), any()) } returns BaseResult.Success(emptyList())
         coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(0))
         coEvery { mockGetScorePolicyUseCase.invoke() } returns BaseResult.Success(samplePolicyGroup)
+        coEvery { mockGetExerciseRecordListUseCase.invoke(any()) } returns BaseResult.Success(emptyList())
+        coEvery { mockGetExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success<ExpectedScoreInfo>(
+            ExpectedScoreInfo(
+                currentUserScore = 0,
+                maxScore = 100,
+                pointsPerExercise = 3,
+                validWindow = ValidWindow(
+                    startDateTime = LocalDateTime.of(2025, 6, 15, 0, 0),
+                    endDateTime = LocalDateTime.of(2025, 6, 25, 0, 0)
+                ),
+                earnableScoreDays = listOf(today.minusDays(1), today)
+            )
+        )
+
 
         viewModel = ExerciseMainViewModel(
             mockGetExerciseCountUseCase,
@@ -288,5 +305,123 @@ class ExerciseMainViewModelTest {
         coVerify(exactly = 1) { mockGetScoreUseCase.invoke() }
         assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
         assertThat(viewModel.score.value).isNull()
+    }
+
+    @Test
+    fun `onDateSelected - 점수 획득 가능 시 예상 점수 업데이트`() = runTest {
+        // Given: 점수 획득이 가능한 모든 조건 충족
+        val earnableDate = today.minusDays(1)
+        val scoreInfo = ExpectedScoreInfo(
+            currentUserScore = 50,
+            maxScore = 100,
+            pointsPerExercise = 3,
+            validWindow = ValidWindow(
+                startDateTime = today.minusDays(5).atStartOfDay(),
+                endDateTime = today.plusDays(5).atStartOfDay()
+            ),
+            earnableScoreDays = listOf(earnableDate, today)
+        )
+        coEvery { mockGetExpectedScoreInfoUseCase() } returns BaseResult.Success(scoreInfo)
+        viewModel.loadExpectedScoreInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When
+        viewModel.onDateSelected(earnableDate)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.earnablePoints.value).isEqualTo(3)
+    }
+
+    @Test
+    fun `onDateSelected - 현재 점수가 최대 점수 이상이면 예상 점수는 0`() = runTest {
+        // Given: 현재 점수가 최대 점수와 같음
+        val earnableDate = today.minusDays(1)
+        val scoreInfo = ExpectedScoreInfo(
+            currentUserScore = 100,
+            maxScore = 100,
+            pointsPerExercise = 3,
+            validWindow = ValidWindow(
+                startDateTime = today.minusDays(5).atStartOfDay(),
+                endDateTime = today.plusDays(5).atStartOfDay()
+            ),
+            earnableScoreDays = listOf(earnableDate)
+        )
+        coEvery { mockGetExpectedScoreInfoUseCase() } returns BaseResult.Success(scoreInfo)
+        viewModel.loadExpectedScoreInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When
+        viewModel.onDateSelected(earnableDate)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.earnablePoints.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `onDateSelected - 선택 날짜가 유효 기간 밖이면 예상 점수는 0`() = runTest {
+        // Given: 선택한 날짜가 유효 기간을 벗어남
+        val notEarnableDate = today.plusDays(10)
+        val scoreInfo = ExpectedScoreInfo(
+            currentUserScore = 50,
+            maxScore = 100,
+            pointsPerExercise = 3,
+            validWindow = ValidWindow(
+                startDateTime = today.minusDays(5).atStartOfDay(),
+                endDateTime = today.plusDays(5).atStartOfDay()
+            ),
+            earnableScoreDays = listOf(today)
+        )
+        coEvery { mockGetExpectedScoreInfoUseCase() } returns BaseResult.Success(scoreInfo)
+        viewModel.loadExpectedScoreInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When
+        viewModel.onDateSelected(notEarnableDate)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.earnablePoints.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `onDateSelected - 선택 날짜가 획득 가능일이 아니면 예상 점수는 0`() = runTest {
+        // Given: 선택한 날짜가 점수 획득 가능일이 아님
+        val notEarnableDate = today.minusDays(2)
+        val scoreInfo = ExpectedScoreInfo(
+            currentUserScore = 50,
+            maxScore = 100,
+            pointsPerExercise = 3,
+            validWindow = ValidWindow(
+                startDateTime = today.minusDays(5).atStartOfDay(),
+                endDateTime = today.plusDays(5).atStartOfDay()
+            ),
+            earnableScoreDays = listOf(today.minusDays(1), today)
+        )
+        coEvery { mockGetExpectedScoreInfoUseCase() } returns BaseResult.Success(scoreInfo)
+        viewModel.loadExpectedScoreInfo()
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When
+        viewModel.onDateSelected(notEarnableDate)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.earnablePoints.value).isEqualTo(0)
+    }
+
+    @Test
+    fun `loadExpectedScoreInfo 실패 시 예상 점수는 0`() = runTest {
+        // Given
+        coEvery { mockGetExpectedScoreInfoUseCase() } returns BaseResult.Error("500", "Server Error")
+
+        // When
+        viewModel.loadExpectedScoreInfo()
+        viewModel.onDateSelected(today)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.earnablePoints.value).isEqualTo(0)
     }
 }

@@ -3,6 +3,7 @@ package com.project200.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.repository.ExerciseRecordRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,6 +32,9 @@ class CreateExerciseRecordUseCaseTest {
         startedAt = LocalDateTime.now(), endedAt = LocalDateTime.now(), location = "", pictures = null
     )
     private val recordId = 1L
+    private val earnedPoints = 3
+    private val creationResult = ExerciseRecordCreationResult(recordId, earnedPoints)
+
 
     @Before
     fun setUp() {
@@ -40,7 +44,7 @@ class CreateExerciseRecordUseCaseTest {
     @Test
     fun `invoke 호출 시 repository createExerciseRecord 호출 및 성공 결과 반환`() = runTest {
         // Given
-        val successResult = BaseResult.Success(recordId)
+        val successResult = BaseResult.Success(creationResult)
         coEvery { mockRepository.createExerciseRecord(sampleRecord) } returns successResult
 
         // When
