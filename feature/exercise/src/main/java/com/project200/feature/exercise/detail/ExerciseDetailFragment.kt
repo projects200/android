@@ -14,6 +14,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.presentation.base.BaseAlertDialog
+import com.project200.presentation.navigator.BottomNavigationController
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {

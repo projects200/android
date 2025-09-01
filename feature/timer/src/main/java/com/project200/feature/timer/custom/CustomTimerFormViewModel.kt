@@ -215,7 +215,7 @@ class CustomTimerFormViewModel @Inject constructor(
     }
 
     private fun editCustomTimer(title: String, steps: List<Step>) {
-        val timerId = customTimerId ?: return
+        val timerId = if(customTimerId != DEFAULT_DUMMY_ID) customTimerId else return
         val hasTitleChanged = originalTitle != title
         val hasStepsChanged = originalSteps != steps
         if (!hasTitleChanged && !hasStepsChanged) {

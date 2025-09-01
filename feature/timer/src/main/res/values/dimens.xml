@@ -2,4 +2,5 @@
 <resources>
     <dimen name="new_step_margin_top_default">6dp</dimen>
     <dimen name="new_step_margin_top_empty">20dp</dimen>
+    <dimen name="simple_timer_padding">40dp</dimen>
 </resources>
