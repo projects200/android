@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +22,7 @@ import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
+import com.project200.presentation.utils.hideKeyboardOnTouchOutside
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
@@ -209,5 +211,10 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
             val dialog = UpdateDialogFragment(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
         }
+    }
+
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        hideKeyboardOnTouchOutside(ev)
+        return super.dispatchTouchEvent(ev)
     }
 }
