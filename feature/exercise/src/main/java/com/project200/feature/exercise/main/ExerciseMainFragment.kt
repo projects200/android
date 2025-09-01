@@ -49,6 +49,9 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         setupBtnListeners()
         setupCalendar()
         setupRecyclerView()
+
+        // 예상 획득 점수 정보 불러오기
+        viewModel.loadExpectedScoreInfo()
     }
 
     private fun setupCalendar() {
@@ -206,6 +209,16 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                      else -> R.drawable.ic_score_low_level
                  }
              )
+
+            viewModel.earnablePoints.observe(viewLifecycleOwner) { points ->
+                binding.exerciseCreateBtn.text = if (points > 0) {
+                    // 점수가 0보다 크면, 획득 가능 텍스트를 보여줍니다.
+                    getString(R.string.exercise_record_complete_with_points, points)
+                } else {
+                    // 점수가 0이면, 기본 텍스트를 보여줍니다.
+                    getString(R.string.record_exercise)
+                }
+            }
         }
 
         viewModel.exerciseCount.observe(viewLifecycleOwner) { count ->
