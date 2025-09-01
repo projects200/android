@@ -28,6 +28,9 @@ class MainViewModel @Inject constructor(
     private val _loginResult = MutableLiveData<BaseResult<Unit>>()
     val loginResult: LiveData<BaseResult<Unit>> = _loginResult
 
+    private val _showBottomNavigation = MutableLiveData<Boolean>()
+    val showBottomNavigation: LiveData<Boolean> = _showBottomNavigation
+
     // 업데이트 확인
     fun checkForUpdate() {
         if (_updateCheckResult.value != null) { return } // 이미 체크했다면 스킵
@@ -53,5 +56,13 @@ class MainViewModel @Inject constructor(
             val result = loginUseCase()
             _loginResult.value = result
         }
+    }
+
+    fun showBottomNavigation() {
+        _showBottomNavigation.value = true
+    }
+
+    fun hideBottomNavigation() {
+        _showBottomNavigation.value = false
     }
 }

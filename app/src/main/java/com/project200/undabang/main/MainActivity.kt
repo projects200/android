@@ -12,6 +12,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
@@ -19,6 +20,7 @@ import androidx.navigation.ui.setupWithNavController
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
+import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
 import com.project200.presentation.utils.hideKeyboardOnTouchOutside
 import com.project200.undabang.R
@@ -33,7 +35,7 @@ import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), BottomNavigationController {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
@@ -115,6 +117,30 @@ class MainActivity : AppCompatActivity() {
     private fun setupViews() {
         viewModel.checkForUpdate()
         binding.bottomNavigation.setupWithNavController(navController)
+
+        val bottomNavHiddenFragments = setOf(
+            com.project200.undabang.feature.exercise.R.id.exerciseDetailFragment,
+            com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
+            com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
+            com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
+            // ... 필요한 다른 프래그먼트 ID들 추가 ... //
+        )
+
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            if (destination.id in bottomNavHiddenFragments) {
+                hideBottomNavigation()
+            } else {
+                showBottomNavigation()
+            }
+        }
+    }
+
+    override fun hideBottomNavigation() {
+        binding.bottomNavigation.isVisible = false
+    }
+
+    override fun showBottomNavigation() {
+        binding.bottomNavigation.isVisible = true
     }
 
     private fun setupObservers() {
@@ -142,6 +168,14 @@ class MainActivity : AppCompatActivity() {
                 is BaseResult.Error -> {
                     navigateToLogin()
                 }
+            }
+        }
+
+        viewModel.showBottomNavigation.observe(this) { show ->
+            if (show) {
+                showBottomNavigation()
+            } else {
+                hideBottomNavigation()
             }
         }
     }
