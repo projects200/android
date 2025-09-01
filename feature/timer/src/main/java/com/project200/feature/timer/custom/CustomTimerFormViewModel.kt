@@ -195,6 +195,7 @@ class CustomTimerFormViewModel @Inject constructor(
                 is CustomTimerValidationResult.EmptyTitle -> ToastMessageType.EMPTY_TITLE
                 is CustomTimerValidationResult.NoSteps -> ToastMessageType.NO_STEPS
                 is CustomTimerValidationResult.InvalidStepTime -> ToastMessageType.INVALID_STEP_TIME
+                is CustomTimerValidationResult.EmptyStepName -> ToastMessageType.EMPTY_STEP_NAME
                 else -> null
             }
         }

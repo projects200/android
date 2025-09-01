@@ -40,7 +40,6 @@
             android:layout_weight="1"
             android:maxLines="1"
             android:maxLength="50"
-            android:hint="@string/custom_timer_step_hint"
             android:textColorHint="@color/gray200"
             style="@style/content_bold"
             android:textSize="18sp"

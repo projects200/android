@@ -8,8 +8,8 @@
     android:layout_marginHorizontal="@dimen/base_horizontal_margin"
     android:layout_marginTop="@dimen/new_step_margin_top_default"
     android:layout_marginBottom="20dp"
-    android:background="@drawable/bg_custom_timer"
-    android:elevation="2dp"
+    android:background="@drawable/bg_custom_timer_footer"
+
     android:gravity="center"
     android:orientation="horizontal"
     android:paddingStart="12dp"
@@ -32,6 +32,7 @@
         android:background="@android:color/transparent"
         android:hint="@string/custom_timer_step_hint"
         android:maxLines="1"
+        android:inputType="text"
         android:textColorHint="@color/gray200"
         android:textSize="18sp" />
 

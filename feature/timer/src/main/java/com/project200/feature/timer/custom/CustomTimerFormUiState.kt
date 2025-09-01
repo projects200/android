@@ -26,6 +26,7 @@ enum class ToastMessageType {
     EMPTY_TITLE, // 제목이 비어있음
     NO_STEPS, // 스텝이 하나도 없음
     INVALID_STEP_TIME, // 스텝 시간이 0 이하임
+    EMPTY_STEP_NAME, // 스텝 시간이 0 이하임
     MAX_STEPS, // 스텝 최대 개수 초과
     GET_ERROR, // 조회 에러
     CREATE_ERROR, // 생성 에러

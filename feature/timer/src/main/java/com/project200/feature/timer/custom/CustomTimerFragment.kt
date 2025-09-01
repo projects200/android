@@ -8,6 +8,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.animation.LinearInterpolator
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat.getColor
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -60,6 +61,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             }
             setSubButton(R.drawable.ic_menu, onClick = { showMenu() })
         }
+
+        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                findNavController().popBackStack()
+            }
+        })
 
         context?.let {
             stepFinishPlayer = MediaPlayer.create(it, R.raw.custom_finish_alarm)
@@ -170,12 +178,17 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
-            findNavController().navigateUp()
-            val messageRes = when(result) {
-                is BaseResult.Success -> R.string.custom_timer_delete_success
-                is BaseResult.Error -> R.string.custom_timer_error_delete_failed
+            when(result) {
+                is BaseResult.Success -> {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
+                    Toast.makeText(requireContext(), getString(R.string.custom_timer_delete_success), Toast.LENGTH_SHORT).show()
+                }
+                is BaseResult.Error -> {
+                    Toast.makeText(requireContext(), getString(R.string.custom_timer_error_delete_failed), Toast.LENGTH_SHORT).show()
+                }
             }
-            Toast.makeText(requireContext(), getString(messageRes), Toast.LENGTH_SHORT).show()
+
         }
 
         // 에러 이벤트 처리

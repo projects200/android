@@ -18,6 +18,9 @@ class ValidateCustomTimerUseCase @Inject constructor() {
         if (steps.any { it.time <= 0 }) {
             return CustomTimerValidationResult.InvalidStepTime
         }
+        if (steps.any() { it.name.isBlank() }) {
+            return CustomTimerValidationResult.EmptyStepName
+        }
         return CustomTimerValidationResult.Success
     }
 }
