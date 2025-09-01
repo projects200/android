@@ -11,6 +11,20 @@
         android:layout_height="wrap_content"
         app:layout_constraintTop_toTopOf="parent" />
 
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/record_complete_btn"
+        style="@style/content_bold"
+        android:layout_width="62dp"
+        android:layout_height="33dp"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:background="@drawable/bg_complete_btn"
+        android:gravity="center"
+        android:text="@string/complete"
+        android:textColor="@color/white300"
+        app:layout_constraintBottom_toBottomOf="@+id/base_toolbar"
+        app:layout_constraintEnd_toEndOf="@+id/base_toolbar"
+        app:layout_constraintTop_toTopOf="@+id/base_toolbar" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/scroll_view"
         android:layout_width="match_parent"
@@ -226,21 +240,6 @@
                 android:layout_marginBottom="32dp"
                 android:clipToPadding="false"
                 android:nestedScrollingEnabled="false" />
-
-            <androidx.appcompat.widget.AppCompatButton
-                android:id="@+id/record_complete_btn"
-                style="@style/content_bold"
-                android:layout_width="match_parent"
-                android:layout_height="@dimen/btn_height"
-                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
-                android:layout_marginBottom="32dp"
-                android:background="@drawable/selector_basic_btn"
-                android:elevation="8dp"
-                android:gravity="center"
-                android:stateListAnimator="@null"
-                android:text="@string/exercise_record_complete"
-                android:textColor="@color/white300"
-                app:layout_constraintBottom_toBottomOf="parent" />
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

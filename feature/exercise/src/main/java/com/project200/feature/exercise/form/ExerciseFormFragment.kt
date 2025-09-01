@@ -47,7 +47,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private val viewModel: ExerciseFormViewModel by viewModels()
     private lateinit var imageAdapter: ExerciseImageAdapter
-    private var fragmentNavigator: FragmentNavigator? = null
 
     private val pickMultipleMediaLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGE)) { uris ->
@@ -288,16 +287,13 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             when (state) {
                 is ScoreGuidanceState.Hidden -> {
                     binding.scoreWarningTv.isVisible = false
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
                 }
                 is ScoreGuidanceState.Warning -> {
                     binding.scoreWarningTv.isVisible = true
                     binding.scoreWarningTv.text = state.message
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
                 }
                 is ScoreGuidanceState.PointsAvailable -> {
                     binding.scoreWarningTv.isVisible = false
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete_with_points, state.points)
                 }
             }
         }
