@@ -9,6 +9,8 @@ import com.project200.domain.model.Policy
 import com.project200.domain.model.PolicyGroup
 import com.project200.domain.model.Score
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetExerciseRecordListUseCase
+import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import com.project200.feature.exercise.main.ExerciseMainViewModel
@@ -49,6 +51,12 @@ class ExerciseMainViewModelTest {
 
     @MockK
     private lateinit var mockGetScorePolicyUseCase: GetScorePolicyUseCase
+
+    @MockK
+    private lateinit var mockGetExerciseRecordListUseCase: GetExerciseRecordListUseCase
+
+    @MockK
+    private lateinit var mockGetExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
 
 
     private lateinit var viewModel: ExerciseMainViewModel
@@ -133,7 +141,14 @@ class ExerciseMainViewModelTest {
         coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(0))
         coEvery { mockGetScorePolicyUseCase.invoke() } returns BaseResult.Success(samplePolicyGroup)
 
-        viewModel = ExerciseMainViewModel(mockGetExerciseCountUseCase, mockGetScoreUseCase, mockGetScorePolicyUseCase, mockClockProvider)
+        viewModel = ExerciseMainViewModel(
+            mockGetExerciseCountUseCase,
+            mockGetScoreUseCase,
+            mockGetScorePolicyUseCase,
+            mockGetExerciseRecordListUseCase,
+            mockGetExpectedScoreInfoUseCase,
+            mockClockProvider
+        )
     }
 
     @After
