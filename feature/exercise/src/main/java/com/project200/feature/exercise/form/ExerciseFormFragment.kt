@@ -47,7 +47,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private val viewModel: ExerciseFormViewModel by viewModels()
     private lateinit var imageAdapter: ExerciseImageAdapter
-    private var fragmentNavigator: FragmentNavigator? = null
 
     private val pickMultipleMediaLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGE)) { uris ->
