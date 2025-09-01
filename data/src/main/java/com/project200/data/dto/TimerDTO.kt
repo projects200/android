@@ -10,6 +10,55 @@ data class SimpleTimerDTO(
     val time: Int
 )
 
-data class PatchSimpleTimerRequest(
+data class SimpleTimerRequest(
     val time: Int
+)
+
+data class GetCustomTimerListDTO(
+    val customTimerCount: Int,
+    val customTimers: List<CustomTimerSummaryDTO>
+)
+
+data class CustomTimerSummaryDTO(
+    val customTimerId: Long,
+    val customTimerName: String
+)
+
+// 커스텀 타이머 상세 조회 DTO
+data class GetCustomTimerDetailDTO(
+    val customTimerId: Long,
+    val customTimerName: String,
+    val customTimerStepCount: Int,
+    val customTimerSteps: List<CustomTimerDetailStepDTO>
+)
+
+data class CustomTimerDetailStepDTO(
+    val customTimerStepId: Long,
+    val customTimerStepName: String,
+    val customTimerStepOrder: Int,
+    val customTimerStepTime: Int
+)
+
+// 커스텀 타이머 생성 요청 DTO
+data class PostCustomTimerRequest(
+    val customTimerName: String,
+    val customTimerSteps: List<PostCustomTimerStepDTO>
+)
+
+data class PostCustomTimerStepDTO(
+    val customTimerStepName: String,
+    val customTimerStepOrder: Int,
+    val customTimerStepTime: Int
+)
+
+data class CustomTimerIdDTO(
+    val customTimerId: Long
+)
+
+data class PatchCustomTimerTitleRequest(
+    val customTimerName: String
+)
+
+data class SimpleTimerIdDTO(
+    val simpleTimerId: Long
 )

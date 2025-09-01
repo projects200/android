@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
+import com.project200.domain.usecase.AddSimpleTimerUseCase
+import com.project200.domain.usecase.DeleteSimpleTimerUseCase
 import com.project200.domain.usecase.EditSimpleTimerUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,21 +19,18 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-sealed class TimerEvent {
-    object NavigateToErrorScreen : TimerEvent()
-    data class ShowToast(val code: String) : TimerEvent()
-}
-
 @HiltViewModel
 class SimpleTimerViewModel @Inject constructor(
     private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
-    private val editSimpleTimerUseCase: EditSimpleTimerUseCase
+    private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
+    private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
+    private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase
 ): ViewModel() {
     var totalTime: Long = 0
 
     // 타이머 아이템 리스트
-    private val _timerItems = MutableLiveData<MutableList<SimpleTimer>>()
-    val timerItems: LiveData<MutableList<SimpleTimer>> = _timerItems
+    private val _timerItems = MutableLiveData<List<SimpleTimer>>()
+    val timerItems: LiveData<List<SimpleTimer>> = _timerItems
 
     private val _remainingTime = MutableLiveData<Long>()
     val remainingTime: LiveData<Long> = _remainingTime
@@ -39,9 +38,11 @@ class SimpleTimerViewModel @Inject constructor(
     private val _isTimerRunning = MutableLiveData<Boolean>()
     val isTimerRunning: LiveData<Boolean>  = _isTimerRunning
 
+    private var isAscending = true
+
     // 이벤트를 전달할 SharedFlow 생성
-    private val _eventFlow = MutableSharedFlow<TimerEvent>()
-    val eventFlow: SharedFlow<TimerEvent> = _eventFlow.asSharedFlow()
+    private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
+    val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage
 
     private var countDownTimer: CountDownTimer? = null
 
@@ -58,8 +59,50 @@ class SimpleTimerViewModel @Inject constructor(
                     _timerItems.value = result.data.toMutableList()
                 }
                 is BaseResult.Error -> {
-                    _eventFlow.emit(TimerEvent.NavigateToErrorScreen)
+                    _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
                 }
+            }
+        }
+    }
+
+    fun changeSortOrder() {
+        isAscending = !isAscending
+        _timerItems.value?.let { currentList ->
+            _timerItems.value = sortTimers(currentList, isAscending)
+        }
+    }
+
+    private fun sortTimers(timers: List<SimpleTimer>, ascending: Boolean): List<SimpleTimer> {
+        return if (ascending) {
+            timers.sortedBy { it.time }
+        } else {
+            timers.sortedByDescending { it.time }
+        }
+    }
+
+    fun addTimerItem(time: Int) {
+        val currentItems = _timerItems.value ?: emptyList()
+        if (currentItems.size >= MAX_TIMER_COUNT) return
+
+        viewModelScope.launch {
+            when (val result = addSimpleTimerUseCase(time)) {
+                is BaseResult.Success -> {
+                    val newTimer = SimpleTimer(id = result.data, time = time)
+                    _timerItems.value = currentItems + newTimer
+                }
+                is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.ADD_ERROR)
+            }
+        }
+    }
+
+    fun deleteTimerItem(timerId: Long) {
+        viewModelScope.launch {
+            when (deleteSimpleTimerUseCase(timerId)) {
+                is BaseResult.Success -> {
+                    val currentItems = _timerItems.value ?: return@launch
+                    _timerItems.value = currentItems.filterNot { it.id == timerId }
+                }
+                is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.DELETE_ERROR)
             }
         }
     }
@@ -105,17 +148,18 @@ class SimpleTimerViewModel @Inject constructor(
 
     // 타이머 아이템을 수정하는 함수
     fun updateTimerItem(updatedTimer: SimpleTimer) {
-        val currentItems = _timerItems.value ?: return
+        val currentItems = _timerItems.value?.toMutableList() ?: return
         val index = currentItems.indexOfFirst { it.id == updatedTimer.id }
+
         if (index != -1) {
             currentItems[index] = updatedTimer
-            _timerItems.value = currentItems
+            _timerItems.value = currentItems // 새 리스트 할당
 
             viewModelScope.launch {
                 val result = editSimpleTimerUseCase(updatedTimer)
                 if (result is BaseResult.Error) {
                     Timber.e("타이머 수정 실패: ${result.message}")
-                    _eventFlow.emit(TimerEvent.ShowToast(result.errorCode.toString()))
+                    _toastMessage.emit(SimpleTimerToastMessage.EDIT_ERROR)
                 }
             }
         }
@@ -128,5 +172,7 @@ class SimpleTimerViewModel @Inject constructor(
 
     companion object {
         const val COUNTDOWN_INTERVAL = 50L // 50ms
+        const val MAX_TIMER_COUNT = 6
+        const val DEFAULT_ADD_TIME_SEC = 60
     }
 }
