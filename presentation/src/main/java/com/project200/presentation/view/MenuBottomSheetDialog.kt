@@ -15,7 +15,6 @@ import com.project200.undabang.presentation.databinding.BottomSheetDialogMenuBin
 class MenuBottomSheetDialog(
     val onEditClicked: () -> Unit,
     val onDeleteClicked: () -> Unit,
-    private val isEditVisible: Boolean = true, // TODO: 타이머 수정 기능이 추가되면 제거 예정
 ) : BottomSheetDialogFragment() {
     private var _binding: BottomSheetDialogMenuBinding? = null
     private val binding get() = _binding!!
@@ -47,8 +46,6 @@ class MenuBottomSheetDialog(
         }
 
         binding.closeBtn.setOnClickListener { dismiss() }
-
-        binding.editBtn.visibility = if (isEditVisible) View.VISIBLE else View.GONE // TODO: 타이머 수정 기능이 추가되면 제거 예정
     }
 
     override fun onDestroyView() {

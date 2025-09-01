@@ -3,12 +3,21 @@ package com.project200.feature.timer.custom
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
 import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.os.Bundle
 import android.view.View
 import android.view.animation.LinearInterpolator
+import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.project200.domain.model.BaseResult
+import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
@@ -16,10 +25,12 @@ import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
     private val viewModel: CustomTimerViewModel by viewModels()
+    private val args: CustomTimerFragmentArgs by navArgs()
     private var progressAnimator: ValueAnimator? = null
 
     private var stepFinishPlayer: MediaPlayer? = null // 스텝 종료
@@ -31,9 +42,22 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         return FragmentCustomTimerBinding.bind(view)
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        viewModel.setTimerId(args.customTimerId)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadTimerData()
+    }
+
     override fun setupViews() {
         binding.baseToolbar.apply {
-            showBackButton(true) { findNavController().navigateUp() }
+            showBackButton(true) {
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                findNavController().popBackStack()
+            }
             setSubButton(R.drawable.ic_menu, onClick = { showMenu() })
         }
 
@@ -43,7 +67,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
         initClickListeners()
         initRecyclerView()
-        setupObservers()
         binding.timerEndBtn.isClickable = viewModel.isTimerFinished.value == false
     }
 
@@ -81,6 +104,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         viewModel.steps.observe(viewLifecycleOwner) { steps ->
             stepRVAdapter.submitList(steps)
         }
+
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
             updateRunningState(isRunning)
         }
@@ -137,6 +161,30 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             if (shouldPlay) {
                 playTickSound()
                 viewModel.onTickSoundPlayed()
+            }
+        }
+
+        // 툴바 타이틀 설정
+        viewModel.title.observe(viewLifecycleOwner) { title ->
+            binding.baseToolbar.setTitle(title)
+        }
+
+        viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
+            findNavController().navigateUp()
+            val messageRes = when(result) {
+                is BaseResult.Success -> R.string.custom_timer_delete_success
+                is BaseResult.Error -> R.string.custom_timer_error_delete_failed
+            }
+            Toast.makeText(requireContext(), getString(messageRes), Toast.LENGTH_SHORT).show()
+        }
+
+        // 에러 이벤트 처리
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.errorEvent.collect { error ->
+                    Toast.makeText(requireContext(), getString(R.string.error_failed_to_load_list), Toast.LENGTH_SHORT).show()
+                    findNavController().navigateUp()
+                }
             }
         }
     }
@@ -229,10 +277,13 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private fun showMenu() {
         MenuBottomSheetDialog(
             onEditClicked = {
-                // TODO: 타이머 수정 기능이 추가되면 구현 예정
+                findNavController().navigate(
+                    CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
+                        viewModel.customTimerId
+                    )
+                )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() },
-            isEditVisible = false // TODO: 타이머 수정 기능이 추가되면 제거 예정
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
@@ -241,7 +292,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             title = getString(R.string.custom_timer_delete_alert),
             desc = null,
             onConfirmClicked = {
-                // TODO: 커스텀 타이머 삭제
+                viewModel.deleteTimer()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }
