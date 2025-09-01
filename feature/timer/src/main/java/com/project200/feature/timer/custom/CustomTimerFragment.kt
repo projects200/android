@@ -32,7 +32,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private val viewModel: CustomTimerViewModel by viewModels()
     private val args: CustomTimerFragmentArgs by navArgs()
     private var progressAnimator: ValueAnimator? = null
-    private var mediaPlayer: MediaPlayer? = null
+
+    private var stepFinishPlayer: MediaPlayer? = null // 스텝 종료
+    private var tickPlayer: MediaPlayer? = null // 카운트다운
+
     private lateinit var stepRVAdapter: StepRVAdapter
 
     override fun getViewBinding(view: View): FragmentCustomTimerBinding {
@@ -59,8 +62,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         context?.let {
-            val notificationUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
-            mediaPlayer = MediaPlayer.create(it, notificationUri)
+            stepFinishPlayer = MediaPlayer.create(it, R.raw.custom_finish_alarm)
+            tickPlayer = MediaPlayer.create(it, R.raw.custom_tick_alarm)
         }
         initClickListeners()
         initRecyclerView()
@@ -88,10 +91,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         stepRVAdapter = StepRVAdapter { position ->
             viewModel.jumpToStep(position)
         }
-
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            adapter = stepRVAdapter
+            viewModel.steps.observe(viewLifecycleOwner) { steps ->
+                adapter = stepRVAdapter
+            }
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
         }
     }
@@ -113,11 +117,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             if (view != null) { // Fragment View가 살아있는지 확인
                 updateRecyclerView(index)
                 smoothScrollToPosition(index)
-
-                // 스텝이 바뀌면 프로그레스바를 100%로 조정
-                progressAnimator?.cancel()
-                binding.timerProgressbar.progress = 1f
-
                 // 타이머가 실행 중일 때만 애니메이션을 시작 (초기 로드나 리셋 시 불필요한 호출 방지)
                 if (viewModel.isTimerRunning.value == true) {
                     startProgressBarAnimation()
@@ -135,6 +134,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                     // 반복이 비활성화 되어있으면 종료 상태로 변경
                     updateUIForTimerEnd()
                     viewModel.resetTimer()
+
+                    // 스텝이 바뀌면 프로그레스바를 100%로 조정
+                    progressAnimator?.cancel()
+                    binding.timerProgressbar.progress = 1f
                 }
             }
         }
@@ -145,11 +148,19 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                 if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off
             )
         }
-
-        viewModel.alarm.observe(viewLifecycleOwner) { shouldPlay ->
+        // 스텝 종료 알림음을 위한 Observer
+        viewModel.stepFinishedAlarm.observe(viewLifecycleOwner) { shouldPlay ->
             if (shouldPlay) {
-                playAlarm()
-                viewModel.onAlarmPlayed()
+                playStepFinishAlarm()
+                viewModel.onStepFinishedAlarmPlayed()
+            }
+        }
+
+        // 카운트다운 알림음을 위한 Observer
+        viewModel.playTickSound.observe(viewLifecycleOwner) { shouldPlay ->
+            if (shouldPlay) {
+                playTickSound()
+                viewModel.onTickSoundPlayed()
             }
         }
 
@@ -184,10 +195,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                 getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led)
             )
             binding.timerPlayBtn.text = getString(R.string.timer_stop)
-            if (mediaPlayer?.isPlaying == true) {
-                mediaPlayer?.pause()
-                mediaPlayer?.seekTo(0)
-            }
+
+            // 재생 중인 알림음이 있다면 일시정지
+            stepFinishPlayer?.takeIf { it.isPlaying }?.pause()
+            tickPlayer?.takeIf { it.isPlaying }?.pause()
+
             startProgressBarAnimation()
         } else {
             binding.timerPlayBtn.backgroundTintList = ColorStateList.valueOf(
@@ -240,8 +252,20 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
     }
 
-    private fun playAlarm() {
-        mediaPlayer?.apply {
+    // 스텝 종료 알림음 재생 함수
+    private fun playStepFinishAlarm() {
+        stepFinishPlayer?.apply {
+            if (isPlaying) {
+                pause()
+                seekTo(0)
+            }
+            start()
+        }
+    }
+
+    // 카운트다운 알림음 재생 함수
+    private fun playTickSound() {
+        tickPlayer?.apply {
             if (isPlaying) {
                 pause()
                 seekTo(0)
@@ -275,8 +299,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     override fun onDestroyView() {
         super.onDestroyView()
-        mediaPlayer?.release()
-        mediaPlayer = null
+        stepFinishPlayer?.release()
+        stepFinishPlayer = null
+        tickPlayer?.release()
+        tickPlayer = null
         progressAnimator?.cancel()
         progressAnimator = null
     }
