@@ -279,7 +279,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             onEditClicked = {
                 findNavController().navigate(
                     CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
-                        viewModel.customTimerId
+                        args.customTimerId
                     )
                 )
             },

@@ -41,9 +41,9 @@ class CustomTimerFormViewModel @Inject constructor(
     private var originalSteps: List<Step> = emptyList()
 
     // 타이머 id 저장
-    private var customTimerId: Long? = null
+    private var customTimerId: Long = DEFAULT_DUMMY_ID
     val isEditMode: Boolean
-        get() = customTimerId != null
+        get() = customTimerId != DEFAULT_DUMMY_ID
 
     // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
     private var localIdCounter = DEFAULT_DUMMY_ID
@@ -214,7 +214,7 @@ class CustomTimerFormViewModel @Inject constructor(
     }
 
     private fun editCustomTimer(title: String, steps: List<Step>) {
-        val timerId = customTimerId ?: return
+        val timerId = if(customTimerId != DEFAULT_DUMMY_ID) customTimerId else return
         val hasTitleChanged = originalTitle != title
         val hasStepsChanged = originalSteps != steps
         if (!hasTitleChanged && !hasStepsChanged) {
