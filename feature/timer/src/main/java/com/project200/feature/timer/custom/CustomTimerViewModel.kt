@@ -160,6 +160,25 @@ class CustomTimerViewModel @Inject constructor(
         _isTimerRunning.value = false
     }
 
+    // 선택된 스텝으로 이동합니다.
+    fun jumpToStep(index: Int) {
+        // 유효하지 않은 인덱스에 대한 방어 코드
+        if (index < 0 || index >= (_steps.value?.size ?: 0)) return
+
+        // 현재 실행 중인 타이머가 있다면 정지
+        timerManager.cancel()
+        _isTimerRunning.value = false
+        _isTimerFinished.value = false
+
+        // 선택된 스텝의 정보로 상태를 갱신
+        val targetStep = _steps.value!![index]
+        totalStepTime = targetStep.time * 1000L
+        _remainingTime.value = totalStepTime
+        _currentStepIndex.value = index
+
+        startTimer()
+    }
+
     // 사용자가 '종료' 버튼을 누르거나, 타이머가 끝났을 때 모든 상태를 초기화합니다.
     fun resetTimer() {
         timerManager.cancel()
