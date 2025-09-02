@@ -1,6 +1,5 @@
 package com.project200.feature.exercise.detail
 
-import android.content.Context
 import android.view.View
 import android.widget.TextView
 import android.widget.Toast
@@ -13,14 +12,13 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import com.project200.common.utils.CommonDateTimeFormatters
-import com.project200.feature.exercise.form.ExerciseMenuBottomSheet
+import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.presentation.base.BaseAlertDialog
-import com.project200.presentation.navigator.FragmentNavigator
+import com.project200.presentation.navigator.BottomNavigationController
 
 @AndroidEntryPoint
 class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
-    private var fragmentNavigator: FragmentNavigator? = null
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
@@ -115,10 +113,15 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
 
 
     private fun showExerciseDetailMenu() {
-        ExerciseMenuBottomSheet(
-            onEditClicked = { fragmentNavigator?.navigateFromExerciseDetailToExerciseForm(viewModel.recordId!!) },
+        MenuBottomSheetDialog(
+            onEditClicked = {
+                findNavController().navigate(
+                    ExerciseDetailFragmentDirections
+                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId)
+                )
+            },
             onDeleteClicked = { showDeleteConfirmationDialog() }
-        ).show(parentFragmentManager, ExerciseMenuBottomSheet::class.java.simpleName)
+        ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
     private fun showDeleteConfirmationDialog() {
@@ -129,20 +132,6 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
                 viewModel.deleteExerciseRecord()
             }
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is FragmentNavigator) {
-            fragmentNavigator = context
-        } else {
-            throw ClassCastException("$context must implement FragmentNavigator")
-        }
-    }
-
-    override fun onDetach() {
-        fragmentNavigator = null
-        super.onDetach()
     }
 
     companion object {

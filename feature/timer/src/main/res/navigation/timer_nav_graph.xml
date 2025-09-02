@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/timer_nav_graph"
+    app:startDestination="@id/timerListFragment">
+
+    <fragment
+        android:id="@+id/timerListFragment"
+        android:name="com.project200.feature.timer.TimerListFragment"
+        android:label="TimerListFragment"
+        tools:layout="@layout/fragment_timer_list" >
+        <action
+            android:id="@+id/action_timerListFragment_to_simpleTimerFragment"
+            app:destination="@id/simpleTimerFragment" />
+        <action
+            android:id="@+id/action_timerListFragment_to_customTimerFragment"
+            app:destination="@id/customTimerFragment" >
+            <argument
+                android:name="customTimerId"
+                app:argType="long"
+                android:defaultValue="-1L"/>
+        </action>
+        <action
+            android:id="@+id/action_timerListFragment_to_customTimerFormFragment"
+            app:destination="@id/customTimerFormFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/simpleTimerFragment"
+        android:name="com.project200.feature.timer.simple.SimpleTimerFragment"
+        android:label="SimpleTimerFragment"
+        tools:layout="@layout/fragment_simple_timer" />
+
+    <fragment
+        android:id="@+id/customTimerFragment"
+        android:name="com.project200.feature.timer.custom.CustomTimerFragment"
+        android:label="CustomTimerFragment"
+        tools:layout="@layout/fragment_custom_timer" >
+        <argument
+            android:name="customTimerId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+        <action
+            android:id="@+id/action_customTimer_to_customTimerFormFragment"
+            app:destination="@id/customTimerFormFragment">
+            <argument
+                android:name="customTimerId"
+                app:argType="long" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/customTimerFormFragment"
+        android:name="com.project200.feature.timer.custom.CustomTimerFormFragment"
+        android:label="CustomTimerCreateFormFragment"
+        tools:layout="@layout/fragment_custom_timer_form">
+        <argument
+            android:name="customTimerId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+        <action
+            android:id="@+id/action_customTimerFormFragment_to_customTimerFragment"
+            app:destination="@id/customTimerFragment"
+            app:popUpTo="@id/customTimerFormFragment"
+            app:popUpToInclusive="true">
+            <argument
+                android:name="customTimerId"
+                app:argType="long" />
+        </action>
+    </fragment>
+</navigation>

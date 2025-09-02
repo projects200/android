@@ -3,15 +3,19 @@ package com.project200.data.di
 import com.project200.data.impl.AppUpdateRepositoryImpl
 import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
+import com.project200.data.impl.FcmRepositoryImpl
 import com.project200.data.impl.MemberRepositoryImpl
 import com.project200.data.impl.PolicyRepositoryImpl
 import com.project200.data.impl.ScoreRepositoryImpl
+import com.project200.data.impl.TimerRepositoryImpl
 import com.project200.domain.repository.AppUpdateRepository
 import com.project200.domain.repository.AuthRepository
 import com.project200.domain.repository.ExerciseRecordRepository
+import com.project200.domain.repository.FcmRepository
 import com.project200.domain.repository.MemberRepository
 import com.project200.domain.repository.PolicyRepository
 import com.project200.domain.repository.ScoreRepository
+import com.project200.domain.repository.TimerRepository
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -58,4 +62,16 @@ abstract class RepositoryModule {
     abstract fun bindScoreRepository(
         scoreRepositoryImpl: ScoreRepositoryImpl
     ): ScoreRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFcmRepository(
+        fcmRepositoryImpl: FcmRepositoryImpl
+    ): FcmRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTimerRepository(
+        timerRepository: TimerRepositoryImpl
+    ): TimerRepository
 }

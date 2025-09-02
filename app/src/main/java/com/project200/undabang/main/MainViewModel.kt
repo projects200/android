@@ -4,9 +4,12 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
+import com.project200.domain.usecase.LoginUseCase
+import com.project200.domain.usecase.SendFcmTokenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber
@@ -15,14 +18,18 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val checkForUpdateUseCase: CheckForUpdateUseCase,
-    private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase
+    private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
+    private val loginUseCase: LoginUseCase,
 ) : ViewModel() {
 
     private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
     val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
 
-    private val _isRegistered = MutableLiveData<Boolean>()
-    val isRegistered: LiveData<Boolean> = _isRegistered
+    private val _loginResult = MutableLiveData<BaseResult<Unit>>()
+    val loginResult: LiveData<BaseResult<Unit>> = _loginResult
+
+    private val _showBottomNavigation = MutableLiveData<Boolean>()
+    val showBottomNavigation: LiveData<Boolean> = _showBottomNavigation
 
     // 업데이트 확인
     fun checkForUpdate() {
@@ -43,10 +50,19 @@ class MainViewModel @Inject constructor(
         }
     }
 
-    // 회원 확인
-    fun checkIsRegistered() {
+    // 로그인
+    fun login() {
         viewModelScope.launch {
-            _isRegistered.value = checkIsRegisteredUseCase() ?: false
+            val result = loginUseCase()
+            _loginResult.value = result
         }
+    }
+
+    fun showBottomNavigation() {
+        _showBottomNavigation.value = true
+    }
+
+    fun hideBottomNavigation() {
+        _showBottomNavigation.value = false
     }
 }

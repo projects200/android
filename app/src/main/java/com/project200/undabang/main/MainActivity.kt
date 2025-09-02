@@ -1,21 +1,28 @@
 package com.project200.undabang.main
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
 import android.widget.Toast
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.setupWithNavController
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
-import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
-import com.project200.feature.exercise.form.ExerciseFormFragmentDirections
-import com.project200.feature.exercise.list.ExerciseListFragmentDirections
-import com.project200.feature.exercise.main.ExerciseMainFragmentDirections
 import com.project200.presentation.navigator.ActivityNavigator
-import com.project200.presentation.navigator.FragmentNavigator
+import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
+import com.project200.presentation.utils.hideKeyboardOnTouchOutside
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
@@ -24,13 +31,11 @@ import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import net.openid.appauth.AuthorizationService
 import timber.log.Timber
-import java.time.LocalDate
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class MainActivity : AppCompatActivity(), FragmentNavigator {
+class MainActivity : AppCompatActivity(), BottomNavigationController {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
@@ -39,6 +44,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
     private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
     private lateinit var binding: ActivityMainBinding
+    private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -46,6 +52,15 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
+
+        requestNotificationPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    Timber.i("알림 권한 허용됨")
+                } else {
+                    Timber.w("알림 권한 거부됨")
+                }
+            }
 
         setupObservers()
         performRouting()
@@ -61,7 +76,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                     when (val refreshResult = authManager.refreshAccessToken()) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
-                            viewModel.checkIsRegistered() // 회원 여부 확인
+                            viewModel.login()
                         }
                         is TokenRefreshResult.Error,
                         is TokenRefreshResult.NoRefreshToken,
@@ -73,7 +88,7 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                     }
                 } else {
                     Timber.i("User is authorized and token is fresh.")
-                    viewModel.checkIsRegistered() // 회원 여부 확인
+                    viewModel.login()
                 }
             } else {
                 Timber.i("User is not authorized.")
@@ -88,7 +103,6 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
 
         setupViews()
@@ -102,6 +116,31 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
 
     private fun setupViews() {
         viewModel.checkForUpdate()
+        binding.bottomNavigation.setupWithNavController(navController)
+
+        val bottomNavHiddenFragments = setOf(
+            com.project200.undabang.feature.exercise.R.id.exerciseDetailFragment,
+            com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
+            com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
+            com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
+            // ... 필요한 다른 프래그먼트 ID들 추가 ... //
+        )
+
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            if (destination.id in bottomNavHiddenFragments) {
+                hideBottomNavigation()
+            } else {
+                showBottomNavigation()
+            }
+        }
+    }
+
+    override fun hideBottomNavigation() {
+        binding.bottomNavigation.isVisible = false
+    }
+
+    override fun showBottomNavigation() {
+        binding.bottomNavigation.isVisible = true
     }
 
     private fun setupObservers() {
@@ -119,10 +158,38 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
                 }
             }
         }
-        
-        viewModel.isRegistered.observe(this) { isRegistered ->
-            if (isRegistered) proceedToContent()
-            else navigateToLogin()
+
+        viewModel.loginResult.observe(this) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    proceedToContent()
+                    checkNotificationPermission()
+                }
+                is BaseResult.Error -> {
+                    navigateToLogin()
+                }
+            }
+        }
+
+        viewModel.showBottomNavigation.observe(this) { show ->
+            if (show) {
+                showBottomNavigation()
+            } else {
+                hideBottomNavigation()
+            }
+        }
+    }
+
+    private fun checkNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val permission = Manifest.permission.POST_NOTIFICATIONS
+            // 권한이 이미 허용되었는지 확인
+            if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
+                Timber.i("알림 권한이 이미 허용되어 있음")
+                return
+            }
+            // 권한 요청 실행
+            requestNotificationPermissionLauncher.launch(permission)
         }
     }
 
@@ -146,31 +213,8 @@ class MainActivity : AppCompatActivity(), FragmentNavigator {
         }
     }
 
-    override fun navigateFromExerciseListToExerciseDetail(recordId: Long) {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseDetailFragment(recordId))
-    }
-
-    override fun navigateFromExerciseListToExerciseForm() {
-        navController.navigate(ExerciseListFragmentDirections.actionExerciseListFragmentToExerciseFormFragment())
-    }
-
-    override fun navigateFromExerciseDetailToExerciseForm(recordId: Long) {
-        navController.navigate(ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseFormFragment(recordId))
-    }
-
-    override fun navigateFromExerciseFormToExerciseDetail(recordId: Long) {
-        navController.navigate(ExerciseFormFragmentDirections.actionExerciseFormFragmentToExerciseDetailFragment(recordId))
-    }
-
-    override fun navigateFromExerciseMainToExerciseList(date: LocalDate) {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseListFragment(date))
-    }
-
-    override fun navigateFromExerciseMainToSetting() {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToSettingFragment())
-    }
-
-    override fun navigateFromExerciseMainToExerciseForm() {
-        navController.navigate(ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseFormFragment())
+    override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
+        hideKeyboardOnTouchOutside(ev)
+        return super.dispatchTouchEvent(ev)
     }
 }

@@ -16,7 +16,7 @@
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
-        android:id="@+id/today_iv"
+        android:id="@+id/selected_iv"
         android:layout_width="38dp"
         android:layout_height="38dp"
         android:src="@drawable/ic_today_indicator"

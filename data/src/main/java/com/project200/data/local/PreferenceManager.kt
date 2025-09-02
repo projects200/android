@@ -11,7 +11,7 @@ import javax.inject.Singleton
 class PreferenceManager @Inject constructor(@ApplicationContext context: Context) {
 
     private val prefs: SharedPreferences =
-        context.getSharedPreferences(USER_PREFS_NAME, Context.MODE_PRIVATE)
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
     fun saveMemberId(memberId: String) {
         prefs.edit {
@@ -30,7 +30,7 @@ class PreferenceManager @Inject constructor(@ApplicationContext context: Context
     }
 
     companion object {
-        private const val USER_PREFS_NAME = "user_prefs"
+        private const val PREFS_NAME = "undabangPrefs"
         private const val KEY_MEMBER_ID = "member_id"
     }
 }

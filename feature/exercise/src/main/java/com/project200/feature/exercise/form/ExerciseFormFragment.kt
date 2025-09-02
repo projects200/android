@@ -23,6 +23,7 @@ import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
+import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.utils.ImageUtils.compressImage
@@ -46,7 +47,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private val viewModel: ExerciseFormViewModel by viewModels()
     private lateinit var imageAdapter: ExerciseImageAdapter
-    private var fragmentNavigator: FragmentNavigator? = null
 
     private val pickMultipleMediaLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(MAX_IMAGE)) { uris ->
@@ -248,7 +248,10 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 }
                 is SubmissionResult.PartialSuccess -> {
                     // 부분 성공 (이미지 업로드 실패)
-                    fragmentNavigator?.navigateFromExerciseFormToExerciseDetail(result.recordId)
+                    findNavController().navigate(
+                        ExerciseFormFragmentDirections
+                            .actionExerciseFormFragmentToExerciseDetailFragment(result.recordId)
+                    )
                 }
                 is SubmissionResult.Failure -> { // 기록 생성 실패
                 }
@@ -284,16 +287,13 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             when (state) {
                 is ScoreGuidanceState.Hidden -> {
                     binding.scoreWarningTv.isVisible = false
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
                 }
                 is ScoreGuidanceState.Warning -> {
                     binding.scoreWarningTv.isVisible = true
                     binding.scoreWarningTv.text = state.message
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete)
                 }
                 is ScoreGuidanceState.PointsAvailable -> {
                     binding.scoreWarningTv.isVisible = false
-                    binding.recordCompleteBtn.text = getString(R.string.exercise_record_complete_with_points, state.points)
                 }
             }
         }
@@ -321,20 +321,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 findNavController().popBackStack()
             }
         }
-    }
-
-    override fun onAttach(context: Context) {
-        super.onAttach(context)
-        if (context is FragmentNavigator) {
-            fragmentNavigator = context
-        } else {
-            throw ClassCastException("$context must implement FragmentNavigator")
-        }
-    }
-
-    override fun onDetach() {
-        fragmentNavigator = null
-        super.onDetach()
     }
 
     companion object {
