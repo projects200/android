@@ -15,7 +15,7 @@ class ValidateCustomTimerUseCase @Inject constructor() {
         if (steps.isEmpty()) {
             return CustomTimerValidationResult.NoSteps
         }
-        if (steps.any { it.time <= 0 }) {
+        if (steps.any { it.time < 5 }) { // 5초 미만의 스텝이 있는지 검사
             return CustomTimerValidationResult.InvalidStepTime
         }
         if (steps.any() { it.name.isBlank() }) {

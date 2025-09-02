@@ -140,7 +140,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
         TimePickerDialog(
             time,
             onTimeSelected = { newTimeInSeconds ->
-                if(newTimeInSeconds <= 0) {
+                if(newTimeInSeconds < 5) {
                     Toast.makeText(requireContext(), R.string.custom_timer_error_invalid_time, Toast.LENGTH_SHORT).show()
                     return@TimePickerDialog
                 }

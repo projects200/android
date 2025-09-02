@@ -35,7 +35,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     private var progressAnimator: ValueAnimator? = null
 
     private var stepFinishPlayer: MediaPlayer? = null // 스텝 종료
-    private var tickPlayer: MediaPlayer? = null // 카운트다운
 
     private lateinit var stepRVAdapter: StepRVAdapter
 
@@ -70,8 +69,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         })
 
         context?.let {
-            stepFinishPlayer = MediaPlayer.create(it, R.raw.custom_finish_alarm)
-            tickPlayer = MediaPlayer.create(it, R.raw.custom_tick_alarm)
+            stepFinishPlayer = MediaPlayer.create(it, R.raw.sound_custom_timer)
         }
         initClickListeners()
         initRecyclerView()
@@ -87,7 +85,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             }
         }
         binding.timerEndBtn.setOnClickListener {
-            viewModel.resetTimer()
+            cancelAlarmSound()
+            viewModel.resetTimer(true)
             updateUIForTimerEnd()
         }
         binding.timerRepeatBtn.setOnClickListener {
@@ -97,6 +96,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     private fun initRecyclerView() {
         stepRVAdapter = StepRVAdapter { position ->
+            cancelAlarmSound()
             viewModel.jumpToStep(position)
         }
         binding.customTimerStepRv.apply {
@@ -141,11 +141,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                 } else {
                     // 반복이 비활성화 되어있으면 종료 상태로 변경
                     updateUIForTimerEnd()
-                    viewModel.resetTimer()
-
-                    // 스텝이 바뀌면 프로그레스바를 100%로 조정
-                    progressAnimator?.cancel()
-                    binding.timerProgressbar.progress = 1f
+                    viewModel.resetTimer(false)
                 }
             }
         }
@@ -157,18 +153,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             )
         }
         // 스텝 종료 알림음을 위한 Observer
-        viewModel.stepFinishedAlarm.observe(viewLifecycleOwner) { shouldPlay ->
+        viewModel.shouldPlayFinishAlarm.observe(viewLifecycleOwner) { shouldPlay ->
             if (shouldPlay) {
                 playStepFinishAlarm()
                 viewModel.onStepFinishedAlarmPlayed()
-            }
-        }
-
-        // 카운트다운 알림음을 위한 Observer
-        viewModel.playTickSound.observe(viewLifecycleOwner) { shouldPlay ->
-            if (shouldPlay) {
-                playTickSound()
-                viewModel.onTickSoundPlayed()
             }
         }
 
@@ -210,8 +198,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             binding.timerPlayBtn.text = getString(R.string.timer_stop)
 
             // 재생 중인 알림음이 있다면 일시정지
-            stepFinishPlayer?.takeIf { it.isPlaying }?.pause()
-            tickPlayer?.takeIf { it.isPlaying }?.pause()
+            stepFinishPlayer?.takeIf { !it.isPlaying && it.currentPosition > 0 }?.start()
 
             startProgressBarAnimation()
         } else {
@@ -219,6 +206,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                 getColor(requireContext(), com.project200.undabang.presentation.R.color.main)
             )
             binding.timerPlayBtn.text = getString(R.string.timer_start)
+
+            if (viewModel.isTimerFinished.value != true) {
+                stepFinishPlayer?.takeIf { it.isPlaying }?.pause()
+            }
+
             progressAnimator?.pause()
         }
     }
@@ -265,25 +257,24 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
     }
 
-    // 스텝 종료 알림음 재생 함수
+    // 스텝 종료 알림음을 재생하는 함수
     private fun playStepFinishAlarm() {
         stepFinishPlayer?.apply {
             if (isPlaying) {
                 pause()
-                seekTo(0)
             }
+            seekTo(0)
             start()
         }
     }
 
-    // 카운트다운 알림음 재생 함수
-    private fun playTickSound() {
-        tickPlayer?.apply {
+    // 알림음을 완전히 중지하고 초기화하는 함수
+    private fun cancelAlarmSound() {
+        stepFinishPlayer?.apply {
             if (isPlaying) {
                 pause()
-                seekTo(0)
             }
-            start()
+            seekTo(0)
         }
     }
 
@@ -314,8 +305,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         super.onDestroyView()
         stepFinishPlayer?.release()
         stepFinishPlayer = null
-        tickPlayer?.release()
-        tickPlayer = null
         progressAnimator?.cancel()
         progressAnimator = null
     }

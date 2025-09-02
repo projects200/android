@@ -42,17 +42,13 @@ class CustomTimerViewModel @Inject constructor(
     private val _isTimerFinished = MutableLiveData<Boolean>()
     val isTimerFinished: LiveData<Boolean> = _isTimerFinished
 
-    // 스텝이 끝났을 때 알림
-    private val _stepFinishedAlarm = MutableLiveData<Boolean>(false)
-    val stepFinishedAlarm: LiveData<Boolean> = _stepFinishedAlarm
-
-    // 3, 2, 1초 카운트다운 알림
-    private val _playTickSound = MutableLiveData<Boolean>(false)
-    val playTickSound: LiveData<Boolean> = _playTickSound
     private val _isRepeatEnabled = MutableLiveData<Boolean>(false)
     val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
 
-    private var lastTickedSecond = -1
+    private val _shouldPlayFinishAlarm = MutableLiveData<Boolean>(false)
+    val shouldPlayFinishAlarm: LiveData<Boolean> = _shouldPlayFinishAlarm
+
+    private var isFinishAlarmTriggeredForCurrentStep = false
 
     // Step의 time은 '초' 단위
     private val _steps = MutableLiveData<List<Step>>()
@@ -72,7 +68,7 @@ class CustomTimerViewModel @Inject constructor(
 
     init {
         setupTimerManager()
-        resetTimer()
+        resetTimer(true)
     }
 
     fun setTimerId(id: Long) {
@@ -87,7 +83,7 @@ class CustomTimerViewModel @Inject constructor(
                     val customTimer = result.data
                     _title.value = customTimer.name
                     _steps.value = customTimer.steps.sortedBy { it.order }
-                    resetTimer()
+                    resetTimer(true)
                 }
                 is BaseResult.Error -> {
                     _errorEvent.emit(true)
@@ -108,11 +104,9 @@ class CustomTimerViewModel @Inject constructor(
         timerManager.setOnTickListener { millisUntilFinished ->
             _remainingTime.value = millisUntilFinished
 
-            // 3, 2, 1초 카운트다운 알림 재생
-            val currentSecond = (millisUntilFinished / 1000).toInt() + 1
-            if (currentSecond in 1..3 && currentSecond != lastTickedSecond) {
-                _playTickSound.value = true
-                lastTickedSecond = currentSecond
+            if (millisUntilFinished <= 3000L && !isFinishAlarmTriggeredForCurrentStep) {
+                _shouldPlayFinishAlarm.value = true
+                isFinishAlarmTriggeredForCurrentStep = true
             }
         }
         timerManager.setOnFinishListener {
@@ -143,15 +137,15 @@ class CustomTimerViewModel @Inject constructor(
 
     // 현재 스텝을 종료하고 다음 스텝으로 전환하거나, 모든 스텝이 끝났을 경우 타이머를 종료합니다.
     private fun moveToNextStep() {
-        // 알림 재생
-        _stepFinishedAlarm.value = true
-
         val nextIndex = (_currentStepIndex.value ?: -1) + 1
         if (nextIndex < (_steps.value?.size ?: 0)) {
             // 상태 값들을 먼저 모두 갱신
             val nextStep = _steps.value!![nextIndex]
             totalStepTime = nextStep.time * 1000L
             _remainingTime.value = totalStepTime
+
+            // 다음 스텝 전환 시 알림 관련 상태를 초기화
+            isFinishAlarmTriggeredForCurrentStep = false
 
             // 마지막에 LiveData를 변경하여 UI에 알림
             _currentStepIndex.value = nextIndex
@@ -162,8 +156,8 @@ class CustomTimerViewModel @Inject constructor(
             }
         } else {
             // 모든 스텝 완료
-            _isTimerRunning.value = false
             _isTimerFinished.value = true
+            _isTimerRunning.value = false
         }
     }
 
@@ -180,6 +174,11 @@ class CustomTimerViewModel @Inject constructor(
 
         // 현재 실행 중인 타이머가 있다면 정지
         timerManager.cancel()
+
+        // 스텝 변경 시 알림 관련 상태를 모두 초기화
+        _shouldPlayFinishAlarm.value = false
+        isFinishAlarmTriggeredForCurrentStep = false
+
         _isTimerRunning.value = false
         _isTimerFinished.value = false
 
@@ -194,9 +193,14 @@ class CustomTimerViewModel @Inject constructor(
     }
 
     // 사용자가 '종료' 버튼을 누르거나, 타이머가 끝났을 때 모든 상태를 초기화합니다.
-    fun resetTimer() {
+    fun resetTimer(isForceFinished: Boolean) {
         timerManager.cancel()
         _isTimerRunning.value = false
+
+        // 알림 재생 관련 상태 초기화
+        // 강제 종료됐을 때만 알림음 종료를 위해 _shouldPlayFinishAlarm 설정
+        if(isForceFinished) _shouldPlayFinishAlarm.value = false
+        isFinishAlarmTriggeredForCurrentStep = false
 
         // 전체 시간 및 첫 스텝 시간 계산
         totalTime = _steps.value?.sumOf { it.time * 1000L } ?: 0L
@@ -207,11 +211,7 @@ class CustomTimerViewModel @Inject constructor(
     }
 
     fun onStepFinishedAlarmPlayed() {
-        _stepFinishedAlarm.value = false
-    }
-
-    fun onTickSoundPlayed() {
-        _playTickSound.value = false
+        _shouldPlayFinishAlarm.value = false
     }
 
     fun toggleRepeat() {
@@ -219,7 +219,7 @@ class CustomTimerViewModel @Inject constructor(
     }
 
     fun restartTimer() {
-        resetTimer() // 타이머 상태를 초기 상태로 되돌립니다.
+        resetTimer(false) // 타이머 상태를 초기 상태로 되돌립니다.
         startTimer() // 타이머를 다시 시작합니다.
     }
 
