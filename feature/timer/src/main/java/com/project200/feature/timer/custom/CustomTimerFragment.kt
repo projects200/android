@@ -135,14 +135,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         viewModel.isTimerFinished.observe(viewLifecycleOwner) { isFinished ->
             binding.timerEndBtn.isClickable = !isFinished
             if (isFinished) {
-                // 반복이 활성화 되어있으면 타이머를 재시작
-                if (viewModel.isRepeatEnabled.value == true) {
-                    viewModel.restartTimer()
-                } else {
-                    // 반복이 비활성화 되어있으면 종료 상태로 변경
-                    updateUIForTimerEnd()
-                    viewModel.resetTimer(false)
-                }
+                updateUIForTimerEnd()
+                viewModel.resetTimer(false)
             }
         }
 

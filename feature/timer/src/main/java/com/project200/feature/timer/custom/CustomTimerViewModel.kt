@@ -155,9 +155,13 @@ class CustomTimerViewModel @Inject constructor(
                 startCurrentStepTimer()
             }
         } else {
-            // 모든 스텝 완료
-            _isTimerFinished.value = true
-            _isTimerRunning.value = false
+            if (_isRepeatEnabled.value == true) {
+                restartTimer()
+            } else {
+                // 반복이 비활성화되어 있다면, 최종 종료 상태로 전환
+                _isTimerFinished.value = true
+                _isTimerRunning.value = false
+            }
         }
     }
 
@@ -219,7 +223,7 @@ class CustomTimerViewModel @Inject constructor(
     }
 
     fun restartTimer() {
-        resetTimer(false) // 타이머 상태를 초기 상태로 되돌립니다.
+        resetTimer(true) // 타이머 상태를 초기 상태로 되돌립니다.
         startTimer() // 타이머를 다시 시작합니다.
     }
 
