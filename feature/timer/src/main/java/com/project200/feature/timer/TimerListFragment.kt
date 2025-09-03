@@ -58,6 +58,16 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
     override fun setupObservers() {
         // 타이머 리스트 관찰
         viewModel.customTimerList.observe(viewLifecycleOwner) { timers ->
+            // 타이머가 없을 때와 있을 때의 뷰 상태를 변경합니다.
+            if(timers.isNullOrEmpty()) {
+                binding.addTimerText.visibility = View.VISIBLE
+                binding.addTimerIconRight.visibility = View.VISIBLE
+                binding.addTimerIconCenter.visibility = View.GONE
+            } else {
+                binding.addTimerText.visibility = View.GONE
+                binding.addTimerIconRight.visibility = View.GONE
+                binding.addTimerIconCenter.visibility = View.VISIBLE
+            }
             // LiveData가 변경될 때마다 어댑터에 리스트를 제출합니다.
             customTimerRVAdapter.submitList(timers)
         }
