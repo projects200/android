@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.toLocalDate
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SignUpResult
 import com.project200.domain.usecase.SignUpUseCase
 import com.project200.domain.usecase.ValidateNicknameUseCase
@@ -40,8 +41,8 @@ class RegisterViewModel @Inject constructor(
         addSource(_gender) { validateFormInputs() }
     }
 
-    private val _signUpResult = MutableLiveData<SignUpResult?>()
-    val signUpResult: LiveData<SignUpResult?> = _signUpResult
+    private val _signUpResult = MutableLiveData<BaseResult<Unit>>()
+    val signUpResult: LiveData<BaseResult<Unit>> = _signUpResult
 
 
     fun updateNickname(value: String) {
@@ -63,17 +64,19 @@ class RegisterViewModel @Inject constructor(
 
 
         if (!validateNicknameUseCase(currentNickname)) {
-            _signUpResult.value = SignUpResult.Failure(
+            _signUpResult.value = BaseResult.Error(
                 errorCode = ERROR_CODE_INVALID_NICKNAME,
-                errorMessage = ERROR_MESSAGE_INVALID_NICKNAME
+                message = ERROR_MESSAGE_INVALID_NICKNAME,
+                cause = null
             )
             return
         }
 
         if (currentGender == null || currentBirthStr == null) {
-            _signUpResult.value = SignUpResult.Failure(
+            _signUpResult.value = BaseResult.Error(
                 errorCode = FORM_INCOMPLETE,
-                errorMessage = ERROR_MESSAGE_FORM_INCOMPLETE
+                message = ERROR_MESSAGE_FORM_INCOMPLETE,
+                cause = null
             )
             return
         }
@@ -81,11 +84,18 @@ class RegisterViewModel @Inject constructor(
         viewModelScope.launch {
             val birthDate = currentBirthStr.toLocalDate() ?: LocalDate.now()
 
-            _signUpResult.value = signUpUseCase(
-                currentGender,
-                currentNickname,
-                birthDate
-            )
+            when(val result = signUpUseCase(currentGender, currentNickname, birthDate)) {
+                is BaseResult.Success -> {
+                    _signUpResult.value = BaseResult.Success(Unit)
+                }
+                is BaseResult.Error -> {
+                    _signUpResult.value = BaseResult.Error(
+                        errorCode = result.errorCode,
+                        message = result.message,
+                        cause = result.cause
+                    )
+                }
+            }
         }
     }
 
@@ -93,6 +103,7 @@ class RegisterViewModel @Inject constructor(
         const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
         const val ERROR_MESSAGE_INVALID_NICKNAME = "닉네임 조건을 확인해주세요."
         const val ERROR_MESSAGE_FORM_INCOMPLETE = "생일과 성별을 모두 선택해주세요."
+        const val ERROR_MESSAGE_NICKNAME_DUPLICATED = "이미 사용 중인 닉네임입니다."
         const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
     }
 }
