@@ -89,6 +89,10 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
                         appNavigator.navigateToMain(requireContext())
                     }
                     is SignUpResult.Failure -> {
+                        when(signUpResult.errorCode) {
+                            NICKNAME_DUPLICATE_ERROR -> Toast.makeText(requireContext(), getString(R.string.error_nickname_duplicated), Toast.LENGTH_LONG).show()
+                            else -> Toast.makeText(requireContext(), getString(R.string.error_unknown), Toast.LENGTH_LONG).show()
+                        }
                         Toast.makeText(requireContext(), signUpResult.errorMessage, Toast.LENGTH_LONG).show()
                     }
                 }
@@ -110,6 +114,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     }
 
     companion object {
+        const val NICKNAME_DUPLICATE_ERROR = "409"
         const val MALE = "M"
         const val FEMALE = "F"
         const val HIDDEN = "U"
