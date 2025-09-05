@@ -66,7 +66,7 @@ class RegisterViewModel @Inject constructor(
         if (!validateNicknameUseCase(currentNickname)) {
             _signUpResult.value = BaseResult.Error(
                 errorCode = ERROR_CODE_INVALID_NICKNAME,
-                message = ERROR_MESSAGE_INVALID_NICKNAME,
+                message = "",
                 cause = null
             )
             return
@@ -75,7 +75,7 @@ class RegisterViewModel @Inject constructor(
         if (currentGender == null || currentBirthStr == null) {
             _signUpResult.value = BaseResult.Error(
                 errorCode = FORM_INCOMPLETE,
-                message = ERROR_MESSAGE_FORM_INCOMPLETE,
+                message = "",
                 cause = null
             )
             return
@@ -101,9 +101,6 @@ class RegisterViewModel @Inject constructor(
 
     companion object {
         const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
-        const val ERROR_MESSAGE_INVALID_NICKNAME = "닉네임 조건을 확인해주세요."
-        const val ERROR_MESSAGE_FORM_INCOMPLETE = "생일과 성별을 모두 선택해주세요."
-        const val ERROR_MESSAGE_NICKNAME_DUPLICATED = "이미 사용 중인 닉네임입니다."
         const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
     }
 }

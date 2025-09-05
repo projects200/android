@@ -91,7 +91,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
                 is BaseResult.Error -> {
                     when(result.errorCode) {
                         NICKNAME_DUPLICATE_ERROR -> {
-                            Toast.makeText(requireContext(), "이미 사용 중인 닉네임입니다.", Toast.LENGTH_LONG).show()
+                            Toast.makeText(requireContext(), getString(R.string.error_nickname_duplicated), Toast.LENGTH_LONG).show()
                         }
                         ERROR_CODE_INVALID_NICKNAME -> {
                             Toast.makeText(requireContext(), getString(R.string.error_nickname_invalid), Toast.LENGTH_LONG).show()
