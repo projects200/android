@@ -57,27 +57,19 @@ class AuthRepositoryImpl @Inject constructor(
         gender: String,
         nickname: String,
         birth: LocalDate
-    ): SignUpResult = withContext(ioDispatcher) {
-        try {
-            val response = apiService.postSignUp(PostSignUpRequest(gender, birth, nickname))
-
-            if (response.succeed && response.data != null) {
-                Timber.i("회원가입 성공 MemberId: ${response.data.memberId}")
-                spManager.saveMemberId(response.data.memberId)
-                SignUpResult.Success
-            } else {
-                // API 응답은 성공했지만, 서버 로직상 실패(예: 중복, 유효성 검사 실패 등)
-                SignUpResult.Failure(response.code, response.message)
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postSignUp(PostSignUpRequest(gender, birth, nickname)) },
+            mapper = { responseData ->
+                // 회원가입 성공 시 memberId를 저장
+                responseData?.memberId?.let {
+                    Timber.i("회원가입 성공 MemberId: $it")
+                    spManager.saveMemberId(it)
+                }
+                Unit
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: IOException) {
-            Timber.e(e, "Registration failed due to IOException.")
-            SignUpResult.Failure("NETWORK_ERROR", "네트워크 오류")
-        } catch (e: Exception) {
-            Timber.e(e, "Registration failed due to an unexpected exception.")
-            SignUpResult.Failure("UNKNOWN_ERROR", "알 수 없는 오류")
-        }
+        )
     }
 
     companion object {
