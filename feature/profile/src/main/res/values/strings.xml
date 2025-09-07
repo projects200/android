@@ -15,6 +15,10 @@
     <string name="customer_service_url">https://forms.gle/8b3kGK34PBfySBxm7</string>
 
     <string name="nickname">닉네임</string>
+    <string name="gender_birth_format">%s | %s</string>
+    <string name="male">남자</string>
+    <string name="female">여자</string>
+    <string name="unknown_gender">공개안함</string>
     <string name="recent_exercise_counts">최근 30일 운동 횟수</string>
     <string name="current_year_exercise_days">올해 운동 일수</string>
     <string name="max_days">&#160;/ 365</string>
