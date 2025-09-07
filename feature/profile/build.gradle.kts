@@ -40,4 +40,7 @@ dependencies {
 
     // Cognito
     implementation(libs.appauth)
+
+    // CircleImageView
+    implementation(libs.circleimageview)
 }
