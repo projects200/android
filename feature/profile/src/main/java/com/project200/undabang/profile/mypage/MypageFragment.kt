@@ -38,7 +38,7 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
                 setGenderBirth(profile.gender, profile.birthDate)
 
                 introductionTv.text =
-                    if(profile.bio.isEmpty()) getString(R.string.empty_introduction) else profile.bio
+                    if(profile.bio.isNullOrEmpty()) getString(R.string.empty_introduction) else profile.bio
 
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
@@ -59,8 +59,8 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
 
     private fun setGenderBirth(gender: String, birthDate: String) {
         val genderStr = when (gender) {
-            MALE -> getString(R.string.male)
-            FEMALE -> getString(R.string.female)
+            MALE -> getString(R.string.mypage_male)
+            FEMALE -> getString(R.string.mypage_female)
             else -> getString(R.string.unknown_gender)
         }
         binding.genderBirthTv.text = getString(R.string.gender_birth_format, genderStr, birthDate)

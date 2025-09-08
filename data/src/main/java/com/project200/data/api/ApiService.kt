@@ -17,6 +17,7 @@ import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.GetCustomTimerListDTO
+import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PostCustomTimerRequest
@@ -25,6 +26,7 @@ import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
+import com.project200.domain.model.UserProfile
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
@@ -61,6 +63,11 @@ interface ApiService {
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest
     ): BaseResponse<PostSignUpData>
+
+    // 프로필 조회
+    @GET("api/v1/profile")
+    @AccessTokenApi
+    suspend fun getProfile(): BaseResponse<GetProfileDTO>
 
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")
