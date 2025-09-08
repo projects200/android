@@ -85,7 +85,7 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         signUpResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is BaseResult.Success -> {
-                    Toast.makeText(requireContext(), "회원가입 성공!", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), getString(R.string.register_success), Toast.LENGTH_SHORT).show()
                     appNavigator.navigateToMain(requireContext())
                 }
                 is BaseResult.Error -> {
