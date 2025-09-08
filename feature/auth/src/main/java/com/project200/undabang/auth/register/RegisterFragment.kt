@@ -7,6 +7,7 @@ import androidx.core.view.marginStart
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import com.project200.common.utils.ClockProvider
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SignUpResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.ActivityNavigator
@@ -82,14 +83,25 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
         }
 
         signUpResult.observe(viewLifecycleOwner) { result ->
-            result?.let { signUpResult ->
-                when (signUpResult) {
-                    is SignUpResult.Success -> {
-                        Toast.makeText(requireContext(), "회원가입 성공!", Toast.LENGTH_SHORT).show()
-                        appNavigator.navigateToMain(requireContext())
-                    }
-                    is SignUpResult.Failure -> {
-                        Toast.makeText(requireContext(), signUpResult.errorMessage, Toast.LENGTH_LONG).show()
+            when (result) {
+                is BaseResult.Success -> {
+                    Toast.makeText(requireContext(), getString(R.string.register_success), Toast.LENGTH_SHORT).show()
+                    appNavigator.navigateToMain(requireContext())
+                }
+                is BaseResult.Error -> {
+                    when(result.errorCode) {
+                        NICKNAME_DUPLICATE_ERROR -> {
+                            Toast.makeText(requireContext(), getString(R.string.error_nickname_duplicated), Toast.LENGTH_LONG).show()
+                        }
+                        ERROR_CODE_INVALID_NICKNAME -> {
+                            Toast.makeText(requireContext(), getString(R.string.error_nickname_invalid), Toast.LENGTH_LONG).show()
+                        }
+                        FORM_INCOMPLETE -> {
+                            Toast.makeText(requireContext(), getString(R.string.error_form_incomplete), Toast.LENGTH_LONG).show()
+                        }
+                        else -> {
+                            Toast.makeText(requireContext(), getString(R.string.error_unknown), Toast.LENGTH_LONG).show()
+                        }
                     }
                 }
             }
@@ -110,9 +122,12 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
     }
 
     companion object {
+        const val NICKNAME_DUPLICATE_ERROR = "409"
         const val MALE = "M"
         const val FEMALE = "F"
         const val HIDDEN = "U"
         const val FONT_SCALE_THRESHOLD = 1.5f // 폰트 크기 임계값
+        const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
+        const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
     }
 }
