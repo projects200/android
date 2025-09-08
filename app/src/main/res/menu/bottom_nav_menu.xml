@@ -10,6 +10,6 @@
         android:title="@string/timer" />
     <item
         android:id="@id/profile_nav_graph"
-        android:icon="@drawable/ic_nav_setting"
+        android:icon="@drawable/ic_nav_mypage"
         android:title="@string/profile" />
 </menu>

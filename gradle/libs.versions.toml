@@ -29,6 +29,7 @@ androidxRoom = "2.6.1"
 androidxDatastore = "1.0.0"
 androidxArchCoreTesting = "2.2.0" # 테스트용
 lottie = "6.6.6"
+circleImageView = "3.1.0"
 
 # Google (SDK 34 호환 버전)
 material = "1.11.0"
@@ -167,6 +168,9 @@ glide-compiler-ksp = { group = "com.github.bumptech.glide", name = "ksp", versio
 
 # CircleIndicator
 circleindicator = { group = "me.relex", name = "circleindicator", version.ref = "circleindicator" }
+
+# CircleImageView
+circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.ref = "circleImageView" }
 
 # Kizitonwose Calendar
 kizitonwose-calendar-view = { group = "com.kizitonwose.calendar", name = "view", version.ref = "kizitonwoseCalendar" }

@@ -12,10 +12,10 @@
         tools:layout="@layout/fragment_exercise_main" />
 
     <fragment
-        android:id="@+id/settingFragment"
-        android:name="com.project200.feature.profile.SettingFragment"
-        android:label="SettingFragment"
-        tools:layout="@layout/fragment_setting" />
+        android:id="@+id/mypageFragment"
+        android:name="com.project200.feature.profile.mypage.MypageFragment"
+        android:label="MypageFragment"
+        tools:layout="@layout/fragment_mypage" />
 
     <fragment
         android:id="@+id/timerListFragment"

@@ -13,4 +13,25 @@
 
     <string name="withdraw_url">https://forms.gle/eiZW3iLYnsKjdPVr7</string>
     <string name="customer_service_url">https://forms.gle/8b3kGK34PBfySBxm7</string>
+
+    <string name="nickname">닉네임</string>
+    <string name="gender_birth_format">%s | %s</string>
+    <string name="male">남자</string>
+    <string name="female">여자</string>
+    <string name="unknown_gender">공개안함</string>
+    <string name="recent_exercise_counts">최근 30일 운동 횟수</string>
+    <string name="current_year_exercise_days">올해 운동 일수</string>
+    <string name="max_days">&#160;/ 365</string>
+    <string name="exercise_score">운동 점수</string>
+    <string name="empty_introduction">자기소개를 입력해서 자신에 대해 알려주세요!</string>
+
+    <string name="preferred_exercise">선호 운동</string>
+    <string name="empty_preferred_exercise">선호운동을 선택해주세요+</string>
+    <string name="skill_level_0">입문자</string>
+    <string name="skill_level_1">초급자</string>
+    <string name="skill_level_2">중급자</string>
+    <string name="skill_level_3">고급자</string>
+    <string name="skill_level_4">숙련자</string>
+    <string name="skill_level_5">선출</string>
+
 </resources>
