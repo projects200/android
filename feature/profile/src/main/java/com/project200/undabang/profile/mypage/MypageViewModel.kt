@@ -22,6 +22,9 @@ class MypageViewModel @Inject constructor(
     private val _profile = MutableLiveData<UserProfile>()
     val profile: LiveData<UserProfile> = _profile
 
+    private val _toast = MutableSharedFlow<Boolean>()
+    val toast: SharedFlow<Boolean> = _toast
+
     fun getProfile() {
         viewModelScope.launch {
             when(val result = getUserProfileUseCase()) {
@@ -29,6 +32,7 @@ class MypageViewModel @Inject constructor(
                     _profile.value = result.data
                 }
                 is BaseResult.Error -> {
+                    _toast.emit(true)
                 }
             }
         }

@@ -1,12 +1,17 @@
 package com.project200.undabang.profile.mypage
 
+import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentMypageBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_mypage) {
@@ -43,6 +48,14 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
                 scoreTv.text = profile.exerciseScore.toString()
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.toast.collect { isVisible ->
+                    Toast.makeText(requireContext(), getString(R.string.error_failed_to_load), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
