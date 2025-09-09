@@ -1,6 +1,5 @@
 package com.project200.feature.exercise.form
 
-
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
@@ -16,15 +15,20 @@ import com.project200.undabang.feature.exercise.databinding.ItemExerciseImageBin
 class ExerciseImageAdapter(
     private var itemSize: Int,
     private val onAddItemClick: () -> Unit,
-    private val onDeleteItemClick: (ExerciseImageListItem) -> Unit
+    private val onDeleteItemClick: (ExerciseImageListItem) -> Unit,
 ) : ListAdapter<ExerciseImageListItem, RecyclerView.ViewHolder>(ExerciseImageDiffCallback()) {
-
     class ExerciseImageDiffCallback : DiffUtil.ItemCallback<ExerciseImageListItem>() {
-        override fun areItemsTheSame(oldItem: ExerciseImageListItem, newItem: ExerciseImageListItem): Boolean {
+        override fun areItemsTheSame(
+            oldItem: ExerciseImageListItem,
+            newItem: ExerciseImageListItem,
+        ): Boolean {
             return oldItem.key == newItem.key
         }
 
-        override fun areContentsTheSame(oldItem: ExerciseImageListItem, newItem: ExerciseImageListItem): Boolean {
+        override fun areContentsTheSame(
+            oldItem: ExerciseImageListItem,
+            newItem: ExerciseImageListItem,
+        ): Boolean {
             // 데이터 클래스의 동등성 비교
             return oldItem == newItem
         }
@@ -40,23 +44,28 @@ class ExerciseImageAdapter(
         return when (getItem(position)) {
             is ExerciseImageListItem.AddButtonItem -> VIEW_TYPE_ADD
             is ExerciseImageListItem.NewImageItem,
-            is ExerciseImageListItem.ExistingImageItem -> VIEW_TYPE_IMAGE
+            is ExerciseImageListItem.ExistingImageItem,
+            -> VIEW_TYPE_IMAGE
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
-        val holder = when (viewType) {
-            VIEW_TYPE_ADD -> {
-                val binding = ItemExerciseAddImageBinding.inflate(inflater, parent, false)
-                AddImageViewHolder(binding, onAddItemClick)
+        val holder =
+            when (viewType) {
+                VIEW_TYPE_ADD -> {
+                    val binding = ItemExerciseAddImageBinding.inflate(inflater, parent, false)
+                    AddImageViewHolder(binding, onAddItemClick)
+                }
+                VIEW_TYPE_IMAGE -> {
+                    val binding = ItemExerciseImageBinding.inflate(inflater, parent, false)
+                    ExerciseImageViewHolder(binding, onDeleteItemClick)
+                }
+                else -> throw IllegalArgumentException("Invalid view type: $viewType")
             }
-            VIEW_TYPE_IMAGE -> {
-                val binding = ItemExerciseImageBinding.inflate(inflater, parent, false)
-                ExerciseImageViewHolder(binding, onDeleteItemClick)
-            }
-            else -> throw IllegalArgumentException("Invalid view type: $viewType")
-        }
 
         // 아이템 뷰 크기 설정
         val layoutParams = holder.itemView.layoutParams
@@ -67,7 +76,10 @@ class ExerciseImageAdapter(
         return holder
     }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+    ) {
         val item = getItem(position)
         when (holder) {
             is AddImageViewHolder -> holder.bind()
@@ -77,7 +89,7 @@ class ExerciseImageAdapter(
 
     inner class AddImageViewHolder(
         private val binding: ItemExerciseAddImageBinding,
-        private val onAddItemClick: () -> Unit
+        private val onAddItemClick: () -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind() {
             binding.root.setOnClickListener {
@@ -88,15 +100,15 @@ class ExerciseImageAdapter(
 
     inner class ExerciseImageViewHolder(
         private val binding: ItemExerciseImageBinding,
-        private val onDeleteItemClick: (ExerciseImageListItem) -> Unit
+        private val onDeleteItemClick: (ExerciseImageListItem) -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
-
         fun bind(item: ExerciseImageListItem) {
-            val imageSource: Any? = when (item) {
-                is ExerciseImageListItem.NewImageItem -> item.uri
-                is ExerciseImageListItem.ExistingImageItem -> item.url
-                else -> null
-            }
+            val imageSource: Any? =
+                when (item) {
+                    is ExerciseImageListItem.NewImageItem -> item.uri
+                    is ExerciseImageListItem.ExistingImageItem -> item.url
+                    else -> null
+                }
 
             imageSource?.let {
                 Glide.with(binding.imageIv.context)

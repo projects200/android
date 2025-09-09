@@ -1,7 +1,5 @@
 package com.project200.undabang.di
 
-import android.content.ContentResolver
-import android.content.Context
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.FirebaseRemoteConfig
 import com.google.firebase.remoteconfig.ktx.remoteConfig
@@ -10,27 +8,24 @@ import com.project200.common.utils.ClockProvider
 import com.project200.common.utils.SystemClockProvider
 import com.project200.undabang.BuildConfig
 import com.project200.undabang.R
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
-import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import timber.log.Timber
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
-
     @Provides
     @Singleton
     fun provideFirebaseRemoteConfig(): FirebaseRemoteConfig {
         val remoteConfig = Firebase.remoteConfig
 
-        val configSettings = remoteConfigSettings {
-            minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 60 else 3600
-        }
+        val configSettings =
+            remoteConfigSettings {
+                minimumFetchIntervalInSeconds = if (BuildConfig.DEBUG) 60 else 3600
+            }
         remoteConfig.setConfigSettingsAsync(configSettings)
 
         // Remote Config 기본값 설정
@@ -41,9 +36,7 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideClockProvider(
-        systemClockProvider: SystemClockProvider
-    ): ClockProvider {
+    fun provideClockProvider(systemClockProvider: SystemClockProvider): ClockProvider {
         return systemClockProvider
     }
 }

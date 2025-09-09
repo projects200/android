@@ -6,8 +6,12 @@ import java.time.YearMonth
 import java.time.ZoneId
 import javax.inject.Inject
 
-class SystemClockProvider @Inject constructor() : ClockProvider {
-    override fun now(): LocalDate = LocalDate.now(ZoneId.of("Asia/Seoul"))
-    override fun localDateTimeNow(): LocalDateTime = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
-    override fun yearMonthNow(): YearMonth = YearMonth.now(ZoneId.of("Asia/Seoul"))
-}
+class SystemClockProvider
+    @Inject
+    constructor() : ClockProvider {
+        override fun now(): LocalDate = LocalDate.now(ZoneId.of("Asia/Seoul"))
+
+        override fun localDateTimeNow(): LocalDateTime = LocalDateTime.now(ZoneId.of("Asia/Seoul"))
+
+        override fun yearMonthNow(): YearMonth = YearMonth.now(ZoneId.of("Asia/Seoul"))
+    }

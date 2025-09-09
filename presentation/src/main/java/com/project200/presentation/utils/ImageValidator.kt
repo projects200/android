@@ -9,13 +9,20 @@ import com.project200.common.constants.RuleConstants.MAX_FILE_SIZE_BYTES
 
 object ImageValidator {
     // 파일 유효성 검사 함수
-    fun validateImageFile(uri: Uri, context: Context): Pair<Boolean, String?> {
+    fun validateImageFile(
+        uri: Uri,
+        context: Context,
+    ): Pair<Boolean, String?> {
         // 파일 확장자/MIME 타입 검사
         val fileExtension = getFileExtension(uri, context)
         if (fileExtension == null || !ALLOWED_EXTENSIONS.contains(fileExtension.lowercase())) {
             // MIME 타입으로 한 번 더 확인 (확장자가 없는 경우 등 대비)
             val mimeType = context.contentResolver.getType(uri)
-            if (mimeType == null || !ALLOWED_EXTENSIONS.contains(MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)?.lowercase())) {
+            if (mimeType == null ||
+                !ALLOWED_EXTENSIONS.contains(
+                    MimeTypeMap.getSingleton().getExtensionFromMimeType(mimeType)?.lowercase(),
+                )
+            ) {
                 return Pair(false, INVALID_TYPE)
             }
         }
@@ -31,7 +38,10 @@ object ImageValidator {
     }
 
     // URI로부터 파일 확장자 가져오기
-    private fun getFileExtension(uri: Uri, context: Context): String? {
+    private fun getFileExtension(
+        uri: Uri,
+        context: Context,
+    ): String? {
         var extension: String? = null
         val contentResolver = context.contentResolver
         // ContentResolver를 통해 파일 이름에서 확장자 추출

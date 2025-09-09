@@ -12,33 +12,33 @@ import com.project200.undabang.feature.auth.databinding.FragmentTermsBinding
 import timber.log.Timber
 
 class TermsFragment : BindingFragment<FragmentTermsBinding>(R.layout.fragment_terms) {
-
     private val viewModel: TermsViewModel by viewModels()
 
     override fun getViewBinding(view: View): FragmentTermsBinding {
         return FragmentTermsBinding.bind(view)
     }
 
-    override fun setupViews() = with(binding) {
-        // 체크 토글
-        serviceBtnImv.setOnClickListener { viewModel.toggleService() }
-        privacyBtnImv.setOnClickListener { viewModel.togglePrivacy() }
+    override fun setupViews() =
+        with(binding) {
+            // 체크 토글
+            serviceBtnImv.setOnClickListener { viewModel.toggleService() }
+            privacyBtnImv.setOnClickListener { viewModel.togglePrivacy() }
         /*locationBtnImv.setOnClickListener { viewModel.toggleLocation() }
         notifyBtnImv.setOnClickListener { viewModel.toggleNotify() }*/
 
-        serviceTitleTv.setOnClickListener {
-            showTermsDialog(TERMS)
-        }
-        privacyTitleTv.setOnClickListener {
-            showTermsDialog(PRIVACY)
-        }
+            serviceTitleTv.setOnClickListener {
+                showTermsDialog(TERMS)
+            }
+            privacyTitleTv.setOnClickListener {
+                showTermsDialog(PRIVACY)
+            }
 
-        termsNextBtn.setOnClickListener {
-            if (isAdded && findNavController().currentDestination?.id == R.id.termsFragment) {
-                findNavController().navigate(R.id.action_termsFragment_to_registerFragment)
+            termsNextBtn.setOnClickListener {
+                if (isAdded && findNavController().currentDestination?.id == R.id.termsFragment) {
+                    findNavController().navigate(R.id.action_termsFragment_to_registerFragment)
+                }
             }
         }
-    }
 
     override fun setupObservers() {
         viewModel.serviceChecked.observe(viewLifecycleOwner) { checked ->

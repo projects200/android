@@ -7,21 +7,27 @@ import com.project200.domain.model.CustomTimer
 import com.project200.undabang.feature.timer.databinding.ItemCustomTimerBinding
 
 class CustomTimerRVAdapter(
-    private val onItemClick: (CustomTimer) -> Unit
+    private val onItemClick: (CustomTimer) -> Unit,
 ) : RecyclerView.Adapter<CustomTimerRVAdapter.CustomTimerViewHolder>() {
-
     private var items: List<CustomTimer> = emptyList()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CustomTimerViewHolder {
-        val binding = ItemCustomTimerBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): CustomTimerViewHolder {
+        val binding =
+            ItemCustomTimerBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false,
+            )
         return CustomTimerViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: CustomTimerViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: CustomTimerViewHolder,
+        position: Int,
+    ) {
         holder.bind(items[position])
     }
 
@@ -33,7 +39,7 @@ class CustomTimerRVAdapter(
     }
 
     inner class CustomTimerViewHolder(
-        private val binding: ItemCustomTimerBinding
+        private val binding: ItemCustomTimerBinding,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(timer: CustomTimer) {
             binding.customTimerTitle.text = timer.name

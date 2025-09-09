@@ -1,8 +1,8 @@
 package com.project200.domain.repository
 
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.CustomTimer
+import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.Step
 
 interface TimerRepository {

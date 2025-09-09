@@ -14,22 +14,23 @@ import java.io.IOException
 
 fun Uri.toMultipartBodyPart(
     context: Context,
-    partName: String
+    partName: String,
 ): MultipartBody.Part? {
     val contentResolver = context.contentResolver
     return try {
         val fileName = contentResolver.getFileName(this) ?: "image_${System.currentTimeMillis()}"
         val mimeType = contentResolver.getType(this) ?: "image/*"
 
-        val requestBody = object : RequestBody() {
-            override fun contentType() = mimeType.toMediaTypeOrNull()
+        val requestBody =
+            object : RequestBody() {
+                override fun contentType() = mimeType.toMediaTypeOrNull()
 
-            override fun writeTo(sink: BufferedSink) {
-                contentResolver.openInputStream(this@toMultipartBodyPart)?.use { inputStream ->
-                    sink.writeAll(inputStream.source())
-                } ?: throw IOException("Could not open input stream for URI: $this")
+                override fun writeTo(sink: BufferedSink) {
+                    contentResolver.openInputStream(this@toMultipartBodyPart)?.use { inputStream ->
+                        sink.writeAll(inputStream.source())
+                    } ?: throw IOException("Could not open input stream for URI: $this")
+                }
             }
-        }
 
         MultipartBody.Part.createFormData(partName, fileName, requestBody)
     } catch (e: Exception) {

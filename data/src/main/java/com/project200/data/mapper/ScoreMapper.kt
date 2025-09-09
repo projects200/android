@@ -9,10 +9,11 @@ fun ExpectedScoreInfoDTO.toDomain(): ExpectedScoreInfo {
         pointsPerExercise = this.pointsPerExercise,
         currentUserScore = this.currentUserScore,
         maxScore = this.maxScore,
-        validWindow = ValidWindow(
-            startDateTime = this.validWindow.startDateTime,
-            endDateTime = this.validWindow.endDateTime
-        ),
-        earnableScoreDays = this.earnableScoreDates
+        validWindow =
+            ValidWindow(
+                startDateTime = this.validWindow.startDateTime,
+                endDateTime = this.validWindow.endDateTime,
+            ),
+        earnableScoreDays = this.earnableScoreDates,
     )
 }

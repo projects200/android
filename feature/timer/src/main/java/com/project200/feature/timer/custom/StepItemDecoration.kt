@@ -6,7 +6,12 @@ import androidx.recyclerview.widget.RecyclerView
 import com.project200.presentation.utils.UiUtils.dpToPx
 
 class StepItemDecoration(private val spaceHeight: Int) : RecyclerView.ItemDecoration() {
-    override fun getItemOffsets(outRect: Rect, view: View, parent: RecyclerView, state: RecyclerView.State) {
+    override fun getItemOffsets(
+        outRect: Rect,
+        view: View,
+        parent: RecyclerView,
+        state: RecyclerView.State,
+    ) {
         val position = parent.getChildAdapterPosition(view)
         val itemCount = parent.adapter?.itemCount ?: 0
 

@@ -7,7 +7,7 @@ import com.project200.undabang.feature.auth.databinding.ActivityRegisterBinding
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class RegisterActivity: BindingActivity<ActivityRegisterBinding>() {
+class RegisterActivity : BindingActivity<ActivityRegisterBinding>() {
     override fun getViewBinding(): ActivityRegisterBinding {
         return ActivityRegisterBinding.inflate(layoutInflater)
     }

@@ -12,10 +12,10 @@ import androidx.lifecycle.lifecycleScope
 import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
-import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.feature.auth.R
 import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
+import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthResultCallback
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -29,6 +29,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     @Inject lateinit var authManager: AuthManager
+
     @Inject lateinit var appNavigator: ActivityNavigator
 
     private lateinit var authService: AuthorizationService
@@ -54,36 +55,37 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             }
         }
 
-    private val authCallback = object : AuthResultCallback {
-        override fun onAuthFlowStarted(authIntent: Intent) {
-            authorizationLauncher.launch(authIntent)
-        }
+    private val authCallback =
+        object : AuthResultCallback {
+            override fun onAuthFlowStarted(authIntent: Intent) {
+                authorizationLauncher.launch(authIntent)
+            }
 
-        override fun onSuccess(tokenResponse: TokenResponse) {
-            Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
-            viewModel.sendFcmToken()
-            viewModel.checkIsRegistered()
-        }
+            override fun onSuccess(tokenResponse: TokenResponse) {
+                Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
+                viewModel.sendFcmToken()
+                viewModel.checkIsRegistered()
+            }
 
-        override fun onError(exception: AuthorizationException?) {
-            Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
-            when {
-                // 이미 같은 이메일로 다른 소셜에 가입되어 있는 경우, 계정 통합 안내
-                exception?.errorDescription?.contains("ACCOUNT_LINKED_SUCCESS") == true -> {
-                    Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
-                    Toast.makeText(this@LoginActivity, getString(R.string.account_merged), Toast.LENGTH_LONG).show()
-                }
-                else -> {
-                    // 그 외 일반적인 로그인 실패 오류 (네트워크, 서버 오류, 유효하지 않은 요청 등)
-                    Toast.makeText(this@LoginActivity, getString(R.string.login_failed), Toast.LENGTH_SHORT).show()
+            override fun onError(exception: AuthorizationException?) {
+                Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
+                when {
+                    // 이미 같은 이메일로 다른 소셜에 가입되어 있는 경우, 계정 통합 안내
+                    exception?.errorDescription?.contains("ACCOUNT_LINKED_SUCCESS") == true -> {
+                        Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
+                        Toast.makeText(this@LoginActivity, getString(R.string.account_merged), Toast.LENGTH_LONG).show()
+                    }
+                    else -> {
+                        // 그 외 일반적인 로그인 실패 오류 (네트워크, 서버 오류, 유효하지 않은 요청 등)
+                        Toast.makeText(this@LoginActivity, getString(R.string.login_failed), Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
-        }
 
-        override fun onConfigurationError(exception: Exception) {
-            Timber.tag(TAG).e(exception, getString(R.string.server_address_incorrect))
+            override fun onConfigurationError(exception: Exception) {
+                Timber.tag(TAG).e(exception, getString(R.string.server_address_incorrect))
+            }
         }
-    }
 
     override fun getViewBinding(): ActivityLoginBinding {
         return ActivityLoginBinding.inflate(layoutInflater)
@@ -112,7 +114,8 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
         // onNewIntent로 들어오는 콜백 처리
         if (AuthorizationResponse.fromIntent(intent) != null ||
-            AuthorizationException.fromIntent(intent) != null) {
+            AuthorizationException.fromIntent(intent) != null
+        ) {
             Timber.tag(TAG).d("Handling authorization response from onNewIntent/checkIntent")
             authManager.handleAuthorizationResponse(authService, intent, authCallback)
             intent.putExtra(USED_INTENT_EXTRA_KEY, true)
@@ -138,7 +141,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         viewModel.loginResult.observe(this) { result ->
             when (result) {
                 is BaseResult.Success -> appNavigator.navigateToMain(this)
-                is BaseResult.Error -> startActivity(Intent(this@LoginActivity, RegisterActivity::class.java ))
+                is BaseResult.Error -> startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
             }
         }
         viewModel.fcmTokenEvent.observe(this) { result ->
@@ -152,6 +155,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             }
         }
     }
+
     override fun onDestroy() {
         super.onDestroy()
         authService.dispose()

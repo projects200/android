@@ -39,7 +39,9 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
+
     @Inject lateinit var authStateManager: AuthStateManager
+
     @Inject lateinit var appNavigator: ActivityNavigator
     private lateinit var navController: NavController
     private var isLoading = true // 스플래시 화면 유지를 위한 플래그
@@ -80,7 +82,8 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                         }
                         is TokenRefreshResult.Error,
                         is TokenRefreshResult.NoRefreshToken,
-                        is TokenRefreshResult.ConfigError -> {
+                        is TokenRefreshResult.ConfigError,
+                        -> {
                             Timber.w("Token refresh failed or not possible. Navigating to Login.")
                             if (refreshResult is TokenRefreshResult.Error) Timber.e(refreshResult.exception)
                             navigateToLogin()
@@ -99,7 +102,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
     private fun proceedToContent() {
         isLoading = false // 스플래시 종료
-        
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -113,18 +116,18 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         appNavigator.navigateToLogin(this)
     }
 
-
     private fun setupViews() {
         viewModel.checkForUpdate()
         binding.bottomNavigation.setupWithNavController(navController)
 
-        val bottomNavHiddenFragments = setOf(
-            com.project200.undabang.feature.exercise.R.id.exerciseDetailFragment,
-            com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
-            com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
-            com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
-            // ... 필요한 다른 프래그먼트 ID들 추가 ... //
-        )
+        val bottomNavHiddenFragments =
+            setOf(
+                com.project200.undabang.feature.exercise.R.id.exerciseDetailFragment,
+                com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
+                com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
+                com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
+                // ... 필요한 다른 프래그먼트 ID들 추가 ... //
+            )
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
             if (destination.id in bottomNavHiddenFragments) {

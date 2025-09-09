@@ -1,7 +1,6 @@
 package com.project200.domain.repository
 
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.SignUpResult
 import java.time.LocalDate
 
 interface AuthRepository {

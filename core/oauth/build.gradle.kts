@@ -13,12 +13,13 @@ android {
     }
 
     buildTypes {
-        val properties = Properties().apply { // java.util.Properties 대신 Properties() 사용 가능
-            val localPropertiesFile = rootProject.file("local.properties")
-            if (localPropertiesFile.exists()) {
-                localPropertiesFile.inputStream().use { load(it) }
+        val properties =
+            Properties().apply { // java.util.Properties 대신 Properties() 사용 가능
+                val localPropertiesFile = rootProject.file("local.properties")
+                if (localPropertiesFile.exists()) {
+                    localPropertiesFile.inputStream().use { load(it) }
+                }
             }
-        }
 
         debug {
             // 개발용 Cognito 사용자 풀 정보
