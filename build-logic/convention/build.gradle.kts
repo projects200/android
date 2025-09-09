@@ -5,6 +5,7 @@ plugins {
 repositories {
     google()
     mavenCentral()
+    gradlePluginPortal()
 }
 
 java {
@@ -17,6 +18,7 @@ dependencies {
     compileOnly(libs.kotlin.gradle.plugin)
     compileOnly(libs.ksp.gradle.plugin)
     compileOnly(libs.hilt.gradle.plugin)
+    compileOnly(libs.ktlint.gradle.plugin)
     implementation(libs.firebase.performance.plugin)
 }
 

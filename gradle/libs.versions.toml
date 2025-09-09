@@ -54,6 +54,7 @@ mockk = "1.13.10"
 turbine = "1.1.0" # Flow 테스트용
 truth = "1.1.5"
 jacoco = "0.8.11" # 테스트 커버리지 측정 플러그인
+ktlint = "12.3.0"
 
 # DI - JSR 330
 javaxInject = "1"
@@ -145,6 +146,7 @@ androidx-arch-core-testing = { group = "androidx.arch.core", name = "core-testin
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+ktlint-gradle-plugin = { group = "org.jlleitschuh.gradle", name = "ktlint-gradle", version.ref = "ktlint" }
 
 # DI - JSR 330
 javax-inject = { group = "javax.inject", name = "javax.inject", version.ref = "javaxInject" }
@@ -199,3 +201,5 @@ firebase-performance = { id = "com.google.firebase.firebase-perf", version.ref =
 
 # Jacoco Plugin
 jacoco = { id = "org.gradle.jacoco", version.ref = "jacoco" }
+
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version.ref = "ktlint" }
