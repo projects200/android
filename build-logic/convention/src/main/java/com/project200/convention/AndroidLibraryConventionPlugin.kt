@@ -12,6 +12,7 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
             // 헬퍼를 사용하여 플러그인 적용
             pluginManager.apply(libs.plugin("android-library").get().pluginId)
             pluginManager.apply(libs.plugin("kotlin-android").get().pluginId)
+            pluginManager.apply("convention.ktlint")
 
             // Android 공통 설정
             extensions.configure<LibraryExtension> {

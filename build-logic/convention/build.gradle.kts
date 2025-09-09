@@ -48,5 +48,9 @@ gradlePlugin {
             id = "convention.android.jacoco"
             implementationClass = "com.project200.convention.AndroidJacocoConventionPlugin"
         }
+        register("conventionKtlint") {
+            id = "convention.ktlint"
+            implementationClass = "com.project200.convention.KtlintConventionPlugin"
+        }
     }
 }

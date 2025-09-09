@@ -7,7 +7,6 @@ import org.gradle.kotlin.dsl.dependencies
 class AndroidHiltConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) {
         with(target) {
-            // 플러그인 적용 부분은 동일
             pluginManager.apply(libs.plugin("hilt").get().pluginId)
             pluginManager.apply(libs.plugin("ksp").get().pluginId)
 
