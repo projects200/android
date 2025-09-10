@@ -92,6 +92,7 @@ class MypageViewModel
                     }
 
                     is BaseResult.Error -> {
+                        _toast.emit(true)
                     }
                 }
             }
