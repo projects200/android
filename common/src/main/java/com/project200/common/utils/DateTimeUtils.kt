@@ -7,7 +7,6 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
 
-
 fun String?.toLocalDate(formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE): LocalDate? {
     if (this.isNullOrBlank()) {
         return null
@@ -23,7 +22,6 @@ fun String?.toLocalDate(formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOC
 fun LocalDate?.toFormattedString(formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE): String? {
     return this?.format(formatter)
 }
-
 
 fun String?.toLocalDateTime(formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME): LocalDateTime? {
     if (this.isNullOrBlank()) {

@@ -4,19 +4,20 @@ import android.os.Bundle
 import android.view.View
 import androidx.annotation.LayoutRes
 import androidx.fragment.app.DialogFragment
-import androidx.lifecycle.ViewModel
 import androidx.viewbinding.ViewBinding
 
 abstract class BaseDialogFragment<VB : ViewBinding>(
-    @LayoutRes private val layoutResId: Int
+    @LayoutRes private val layoutResId: Int,
 ) : DialogFragment(layoutResId) {
-
     private var _binding: VB? = null
-    protected val binding get() = _binding!!
+    val binding get() = _binding!!
 
     protected abstract fun getViewBinding(view: View): VB
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         _binding = getViewBinding(view)
         setupViews()

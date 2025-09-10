@@ -7,5 +7,5 @@ data class BaseResponse<T>(
     val succeed: Boolean,
     val code: String,
     val message: String,
-    val data: T? = null
+    val data: T? = null,
 )

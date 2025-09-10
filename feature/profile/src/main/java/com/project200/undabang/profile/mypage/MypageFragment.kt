@@ -14,7 +14,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_mypage) {
+class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
 
     override fun getViewBinding(view: android.view.View): FragmentMypageBinding {
@@ -29,7 +29,7 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
     private fun initClickListener() {
         binding.settingBtn.setOnClickListener {
             findNavController().navigate(
-                MypageFragmentDirections.actionMypageFragmentToSettingFragment()
+                MypageFragmentDirections.actionMypageFragmentToSettingFragment(),
             )
         }
     }
@@ -43,7 +43,7 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
                 setGenderBirth(profile.gender, profile.birthDate)
 
                 introductionTv.text =
-                    if(profile.bio.isNullOrEmpty()) getString(R.string.empty_introduction) else profile.bio
+                    if (profile.bio.isNullOrEmpty()) getString(R.string.empty_introduction) else profile.bio
 
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
@@ -60,7 +60,10 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
         }
     }
 
-    private fun setupProfileImage(thumbnailUrl: String?, imageUrl: String?) {
+    private fun setupProfileImage(
+        thumbnailUrl: String?,
+        imageUrl: String?,
+    ) {
         val imageRes = thumbnailUrl ?: imageUrl
 
         Glide.with(binding.mypageProfileIv)
@@ -70,12 +73,16 @@ class MypageFragment: BindingFragment<FragmentMypageBinding> (R.layout.fragment_
             .into(binding.mypageProfileIv)
     }
 
-    private fun setGenderBirth(gender: String, birthDate: String) {
-        val genderStr = when (gender) {
-            MALE -> getString(R.string.mypage_male)
-            FEMALE -> getString(R.string.mypage_female)
-            else -> getString(R.string.unknown_gender)
-        }
+    private fun setGenderBirth(
+        gender: String,
+        birthDate: String,
+    ) {
+        val genderStr =
+            when (gender) {
+                MALE -> getString(R.string.mypage_male)
+                FEMALE -> getString(R.string.mypage_female)
+                else -> getString(R.string.unknown_gender)
+            }
         binding.genderBirthTv.text = getString(R.string.gender_birth_format, genderStr, birthDate)
     }
 

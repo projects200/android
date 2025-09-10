@@ -14,12 +14,13 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object StorageModule {
-
     private const val APP_PREFS_NAME = "undabang_secure_prefs"
 
     @Provides
     @Singleton
-    fun provideMasterKey(@ApplicationContext context: Context): MasterKey {
+    fun provideMasterKey(
+        @ApplicationContext context: Context,
+    ): MasterKey {
         return MasterKey.Builder(context, MasterKey.DEFAULT_MASTER_KEY_ALIAS)
             .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
             .build()
@@ -29,14 +30,14 @@ object StorageModule {
     @Singleton
     fun provideEncryptedSharedPreferences(
         @ApplicationContext context: Context,
-        masterKey: MasterKey
+        masterKey: MasterKey,
     ): SharedPreferences {
         return EncryptedSharedPreferences.create(
             context,
             APP_PREFS_NAME,
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM,
         )
     }
 }

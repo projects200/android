@@ -9,9 +9,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
+import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.navigator.ActivityNavigator
-import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.terms.TermsDialogFragment
 import com.project200.presentation.terms.TermsDialogFragment.Companion.PRIVACY
 import com.project200.presentation.terms.TermsDialogFragment.Companion.TERMS
@@ -32,6 +32,7 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
     }
 
     @Inject lateinit var appNavigator: ActivityNavigator
+
     @Inject lateinit var authManager: AuthManager
     private lateinit var authService: AuthorizationService
     private val viewModel: SettingViewModel by viewModels()
@@ -47,46 +48,54 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
         super.onCreate(savedInstanceState)
         authService = AuthorizationService(requireContext())
     }
-    override fun setupViews() = with(binding) {
-        versionInfoTv.text = requireActivity().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
 
-        backBtnIv.setOnClickListener { findNavController().popBackStack() }
-        logoutLl.setOnClickListener {
-            BaseAlertDialog(getString(R.string.alert_logout), null) {
-                performLogout()
-            }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+    override fun setupViews() =
+        with(binding) {
+            versionInfoTv.text = requireActivity().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
+
+            backBtnIv.setOnClickListener { findNavController().popBackStack() }
+            logoutLl.setOnClickListener {
+                BaseAlertDialog(getString(R.string.alert_logout), null) {
+                    performLogout()
+                }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+            }
+            withdrawLl.setOnClickListener { // 회원탈퇴 웹 페이지로 이동
+                appNavigator.navigateToWeb(requireContext(), getString(R.string.withdraw_url))
+            }
+            customerServiceLl.setOnClickListener { // 고객센터 웹 페이지로 이동
+                appNavigator.navigateToWeb(requireContext(), getString(R.string.customer_service_url))
+            }
+            termsLl.setOnClickListener { showTermsDialog(TERMS) }
+            privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
         }
-        withdrawLl.setOnClickListener { // 회원탈퇴 웹 페이지로 이동
-            appNavigator.navigateToWeb(requireContext(), getString(R.string.withdraw_url))
-        }
-        customerServiceLl.setOnClickListener { // 고객센터 웹 페이지로 이동
-            appNavigator.navigateToWeb(requireContext(), getString(R.string.customer_service_url))
-        }
-        termsLl.setOnClickListener { showTermsDialog(TERMS) }
-        privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
-    }
 
     private fun performLogout() {
         viewLifecycleOwner.lifecycleScope.launch { // Fragment의 viewLifecycleOwner 사용
-            try { viewModel.logout() }
-            catch (e: Exception) { Timber.e(e, "로그아웃 실패") }
-            
-            authManager.logout(authService, object : LogoutResultCallback {
-                override fun onLogoutPageIntentReady(logoutIntent: Intent) {
-                    logoutPageLauncher.launch(logoutIntent)
-                }
+            try {
+                viewModel.logout()
+            } catch (e: Exception) {
+                Timber.e(e, "로그아웃 실패")
+            }
 
-                override fun onLocalLogoutCompleted() {
-                    Timber.i("Local logout (AuthState cleared) completed.")
-                }
+            authManager.logout(
+                authService,
+                object : LogoutResultCallback {
+                    override fun onLogoutPageIntentReady(logoutIntent: Intent) {
+                        logoutPageLauncher.launch(logoutIntent)
+                    }
 
-                override fun onLogoutProcessError(exception: Exception) {
-                    Timber.e(exception, "로그아웃 에러: ${exception.message}")
-                    Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
-                    // 오류 발생 시에도 로컬 상태는 AuthManager에서 정리 시도됨. 로그인 화면으로 이동.
-                    appNavigator.navigateToLogin(requireContext())
-                }
-            })
+                    override fun onLocalLogoutCompleted() {
+                        Timber.i("Local logout (AuthState cleared) completed.")
+                    }
+
+                    override fun onLogoutProcessError(exception: Exception) {
+                        Timber.e(exception, "로그아웃 에러: ${exception.message}")
+                        Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
+                        // 오류 발생 시에도 로컬 상태는 AuthManager에서 정리 시도됨. 로그인 화면으로 이동.
+                        appNavigator.navigateToLogin(requireContext())
+                    }
+                },
+            )
         }
     }
 

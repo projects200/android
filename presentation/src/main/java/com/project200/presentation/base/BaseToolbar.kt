@@ -7,38 +7,46 @@ import android.view.View
 import android.widget.LinearLayout
 import com.project200.undabang.presentation.databinding.ViewBaseToolbarBinding
 
-class BaseToolbar @JvmOverloads constructor(
-    context: Context, attrs: AttributeSet? = null
-) : LinearLayout(context, attrs) {
+class BaseToolbar
+    @JvmOverloads
+    constructor(
+        context: Context,
+        attrs: AttributeSet? = null,
+    ) : LinearLayout(context, attrs) {
+        private val binding: ViewBaseToolbarBinding
 
-    private val binding: ViewBaseToolbarBinding
-
-    init {
-        val inflater = LayoutInflater.from(context)
-        binding = ViewBaseToolbarBinding.inflate(inflater, this, true)
-        orientation = HORIZONTAL
-    }
-
-    fun setTitle(title: String) {
-        binding.titleTv.text = title
-    }
-
-    fun showBackButton(show: Boolean, onClick: (() -> Unit)? = null) {
-        binding.backBtn.apply {
-            visibility = if (show) View.VISIBLE else View.INVISIBLE
-            setOnClickListener { onClick?.invoke() }
+        init {
+            val inflater = LayoutInflater.from(context)
+            binding = ViewBaseToolbarBinding.inflate(inflater, this, true)
+            orientation = HORIZONTAL
         }
-    }
 
-    fun setSubButton(iconRes: Int?, onClick: ((View) -> Unit)? = null) {
-        if (iconRes != null) {
-            binding.subBtn.apply {
-                setImageResource(iconRes)
-                visibility = View.VISIBLE
-                setOnClickListener { clickedView -> onClick?.invoke(clickedView) }
+        fun setTitle(title: String) {
+            binding.titleTv.text = title
+        }
+
+        fun showBackButton(
+            show: Boolean,
+            onClick: (() -> Unit)? = null,
+        ) {
+            binding.backBtn.apply {
+                visibility = if (show) View.VISIBLE else View.INVISIBLE
+                setOnClickListener { onClick?.invoke() }
             }
-        } else {
-            binding.subBtn.visibility = View.INVISIBLE
+        }
+
+        fun setSubButton(
+            iconRes: Int?,
+            onClick: ((View) -> Unit)? = null,
+        ) {
+            if (iconRes != null) {
+                binding.subBtn.apply {
+                    setImageResource(iconRes)
+                    visibility = View.VISIBLE
+                    setOnClickListener { clickedView -> onClick?.invoke(clickedView) }
+                }
+            } else {
+                binding.subBtn.visibility = View.INVISIBLE
+            }
         }
     }
-}

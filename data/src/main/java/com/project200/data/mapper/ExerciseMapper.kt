@@ -11,13 +11,12 @@ import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.model.ExerciseRecordPicture
-import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 fun GetExerciseCountByRangeDTO.toModel(): ExerciseCount {
     return ExerciseCount(
         date = date,
-        count = exerciseCount
+        count = exerciseCount,
     )
 }
 
@@ -29,7 +28,7 @@ fun GetExerciseRecordData.toModel(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
-        pictures = pictureDataList?.map { ExerciseRecordPicture(it.pictureId, it.pictureUrl) } ?: emptyList()
+        pictures = pictureDataList?.map { ExerciseRecordPicture(it.pictureId, it.pictureUrl) } ?: emptyList(),
     )
 }
 
@@ -41,7 +40,7 @@ fun ExerciseRecord.toPostExerciseDTO(): PostExerciseRequestDto {
         exerciseLocation = this.location,
         exerciseDetail = this.detail,
         exerciseStartedAt = this.startedAt.format(formatter),
-        exerciseEndedAt = this.endedAt.format(formatter)
+        exerciseEndedAt = this.endedAt.format(formatter),
     )
 }
 
@@ -53,24 +52,24 @@ fun ExerciseRecord.toPatchExerciseDTO(): PatchExerciseRequestDto {
         exerciseLocation = this.location,
         exerciseDetail = this.detail,
         exerciseStartedAt = this.startedAt.format(formatter),
-        exerciseEndedAt = this.endedAt.format(formatter)
+        exerciseEndedAt = this.endedAt.format(formatter),
     )
 }
 
 fun GetExerciseRecordListDto.toModel(): ExerciseListItem {
     return ExerciseListItem(
-            recordId = this.exerciseId,
-            title = this.exerciseTitle,
-            type = this.exercisePersonalType,
-            startTime = this.exerciseStartedAt,
-            endTime = this.exerciseEndedAt,
-            imageUrl = this.pictureUrl
-        )
+        recordId = this.exerciseId,
+        title = this.exerciseTitle,
+        type = this.exercisePersonalType,
+        startTime = this.exerciseStartedAt,
+        endTime = this.exerciseEndedAt,
+        imageUrl = this.pictureUrl,
+    )
 }
 
 fun PostExerciseResponseDTO.toModel(): ExerciseRecordCreationResult {
     return ExerciseRecordCreationResult(
         recordId = this.exerciseId,
-        earnedPoints = this.earnedPoints
+        earnedPoints = this.earnedPoints,
     )
 }

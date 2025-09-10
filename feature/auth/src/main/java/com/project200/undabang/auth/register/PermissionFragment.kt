@@ -15,8 +15,6 @@ import com.project200.undabang.feature.auth.databinding.FragmentPermissionBindin
 import timber.log.Timber
 
 class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.fragment_permission) {
-
-
     private lateinit var requestMultiplePermissionsLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
 
@@ -24,7 +22,6 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
 
         requestMultiplePermissionsLauncher =
             registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
@@ -65,7 +62,10 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
         return FragmentPermissionBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         // 화면이 생성된 후 필요한 권한 요청
         requestNeededPermissions()
@@ -88,11 +88,12 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
         }
 
         // 갤러리/저장소 권한
-        val storagePermission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else { // Android 12 이하
-            Manifest.permission.READ_EXTERNAL_STORAGE
-        }
+        val storagePermission =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else { // Android 12 이하
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
         if (!isPermissionGranted(storagePermission)) {
             requiredPermissions.add(storagePermission)
         }
@@ -111,7 +112,7 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
     private fun isPermissionGranted(permission: String): Boolean {
         return ContextCompat.checkSelfPermission(
             requireContext(),
-            permission
+            permission,
         ) == PackageManager.PERMISSION_GRANTED
     }
 }

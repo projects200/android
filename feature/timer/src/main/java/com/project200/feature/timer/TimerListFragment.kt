@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
-class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.fragment_timer_list) {
+class TimerListFragment : BindingFragment<FragmentTimerListBinding>(R.layout.fragment_timer_list) {
     private val viewModel: TimerListViewModel by viewModels()
     private lateinit var customTimerRVAdapter: CustomTimerRVAdapter
 
@@ -33,22 +33,23 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
     private fun initClickListeners() {
         binding.simpleTimerBtn.setOnClickListener {
             findNavController().navigate(
-                TimerListFragmentDirections.actionTimerListFragmentToSimpleTimerFragment()
+                TimerListFragmentDirections.actionTimerListFragmentToSimpleTimerFragment(),
             )
         }
         binding.addCustomTimerBtn.setOnClickListener {
             findNavController().navigate(
-                TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFormFragment()
+                TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFormFragment(),
             )
         }
     }
 
     private fun initRecyclerView() {
-        customTimerRVAdapter = CustomTimerRVAdapter { customTimer ->
-            findNavController().navigate(
-                TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFragment(customTimer.id)
-            )
-        }
+        customTimerRVAdapter =
+            CustomTimerRVAdapter { customTimer ->
+                findNavController().navigate(
+                    TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFragment(customTimer.id),
+                )
+            }
         binding.customTimerRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
             adapter = customTimerRVAdapter
@@ -59,7 +60,7 @@ class TimerListFragment: BindingFragment<FragmentTimerListBinding>(R.layout.frag
         // 타이머 리스트 관찰
         viewModel.customTimerList.observe(viewLifecycleOwner) { timers ->
             // 타이머가 없을 때와 있을 때의 뷰 상태를 변경합니다.
-            if(timers.isNullOrEmpty()) {
+            if (timers.isNullOrEmpty()) {
                 binding.addTimerText.visibility = View.VISIBLE
                 binding.addTimerIconRight.visibility = View.VISIBLE
                 binding.addTimerIconCenter.visibility = View.GONE

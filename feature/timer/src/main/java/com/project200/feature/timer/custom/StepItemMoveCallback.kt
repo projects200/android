@@ -8,12 +8,11 @@ import androidx.recyclerview.widget.RecyclerView
  * @param onMoveAction 아이템 위치가 변경되었을 때 호출될 람다 함수. (fromPosition, toPosition)을 인자로 받습니다.
  */
 class StepItemMoveCallback(
-    private val onMoveAction: (fromPosition: Int, toPosition: Int) -> Unit
+    private val onMoveAction: (fromPosition: Int, toPosition: Int) -> Unit,
 ) : ItemTouchHelper.Callback() {
-
     override fun getMovementFlags(
         recyclerView: RecyclerView,
-        viewHolder: RecyclerView.ViewHolder
+        viewHolder: RecyclerView.ViewHolder,
     ): Int {
         // StepViewHolder만 드래그가 가능하도록 설정
         return if (viewHolder is StepViewHolder) {
@@ -27,7 +26,7 @@ class StepItemMoveCallback(
     override fun onMove(
         recyclerView: RecyclerView,
         viewHolder: RecyclerView.ViewHolder,
-        target: RecyclerView.ViewHolder
+        target: RecyclerView.ViewHolder,
     ): Boolean {
         val fromPosition = viewHolder.bindingAdapterPosition
         val toPosition = target.bindingAdapterPosition
@@ -41,7 +40,10 @@ class StepItemMoveCallback(
         return true
     }
 
-    override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {}
+    override fun onSwiped(
+        viewHolder: RecyclerView.ViewHolder,
+        direction: Int,
+    ) {}
 
     override fun isLongPressDragEnabled(): Boolean {
         // 핸들러를 통해서만 드래그를 시작할 것이므로 long press는 비활성화

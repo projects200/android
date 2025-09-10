@@ -7,29 +7,30 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class FcmTokenProvider @Inject constructor(
-    private val prefs: SharedPreferences
-) {
+class FcmTokenProvider
+    @Inject
+    constructor(
+        private val prefs: SharedPreferences,
+    ) {
+        private var fcmToken: String? = null
 
-    private var fcmToken: String? = null
-
-    init {
-        loadTokenFromPrefs()
-    }
-
-    private fun loadTokenFromPrefs() {
-        fcmToken = prefs.getString(KEY_FCM_TOKEN, null)
-        Timber.tag("FcmTokenProvider").d("FCM 토큰 : $fcmToken")
-    }
-
-    fun getFcmToken(): String? {
-        if (fcmToken == null) {
+        init {
             loadTokenFromPrefs()
         }
-        return fcmToken
-    }
 
-    fun refreshToken() {
-        loadTokenFromPrefs()
+        private fun loadTokenFromPrefs() {
+            fcmToken = prefs.getString(KEY_FCM_TOKEN, null)
+            Timber.tag("FcmTokenProvider").d("FCM 토큰 : $fcmToken")
+        }
+
+        fun getFcmToken(): String? {
+            if (fcmToken == null) {
+                loadTokenFromPrefs()
+            }
+            return fcmToken
+        }
+
+        fun refreshToken() {
+            loadTokenFromPrefs()
+        }
     }
-}

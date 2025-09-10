@@ -13,7 +13,7 @@ class SimpleTimerRVAdapter(
     var itemHeight: Int = 0,
     private val onItemClick: (SimpleTimer) -> Unit,
     private val onMenuClick: (SimpleTimer, View) -> Unit,
-    private val onAddClick: () -> Unit
+    private val onAddClick: () -> Unit,
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
     private var items: List<SimpleTimer> = emptyList()
     private var showAddButton: Boolean = false
@@ -36,7 +36,10 @@ class SimpleTimerRVAdapter(
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): RecyclerView.ViewHolder {
         val inflater = LayoutInflater.from(parent.context)
         return when (viewType) {
             VIEW_TYPE_TIMER -> SimpleTimerViewHolder(ItemSimpleTimerBinding.inflate(inflater, parent, false))
@@ -45,7 +48,10 @@ class SimpleTimerRVAdapter(
         }
     }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+    ) {
         when (holder) {
             is SimpleTimerViewHolder -> holder.bind(items[position])
             is AddButtonViewHolder -> holder.bind()

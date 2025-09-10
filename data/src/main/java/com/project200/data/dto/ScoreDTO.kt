@@ -10,11 +10,11 @@ data class ExpectedScoreInfoDTO(
     val currentUserScore: Int,
     val maxScore: Int,
     val validWindow: ValidWindowDTO,
-    val earnableScoreDates: List<LocalDate>
+    val earnableScoreDates: List<LocalDate>,
 )
 
 @JsonClass(generateAdapter = true)
 data class ValidWindowDTO(
     val startDateTime: LocalDateTime,
-    val endDateTime: LocalDateTime
+    val endDateTime: LocalDateTime,
 )

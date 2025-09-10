@@ -45,13 +45,14 @@ class ExerciseTimeDialog :
             if (it.containsKey(ARG_INITIAL_CALENDAR)) {
                 val initialMillis = it.getLong(ARG_INITIAL_CALENDAR)
                 val initialCal = Calendar.getInstance().apply { timeInMillis = initialMillis }
-                val initialDateTime = LocalDateTime.of(
-                    initialCal.get(Calendar.YEAR),
-                    initialCal.get(Calendar.MONTH) + 1,
-                    initialCal.get(Calendar.DAY_OF_MONTH),
-                    initialCal.get(Calendar.HOUR_OF_DAY),
-                    initialCal.get(Calendar.MINUTE)
-                )
+                val initialDateTime =
+                    LocalDateTime.of(
+                        initialCal.get(Calendar.YEAR),
+                        initialCal.get(Calendar.MONTH) + 1,
+                        initialCal.get(Calendar.DAY_OF_MONTH),
+                        initialCal.get(Calendar.HOUR_OF_DAY),
+                        initialCal.get(Calendar.MINUTE),
+                    )
                 viewModel.setInitialDateTime(initialDateTime)
             }
         }
@@ -87,16 +88,18 @@ class ExerciseTimeDialog :
     }
 
     private fun setupDateAndTimePickers() {
-        val currentCalendar = Calendar.getInstance().apply {
-            viewModel.initialDateTime.value?.let {
-                timeInMillis = it.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
-            } ?: run {
-                val now = LocalDateTime.now()
-                val flooredMinute = (now.minute / 5) * 5
-                timeInMillis = now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
-                    .atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+        val currentCalendar =
+            Calendar.getInstance().apply {
+                viewModel.initialDateTime.value?.let {
+                    timeInMillis = it.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+                } ?: run {
+                    val now = LocalDateTime.now()
+                    val flooredMinute = (now.minute / 5) * 5
+                    timeInMillis =
+                        now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
+                            .atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+                }
             }
-        }
 
         dateDisplayValues = Array(DAYS_IN_PICKER) { "" }
         val sdf = SimpleDateFormat("yy.MM.dd", Locale.KOREAN)
@@ -155,7 +158,7 @@ class ExerciseTimeDialog :
                                 event.month - 1,
                                 event.day,
                                 event.hour,
-                                event.minute
+                                event.minute,
                             )
                             dismiss()
                         }
@@ -164,7 +167,7 @@ class ExerciseTimeDialog :
                             Toast.makeText(
                                 requireContext(),
                                 getString(R.string.exercise_record_time_future_error),
-                                Toast.LENGTH_SHORT
+                                Toast.LENGTH_SHORT,
                             ).show()
                         }
                     }
@@ -173,9 +176,12 @@ class ExerciseTimeDialog :
         }
     }
 
-    private fun isSameDay(cal1: Calendar, cal2: Calendar): Boolean {
+    private fun isSameDay(
+        cal1: Calendar,
+        cal2: Calendar,
+    ): Boolean {
         return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+            cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
     }
 
     companion object {

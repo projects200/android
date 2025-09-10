@@ -7,7 +7,7 @@ data class GetScoreDTO(
     val memberId: String,
     val memberScore: Int,
     val policyMaxScore: Int,
-    val policyMinScore: Int
+    val policyMinScore: Int,
 )
 
 @JsonClass(generateAdapter = true)
@@ -21,7 +21,7 @@ data class GetProfileDTO(
     val yearlyExerciseDays: Int,
     val exerciseCountInLast30Days: Int,
     val exerciseScore: Int,
-    val preferredExercises: List<PreferredExerciseDTO>
+    val preferredExercises: List<PreferredExerciseDTO>,
 )
 
 @JsonClass(generateAdapter = true)
@@ -30,5 +30,5 @@ data class PreferredExerciseDTO(
     val name: String,
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
-    val imageUrl: String
+    val imageUrl: String,
 )

@@ -1,20 +1,18 @@
 package com.project200.presentation.update
 
-
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.view.WindowManager
-import com.project200.presentation.base.BaseDialogFragment
+import androidx.core.graphics.drawable.toDrawable
 import androidx.core.net.toUri
 import com.project200.common.constants.AppConstants.MARKET_URL
-import androidx.core.graphics.drawable.toDrawable
+import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.presentation.R
 import com.project200.undabang.presentation.databinding.DialogUpdateBinding
 
-class UpdateDialogFragment(private val isForceUpdate: Boolean): BaseDialogFragment<DialogUpdateBinding>(R.layout.dialog_update) {
-
+class UpdateDialogFragment(private val isForceUpdate: Boolean) : BaseDialogFragment<DialogUpdateBinding>(R.layout.dialog_update) {
     override fun getViewBinding(view: View): DialogUpdateBinding {
         return DialogUpdateBinding.bind(view)
     }
@@ -35,7 +33,6 @@ class UpdateDialogFragment(private val isForceUpdate: Boolean): BaseDialogFragme
             window.setLayout(desiredWidth, WindowManager.LayoutParams.WRAP_CONTENT)
 
             window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
-
         }
     }
 

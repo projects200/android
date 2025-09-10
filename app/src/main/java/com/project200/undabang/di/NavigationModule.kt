@@ -15,26 +15,30 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object NavigationModule {
-
     @Provides
     @Singleton
     fun provideAppNavigator(): ActivityNavigator {
         return object : ActivityNavigator {
             override fun navigateToMain(context: Context) {
-                val intent = Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
+                val intent =
+                    Intent(context, MainActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
                 context.startActivity(intent)
             }
 
             override fun navigateToLogin(context: Context) {
-                val intent = Intent(context, LoginActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-                }
+                val intent =
+                    Intent(context, LoginActivity::class.java).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                    }
                 context.startActivity(intent)
             }
 
-            override fun navigateToWeb(context: Context, url: String) {
+            override fun navigateToWeb(
+                context: Context,
+                url: String,
+            ) {
                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
                 context.startActivity(intent)
             }

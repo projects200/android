@@ -6,12 +6,11 @@ import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
 
-
 fun GetScoreDTO.toModel(): Score {
     return Score(
         score = memberScore,
         maxScore = policyMaxScore,
-        minScore = policyMinScore
+        minScore = policyMinScore,
     )
 }
 
@@ -26,14 +25,15 @@ fun GetProfileDTO.toModel(): UserProfile {
         yearlyExerciseDays = this.yearlyExerciseDays,
         exerciseCountInLast30Days = this.exerciseCountInLast30Days,
         exerciseScore = this.exerciseScore,
-        preferredExercises = this.preferredExercises.map {
-            PreferredExercise(
-                preferredExerciseId = it.preferredExerciseId,
-                name = it.name,
-                skillLevel = it.skillLevel,
-                daysOfWeek = it.daysOfWeek,
-                imageUrl = it.imageUrl
-            )
-        }
+        preferredExercises =
+            this.preferredExercises.map {
+                PreferredExercise(
+                    preferredExerciseId = it.preferredExerciseId,
+                    name = it.name,
+                    skillLevel = it.skillLevel,
+                    daysOfWeek = it.daysOfWeek,
+                    imageUrl = it.imageUrl,
+                )
+            },
     )
 }

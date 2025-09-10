@@ -15,19 +15,20 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object AuthCoreModule {
-
     @Provides
     @Singleton
     fun provideAuthStateManager(
         @ApplicationContext context: Context,
-        cognitoConfig: CognitoConfig
+        cognitoConfig: CognitoConfig,
     ): AuthStateManager {
         return AuthStateManager(context, cognitoConfig)
     }
 
     @Provides
     @Singleton
-    fun provideAuthorizationService(@ApplicationContext context: Context): AuthorizationService {
+    fun provideAuthorizationService(
+        @ApplicationContext context: Context,
+    ): AuthorizationService {
         return AuthorizationService(context)
     }
 
@@ -36,7 +37,7 @@ object AuthCoreModule {
     fun provideAuthManager(
         authService: AuthorizationService,
         authStateManager: AuthStateManager,
-        cognitoConfig: CognitoConfig
+        cognitoConfig: CognitoConfig,
     ): AuthManager {
         return AuthManager(authService, authStateManager, cognitoConfig)
     }

@@ -12,14 +12,14 @@ data class GetExerciseRecordData(
     val exerciseStartedAt: LocalDateTime,
     val exerciseEndedAt: LocalDateTime,
     val exerciseLocation: String,
-    val pictureDataList: List<PictureData>?
+    val pictureDataList: List<PictureData>?,
 )
 
 data class PictureData(
     val pictureId: Long,
     val pictureUrl: String,
     val pictureName: String,
-    val pictureExtension: String
+    val pictureExtension: String,
 )
 
 @JsonClass(generateAdapter = true)
@@ -29,7 +29,7 @@ data class PostExerciseRequestDto(
     val exerciseLocation: String?,
     val exerciseDetail: String?,
     val exerciseStartedAt: String?,
-    val exerciseEndedAt: String?
+    val exerciseEndedAt: String?,
 )
 
 @JsonClass(generateAdapter = true)
@@ -45,7 +45,7 @@ data class PatchExerciseRequestDto(
     val exerciseLocation: String?,
     val exerciseDetail: String?,
     val exerciseStartedAt: String?,
-    val exerciseEndedAt: String?
+    val exerciseEndedAt: String?,
 )
 
 @JsonClass(generateAdapter = true)
@@ -55,16 +55,16 @@ data class GetExerciseRecordListDto(
     val exercisePersonalType: String,
     val exerciseStartedAt: LocalDateTime,
     val exerciseEndedAt: LocalDateTime,
-    val pictureUrl: List<String>?
+    val pictureUrl: List<String>?,
 )
 
 @JsonClass(generateAdapter = true)
 data class ExerciseIdDto(
-    val exerciseId: Long
+    val exerciseId: Long,
 )
 
 @JsonClass(generateAdapter = true)
 data class GetExerciseCountByRangeDTO(
     val date: LocalDate,
-    val exerciseCount: Int
+    val exerciseCount: Int,
 )

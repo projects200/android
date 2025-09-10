@@ -33,11 +33,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         ExerciseListAdapter { recordId ->
             // 상세 화면으로 이동
             findNavController().navigate(
-                ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseDetailFragment(recordId)
+                ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseDetailFragment(recordId),
             )
         }
     }
-
 
     override fun getViewBinding(view: View): FragmentExerciseMainBinding {
         return FragmentExerciseMainBinding.bind(view)
@@ -60,7 +59,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             setup(
                 YearMonth.now().minusMonths(100),
                 YearMonth.now(),
-                daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first()
+                daysOfWeek(firstDayOfWeek = DayOfWeek.SUNDAY).first(),
             )
 
             // 캘린더 월 스크롤 리스너
@@ -71,57 +70,61 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             }
 
             // 캘린더의 각 날짜(day)를 어떻게 그릴지 정의하는 부분
-            dayBinder = object : MonthDayBinder<DayViewContainer> {
-                // DayViewContainer 인스턴스를 생성
-                override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
+            dayBinder =
+                object : MonthDayBinder<DayViewContainer> {
+                    // DayViewContainer 인스턴스를 생성
+                    override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
 
-                // 생성된 View에 데이터를 바인딩
-                override fun bind(container: DayViewContainer, data: CalendarDay) = with(container.binding) {
-                    // DayViewContainer에 CalendarDay 데이터를 저장 (클릭 리스너에서 사용)
-                    container.day = data
-                    calendarDayTv.text = data.date.dayOfMonth.toString()
+                    // 생성된 View에 데이터를 바인딩
+                    override fun bind(
+                        container: DayViewContainer,
+                        data: CalendarDay,
+                    ) = with(container.binding) {
+                        // DayViewContainer에 CalendarDay 데이터를 저장 (클릭 리스너에서 사용)
+                        container.day = data
+                        calendarDayTv.text = data.date.dayOfMonth.toString()
 
-                    // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
-                    calendarDayTv.background = null
-                    selectedIv.isVisible = false
-                    exerciseCompleteIv.apply {
-                        isVisible = false
-                        animate().cancel() // 진행 중인 애니메이션이 있다면 취소
-                        alpha = 1f
-                    }
+                        // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
+                        calendarDayTv.background = null
+                        selectedIv.isVisible = false
+                        exerciseCompleteIv.apply {
+                            isVisible = false
+                            animate().cancel() // 진행 중인 애니메이션이 있다면 취소
+                            alpha = 1f
+                        }
 
-                    val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
+                        val today = LocalDate.now(ZoneId.of("Asia/Seoul"))
 
-                    // 캘린더에 표시되는 현재 '월'에 해당하는 날짜일 경우에만 UI 로직을 적용
-                    if (data.position == DayPosition.MonthDate) {
-                        // 선택된 날짜 하이라이팅 처리
-                        if (data.date == viewModel.selectedDate.value) {
-                            selectedIv.isVisible = true
-                        } else {
-                            // 오늘 날짜 이후는 회색, 이전 및 당일은 검은색으로 처리
-                            val textColorRes = if (data.date.isAfter(today)) {
-                                com.project200.undabang.presentation.R.color.gray200
+                        // 캘린더에 표시되는 현재 '월'에 해당하는 날짜일 경우에만 UI 로직을 적용
+                        if (data.position == DayPosition.MonthDate) {
+                            // 선택된 날짜 하이라이팅 처리
+                            if (data.date == viewModel.selectedDate.value) {
+                                selectedIv.isVisible = true
                             } else {
-                                com.project200.undabang.presentation.R.color.black
+                                // 오늘 날짜 이후는 회색, 이전 및 당일은 검은색으로 처리
+                                val textColorRes =
+                                    if (data.date.isAfter(today)) {
+                                        com.project200.undabang.presentation.R.color.gray200
+                                    } else {
+                                        com.project200.undabang.presentation.R.color.black
+                                    }
+                                calendarDayTv.setTextColor(getColor(requireContext(), textColorRes))
                             }
-                            calendarDayTv.setTextColor(getColor(requireContext(), textColorRes))
-                        }
 
-                        // 운동 기록이 있는 날 표시
-                        if (exerciseCompleteDates.contains(data.date)) {
-                            exerciseCompleteIv.apply {
-                                alpha = 0f
-                                isVisible = true
-                                animate().alpha(1f).setDuration(300).start()
+                            // 운동 기록이 있는 날 표시
+                            if (exerciseCompleteDates.contains(data.date)) {
+                                exerciseCompleteIv.apply {
+                                    alpha = 0f
+                                    isVisible = true
+                                    animate().alpha(1f).setDuration(300).start()
+                                }
                             }
+                        } else {
+                            // 이전/다음 달에서 넘어온 날짜들은 모두 회색으로 처리
+                            calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
                         }
-                    }
-                    // 이전/다음 달에서 넘어온 날짜들은 모두 회색으로 처리
-                    else {
-                        calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
                     }
                 }
-            }
         }
     }
 
@@ -167,7 +170,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             }
         }
     }
-    
+
     override fun setupObservers() {
         viewModel.selectedMonth.observe(viewLifecycleOwner) { month ->
             // 날짜 헤더 업데이트
@@ -203,21 +206,22 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             val middleLevelScore = (score.minScore + scoreRange * SCORE_MIDDLE_LEVEL).toInt()
 
             binding.scoreLevelIv.setImageResource(
-                 when {
-                     score.score >= highLevelScore -> R.drawable.ic_score_high_level
-                     score.score >= middleLevelScore -> R.drawable.ic_score_middle_level
-                     else -> R.drawable.ic_score_low_level
-                 }
-             )
+                when {
+                    score.score >= highLevelScore -> R.drawable.ic_score_high_level
+                    score.score >= middleLevelScore -> R.drawable.ic_score_middle_level
+                    else -> R.drawable.ic_score_low_level
+                },
+            )
 
             viewModel.earnablePoints.observe(viewLifecycleOwner) { points ->
-                binding.exerciseCreateBtn.text = if (points > 0) {
-                    // 점수가 0보다 크면, 획득 가능 텍스트를 보여줍니다.
-                    getString(R.string.exercise_record_complete_with_points, points)
-                } else {
-                    // 점수가 0이면, 기본 텍스트를 보여줍니다.
-                    getString(R.string.record_exercise)
-                }
+                binding.exerciseCreateBtn.text =
+                    if (points > 0) {
+                        // 점수가 0보다 크면, 획득 가능 텍스트를 보여줍니다.
+                        getString(R.string.exercise_record_complete_with_points, points)
+                    } else {
+                        // 점수가 0이면, 기본 텍스트를 보여줍니다.
+                        getString(R.string.record_exercise)
+                    }
             }
         }
 
@@ -241,9 +245,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             exerciseAdapter.submitList(list)
             binding.exerciseListEmptyTv.isVisible = list.isNullOrEmpty()
         }
-
     }
-
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
         ViewContainer(binding.root) {
