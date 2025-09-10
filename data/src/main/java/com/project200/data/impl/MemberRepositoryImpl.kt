@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
@@ -29,19 +30,12 @@ class MemberRepositoryImpl
         }
 
         override suspend fun getUserProfile(): BaseResult<UserProfile> {
-            return BaseResult.Success(
-                UserProfile(
-                    profileThumbnailUrl = "",
-                    profileImageUrl = "",
-                    nickname = "운다방",
-                    gender = "M",
-                    birthDate = "1990-01-01",
-                    bio = "안녕하세요! 운동하는 개발자입니다.",
-                    yearlyExerciseDays = 120,
-                    exerciseCountInLast30Days = 15,
-                    exerciseScore = 85,
-                    preferredExercises = listOf(),
-                ),
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getProfile() },
+                mapper = { dto: GetProfileDTO? ->
+                    dto?.toModel() ?: throw NoSuchElementException("유저 프로필 데이터가 없습니다.")
+                },
             )
         }
     }

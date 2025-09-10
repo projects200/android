@@ -10,6 +10,7 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsRegisteredData
+import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
@@ -60,6 +61,11 @@ interface ApiService {
     suspend fun postSignUp(
         @Body signUpRequest: PostSignUpRequest,
     ): BaseResponse<PostSignUpData>
+
+    // 프로필 조회
+    @GET("api/v1/profile")
+    @AccessTokenApi
+    suspend fun getProfile(): BaseResponse<GetProfileDTO>
 
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")
