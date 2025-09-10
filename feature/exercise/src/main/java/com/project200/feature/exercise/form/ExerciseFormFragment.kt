@@ -120,7 +120,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             )
 
         binding.exerciseImageRv.apply {
-            addItemDecoration(GridSpacingItemDecoration(GRID_SPAN_COUNT, dpToPx(requireContext(), RV_MARGIN)))
+            addItemDecoration(GridItemDecoration(GRID_SPAN_COUNT, dpToPx(requireContext(), RV_MARGIN)))
             layoutManager = GridLayoutManager(requireContext(), GRID_SPAN_COUNT)
             adapter = imageAdapter
         }
