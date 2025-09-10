@@ -1,0 +1,16 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingVertical="12dp">
+
+    <TextView style="@style/CalendarDayHeader" android:text="일" />
+    <TextView style="@style/CalendarDayHeader" android:text="월" />
+    <TextView style="@style/CalendarDayHeader" android:text="화" />
+    <TextView style="@style/CalendarDayHeader" android:text="수" />
+    <TextView style="@style/CalendarDayHeader" android:text="목" />
+    <TextView style="@style/CalendarDayHeader" android:text="금" />
+    <TextView style="@style/CalendarDayHeader" android:text="토" />
+
+</LinearLayout>

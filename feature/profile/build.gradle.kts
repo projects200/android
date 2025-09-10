@@ -46,4 +46,7 @@ dependencies {
 
     // Glide
     implementation(libs.glide)
+
+    // 캘린더
+    implementation(libs.kizitonwose.calendar.view)
 }
