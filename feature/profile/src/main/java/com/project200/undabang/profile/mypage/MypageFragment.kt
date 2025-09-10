@@ -1,9 +1,13 @@
 package com.project200.undabang.profile.mypage
 
 import android.view.View
+import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.kizitonwose.calendar.core.CalendarDay
@@ -17,13 +21,14 @@ import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.profile.databinding.FragmentMypageBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 
 @AndroidEntryPoint
-class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment_mypage) {
+class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
 
@@ -67,7 +72,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment
                 setGenderBirth(profile.gender, profile.birthDate)
 
                 introductionTv.text =
-                    if (profile.bio.isEmpty()) getString(R.string.empty_introduction) else profile.bio
+                    if (profile.bio.isNullOrEmpty()) getString(R.string.empty_introduction) else profile.bio
 
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
@@ -89,6 +94,18 @@ class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
             exerciseCompleteDates = dates
             binding.exerciseCalendar.notifyCalendarChanged()
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.toast.collect { isVisible ->
+                    Toast.makeText(
+                        requireContext(),
+                        getString(R.string.error_failed_to_load),
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                }
+            }
         }
     }
 
@@ -158,7 +175,12 @@ class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment
                             }
                         } else {
                             // 이전/다음 달에서 넘어온 날짜들은 모두 회색으로 처리
-                            calendarDayTv.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
+                            calendarDayTv.setTextColor(
+                                getColor(
+                                    requireContext(),
+                                    com.project200.undabang.presentation.R.color.gray200,
+                                ),
+                            )
                         }
                     }
                 }
@@ -184,18 +206,15 @@ class MypageFragment : BindingFragment<FragmentMypageBinding> (R.layout.fragment
     ) {
         val genderStr =
             when (gender) {
-                MALE -> getString(R.string.male)
-                FEMALE -> getString(R.string.female)
+                MALE -> getString(R.string.mypage_male)
+                FEMALE -> getString(R.string.mypage_female)
                 else -> getString(R.string.unknown_gender)
             }
-        binding.genderBirthTv.text = getString(R.string.gender_birth_format, genderStr, birthDate)
+        binding.genderBirthTv.text =
+            getString(R.string.gender_birth_format, genderStr, birthDate)
     }
 
-
-    inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
-        ViewContainer(binding.root) {
-    }
-
+    inner class DayViewContainer(val binding: CalendarDayLayoutBinding) : ViewContainer(binding.root)
 
     companion object {
         const val MALE = "MALE"

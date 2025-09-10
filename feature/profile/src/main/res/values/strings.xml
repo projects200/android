@@ -16,8 +16,8 @@
 
     <string name="nickname">닉네임</string>
     <string name="gender_birth_format">%s | %s</string>
-    <string name="male">남자</string>
-    <string name="female">여자</string>
+    <string name="mypage_male">남자</string>
+    <string name="mypage_female">여자</string>
     <string name="unknown_gender">공개안함</string>
     <string name="recent_exercise_counts">최근 30일 운동 횟수</string>
     <string name="current_year_exercise_days">올해 운동 일수</string>
@@ -33,5 +33,7 @@
     <string name="skill_level_3">고급자</string>
     <string name="skill_level_4">숙련자</string>
     <string name="skill_level_5">선출</string>
+
+    <string name="error_failed_to_load">마이페이지 정보를 불러오는데 실패했습니다.</string>
 
 </resources>
