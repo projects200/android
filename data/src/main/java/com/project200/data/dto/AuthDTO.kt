@@ -1,5 +1,6 @@
 package com.project200.data.dto
 
+import com.project200.domain.model.UpdateCheckResult
 import com.squareup.moshi.JsonClass
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -32,4 +33,9 @@ data class PostSignUpData(
     val memberDesc: String?,
     val memberScore: Int?,
     val memberCreatedAt: LocalDateTime,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetIsNicknameDuplicated(
+    val available: Boolean
 )
