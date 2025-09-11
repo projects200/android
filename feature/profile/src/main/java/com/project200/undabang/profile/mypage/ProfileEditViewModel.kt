@@ -79,6 +79,7 @@ class ProfileEditViewModel @Inject constructor(
         val currentNickname = _nickname.value.orEmpty()
         val currentGender = _gender.value
 
+        if (!validateNicknameUseCase(currentNickname)) return
         if (!validateNicknameUseCase(currentNickname)) {
             _signUpResult.value =
                 BaseResult.Error(
