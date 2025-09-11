@@ -68,9 +68,9 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getProfile(): BaseResponse<GetProfileDTO>
 
-    @GET("open/v1/nicknames/check?nickname={nickname}")
+    @GET("open/v1/nicknames/check")
     suspend fun getIsNicknameDuplicated(
-        @Path("nickname") nickname: String,
+        @Query("nickname") nickname: String
     ): BaseResponse<GetIsNicknameDuplicated>
 
     // 구간별 운동 기록 횟수 조회
