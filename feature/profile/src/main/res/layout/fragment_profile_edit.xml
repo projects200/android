@@ -3,8 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/white300"
-    android:layout_marginHorizontal="@dimen/base_horizontal_margin">
+    android:background="@color/white300">
 
     <com.project200.presentation.base.BaseToolbar
         android:id="@+id/base_toolbar"
@@ -54,6 +53,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="90dp"
         android:text="@string/nickname"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/profile_img_iv" />
 
@@ -78,12 +78,13 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_duplicate_check"
+        android:elevation="0dp"
+        android:gravity="center"
         android:paddingHorizontal="8dp"
         android:paddingVertical="2dp"
         android:text="@string/profile_edit_duplicate_check"
         android:textColor="@color/main"
-        android:elevation="0dp"
-        android:gravity="center"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
         app:layout_constraintBottom_toBottomOf="@id/nickname_et"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@id/nickname_et" />
@@ -93,7 +94,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintEnd_toEndOf="@+id/duplicate_check_btn"
         app:layout_constraintStart_toStartOf="@id/nickname_et"
         app:layout_constraintTop_toBottomOf="@id/nickname_et">
 
@@ -122,94 +123,95 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
         android:text="@string/gender"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/nickname_title_tv"
         app:layout_constraintTop_toBottomOf="@+id/nickname_guide_ll" />
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:layout_width="0dp"
+    <LinearLayout
+        android:id="@+id/gender_male_ll"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
-        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@id/nickname_et"
         app:layout_constraintTop_toTopOf="@id/gender_title_tv">
 
-        <LinearLayout
-            android:id="@+id/gender_male_ll"
+        <TextView
+            android:id="@+id/male_tv"
+            style="@style/content_regular"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:layout_gravity="center"
+            android:text="@string/profile_edit_male" />
 
-            <TextView
-                android:id="@+id/male_tv"
-                style="@style/content_regular"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/profile_edit_male" />
-
-            <ImageView
-                android:id="@+id/male_btn_imv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/selector_terms_check" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/gender_female_ll"
+        <ImageView
+            android:id="@+id/male_btn_imv"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toEndOf="@id/gender_male_ll"
-            app:layout_constraintTop_toTopOf="parent">
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check" />
+    </LinearLayout>
 
-            <TextView
-                android:id="@+id/gender_female_tv"
-                style="@style/content_regular"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="@string/profile_edit_female" />
+    <LinearLayout
+        android:id="@+id/gender_female_ll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@id/gender_male_ll"
+        app:layout_constraintTop_toTopOf="@id/gender_title_tv">
 
-            <ImageView
-                android:id="@+id/female_btn_imv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/selector_terms_check"
-                app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
-                app:layout_constraintStart_toEndOf="@+id/gender_female_tv"
-                app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+        <TextView
+            android:id="@+id/gender_female_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/profile_edit_female" />
 
-            <TextView
-                android:id="@+id/gender_hidden_tv"
-                style="@style/content_regular"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="24dp"
-                android:text="@string/profile_edit_hidden"
-                app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
-                app:layout_constraintStart_toEndOf="@id/female_btn_imv"
-                app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+        <ImageView
+            android:id="@+id/female_btn_imv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@+id/gender_female_tv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+    </LinearLayout>
 
-            <ImageView
-                android:id="@+id/hidden_btn_imv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:layout_marginStart="4dp"
-                android:src="@drawable/selector_terms_check"
-                app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
-                app:layout_constraintStart_toEndOf="@+id/gender_hidden_tv"
-                app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
-        </LinearLayout>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    <LinearLayout
+        android:id="@+id/gender_hidden_ll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@id/gender_female_ll"
+        app:layout_constraintTop_toTopOf="@id/gender_title_tv">
+
+        <TextView
+            android:id="@+id/gender_hidden_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+
+            android:text="@string/profile_edit_hidden"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@id/female_btn_imv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+        <ImageView
+            android:id="@+id/hidden_btn_imv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@+id/gender_hidden_tv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/introduction_title_tv"
@@ -218,19 +220,21 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="32dp"
         android:text="@string/profile_edit_introduction"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/nickname_title_tv"
         app:layout_constraintTop_toBottomOf="@id/gender_title_tv" />
 
     <EditText
+        android:id="@+id/introduction_et"
         style="@style/content_regular"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
         android:background="@drawable/bg_introduction_et"
+        android:gravity="start"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
         android:hint="@string/empty_introduction"
         android:minHeight="120dp"
         android:padding="12dp"
-        android:gravity="start"
         android:textColorHint="@color/gray200"
         app:layout_constraintTop_toBottomOf="@id/introduction_title_tv" />
 </androidx.constraintlayout.widget.ConstraintLayout>
