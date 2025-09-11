@@ -72,7 +72,7 @@
         app:layout_constraintStart_toEndOf="@id/nickname_title_tv"
         app:layout_constraintTop_toTopOf="@+id/nickname_title_tv" />
 
-    <androidx.appcompat.widget.AppCompatButton
+    <TextView
         android:id="@+id/duplicate_check_btn"
         style="@style/content_regular"
         android:layout_width="wrap_content"
@@ -81,7 +81,7 @@
         android:elevation="0dp"
         android:gravity="center"
         android:paddingHorizontal="8dp"
-        android:paddingVertical="2dp"
+        android:paddingVertical="4dp"
         android:text="@string/profile_edit_duplicate_check"
         android:textColor="@color/main"
         android:layout_marginEnd="@dimen/base_horizontal_margin"
