@@ -70,7 +70,7 @@ interface ApiService {
 
     @GET("open/v1/nicknames/check?nickname={nickname}")
     suspend fun getIsNicknameDuplicated(
-        @Query("nickname") nickname: String,
+        @Path("nickname") nickname: String,
     ): BaseResponse<GetIsNicknameDuplicated>
 
     // 구간별 운동 기록 횟수 조회
