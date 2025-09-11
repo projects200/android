@@ -80,25 +80,11 @@ class ProfileEditViewModel @Inject constructor(
         val currentGender = _gender.value
 
         if (!validateNicknameUseCase(currentNickname)) return
-        if (!validateNicknameUseCase(currentNickname)) {
-            _signUpResult.value =
-                BaseResult.Error(
-                    errorCode = ERROR_CODE_INVALID_NICKNAME,
-                    message = "",
-                    cause = null,
-                )
-            return
-        }
 
         // TODO: 닉네임 중복 확인 api
     }
 
     fun updateProfileImageUri(uri: Uri?) {
         _newProfileImageUri.value = uri
-    }
-
-    companion object {
-        const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
-        const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
     }
 }
