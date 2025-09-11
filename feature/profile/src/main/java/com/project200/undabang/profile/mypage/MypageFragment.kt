@@ -43,6 +43,11 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     }
 
     private fun initClickListener() {
+        binding.mypageEditBtn.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToProfileEditFragment(),
+            )
+        }
         binding.settingBtn.setOnClickListener {
             findNavController().navigate(
                 MypageFragmentDirections.actionMypageFragmentToSettingFragment(),
