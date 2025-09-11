@@ -1,6 +1,8 @@
 package com.project200.undabang.profile.mypage
 
+import android.net.Uri
 import android.view.View
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -13,6 +15,15 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ProfileEditFragment: BindingFragment<FragmentProfileEditBinding>(R.layout.fragment_profile_edit) {
     private val viewModel: ProfileEditViewModel by viewModels()
+
+    private val pickImageLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            // 사용자가 이미지를 선택하면 이 콜백이 실행됩니다.
+            uri?.let {
+                // 선택된 이미지 URI를 ViewModel에 전달
+                viewModel.updateProfileImageUri(it)
+            }
+        }
 
     override fun getViewBinding(view: View): FragmentProfileEditBinding {
         return FragmentProfileEditBinding.bind(view)
@@ -53,6 +64,7 @@ class ProfileEditFragment: BindingFragment<FragmentProfileEditBinding>(R.layout.
         }
 
         binding.profileImgIv.setOnClickListener {
+            pickImageLauncher.launch("image/*")
         }
     }
 
@@ -70,6 +82,11 @@ class ProfileEditFragment: BindingFragment<FragmentProfileEditBinding>(R.layout.
             binding.hiddenBtnImv.isSelected = gender == HIDDEN
         }
 
+        viewModel.newProfileImageUri.observe(viewLifecycleOwner) { uri ->
+            uri?.let {
+                setupProfileImage(it.toString())
+            }
+        }
     }
 
     private fun setupProfileImage(

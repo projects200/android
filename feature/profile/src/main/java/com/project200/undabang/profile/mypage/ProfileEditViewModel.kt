@@ -36,6 +36,8 @@ class ProfileEditViewModel @Inject constructor(
     private val _signUpResult = MutableLiveData<BaseResult<Unit>>()
     val signUpResult: LiveData<BaseResult<Unit>> = _signUpResult
 
+    private val _newProfileImageUri = MutableLiveData<Uri?>()
+    val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
 
     init {
         getProfile()
@@ -95,6 +97,9 @@ class ProfileEditViewModel @Inject constructor(
         }
     }
 
+    fun updateProfileImageUri(uri: Uri?) {
+        _newProfileImageUri.value = uri
+    }
 
     companion object {
         const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
