@@ -2,15 +2,21 @@ package com.project200.undabang.profile.mypage
 
 import android.net.Uri
 import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentProfileEditBinding
+import com.project200.undabang.profile.utils.ProfileEditErrorType
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ProfileEditFragment: BindingFragment<FragmentProfileEditBinding>(R.layout.fragment_profile_edit) {
@@ -85,6 +91,20 @@ class ProfileEditFragment: BindingFragment<FragmentProfileEditBinding>(R.layout.
         viewModel.newProfileImageUri.observe(viewLifecycleOwner) { uri ->
             uri?.let {
                 setupProfileImage(it.toString())
+            }
+        }
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            // UI가 STARTED 상태일 때만 수집하고, STOPPED 상태가 되면 중단
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.errorType.collect { type ->
+                    val messageResId =
+                        when (type) {
+                            ProfileEditErrorType.LOAD_FAILED -> R.string.error_failed_to_load
+                            // 중복 처리, 수정 완료 에러들 추가
+                        }
+                    Toast.makeText(requireContext(), getString(messageResId), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }

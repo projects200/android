@@ -11,7 +11,10 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetUserProfileUseCase
 import com.project200.domain.usecase.ValidateNicknameUseCase
+import com.project200.undabang.profile.utils.ProfileEditErrorType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -39,6 +42,9 @@ class ProfileEditViewModel @Inject constructor(
     private val _newProfileImageUri = MutableLiveData<Uri?>()
     val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
 
+    private val _errorType = MutableSharedFlow<ProfileEditErrorType>()
+    val errorType: SharedFlow<ProfileEditErrorType> = _errorType
+
     init {
         getProfile()
     }
@@ -63,6 +69,7 @@ class ProfileEditViewModel @Inject constructor(
                 }
 
                 is BaseResult.Error -> {
+                    _errorType.emit(ProfileEditErrorType.LOAD_FAILED)
                 }
             }
         }
