@@ -83,18 +83,6 @@ class ProfileEditViewModel @Inject constructor(
         }
 
         // TODO: 닉네임 중복 확인 api
-
-        viewModelScope.launch {
-/*            when () {
-                is BaseResult.Success -> {
-
-                }
-
-                is BaseResult.Error -> {
-
-                }
-            }*/
-        }
     }
 
     fun updateProfileImageUri(uri: Uri?) {
