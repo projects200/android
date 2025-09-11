@@ -1,9 +1,103 @@
 package com.project200.undabang.profile.mypage
 
+import android.net.Uri
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MediatorLiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.toLocalDate
+import com.project200.domain.model.BaseResult
+import com.project200.domain.model.UserProfile
+import com.project200.domain.usecase.GetUserProfileUseCase
+import com.project200.domain.usecase.ValidateNicknameUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
-class MypageEditViewModel @Inject constructor(): ViewModel() {
+class ProfileEditViewModel @Inject constructor(
+    private val validateNicknameUseCase: ValidateNicknameUseCase,
+    private val getUserProfileUseCase: GetUserProfileUseCase,
+) : ViewModel() {
+    private val _initProfile = MutableLiveData<UserProfile>()
+    val initProfile: LiveData<UserProfile> = _initProfile
+
+    private val _nickname = MutableLiveData("")
+    val nickname: LiveData<String> = _nickname
+
+    private val _gender = MutableLiveData<String>()
+    val gender: LiveData<String?> = _gender
+
+    private val _introduction = MutableLiveData<String>("")
+    val introduction: LiveData<String> = _introduction
+
+    private val _signUpResult = MutableLiveData<BaseResult<Unit>>()
+    val signUpResult: LiveData<BaseResult<Unit>> = _signUpResult
+
+
+    init {
+        getProfile()
+    }
+
+    fun updateNickname(value: String) {
+        _nickname.value = value
+    }
+
+    fun updateIntroduction(value: String) {
+        _introduction.value = value
+    }
+
+    fun selectGender(gender: String) {
+        _gender.value = gender
+    }
+
+    fun getProfile() {
+        viewModelScope.launch {
+            when (val result = getUserProfileUseCase()) {
+                is BaseResult.Success -> {
+                    _initProfile.value = result.data
+                }
+
+                is BaseResult.Error -> {
+                }
+            }
+        }
+    }
+
+    fun completeEditProfile() {
+        val currentNickname = _nickname.value.orEmpty()
+        val currentGender = _gender.value
+
+        if (!validateNicknameUseCase(currentNickname)) {
+            _signUpResult.value =
+                BaseResult.Error(
+                    errorCode = ERROR_CODE_INVALID_NICKNAME,
+                    message = "",
+                    cause = null,
+                )
+            return
+        }
+
+        // TODO: 닉네임 중복 확인 api
+
+        viewModelScope.launch {
+/*            when () {
+                is BaseResult.Success -> {
+
+                }
+
+                is BaseResult.Error -> {
+
+                }
+            }*/
+        }
+    }
+
+
+    companion object {
+        const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
+        const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
+    }
 }
