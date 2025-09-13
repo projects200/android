@@ -73,7 +73,7 @@ class ProfileEditFragment :
         }
 
         binding.profileEditCompleteBtn.setOnClickListener {
-            //TODO: 프로필 수정 완료
+            viewModel.completeEditProfile()
         }
 
         binding.profileImgIv.setOnClickListener {
@@ -152,10 +152,19 @@ class ProfileEditFragment :
                             ProfileEditErrorType.LOAD_FAILED -> R.string.error_failed_to_load
                             ProfileEditErrorType.SAME_AS_ORIGINAL -> R.string.same_nickname
                             ProfileEditErrorType.CHECK_DUPLICATE_FAILED -> R.string.error_unknown
-                            // 수정 완료 에러 추가
+                            ProfileEditErrorType.NO_CHANGE -> R.string.error_no_changed
+                            ProfileEditErrorType.NO_DUPLICATE_CHECKED -> R.string.error_no_duplicate_checked
                         }
                     Toast.makeText(requireContext(), getString(messageResId), Toast.LENGTH_SHORT)
                         .show()
+                }
+
+                viewModel.editResult.collect { result ->
+                    if(result) {
+                        findNavController().navigateUp()
+                    } else {
+                        Toast.makeText(requireContext(), R.string.error_edit_failed, Toast.LENGTH_SHORT).show()
+                    }
                 }
             }
         }
