@@ -80,7 +80,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun editProfile(
         @Body profile: PutProfileRequest
-    ): BaseResponse<Unit>
+    ): BaseResponse<Any?>
 
     // 프로필 사진 생성
     @Multipart
@@ -88,7 +88,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postProfileImage(
         @Part profilePicture: MultipartBody.Part,
-    ): BaseResponse<Unit>
+    ): BaseResponse<Any?>
 
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")

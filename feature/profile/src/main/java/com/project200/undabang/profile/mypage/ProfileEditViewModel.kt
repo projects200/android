@@ -2,7 +2,6 @@ package com.project200.undabang.profile.mypage
 
 import android.net.Uri
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,6 +18,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -32,14 +32,12 @@ class ProfileEditViewModel @Inject constructor(
     private val _initProfile = MutableLiveData<UserProfile>()
     val initProfile: LiveData<UserProfile> = _initProfile
 
-    private val _nickname = MutableLiveData("")
-    val nickname: LiveData<String> = _nickname
+    private val nickname = MutableLiveData("")
 
     private val _gender = MutableLiveData<String>()
     val gender: LiveData<String> = _gender
 
-    private val _introduction = MutableLiveData<String>("")
-    val introduction: LiveData<String> = _introduction
+    private val introduction = MutableLiveData<String>("")
 
     private val _newProfileImageUri = MutableLiveData<Uri?>()
     val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
@@ -77,15 +75,15 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun updateNickname(value: String) {
-        if (_nickname.value != value) {
-            _nickname.value = value
+        if (nickname.value != value) {
+            nickname.value = value
             _isNicknameChecked.value = false
             _nicknameValidationState.value = NicknameValidationState.INVISIBLE
         }
     }
 
     fun updateIntroduction(value: String) {
-        _introduction.value = value
+        introduction.value = value
     }
 
     fun updateProfileImageUri(uri: Uri?) {
@@ -98,20 +96,20 @@ class ProfileEditViewModel @Inject constructor(
 
     fun completeEditProfile() {
         viewModelScope.launch {
-            val currentNickname = _nickname.value ?: return@launch
+            val currentNickname = nickname.value ?: return@launch
             val currentGender = _gender.value ?: return@launch
-            val currentIntroduction = _introduction.value.orEmpty()
+            val currentIntroduction = introduction.value.orEmpty()
 
             val isProfileChanged = checkProfileChanged(currentNickname, currentGender, currentIntroduction)
+
             // 변경사항 있는지 체크
-            if (newProfileImageUri.value != null && isProfileChanged) {
+            if (_newProfileImageUri.value == null && !isProfileChanged) {
                 _errorType.emit(ProfileEditErrorType.NO_CHANGE)
                 return@launch
             }
 
-            // 닉네임 변경이 없거나 중복 확인이 됐는지 체크
-            if (_initProfile.value?.nickname == currentNickname ||
-                _initProfile.value?.nickname != currentNickname && _isNicknameChecked.value == false) {
+            // 중복 확인이 됐는지 체크
+            if (_initProfile.value?.nickname != currentNickname && _isNicknameChecked.value == false) {
                 _errorType.emit(ProfileEditErrorType.NO_DUPLICATE_CHECKED)
                 return@launch
             }
@@ -126,7 +124,7 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun checkIsNicknameDuplicated() {
-        val currentNickname = _nickname.value.orEmpty()
+        val currentNickname = nickname.value.orEmpty()
 
         // 기존 닉네임과 동일한지 체크
         if (currentNickname == _initProfile.value?.nickname) {
@@ -168,7 +166,7 @@ class ProfileEditViewModel @Inject constructor(
         val initialProfile = _initProfile.value ?: return false
         return initialProfile.nickname != nickname ||
                 initialProfile.gender != gender ||
-                initialProfile.bio != introduction
+                initialProfile.bio.orEmpty() != introduction
     }
 
     private fun handleEditResult(imageResult: BaseResult<Unit>, editResult: BaseResult<Unit>) {

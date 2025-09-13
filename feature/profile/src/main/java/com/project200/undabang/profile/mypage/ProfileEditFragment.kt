@@ -49,7 +49,6 @@ class ProfileEditFragment :
     private fun initListeners() {
         binding.nicknameEt.doAfterTextChanged {
             viewModel.updateNickname(it.toString())
-            //TODO: 닉네임 중복체크 해제처리
         }
 
         binding.duplicateCheckBtn.setOnClickListener {
