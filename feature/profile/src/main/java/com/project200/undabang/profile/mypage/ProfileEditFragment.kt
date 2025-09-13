@@ -161,7 +161,8 @@ class ProfileEditFragment :
 
                 viewModel.editResult.collect { result ->
                     if(result) {
-                        findNavController().navigateUp()
+                        findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
+                        findNavController().popBackStack()
                     } else {
                         Toast.makeText(requireContext(), R.string.error_edit_failed, Toast.LENGTH_SHORT).show()
                     }

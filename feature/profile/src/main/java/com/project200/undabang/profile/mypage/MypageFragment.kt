@@ -112,6 +112,14 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                 }
             }
         }
+
+        val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>(REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                viewModel.getProfile()
+                savedStateHandle.remove<Boolean>(REFRESH_KEY)
+            }
+        }
     }
 
     private fun setupCalendar() {
@@ -224,5 +232,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     companion object {
         const val MALE = "MALE"
         const val FEMALE = "FEMALE"
+        const val REFRESH_KEY = "REFRESH_KEY"
     }
 }
