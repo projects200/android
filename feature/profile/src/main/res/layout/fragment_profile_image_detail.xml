@@ -53,7 +53,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:padding="8dp"
-            android:src="@drawable/ic_menu" />
+            android:src="@drawable/ic_menu"
+            app:tint="@color/white300" />
     </LinearLayout>
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/profile_image_vp"
