@@ -16,6 +16,9 @@
         <action
             android:id="@+id/action_mypageFragment_to_profileEditFragment"
             app:destination="@id/profileEditFragment"/>
+        <action
+            android:id="@+id/action_mypageFragment_to_profileImageDetailFragment"
+            app:destination="@id/profileImageDetailFragment"/>
     </fragment>
 
     <fragment
@@ -32,4 +35,11 @@
 
     </fragment>
 
+    <fragment
+        android:id="@+id/profileImageDetailFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileImageDetailFragment"
+        android:label="profileImageDetail"
+        tools:layout="@layout/fragment_profile_image_detail">
+
+    </fragment>
 </navigation>

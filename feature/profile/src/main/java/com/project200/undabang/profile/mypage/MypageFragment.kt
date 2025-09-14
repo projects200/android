@@ -53,6 +53,13 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                 MypageFragmentDirections.actionMypageFragmentToSettingFragment(),
             )
         }
+
+        binding.mypageProfileIv.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToProfileImageDetailFragment(),
+            )
+        }
+
         binding.prevMonthBtn.setOnClickListener {
             binding.exerciseCalendar.findFirstVisibleMonth()?.let {
                 val previousMonth = it.yearMonth.minusMonths(1)
