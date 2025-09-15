@@ -100,7 +100,7 @@ interface ApiService {
     @DELETE("api/v1/profile-pictures/{pictureId}")
     @AccessTokenApi
     suspend fun deleteProfileImage(
-        @Query("pictureId") pictureId: Long,
+        @Path("pictureId") pictureId: Long,
     ): BaseResponse<Any?>
 
     // 구간별 운동 기록 횟수 조회

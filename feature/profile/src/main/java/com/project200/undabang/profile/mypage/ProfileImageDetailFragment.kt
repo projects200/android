@@ -51,6 +51,16 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
         binding.menuBtn.setOnClickListener {
             showPopupMenu()
         }
+
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
+                }
+            },
+        )
     }
 
     override fun setupObservers() {
@@ -61,6 +71,8 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
             // ViewPager2의 현재 아이템이 0이 아니면서 리스트가 갱신될 경우를 대비 (예: 이미지 삭제 후)
             val currentItem = binding.profileImageVp.currentItem
             binding.currentPageTv.text = getString(R.string.number_format, currentItem + 1)
+
+            binding.menuBtn.visibility = if(images[0].id == EMPTY_ID) View.GONE else View.VISIBLE
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -84,8 +96,12 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
                 launch {
                     viewModel.imageDeleteResult.collect { result ->
                         val message = when (result) {
-                            is BaseResult.Success -> getString(R.string.error_faild_to_delete_profile_image)
-                            is BaseResult.Error -> getString(R.string.image_save_failed)
+                            is BaseResult.Success -> getString(R.string.image_delete_success)
+                            is BaseResult.Error -> getString(R.string.error_faild_to_delete_profile_image)
+                        }
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
                         }
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
