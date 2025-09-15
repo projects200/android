@@ -5,12 +5,14 @@ import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetProfileDTO
+import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PutProfileRequest
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
 import com.project200.domain.repository.MemberRepository
@@ -44,6 +46,16 @@ class MemberRepositoryImpl
                 },
             )
         }
+
+    override suspend fun getProfileImages(): BaseResult<ProfileImageList> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getProfileImages() },
+            mapper = { dto: GetProfileImageResponseDto? ->
+                dto?.toModel() ?: throw NoSuchElementException("유저 프로필 데이터가 없습니다.")
+            },
+        )
+    }
 
     override suspend fun editUserProfile(nickname: String, gender: String, introduction: String): BaseResult<Unit> {
         return apiCallBuilder(
