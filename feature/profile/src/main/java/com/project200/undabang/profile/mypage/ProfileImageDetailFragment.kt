@@ -16,6 +16,7 @@ import com.project200.undabang.feature.profile.databinding.FragmentProfileImageD
 import com.project200.undabang.profile.utils.ProfileImageErrorType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import kotlin.getValue
 
 @AndroidEntryPoint
@@ -64,16 +65,6 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.errorType.collect { errorType ->
-                    val message = when(errorType) {
-                        ProfileImageErrorType.LOAD_FAILED -> R.string.error_faild_to_load_profile_image
-                        ProfileImageErrorType.DELETE_FAILED -> R.string.error_faild_to_load_profile_image
-                        ProfileImageErrorType.THUMBNAIL_CHANGE_FAILED -> R.string.error_faild_to_change_thumbnail
-
-                viewModel.imageSaveResult.collect { result ->
-                    val message = when (result) {
-                        true -> getString(R.string.image_save_success)
-                        false -> getString(R.string.image_save_failed)
                 launch {
                     viewModel.getProfileImageErrorToast.collect { errorType ->
                         Toast.makeText(requireContext(), R.string.error_faild_to_load_profile_image, Toast.LENGTH_SHORT).show()
@@ -89,8 +80,15 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
+
+                launch {
+                    viewModel.imageDeleteResult.collect { result ->
+                        val message = when (result) {
+                            is BaseResult.Success -> getString(R.string.error_faild_to_delete_profile_image)
+                            is BaseResult.Error -> getString(R.string.image_save_failed)
+                        }
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
-                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -130,5 +128,9 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
             }
         }
         popup.show()
+    }
+
+    companion object {
+        const val EMPTY_ID = -1L
     }
 }

@@ -1,32 +1,48 @@
 package com.project200.undabang.profile.mypage
 
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.provider.MediaStore
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.bumptech.glide.Glide
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ProfileImage
 import com.project200.domain.model.ProfileImageList
+import com.project200.domain.usecase.DeleteProfileImageUseCase
 import com.project200.domain.usecase.GetProfileImagesUseCase
 import com.project200.undabang.profile.utils.ProfileImageErrorType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
+import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
 class ProfileImageDetailViewModel @Inject constructor(
-    private val getProfileImagesUseCase: GetProfileImagesUseCase
+    private val getProfileImagesUseCase: GetProfileImagesUseCase,
+    private val deleteProfileImageUseCase: DeleteProfileImageUseCase,
+    @ApplicationContext private val context: Context,
 ): ViewModel() {
 
     private val _profileImages = MutableLiveData<List<ProfileImage>>()
     val profileImages: LiveData<List<ProfileImage>> = _profileImages
 
-    private val _errorType = MutableSharedFlow<ProfileImageErrorType>()
-    val errorType: SharedFlow<ProfileImageErrorType> = _errorType
+    private val _getProfileImageErrorToast = MutableSharedFlow<ProfileImageErrorType>()
+    val getProfileImageErrorToast: SharedFlow<ProfileImageErrorType> = _getProfileImageErrorToast
+
     private val _imageSaveResult = MutableSharedFlow<Boolean>()
     val imageSaveResult: SharedFlow<Boolean> = _imageSaveResult
+
+    private val _imageDeleteResult = MutableSharedFlow<BaseResult<Unit>>()
+    val imageDeleteResult: SharedFlow<BaseResult<Unit>> = _imageDeleteResult
 
     init {
         getProfileImageList()
@@ -56,7 +72,12 @@ class ProfileImageDetailViewModel @Inject constructor(
                     _profileImages.value = displayList
                 }
                 is BaseResult.Error -> {
-                    _errorType.emit(ProfileImageErrorType.LOAD_FAILED)
+                    _getProfileImageErrorToast.emit(ProfileImageErrorType.LOAD_FAILED)
+                }
+            }
+        }
+    }
+
     /**
      * URL로부터 이미지를 다운로드하여 갤러리에 저장합니다.
      * @param context ContentResolver를 사용하기 위해 필요합니다.
@@ -110,8 +131,15 @@ class ProfileImageDetailViewModel @Inject constructor(
         }
     }
 
+    fun deleteImage(pictureId: Long) {
+        viewModelScope.launch {
+            _imageDeleteResult.emit(deleteProfileImageUseCase(pictureId))
+        }
+    }
+
 
     companion object {
         const val EMPTY_ID = -1L
+        const val QUALITY = 95
     }
 }

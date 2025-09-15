@@ -96,6 +96,13 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getProfileImages(): BaseResponse<GetProfileImageResponseDto>
 
+    // 프로필 사진 삭제
+    @DELETE("api/v1/profile-pictures/{pictureId}")
+    @AccessTokenApi
+    suspend fun deleteProfileImage(
+        @Query("pictureId") pictureId: Long,
+    ): BaseResponse<Any?>
+
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")
     @AccessTokenApi
