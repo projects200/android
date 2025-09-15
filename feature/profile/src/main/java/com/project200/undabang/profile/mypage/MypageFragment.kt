@@ -49,17 +49,11 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             )
         }
         binding.prevMonthBtn.setOnClickListener {
-            binding.exerciseCalendar.findFirstVisibleMonth()?.let {
-                val previousMonth = it.yearMonth.minusMonths(1)
-                binding.exerciseCalendar.smoothScrollToMonth(previousMonth)
-            }
+            viewModel.onPreviousMonthClicked()
         }
 
         binding.nextMonthBtn.setOnClickListener {
-            binding.exerciseCalendar.findFirstVisibleMonth()?.let {
-                val nextMonth = it.yearMonth.plusMonths(1)
-                binding.exerciseCalendar.smoothScrollToMonth(nextMonth)
-            }
+            viewModel.onNextMonthClicked()
         }
     }
 
