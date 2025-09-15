@@ -133,10 +133,35 @@ class ProfileImageDetailViewModel @Inject constructor(
 
     fun deleteImage(pictureId: Long) {
         viewModelScope.launch {
-            _imageDeleteResult.emit(deleteProfileImageUseCase(pictureId))
+            val result = deleteProfileImageUseCase(pictureId)
+
+            if (result is BaseResult.Success) {
+                val currentList = _profileImages.value ?: return@launch
+
+                var updatedList = currentList.filter { it.id != pictureId }
+
+                // 만약 리스트가 비게 되었다면, 더미 아이템을 추가합니다.
+                if (updatedList.isEmpty()) {
+                    updatedList = listOf(ProfileImage(id = EMPTY_ID, url = ""))
+                }
+                _profileImages.value = updatedList
+            }
+            _imageDeleteResult.emit(result)
         }
     }
 
+    fun changeThumbnail() {
+        viewModelScope.launch {
+            when(val result = getProfileImagesUseCase()) {
+                is BaseResult.Success -> {
+
+                }
+                is BaseResult.Error -> {
+                    _getProfileImageErrorToast.emit(ProfileImageErrorType.DELETE_FAILED)
+                }
+            }
+        }
+    }
 
     companion object {
         const val EMPTY_ID = -1L
