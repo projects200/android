@@ -3,6 +3,7 @@ package com.project200.undabang.profile.mypage
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -102,6 +103,12 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
+
+                launch {
+                    viewModel.changeThumbnailResult.collect { result ->
+                        val message = when (result) {
+                            is BaseResult.Success -> getString(R.string.change_thumbnail_success)
+                            is BaseResult.Error -> getString(R.string.change_thumbnail_failed)
                         }
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
@@ -114,9 +121,10 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
         val popup = PopupMenu(requireContext(), binding.menuBtn)
         popup.menuInflater.inflate(R.menu.menu_profile_image, popup.menu)
 
-        popup.setOnMenuItemClickListener { item ->
-            val currentPosition = binding.profileImageVp.currentItem
+        val currentPosition = binding.profileImageVp.currentItem
+        popup.menu.findItem(R.id.item_change_thumbnail).isVisible = currentPosition != 0
 
+        popup.setOnMenuItemClickListener { item ->
             if (profileImageAdapter.currentList.isEmpty()) {
                 return@setOnMenuItemClickListener false
             }
@@ -125,6 +133,7 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
 
             when (item.itemId) {
                 R.id.item_change_thumbnail -> {
+                    viewModel.changeThumbnail(currentImage.id)
                     true
                 }
                 R.id.item_save_image -> {

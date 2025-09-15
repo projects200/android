@@ -57,6 +57,14 @@ class MemberRepositoryImpl
         )
     }
 
+    override suspend fun changeThumbnail(pictureId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.changeThumbnailImage(pictureId) },
+            mapper = { Unit },
+        )
+    }
+
     override suspend fun deleteProfileImages(pictureId: Long): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,

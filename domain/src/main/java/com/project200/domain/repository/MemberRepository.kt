@@ -9,6 +9,7 @@ interface MemberRepository {
     suspend fun getScore(): BaseResult<Score>
     suspend fun getUserProfile(): BaseResult<UserProfile>
     suspend fun getProfileImages(): BaseResult<ProfileImageList>
+    suspend fun changeThumbnail(pictureId: Long): BaseResult<Unit>
     suspend fun deleteProfileImages(pictureId: Long): BaseResult<Unit>
     suspend fun editUserProfile(nickname: String, gender: String, introduction: String): BaseResult<Unit>
     suspend fun addProfileImage(uri: String): BaseResult<Unit>

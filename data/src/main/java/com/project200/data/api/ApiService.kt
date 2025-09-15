@@ -96,6 +96,13 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getProfileImages(): BaseResponse<GetProfileImageResponseDto>
 
+    // 프로필 대표사진 수정
+    @PUT("api/v1/profile-pictures/{pictureId}/represent")
+    @AccessTokenApi
+    suspend fun changeThumbnailImage(
+        @Path("pictureId") pictureId: Long,
+    ): BaseResponse<Any?>
+
     // 프로필 사진 삭제
     @DELETE("api/v1/profile-pictures/{pictureId}")
     @AccessTokenApi

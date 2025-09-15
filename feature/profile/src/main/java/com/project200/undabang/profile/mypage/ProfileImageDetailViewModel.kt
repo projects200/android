@@ -12,6 +12,7 @@ import com.bumptech.glide.Glide
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ProfileImage
 import com.project200.domain.model.ProfileImageList
+import com.project200.domain.usecase.ChangeThumbnailUseCase
 import com.project200.domain.usecase.DeleteProfileImageUseCase
 import com.project200.domain.usecase.GetProfileImagesUseCase
 import com.project200.undabang.profile.utils.ProfileImageErrorType
@@ -30,6 +31,7 @@ class ProfileImageDetailViewModel @Inject constructor(
     private val getProfileImagesUseCase: GetProfileImagesUseCase,
     private val deleteProfileImageUseCase: DeleteProfileImageUseCase,
     @ApplicationContext private val context: Context,
+    private val changeThumbnailUseCase: ChangeThumbnailUseCase
 ): ViewModel() {
 
     private val _profileImages = MutableLiveData<List<ProfileImage>>()
@@ -43,6 +45,9 @@ class ProfileImageDetailViewModel @Inject constructor(
 
     private val _imageDeleteResult = MutableSharedFlow<BaseResult<Unit>>()
     val imageDeleteResult: SharedFlow<BaseResult<Unit>> = _imageDeleteResult
+
+    private val _changeThumbnailResult = MutableSharedFlow<BaseResult<Unit>>()
+    val changeThumbnailResult: SharedFlow<BaseResult<Unit>> = _changeThumbnailResult
 
     init {
         getProfileImageList()
@@ -150,16 +155,24 @@ class ProfileImageDetailViewModel @Inject constructor(
         }
     }
 
-    fun changeThumbnail() {
+    fun changeThumbnail(pictureId: Long) {
         viewModelScope.launch {
-            when(val result = getProfileImagesUseCase()) {
-                is BaseResult.Success -> {
+            val currentList = _profileImages.value ?: return@launch
+            val result = changeThumbnailUseCase(pictureId)
 
+            if(result is BaseResult.Success) {
+                val newThumbnail = currentList.find { it.id == pictureId } ?: return@launch
+                val otherImages = currentList.filter { it.id != pictureId }
+
+                // 새로운 대표 이미지를 맨 앞에 놓고, 그 뒤에 나머지 이미지들을 붙여 새로운 리스트를 생성합니다.
+                val updatedList = mutableListOf<ProfileImage>().apply {
+                    add(newThumbnail)
+                    addAll(otherImages)
                 }
-                is BaseResult.Error -> {
-                    _getProfileImageErrorToast.emit(ProfileImageErrorType.DELETE_FAILED)
-                }
+
+                _profileImages.value = updatedList
             }
+            _changeThumbnailResult.emit(result)
         }
     }
 

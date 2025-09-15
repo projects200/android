@@ -61,8 +61,12 @@
     <string name="error_faild_to_load_profile_image">이미지를 불러오는데 실패했습니다.</string>
     <string name="error_faild_to_delete_profile_image">이미지를 삭제에 실패했습니다.</string>
     <string name="error_faild_to_change_thumbnail">대표 이미지 변경에 실패했습니다.</string>
+    <string name="change_thumbnail_failed">대표 이미지 변경에 실패했습니다.</string>
     <string name="image_save_success">갤러리에 이미지를 저장했습니다.</string>
     <string name="image_save_failed">이미지 저장에 실패했습니다.</string>
     <string name="cannot_save_default_image">기본 이미지는 저장할 수 없습니다.</string>
+    <string name="cannot_change_thumbnail">이미 대표 이미지입니다.</string>
     <string name="error_failed_">기본 이미지는 저장할 수 없습니다.</string>
+    <string name="change_thumbnail_success">대표 이미지를 변경했습니다.</string>
+    <string name="image_delete_success">이미지를 삭제했습니다.</string>
 </resources>
