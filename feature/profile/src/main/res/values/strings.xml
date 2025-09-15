@@ -55,7 +55,14 @@
 
     <string name="profile_image_detail_divider">/</string>
     <string name="number_format">%d</string>
+    <string name="change_thumbnail">대표 사진으로 지정</string>
+    <string name="save_profile_image">저장하기</string>
+    <string name="delete_profile_image">삭제</string>
     <string name="error_faild_to_load_profile_image">이미지를 불러오는데 실패했습니다.</string>
     <string name="error_faild_to_delete_profile_image">이미지를 삭제에 실패했습니다.</string>
     <string name="error_faild_to_change_thumbnail">대표 이미지 변경에 실패했습니다.</string>
+    <string name="image_save_success">갤러리에 이미지를 저장했습니다.</string>
+    <string name="image_save_failed">이미지 저장에 실패했습니다.</string>
+    <string name="cannot_save_default_image">기본 이미지는 저장할 수 없습니다.</string>
+    <string name="error_failed_">기본 이미지는 저장할 수 없습니다.</string>
 </resources>

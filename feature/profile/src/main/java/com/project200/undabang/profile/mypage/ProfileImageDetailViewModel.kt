@@ -25,6 +25,8 @@ class ProfileImageDetailViewModel @Inject constructor(
 
     private val _errorType = MutableSharedFlow<ProfileImageErrorType>()
     val errorType: SharedFlow<ProfileImageErrorType> = _errorType
+    private val _imageSaveResult = MutableSharedFlow<Boolean>()
+    val imageSaveResult: SharedFlow<Boolean> = _imageSaveResult
 
     init {
         getProfileImageList()
@@ -55,7 +57,55 @@ class ProfileImageDetailViewModel @Inject constructor(
                 }
                 is BaseResult.Error -> {
                     _errorType.emit(ProfileImageErrorType.LOAD_FAILED)
+    /**
+     * URL로부터 이미지를 다운로드하여 갤러리에 저장합니다.
+     * @param context ContentResolver를 사용하기 위해 필요합니다.
+     * @param imageUrl 저장할 이미지의 URL
+     */
+    fun saveImageToGallery(imageUrl: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                // Glide를 사용해 URL로부터 이미지를 Bitmap으로 변환합니다.
+                val bitmap = Glide.with(context)
+                    .asBitmap()
+                    .load(imageUrl)
+                    .submit()
+                    .get()
+
+                // MediaStore에 저장할 이미지의 메타데이터를 설정합니다.
+                val contentValues = ContentValues().apply {
+                    // 파일명 (중복되지 않도록 현재 시간 사용)
+                    put(MediaStore.Images.Media.DISPLAY_NAME, "IMG_${System.currentTimeMillis()}.jpg")
+                    // 저장될 경로
+                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/운다방") // 앱 이름 폴더에 저장
+                    // 파일 타입
+                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                    // 파일을 쓰는 중에는 다른 곳에서 접근할 수 없도록 설정
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
                 }
+
+                val contentResolver = context.contentResolver
+                // MediaStore에 새로운 이미지 항목을 생성하고 Uri를 받습니다.
+                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                    ?: throw IOException()
+
+                // Uri를 통해 OutputStream을 열고, Bitmap 데이터를 압축하여 저장합니다.
+                contentResolver.openOutputStream(uri)?.use { stream ->
+                    if (!bitmap.compress(Bitmap.CompressFormat.JPEG, QUALITY, stream)) {
+                        throw IOException()
+                    }
+                }
+
+                // IS_PENDING 값을 0으로 업데이트하여 파일을 다른 앱에 노출시킵니다.
+                contentValues.clear()
+                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                contentResolver.update(uri, contentValues, null, null)
+
+                _imageSaveResult.emit(true)
+
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _imageSaveResult.emit(false)
             }
         }
     }

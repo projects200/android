@@ -1,12 +1,15 @@
 package com.project200.undabang.profile.mypage
 
 import android.view.View
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import androidx.viewpager2.widget.ViewPager2
+import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentProfileImageDetailBinding
@@ -39,6 +42,14 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
                 binding.currentPageTv.text = currentPage.toString()
             }
         })
+        binding.backBtn.setOnClickListener {
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
+            findNavController().popBackStack()
+        }
+
+        binding.menuBtn.setOnClickListener {
+            showPopupMenu()
+        }
     }
 
     override fun setupObservers() {
@@ -58,10 +69,66 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
                         ProfileImageErrorType.LOAD_FAILED -> R.string.error_faild_to_load_profile_image
                         ProfileImageErrorType.DELETE_FAILED -> R.string.error_faild_to_load_profile_image
                         ProfileImageErrorType.THUMBNAIL_CHANGE_FAILED -> R.string.error_faild_to_change_thumbnail
+
+                viewModel.imageSaveResult.collect { result ->
+                    val message = when (result) {
+                        true -> getString(R.string.image_save_success)
+                        false -> getString(R.string.image_save_failed)
+                launch {
+                    viewModel.getProfileImageErrorToast.collect { errorType ->
+                        Toast.makeText(requireContext(), R.string.error_faild_to_load_profile_image, Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                launch {
+                    viewModel.imageSaveResult.collect { result ->
+                        val message = when (result) {
+                            true -> getString(R.string.image_save_success)
+                            false -> getString(R.string.image_save_failed)
+                        }
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
                     }
                     Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                 }
             }
         }
+    }
+
+    private fun showPopupMenu() {
+        val popup = PopupMenu(requireContext(), binding.menuBtn)
+        popup.menuInflater.inflate(R.menu.menu_profile_image, popup.menu)
+
+        popup.setOnMenuItemClickListener { item ->
+            val currentPosition = binding.profileImageVp.currentItem
+
+            if (profileImageAdapter.currentList.isEmpty()) {
+                return@setOnMenuItemClickListener false
+            }
+            // 현재 보고 있는 이미지 정보를 가져옵니다.
+            val currentImage = profileImageAdapter.currentList[currentPosition]
+
+            when (item.itemId) {
+                R.id.item_change_thumbnail -> {
+                    true
+                }
+                R.id.item_save_image -> {
+                    // 빈 상태 이미지는 저장하지 않도록 URL을 확인합니다.
+                    if (currentImage.id != EMPTY_ID) {
+                        viewModel.saveImageToGallery(currentImage.url)
+                    } else {
+                        Toast.makeText(requireContext(), R.string.cannot_save_default_image, Toast.LENGTH_SHORT).show()
+                    }
+                    true
+                }
+                R.id.item_delete_record -> {
+                    viewModel.deleteImage(currentImage.id)
+                    true
+                }
+                else -> false
+            }
+        }
+        popup.show()
     }
 }

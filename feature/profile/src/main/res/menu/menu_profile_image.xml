@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/item_change_thumbnail"
+        android:title="@string/change_thumbnail" />
+    <item
+        android:id="@+id/item_save_image"
+        android:title="@string/save_profile_image" />
+    <item
+        android:id="@+id/item_delete_record"
+        android:title="@string/delete" />
+</menu>
