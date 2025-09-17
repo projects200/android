@@ -97,4 +97,22 @@ class MypageViewModel
                 }
             }
         }
+
+        fun onPreviousMonthClicked() {
+            val currentMonth = _selectedMonth.value ?: YearMonth.now()
+            val newMonth = currentMonth.minusMonths(1)
+
+            _selectedMonth.value = newMonth
+        }
+
+        fun onNextMonthClicked() {
+            val currentMonth = _selectedMonth.value ?: YearMonth.now()
+            val newMonth = currentMonth.plusMonths(1)
+
+            if (newMonth.isAfter(YearMonth.now())) {
+                return
+            }
+
+            _selectedMonth.value = newMonth
+        }
     }
