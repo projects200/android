@@ -72,7 +72,7 @@ interface ApiService {
     // 닉네임 중복 체크
     @GET("open/v1/nicknames/check")
     suspend fun getIsNicknameDuplicated(
-        @Query("nickname") nickname: String
+        @Query("nickname") nickname: String,
     ): BaseResponse<GetIsNicknameDuplicated>
 
     // 프로필 수정

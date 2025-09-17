@@ -18,7 +18,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -43,7 +42,8 @@ class ProfileEditViewModel @Inject constructor(
     val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
 
     // 닉네임 유효성 검사 결과를 UI에 전달하기 위한 LiveData
-    private val _nicknameValidationState = MutableLiveData<NicknameValidationState>(NicknameValidationState.INVISIBLE)
+    private val _nicknameValidationState =
+        MutableLiveData<NicknameValidationState>(NicknameValidationState.INVISIBLE)
     val nicknameValidationState: LiveData<NicknameValidationState> = _nicknameValidationState
 
     // 중복 확인 버튼 활성화 여부 및 중복 체크 완료 상태를 관리
@@ -100,7 +100,8 @@ class ProfileEditViewModel @Inject constructor(
             val currentGender = _gender.value ?: return@launch
             val currentIntroduction = introduction.value.orEmpty()
 
-            val isProfileChanged = checkProfileChanged(currentNickname, currentGender, currentIntroduction)
+            val isProfileChanged =
+                checkProfileChanged(currentNickname, currentGender, currentIntroduction)
 
             // 변경사항 있는지 체크
             if (_newProfileImageUri.value == null && !isProfileChanged) {
@@ -116,8 +117,15 @@ class ProfileEditViewModel @Inject constructor(
 
             // 새 프로필 사진이 있다면 호출
             // 수정된 프로필 정보가 있다면 호출
-            val addProfileImageResult = if(_newProfileImageUri.value != null) addProfileImageUseCase(_newProfileImageUri.value.toString()) else BaseResult.Success(Unit)
-            val editProfileResult = if (isProfileChanged) editProfileUseCase(currentNickname, currentGender, currentIntroduction) else BaseResult.Success(Unit)
+            val addProfileImageResult =
+                if (_newProfileImageUri.value != null) addProfileImageUseCase(_newProfileImageUri.value.toString()) else BaseResult.Success(
+                    Unit
+                )
+            val editProfileResult = if (isProfileChanged) editProfileUseCase(
+                currentNickname,
+                currentGender,
+                currentIntroduction
+            ) else BaseResult.Success(Unit)
 
             handleEditResult(addProfileImageResult, editProfileResult)
         }
@@ -151,6 +159,7 @@ class ProfileEditViewModel @Inject constructor(
                         _isNicknameChecked.value = true // 중복 체크 완료 플래그 활성화
                     }
                 }
+
                 is BaseResult.Error -> {
                     _errorType.emit(ProfileEditErrorType.CHECK_DUPLICATE_FAILED)
                 }

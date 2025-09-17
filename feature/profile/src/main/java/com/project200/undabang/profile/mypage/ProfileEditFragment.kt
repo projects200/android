@@ -115,8 +115,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led
-                        )
+                            com.project200.undabang.presentation.R.color.error_led,
+                        ),
                     )
                 }
 
@@ -125,8 +125,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led
-                        )
+                            com.project200.undabang.presentation.R.color.error_led,
+                        ),
                     )
                 }
 
@@ -135,8 +135,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.main
-                        )
+                            com.project200.undabang.presentation.R.color.main,
+                        ),
                     )
                 }
             }
@@ -175,9 +175,7 @@ class ProfileEditFragment :
         }
     }
 
-    private fun setupProfileImage(
-        imageUrl: String?,
-    ) {
+    private fun setupProfileImage(imageUrl: String?) {
         Glide.with(binding.profileImgIv)
             .load(imageUrl)
             .placeholder(R.drawable.ic_profile_default)
@@ -190,5 +188,4 @@ class ProfileEditFragment :
         const val FEMALE = "FEMALE"
         const val HIDDEN = "UNKNOWN"
     }
-
 }
