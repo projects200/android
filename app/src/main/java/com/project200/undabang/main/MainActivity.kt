@@ -126,6 +126,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
                 com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
                 com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
+                com.project200.undabang.feature.profile.R.id.profileEditFragment,
                 // ... 필요한 다른 프래그먼트 ID들 추가 ... //
             )
 

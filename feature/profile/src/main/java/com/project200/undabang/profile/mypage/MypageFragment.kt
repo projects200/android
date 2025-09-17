@@ -20,6 +20,7 @@ import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.profile.databinding.FragmentMypageBinding
+import com.project200.undabang.profile.utils.GenderType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -43,6 +44,11 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     }
 
     private fun initClickListener() {
+        binding.mypageEditBtn.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToProfileEditFragment(),
+            )
+        }
         binding.settingBtn.setOnClickListener {
             findNavController().navigate(
                 MypageFragmentDirections.actionMypageFragmentToSettingFragment(),
@@ -200,8 +206,8 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     ) {
         val genderStr =
             when (gender) {
-                MALE -> getString(R.string.mypage_male)
-                FEMALE -> getString(R.string.mypage_female)
+                GenderType.MALE.stringValue -> getString(R.string.mypage_male)
+                GenderType.FEMALE.stringValue -> getString(R.string.mypage_female)
                 else -> getString(R.string.unknown_gender)
             }
         binding.genderBirthTv.text =
@@ -211,7 +217,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) : ViewContainer(binding.root)
 
     companion object {
-        const val MALE = "MALE"
-        const val FEMALE = "FEMALE"
+        const val REFRESH_KEY = "REFRESH_KEY"
     }
 }

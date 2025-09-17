@@ -9,10 +9,13 @@
         android:id="@+id/mypageFragment"
         android:name="com.project200.undabang.profile.mypage.MypageFragment"
         android:label="mypage"
-        tools:layout="@layout/fragment_mypage" >
+        tools:layout="@layout/fragment_mypage">
         <action
             android:id="@+id/action_mypageFragment_to_settingFragment"
             app:destination="@id/settingFragment" />
+        <action
+            android:id="@+id/action_mypageFragment_to_profileEditFragment"
+            app:destination="@id/profileEditFragment"/>
     </fragment>
 
     <fragment
@@ -20,5 +23,13 @@
         android:name="com.project200.undabang.profile.setting.SettingFragment"
         android:label="setting"
         tools:layout="@layout/fragment_setting" />
+
+    <fragment
+        android:id="@+id/profileEditFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileEditFragment"
+        android:label="profileEdit"
+        tools:layout="@layout/fragment_profile_edit">
+
+    </fragment>
 
 </navigation>
