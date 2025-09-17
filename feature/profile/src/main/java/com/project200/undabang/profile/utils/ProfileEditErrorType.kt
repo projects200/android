@@ -7,5 +7,5 @@ enum class ProfileEditErrorType {
     NO_CHANGE, // 변경사항 없음
     NO_DUPLICATE_CHECKED, // 중복 확인 안됨
     IMAGE_INVALID_TYPE, // 이미지 타입 오류
-    IMAGE_READ_FAILED,  // 이미지 읽기 또는 압축 실패
+    IMAGE_READ_FAILED, // 이미지 읽기 또는 압축 실패
 }
