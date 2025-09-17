@@ -79,7 +79,7 @@ interface ApiService {
     @PUT("api/v1/profile")
     @AccessTokenApi
     suspend fun editProfile(
-        @Body profile: PutProfileRequest
+        @Body profile: PutProfileRequest,
     ): BaseResponse<Any?>
 
     // 프로필 사진 생성
