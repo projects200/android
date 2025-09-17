@@ -54,6 +54,13 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                 MypageFragmentDirections.actionMypageFragmentToSettingFragment(),
             )
         }
+
+        binding.mypageProfileIv.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToProfileImageDetailFragment(),
+            )
+        }
+
         binding.prevMonthBtn.setOnClickListener {
             viewModel.onPreviousMonthClicked()
         }

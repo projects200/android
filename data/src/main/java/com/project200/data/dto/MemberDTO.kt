@@ -39,3 +39,17 @@ data class PutProfileRequest(
     val gender: String,
     val bio: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetProfileImageResponseDto(
+    val representativeProfileImage: ProfileImageDto?,
+    val profileImageCount: Int,
+    val profileImages: List<ProfileImageDto>,
+)
+
+data class ProfileImageDto(
+    val profileImageId: Long,
+    val profileImageUrl: String,
+    val profileImageName: String,
+    val profileImageExtension: String,
+)

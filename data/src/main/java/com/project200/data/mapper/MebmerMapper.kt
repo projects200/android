@@ -1,8 +1,11 @@
 package com.project200.data.mapper
 
 import com.project200.data.dto.GetProfileDTO
+import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.domain.model.PreferredExercise
+import com.project200.domain.model.ProfileImage
+import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
 
@@ -33,6 +36,25 @@ fun GetProfileDTO.toModel(): UserProfile {
                     skillLevel = it.skillLevel,
                     daysOfWeek = it.daysOfWeek,
                     imageUrl = it.imageUrl,
+                )
+            },
+    )
+}
+
+fun GetProfileImageResponseDto.toModel(): ProfileImageList {
+    return ProfileImageList(
+        thumbnail =
+            this.representativeProfileImage?.let {
+                ProfileImage(
+                    id = this.representativeProfileImage.profileImageId,
+                    url = this.representativeProfileImage.profileImageUrl,
+                )
+            },
+        images =
+            this.profileImages.map {
+                ProfileImage(
+                    id = it.profileImageId,
+                    url = it.profileImageUrl,
                 )
             },
     )

@@ -27,3 +27,13 @@ data class PreferredExercise(
     val daysOfWeek: List<Boolean>,
     val imageUrl: String
 )
+
+data class ProfileImageList(
+    val thumbnail: ProfileImage?,
+    val images: List<ProfileImage>
+)
+
+data class ProfileImage(
+    val id: Long,
+    val url: String
+)
