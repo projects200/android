@@ -23,7 +23,6 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class ProfileEditFragment :
     BindingFragment<FragmentProfileEditBinding>(R.layout.fragment_profile_edit) {
-
     private val viewModel: ProfileEditViewModel by viewModels()
 
     private val pickImageLauncher =
@@ -117,8 +116,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led
-                        )
+                            com.project200.undabang.presentation.R.color.error_led,
+                        ),
                     )
                 }
 
@@ -127,8 +126,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led
-                        )
+                            com.project200.undabang.presentation.R.color.error_led,
+                        ),
                     )
                 }
 
@@ -137,8 +136,8 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.main
-                        )
+                            com.project200.undabang.presentation.R.color.main,
+                        ),
                     )
                 }
             }

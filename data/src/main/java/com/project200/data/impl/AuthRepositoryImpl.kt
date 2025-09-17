@@ -70,17 +70,17 @@ class AuthRepositoryImpl
             )
         }
 
-    override suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getIsNicknameDuplicated(nickname) },
-            mapper = { dto: GetIsNicknameDuplicated? ->
-                dto?.available == true
-            },
-        )
-    }
+        override suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getIsNicknameDuplicated(nickname) },
+                mapper = { dto: GetIsNicknameDuplicated? ->
+                    dto?.available == true
+                },
+            )
+        }
 
-    companion object {
+        companion object {
             const val TAG = "AuthRepositoryImpl"
         }
     }
