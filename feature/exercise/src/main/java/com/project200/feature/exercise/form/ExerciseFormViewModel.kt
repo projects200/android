@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
+import com.project200.common.utils.ClockProvider
 import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
@@ -17,21 +18,17 @@ import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
+import com.project200.feature.exercise.utils.ScoreGuidanceState
+import com.project200.feature.exercise.utils.TimeSelectionState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.time.LocalDate
 import java.time.LocalDateTime
+import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
-// 점수 관련 UI 상태를 위한 sealed class 정의
-sealed class ScoreGuidanceState {
-    data object Hidden : ScoreGuidanceState() // 기본 상태 (경고 숨김, 버튼 텍스트 "기록 완료")
-
-    data class Warning(val message: String) : ScoreGuidanceState() // 경고 메시지 표시, 버튼 텍스트 "기록 완료"
-
-    data class PointsAvailable(val points: Int) : ScoreGuidanceState() // 점수 획득 가능, 버튼 텍스트 "기록 완료하고 N점 획득!"
-}
 
 @HiltViewModel
 class ExerciseFormViewModel
@@ -43,6 +40,7 @@ class ExerciseFormViewModel
         private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
         private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
+        private val clockProvider: ClockProvider,
     ) : ViewModel() {
         val recordId: Long? = savedStateHandle.get<Long>("recordId")
 
@@ -57,8 +55,6 @@ class ExerciseFormViewModel
                 mutableListOf(ExerciseImageListItem.AddButtonItem),
             )
         val imageItems: LiveData<MutableList<ExerciseImageListItem>> = _imageItems
-
-        val dateTimeFormatter: DateTimeFormatter = YY_MM_DD_HH_MM
 
         // 수정/생성 모드 관련
         private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
@@ -83,14 +79,18 @@ class ExerciseFormViewModel
         private val _scoreGuidanceState = MutableLiveData<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
         val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
 
+        private val _timeSelectionState = MutableLiveData(TimeSelectionState.NONE)
+        val timeSelectionState: LiveData<TimeSelectionState> = _timeSelectionState
+
         /** 초기 데이터 설정 */
         fun loadInitialRecord() {
             if (recordId == -1L || recordId == null) {
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
-                _startTime.value = null
-                _endTime.value = null
+                val now = clockProvider.localDateTimeNow()
+                _startTime.value = now.minusHours(1)
+                _endTime.value = now
                 _imageItems.value = mutableListOf(ExerciseImageListItem.AddButtonItem)
                 _initialDataLoaded.value = null
             } else {
@@ -127,23 +127,96 @@ class ExerciseFormViewModel
             _scoreGuidanceState.value = ScoreGuidanceState.Hidden
         }
 
-        fun setStartTime(dateTime: LocalDateTime) {
-            _startTime.value = dateTime
-            // 시작 시간이 종료 시간 이후면, 종료 시간 초기화
-            if (_endTime.value != null && dateTime.isAfter(_endTime.value)) {
-                _endTime.value = null
-            }
-            // 시작 시간 변경 시 점수 안내 업데이트
-            updateScoreGuidance()
+    fun setStartTime(dateTime: LocalDateTime) {
+        var newStartTime = dateTime
+        // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
+        if (newStartTime.isAfter(LocalDateTime.now())) {
+            newStartTime = LocalDateTime.now()
+            _toastMessage.value = "시작 시간은 현재 시간 이후로 설정할 수 없습니다."
         }
 
-        fun setEndTime(dateTime: LocalDateTime): Boolean {
-            if (_startTime.value != null && dateTime.isBefore(_startTime.value)) {
-                return false
+        _startTime.value = newStartTime
+
+        // 시작 시간이 종료 시간을 넘어서면, 종료 시간 조정
+        _endTime.value?.let { currentEndTime ->
+            if (newStartTime.isAfter(currentEndTime)) {
+                var newEndTime = newStartTime.plusHours(1)
+                // 조정된 종료 시간이 현재 시간을 넘어서면, 현재 시간으로 설정
+                if (newEndTime.isAfter(LocalDateTime.now())) {
+                    newEndTime = LocalDateTime.now()
+                }
+                _endTime.value = newEndTime
             }
-            _endTime.value = dateTime
-            return true
         }
+
+        updateScoreGuidance()
+    }
+
+    fun setEndTime(dateTime: LocalDateTime): Boolean {
+        var newEndTime = dateTime
+        // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
+        if (newEndTime.isAfter(LocalDateTime.now())) {
+            newEndTime = LocalDateTime.now()
+            _toastMessage.value = "종료 시간은 현재 시간 이후로 설정할 수 없습니다."
+        }
+
+        // 종료 시간이 시작 시간보다 앞서면, 시작 시간 조정
+        _startTime.value?.let { currentStartTime ->
+            if (newEndTime.isBefore(currentStartTime)) {
+                _startTime.value = newEndTime.minusHours(1)
+            }
+        } ?: run {
+            // 시작 시간이 없으면, 종료 시간 1시간 전으로 설정
+            _startTime.value = newEndTime.minusHours(1)
+        }
+
+        _endTime.value = newEndTime
+        return true
+    }
+
+    // 시간 선택 버튼 클릭 이벤트 처리
+    fun onTimeSelectionClick(selection: TimeSelectionState) {
+        // 이미 선택된 버튼을 다시 누르면 선택 해제
+        if (_timeSelectionState.value == selection) {
+            _timeSelectionState.value = TimeSelectionState.NONE
+        } else {
+            _timeSelectionState.value = selection
+        }
+    }
+
+    // CalendarView에서 날짜가 선택되었을 때 호출
+    fun updateDate(year: Int, month: Int, dayOfMonth: Int) {
+        val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+        when (_timeSelectionState.value) {
+            TimeSelectionState.START_DATE -> {
+                val existingTime = _startTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                setStartTime(LocalDateTime.of(selectedDate, existingTime))
+            }
+            TimeSelectionState.END_DATE -> {
+                val existingTime = _endTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                setEndTime(LocalDateTime.of(selectedDate, existingTime))
+            }
+            else -> return
+        }
+    }
+
+    // 시간 선택 후 데이터를 업데이트
+    fun updateTime(hour: Int, minute: Int) {
+        val selectedTime = LocalTime.of(hour, minute)
+        when (_timeSelectionState.value) {
+            TimeSelectionState.START_TIME -> {
+                val existingDate = _startTime.value?.toLocalDate() ?: LocalDate.now()
+                setStartTime(LocalDateTime.of(existingDate, selectedTime))
+            }
+            TimeSelectionState.END_TIME -> {
+                val existingDate = _endTime.value?.toLocalDate() ?: LocalDate.now()
+                setEndTime(LocalDateTime.of(existingDate, selectedTime))
+            }
+            else -> return
+        }
+        _timeSelectionState.value = TimeSelectionState.NONE // 시간 설정 후 선택기 닫기
+    }
+
 
         fun addImage(uris: List<Uri>) {
             val currentList = _imageItems.value ?: mutableListOf()
