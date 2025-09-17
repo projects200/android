@@ -11,7 +11,7 @@ sealed interface TimerFormListItem {
 
     data class FooterItem(
         val name: String,
-        val time: Int
+        val time: Int,
     ) : TimerFormListItem {
         override val id: Long = 0L
     }
@@ -19,7 +19,7 @@ sealed interface TimerFormListItem {
 
 data class CustomTimerFormUiState(
     val title: String = "",
-    val listItems: List<TimerFormListItem> = emptyList()
+    val listItems: List<TimerFormListItem> = emptyList(),
 )
 
 enum class ToastMessageType {
@@ -32,5 +32,5 @@ enum class ToastMessageType {
     CREATE_ERROR, // 생성 에러
     EDIT_ERROR, // 수정 에러
     NO_CHANGES, // 수정 에러
-    UNKNOWN_ERROR
+    UNKNOWN_ERROR,
 }

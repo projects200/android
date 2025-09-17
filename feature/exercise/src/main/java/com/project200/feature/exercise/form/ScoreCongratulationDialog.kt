@@ -33,5 +33,4 @@ class ScoreCongratulationDialog(private val earnedPoints: Int) :
             dismiss()
         }
     }
-
 }

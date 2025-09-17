@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white300">
+
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/profile_edit_complete_btn"
+        style="@style/content_bold"
+        android:layout_width="62dp"
+        android:layout_height="33dp"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:background="@drawable/bg_complete_btn"
+        android:gravity="center"
+        android:text="@string/complete"
+        android:textColor="@color/white300"
+        app:layout_constraintBottom_toBottomOf="@+id/base_toolbar"
+        app:layout_constraintEnd_toEndOf="@+id/base_toolbar"
+        app:layout_constraintTop_toTopOf="@+id/base_toolbar" />
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_img_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="20dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/ic_profile_default"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar" />
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_margin="2dp"
+        android:elevation="2dp"
+        android:src="@drawable/ic_add_profile_img_btn"
+        app:layout_constraintBottom_toBottomOf="@id/profile_img_iv"
+        app:layout_constraintEnd_toEndOf="@id/profile_img_iv" />
+
+
+    <TextView
+        android:id="@+id/nickname_title_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="90dp"
+        android:text="@string/nickname"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/profile_img_iv" />
+
+    <EditText
+        android:id="@+id/nickname_et"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="60dp"
+        android:layout_marginEnd="6dp"
+        android:backgroundTint="@color/black"
+        android:inputType="text"
+        android:maxLength="30"
+        android:maxLines="1"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_title_tv"
+        app:layout_constraintEnd_toStartOf="@id/duplicate_check_btn"
+        app:layout_constraintStart_toEndOf="@id/nickname_title_tv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_title_tv" />
+
+    <TextView
+        android:id="@+id/duplicate_check_btn"
+        style="@style/content_regular"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_duplicate_check"
+        android:elevation="0dp"
+        android:gravity="center"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="4dp"
+        android:text="@string/profile_edit_duplicate_check"
+        android:textColor="@color/main"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_et"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/nickname_et" />
+
+    <LinearLayout
+        android:id="@+id/nickname_guide_ll"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        app:layout_constraintEnd_toEndOf="@+id/duplicate_check_btn"
+        app:layout_constraintStart_toStartOf="@id/nickname_et"
+        app:layout_constraintTop_toBottomOf="@id/nickname_et">
+
+        <TextView
+            android:id="@+id/duplicate_message_tv"
+            style="@style/subtext_14"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/nickname_rule_tv"
+            style="@style/subtext_14"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="12dp"
+            android:text="@string/profile_edit_nickname_rule"
+            android:textColor="@color/gray200" />
+    </LinearLayout>
+
+
+    <TextView
+        android:id="@+id/gender_title_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="@string/gender"
+        app:layout_constraintStart_toStartOf="@+id/nickname_title_tv"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_guide_ll" />
+
+    <LinearLayout
+        android:id="@+id/gender_male_ll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
+        app:layout_constraintStart_toStartOf="@id/nickname_et"
+        app:layout_constraintTop_toTopOf="@id/gender_title_tv">
+
+        <TextView
+            android:id="@+id/male_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/profile_edit_male" />
+
+        <ImageView
+            android:id="@+id/male_btn_imv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/gender_female_ll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@id/gender_male_ll"
+        app:layout_constraintTop_toTopOf="@id/gender_title_tv">
+
+        <TextView
+            android:id="@+id/gender_female_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="@string/profile_edit_female" />
+
+        <ImageView
+            android:id="@+id/female_btn_imv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@+id/gender_female_tv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/gender_hidden_ll"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        app:layout_constraintBottom_toBottomOf="@id/gender_title_tv"
+        app:layout_constraintStart_toEndOf="@id/gender_female_ll"
+        app:layout_constraintTop_toTopOf="@id/gender_title_tv">
+
+        <TextView
+            android:id="@+id/gender_hidden_tv"
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+
+            android:text="@string/profile_edit_hidden"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@id/female_btn_imv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+
+        <ImageView
+            android:id="@+id/hidden_btn_imv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/selector_terms_check"
+            app:layout_constraintBottom_toBottomOf="@+id/gender_title_tv"
+            app:layout_constraintStart_toEndOf="@+id/gender_hidden_tv"
+            app:layout_constraintTop_toTopOf="@+id/gender_title_tv" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/introduction_title_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:text="@string/profile_edit_introduction"
+        app:layout_constraintStart_toStartOf="@+id/nickname_title_tv"
+        app:layout_constraintTop_toBottomOf="@id/gender_title_tv" />
+
+    <EditText
+        android:id="@+id/introduction_et"
+        style="@style/content_regular"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_introduction_et"
+        android:gravity="start"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:hint="@string/empty_introduction"
+        android:minHeight="120dp"
+        android:padding="12dp"
+        android:textColorHint="@color/gray200"
+        app:layout_constraintTop_toBottomOf="@id/introduction_title_tv" />
+</androidx.constraintlayout.widget.ConstraintLayout>

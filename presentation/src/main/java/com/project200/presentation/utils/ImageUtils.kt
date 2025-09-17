@@ -14,6 +14,7 @@ import java.io.InputStream
 
 object ImageUtils {
     private const val TAG = "ImageUtils"
+
     /**
      * 이미지를 압축하여 지정된 최대 너비/높이 및 품질로 새 파일 URI를 반환합니다.
      * JPEG/JPG는 JPEG으로, PNG는 PNG로 압축됩니다. 그 외는 JPEG으로 압축됩니다.
@@ -30,7 +31,7 @@ object ImageUtils {
         imageUri: Uri,
         targetMaxWidth: Int = 1080,
         targetMaxHeight: Int = 1920,
-        jpegQuality: Int = 80
+        jpegQuality: Int = 80,
     ): Uri? {
         var inputStream: InputStream? = null
         var rotatedBitmap: Bitmap? = null // 최종적으로 압축될 비트맵
@@ -44,9 +45,10 @@ object ImageUtils {
                 return null
             }
 
-            val options = BitmapFactory.Options().apply {
-                inJustDecodeBounds = true
-            }
+            val options =
+                BitmapFactory.Options().apply {
+                    inJustDecodeBounds = true
+                }
             BitmapFactory.decodeStream(inputStream, null, options)
             inputStream.close() // 스트림 닫기
 
@@ -86,7 +88,7 @@ object ImageUtils {
                 Timber.tag(TAG).d("Compressing as PNG")
             } else { // 기본적으로 JPEG 사용 (jpg, jpeg, 기타 이미지 타입 포함)
                 outputFormat = Bitmap.CompressFormat.JPEG
-                outputExtension = ".jpg"
+                outputExtension = ".jpeg"
                 Timber.tag(TAG).d("Compressing as JPEG")
             }
 
@@ -105,7 +107,6 @@ object ImageUtils {
             Timber.tag(TAG).d("이미지 압축 성공: ${tempFile.absolutePath}, Size: ${tempFile.length() / 1024}KB")
 
             return Uri.fromFile(tempFile)
-
         } catch (e: Exception) {
             Timber.tag(TAG).d(e, "이미지 압축 실패")
             return null // 오류 발생 시 null 반환
@@ -117,7 +118,11 @@ object ImageUtils {
     /**
      * BitmapFactory.Options와 목표 너비/높이를 기반으로 적절한 inSampleSize 값을 계산합니다.
      */
-    private fun calculateInSampleSize(options: BitmapFactory.Options, reqWidth: Int, reqHeight: Int): Int {
+    private fun calculateInSampleSize(
+        options: BitmapFactory.Options,
+        reqWidth: Int,
+        reqHeight: Int,
+    ): Int {
         val height = options.outHeight
         val width = options.outWidth
         var inSampleSize = 1
@@ -137,7 +142,11 @@ object ImageUtils {
      * EXIF 정보를 읽어 이미지를 올바른 방향으로 회전시킵니다.
      * return 회전된 Bitmap
      */
-    private fun rotateImageIfRequired(context: Context, originalBitmap: Bitmap, imageUri: Uri): Bitmap {
+    private fun rotateImageIfRequired(
+        context: Context,
+        originalBitmap: Bitmap,
+        imageUri: Uri,
+    ): Bitmap {
         var inputStreamForExif: InputStream? = null
         try {
             inputStreamForExif = context.contentResolver.openInputStream(imageUri)

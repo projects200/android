@@ -4,17 +4,15 @@ import androidx.recyclerview.widget.RecyclerView
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.undabang.feature.timer.databinding.ItemCustomTimerCreateFooterBinding
 
-
 class FooterViewHolder(
     private val binding: ItemCustomTimerCreateFooterBinding,
-    private val listener: OnStepItemClickListener
+    private val listener: OnStepItemClickListener,
 ) : RecyclerView.ViewHolder(binding.root) {
-
     fun bind(item: TimerFormListItem.FooterItem) {
         if (binding.stepNameEt.text.toString() != item.name) {
             binding.stepNameEt.setText(item.name)
         }
-        binding.stepTimeTv.apply{
+        binding.stepTimeTv.apply {
             text = item.time.toFormattedTime()
             setOnClickListener {
                 listener.onNewStepTimeClick(item.time)

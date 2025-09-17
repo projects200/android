@@ -1,14 +1,14 @@
 package com.project200.convention
 
 import org.gradle.api.Project
+import org.gradle.api.artifacts.MinimalExternalModuleDependency
 import org.gradle.api.artifacts.VersionCatalog
 import org.gradle.api.artifacts.VersionCatalogsExtension
-import org.gradle.kotlin.dsl.getByType
-import org.gradle.api.provider.Provider // Provider import
-import org.gradle.plugin.use.PluginDependency // PluginDependency import
-import org.gradle.api.artifacts.MinimalExternalModuleDependency // MinimalExternalModuleDependency import
 import org.gradle.api.plugins.ExtensionAware
+import org.gradle.api.provider.Provider
 import org.gradle.kotlin.dsl.configure
+import org.gradle.kotlin.dsl.getByType
+import org.gradle.plugin.use.PluginDependency
 
 // Project 확장 프로퍼티로 'libs' VersionCatalog 에 쉽게 접근
 internal val Project.libs: VersionCatalog

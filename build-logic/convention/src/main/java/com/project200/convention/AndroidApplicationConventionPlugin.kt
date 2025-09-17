@@ -14,6 +14,7 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
             pluginManager.apply(libs.plugin("google-services").get().pluginId)
             pluginManager.apply(libs.plugin("firebase-performance").get().pluginId)
             pluginManager.apply("convention.android.hilt")
+            pluginManager.apply("convention.ktlint")
 
             // Android 애플리케이션 공통 설정
             extensions.configure<ApplicationExtension> {

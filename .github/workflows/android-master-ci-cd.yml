@@ -50,6 +50,9 @@ jobs:
       - name: Run Android Lint
         run: ./gradlew lintRelease
 
+      - name: Run Ktlint Check
+        run: ./gradlew ktlintCheck
+
       - name: Run Unit Tests (Release)
         run: ./gradlew testReleaseUnitTest
 

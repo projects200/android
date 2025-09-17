@@ -5,19 +5,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
-import com.project200.common.utils.CommonDateTimeFormatters
-import com.project200.presentation.view.MenuBottomSheetDialog
-import com.project200.presentation.base.BaseAlertDialog
-import com.project200.presentation.navigator.BottomNavigationController
 
 @AndroidEntryPoint
-class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
+class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
@@ -99,8 +98,10 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
-
-    private fun TextView.setTextOrHide(newText: String?, titleView: TextView? = null) {
+    private fun TextView.setTextOrHide(
+        newText: String?,
+        titleView: TextView? = null,
+    ) {
         if (!newText.isNullOrBlank()) {
             this.text = newText
             this.visibility = View.VISIBLE
@@ -111,16 +112,15 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
         }
     }
 
-
     private fun showExerciseDetailMenu() {
         MenuBottomSheetDialog(
             onEditClicked = {
                 findNavController().navigate(
                     ExerciseDetailFragmentDirections
-                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId)
+                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId),
                 )
             },
-            onDeleteClicked = { showDeleteConfirmationDialog() }
+            onDeleteClicked = { showDeleteConfirmationDialog() },
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
@@ -130,7 +130,7 @@ class ExerciseDetailFragment: BindingFragment<FragmentExerciseDetailBinding>(R.l
             desc = null,
             onConfirmClicked = {
                 viewModel.deleteExerciseRecord()
-            }
+            },
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }
 

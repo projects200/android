@@ -1,17 +1,16 @@
 package com.project200.undabang.fcm
 
 import android.content.SharedPreferences
-import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
+import androidx.core.content.edit
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import androidx.core.content.edit
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class FcmService : FirebaseMessagingService() {
-
     @Inject
     lateinit var sharedPreferences: SharedPreferences
 

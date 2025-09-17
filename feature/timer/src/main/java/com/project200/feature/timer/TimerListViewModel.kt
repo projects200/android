@@ -15,30 +15,31 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class TimerListViewModel @Inject constructor(
-    private val getCustomTimerListUseCase: GetCustomTimerListUseCase
-) : ViewModel() {
+class TimerListViewModel
+    @Inject
+    constructor(
+        private val getCustomTimerListUseCase: GetCustomTimerListUseCase,
+    ) : ViewModel() {
+        private val _customTimerList = MutableLiveData<List<CustomTimer>>()
+        val customTimerList: LiveData<List<CustomTimer>> = _customTimerList
 
-    private val _customTimerList = MutableLiveData<List<CustomTimer>>()
-    val customTimerList: LiveData<List<CustomTimer>> = _customTimerList
+        private val _errorToast = MutableSharedFlow<BaseResult.Error>()
+        val errorToast: SharedFlow<BaseResult.Error> = _errorToast.asSharedFlow()
 
-    private val _errorToast = MutableSharedFlow<BaseResult.Error>()
-    val errorToast: SharedFlow<BaseResult.Error> = _errorToast.asSharedFlow()
+        init {
+            loadCustomTimers()
+        }
 
-    init {
-        loadCustomTimers()
-    }
-
-    fun loadCustomTimers() {
-        viewModelScope.launch {
-            when (val result = getCustomTimerListUseCase()) {
-                is BaseResult.Success -> {
-                    _customTimerList.value = result.data
-                }
-                is BaseResult.Error -> {
-                    _errorToast.emit(result)
+        fun loadCustomTimers() {
+            viewModelScope.launch {
+                when (val result = getCustomTimerListUseCase()) {
+                    is BaseResult.Success -> {
+                        _customTimerList.value = result.data
+                    }
+                    is BaseResult.Error -> {
+                        _errorToast.emit(result)
+                    }
                 }
             }
         }
     }
-}

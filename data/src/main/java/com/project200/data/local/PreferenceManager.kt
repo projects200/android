@@ -8,29 +8,32 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class PreferenceManager @Inject constructor(@ApplicationContext context: Context) {
+class PreferenceManager
+    @Inject
+    constructor(
+        @ApplicationContext context: Context,
+    ) {
+        private val prefs: SharedPreferences =
+            context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        fun saveMemberId(memberId: String) {
+            prefs.edit {
+                putString(KEY_MEMBER_ID, memberId)
+            }
+        }
 
-    fun saveMemberId(memberId: String) {
-        prefs.edit {
-            putString(KEY_MEMBER_ID, memberId)
+        fun getMemberId(): String? {
+            return prefs.getString(KEY_MEMBER_ID, null)
+        }
+
+        fun clearMemberId() {
+            prefs.edit {
+                remove(KEY_MEMBER_ID)
+            }
+        }
+
+        companion object {
+            private const val PREFS_NAME = "undabangPrefs"
+            private const val KEY_MEMBER_ID = "member_id"
         }
     }
-
-    fun getMemberId(): String? {
-        return prefs.getString(KEY_MEMBER_ID, null)
-    }
-
-    fun clearMemberId() {
-        prefs.edit {
-            remove(KEY_MEMBER_ID)
-        }
-    }
-
-    companion object {
-        private const val PREFS_NAME = "undabangPrefs"
-        private const val KEY_MEMBER_ID = "member_id"
-    }
-}

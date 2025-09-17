@@ -6,7 +6,7 @@ import com.squareup.moshi.JsonClass
 data class PolicyGroupDTO(
     val groupName: String,
     val size: Int,
-    val policies: List<PolicyDTO>
+    val policies: List<PolicyDTO>,
 )
 
 @JsonClass(generateAdapter = true)
@@ -14,5 +14,5 @@ data class PolicyDTO(
     val policyKey: String,
     val policyValue: String,
     val policyUnit: String,
-    val policyDescription: String
+    val policyDescription: String,
 )

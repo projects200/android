@@ -12,10 +12,8 @@ import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.DialogExerciseYearMonthBinding
 import java.time.YearMonth
 
-
 class ExerciseYearMonthDialog :
     BaseDialogFragment<DialogExerciseYearMonthBinding>(R.layout.dialog_exercise_year_month) {
-
     var onDateSelected: ((YearMonth) -> Unit)? = null
     private var initialDate: YearMonth = YearMonth.now()
     private val currentYearMonth: YearMonth = YearMonth.now()
@@ -55,7 +53,6 @@ class ExerciseYearMonthDialog :
             window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable()) // 투명 배경 적용
         }
     }
-
 
     private fun setupPickers() {
         // Year Picker
@@ -130,9 +127,10 @@ class ExerciseYearMonthDialog :
 
         fun newInstance(initialDate: YearMonth): ExerciseYearMonthDialog {
             val dialog = ExerciseYearMonthDialog()
-            dialog.arguments = Bundle().apply {
-                putSerializable(ARG_INITIAL_DATE, initialDate)
-            }
+            dialog.arguments =
+                Bundle().apply {
+                    putSerializable(ARG_INITIAL_DATE, initialDate)
+                }
             return dialog
         }
     }

@@ -1,7 +1,6 @@
 package com.project200.feature.exercise.form
 
 import android.Manifest
-import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -23,9 +22,7 @@ import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
-import com.project200.feature.exercise.detail.ExerciseDetailFragmentDirections
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.navigator.FragmentNavigator
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
 import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
@@ -44,7 +41,6 @@ import java.util.Calendar
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
-
     private val viewModel: ExerciseFormViewModel by viewModels()
     private lateinit var imageAdapter: ExerciseImageAdapter
 
@@ -68,11 +64,12 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
                 // 유효성 검사 에러가 있었다면 메시지 표시
                 errorReason?.let { reason ->
-                    val errorMessage = when (reason) {
-                        INVALID_TYPE -> getString(R.string.image_error_invalid_type, ALLOWED_EXTENSIONS.joinToString(", "))
-                        FAIL_TO_READ -> getString(R.string.image_error_file_read)
-                        else -> getString(R.string.unknown_error)
-                    }
+                    val errorMessage =
+                        when (reason) {
+                            INVALID_TYPE -> getString(R.string.image_error_invalid_type, ALLOWED_EXTENSIONS.joinToString(", "))
+                            FAIL_TO_READ -> getString(R.string.image_error_file_read)
+                            else -> getString(R.string.unknown_error)
+                        }
                     Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_LONG).show()
                 }
 
@@ -88,7 +85,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
     private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ : Boolean ->
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _: Boolean ->
             launchGallery()
         }
 
@@ -96,35 +93,38 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         return FragmentExerciseFormBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.loadInitialRecord()
         setupKeyboardAdjustments()
     }
 
     private fun setupRVAdapter(calculatedItemSize: Int) {
-        imageAdapter = ExerciseImageAdapter(
-            itemSize = calculatedItemSize,
-            onAddItemClick = {
-                val currentImageCount = viewModel.imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
-                if (currentImageCount >= MAX_IMAGE) {
-                    Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_SHORT).show()
-                } else {
-                    checkPermissionAndLaunchGallery()
-                }
-            },
-            onDeleteItemClick = { item ->
-                viewModel.removeImage(item)
-            }
-        )
+        imageAdapter =
+            ExerciseImageAdapter(
+                itemSize = calculatedItemSize,
+                onAddItemClick = {
+                    val currentImageCount = viewModel.imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
+                    if (currentImageCount >= MAX_IMAGE) {
+                        Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_SHORT).show()
+                    } else {
+                        checkPermissionAndLaunchGallery()
+                    }
+                },
+                onDeleteItemClick = { item ->
+                    viewModel.removeImage(item)
+                },
+            )
 
         binding.exerciseImageRv.apply {
-            addItemDecoration(GridSpacingItemDecoration(GRID_SPAN_COUNT, dpToPx(requireContext(), RV_MARGIN)))
+            addItemDecoration(GridItemDecoration(GRID_SPAN_COUNT, dpToPx(requireContext(), RV_MARGIN)))
             layoutManager = GridLayoutManager(requireContext(), GRID_SPAN_COUNT)
             adapter = imageAdapter
         }
     }
-
 
     override fun setupViews() {
         binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
@@ -139,22 +139,29 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 title = binding.recordTitleEt.text.toString().trim(),
                 type = binding.recordTypeEt.text.toString().trim(),
                 location = binding.recordLocationEt.text.toString().trim(),
-                detail = binding.recordDescEt.text.toString().trim()
+                detail = binding.recordDescEt.text.toString().trim(),
             )
         }
     }
 
     private fun checkPermissionAndLaunchGallery() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else { Manifest.permission.READ_EXTERNAL_STORAGE }
+        val permission =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                Manifest.permission.READ_MEDIA_IMAGES
+            } else {
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            }
 
         when {
             checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED -> {
                 launchGallery()
             }
-            shouldShowRequestPermissionRationale(permission) -> { requestPermissionLauncher.launch(permission) }
-            else -> { requestPermissionLauncher.launch(permission) }
+            shouldShowRequestPermissionRationale(permission) -> {
+                requestPermissionLauncher.launch(permission)
+            }
+            else -> {
+                requestPermissionLauncher.launch(permission)
+            }
         }
     }
 
@@ -165,15 +172,16 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
 
             // 키보드가 올라와 있으면 키보드 높이만큼, 아니면 네비게이션 바 높이만큼 패딩 적용
-            val paddingBottom = if (imeHeight > 0) {
-                imeHeight
-            } else {
-                // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
-                // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
-                val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
-                val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
-                buttonHeight + buttonMarginBottom + navigationBarHeight
-            }
+            val paddingBottom =
+                if (imeHeight > 0) {
+                    imeHeight
+                } else {
+                    // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
+                    // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
+                    val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
+                    val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
+                    buttonHeight + buttonMarginBottom + navigationBarHeight
+                }
 
             v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, paddingBottom)
             insets
@@ -186,40 +194,51 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private fun showTimePickerDialog(isStart: Boolean) {
         // 기존 선택된 시간이 있다면 해당 시간을 사용하고, 없다면 현재 시간을 기준으로 5분 단위로 내림한 시간으로 설정
-        val dateTimeToShow = (if (isStart) viewModel.startTime.value else viewModel.endTime.value) ?: run {
-            val now = LocalDateTime.now()
-            val flooredMinute = (now.minute / 5) * 5
-            now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
-        }
+        val dateTimeToShow =
+            (if (isStart) viewModel.startTime.value else viewModel.endTime.value) ?: run {
+                val now = LocalDateTime.now()
+                val flooredMinute = (now.minute / 5) * 5
+                now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
+            }
 
-        val initialCalendar = Calendar.getInstance().apply {
-            timeInMillis = dateTimeToShow.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
-        }
+        val initialCalendar =
+            Calendar.getInstance().apply {
+                timeInMillis = dateTimeToShow.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
+            }
 
         // 다이얼로그 생성 및 표시
-        val dialog = ExerciseTimeDialog.newInstance(initialCalendar).apply {
-            onDateTimeSelected = { year, month, day, hour, minute ->
-                val selectedDateTime = LocalDateTime.of(year, month + 1, day, hour, minute)
-                if (isStart) {
-                    viewModel.setStartTime(selectedDateTime)
-                } else {
-                    if (!viewModel.setEndTime(selectedDateTime)) {
-                        Toast.makeText(requireContext(), getString(R.string.exercise_record_time_error), Toast.LENGTH_SHORT).show()
+        val dialog =
+            ExerciseTimeDialog.newInstance(initialCalendar).apply {
+                onDateTimeSelected = { year, month, day, hour, minute ->
+                    val selectedDateTime = LocalDateTime.of(year, month + 1, day, hour, minute)
+                    if (isStart) {
+                        viewModel.setStartTime(selectedDateTime)
+                    } else {
+                        if (!viewModel.setEndTime(selectedDateTime)) {
+                            Toast.makeText(requireContext(), getString(R.string.exercise_record_time_error), Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
-        }
         dialog.show(parentFragmentManager, ExerciseTimeDialog::class.java.simpleName)
     }
 
     override fun setupObservers() {
         viewModel.startTime.observe(viewLifecycleOwner) { dateTime ->
-            binding.startTimeBtn.text = dateTime?.let { viewModel.dateTimeFormatter.format(it) } ?: getString(R.string.exercise_record_start_time)
+            binding.startTimeBtn.text = dateTime?.let {
+                viewModel.dateTimeFormatter.format(
+                    it,
+                )
+            } ?: getString(R.string.exercise_record_start_time)
             binding.startTimeIv.isVisible = dateTime == null
         }
 
         viewModel.endTime.observe(viewLifecycleOwner) { dateTime ->
-            binding.endTimeBtn.text = dateTime?.let { viewModel.dateTimeFormatter.format(it) } ?: getString(R.string.exercise_record_end_time)
+            binding.endTimeBtn.text = dateTime?.let {
+                viewModel.dateTimeFormatter.format(
+                    it,
+                )
+            } ?: getString(R.string.exercise_record_end_time)
             binding.endTimeIv.isVisible = dateTime == null
         }
 
@@ -250,7 +269,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     // 부분 성공 (이미지 업로드 실패)
                     findNavController().navigate(
                         ExerciseFormFragmentDirections
-                            .actionExerciseFormFragmentToExerciseDetailFragment(result.recordId)
+                            .actionExerciseFormFragmentToExerciseDetailFragment(result.recordId),
                     )
                 }
                 is SubmissionResult.Failure -> { // 기록 생성 실패

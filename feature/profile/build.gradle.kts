@@ -40,4 +40,13 @@ dependencies {
 
     // Cognito
     implementation(libs.appauth)
+
+    // CircleImageView
+    implementation(libs.circleimageview)
+
+    // Glide
+    implementation(libs.glide)
+
+    // 캘린더
+    implementation(libs.kizitonwose.calendar.view)
 }

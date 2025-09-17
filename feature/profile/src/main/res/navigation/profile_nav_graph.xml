@@ -3,7 +3,23 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/profile_nav_graph"
-    app:startDestination="@id/settingFragment">
+    app:startDestination="@id/mypageFragment">
+
+    <fragment
+        android:id="@+id/mypageFragment"
+        android:name="com.project200.undabang.profile.mypage.MypageFragment"
+        android:label="mypage"
+        tools:layout="@layout/fragment_mypage">
+        <action
+            android:id="@+id/action_mypageFragment_to_settingFragment"
+            app:destination="@id/settingFragment" />
+        <action
+            android:id="@+id/action_mypageFragment_to_profileEditFragment"
+            app:destination="@id/profileEditFragment"/>
+        <action
+            android:id="@+id/action_mypageFragment_to_profileImageDetailFragment"
+            app:destination="@id/profileImageDetailFragment"/>
+    </fragment>
 
     <fragment
         android:id="@+id/settingFragment"
@@ -11,4 +27,19 @@
         android:label="setting"
         tools:layout="@layout/fragment_setting" />
 
+    <fragment
+        android:id="@+id/profileEditFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileEditFragment"
+        android:label="profileEdit"
+        tools:layout="@layout/fragment_profile_edit">
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileImageDetailFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileImageDetailFragment"
+        android:label="profileImageDetail"
+        tools:layout="@layout/fragment_profile_image_detail">
+
+    </fragment>
 </navigation>

@@ -1,35 +1,20 @@
 package com.project200.feature.timer
 
 import android.graphics.Color
-import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.Toast
 import androidx.core.graphics.drawable.toDrawable
-import androidx.fragment.app.viewModels
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
-import com.project200.domain.model.SimpleTimer
 import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.DialogTimePickerBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.time.LocalDateTime
-import java.time.ZoneId
-import java.time.temporal.ChronoUnit
-import java.util.Calendar
 import java.util.Locale
 
 @AndroidEntryPoint
 class TimePickerDialog(
     private val initialTime: Int? = null,
-    private val onTimeSelected: (Int) -> Unit
-):
+    private val onTimeSelected: (Int) -> Unit,
+) :
     BaseDialogFragment<DialogTimePickerBinding>(R.layout.dialog_time_picker) {
     override fun getViewBinding(view: View): DialogTimePickerBinding {
         return DialogTimePickerBinding.bind(view)

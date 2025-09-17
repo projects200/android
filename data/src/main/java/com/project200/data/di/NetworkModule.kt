@@ -8,6 +8,8 @@ import com.project200.data.utils.TokenAuthenticator
 import com.project200.data.utils.TokenInterceptor
 import com.project200.undabang.data.BuildConfig
 import com.project200.undabang.oauth.AuthStateManager
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -16,34 +18,31 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
-import com.squareup.moshi.Moshi
-import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
-
     @Provides
     @Singleton
     fun provideAuthInterceptor(
         authStateManager: AuthStateManager,
-        fcmTokenProvider: FcmTokenProvider
+        fcmTokenProvider: FcmTokenProvider,
     ): TokenInterceptor {
         return TokenInterceptor(authStateManager, fcmTokenProvider)
     }
-
 
     @Provides
     @Singleton
     fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
         return HttpLoggingInterceptor().apply {
-            level = if (BuildConfig.DEBUG) {
-                HttpLoggingInterceptor.Level.BODY
-            } else {
-                HttpLoggingInterceptor.Level.NONE
-            }
+            level =
+                if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BODY
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
         }
     }
 
@@ -62,7 +61,7 @@ object NetworkModule {
     fun provideOkHttpClient(
         tokenAuthenticator: TokenAuthenticator,
         loggingInterceptor: HttpLoggingInterceptor,
-        tokenInterceptor: TokenInterceptor
+        tokenInterceptor: TokenInterceptor,
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .authenticator(tokenAuthenticator)
@@ -76,12 +75,16 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideRetrofit(okHttpClient: OkHttpClient, moshi: Moshi): Retrofit {
-        val baseUrl = if (BuildConfig.DEBUG) {
-            "https://api.undabang.store/dev/"
-        } else {
-            "https://api.undabang.store/"
-        }
+    fun provideRetrofit(
+        okHttpClient: OkHttpClient,
+        moshi: Moshi,
+    ): Retrofit {
+        val baseUrl =
+            if (BuildConfig.DEBUG) {
+                "https://api.undabang.store/dev/"
+            } else {
+                "https://api.undabang.store/"
+            }
 
         return Retrofit.Builder()
             .baseUrl(baseUrl)

@@ -25,53 +25,35 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
+    @Binds
+    @Singleton
+    abstract fun bindAppUpdateRepository(appUpdateRepositoryImpl: AppUpdateRepositoryImpl): AppUpdateRepository
 
     @Binds
     @Singleton
-    abstract fun bindAppUpdateRepository(
-        appUpdateRepositoryImpl: AppUpdateRepositoryImpl
-    ): AppUpdateRepository
+    abstract fun bindAuthRepository(authRepositoryImpl: AuthRepositoryImpl): AuthRepository
 
     @Binds
     @Singleton
-    abstract fun bindAuthRepository(
-        authRepositoryImpl: AuthRepositoryImpl
-    ): AuthRepository
+    abstract fun bindExerciseRecordRepository(exerciseRecordRepositoryImpl: ExerciseRecordRepositoryImpl): ExerciseRecordRepository
 
     @Binds
     @Singleton
-    abstract fun bindExerciseRecordRepository(
-        exerciseRecordRepositoryImpl: ExerciseRecordRepositoryImpl
-    ): ExerciseRecordRepository
+    abstract fun bindMemberRepository(memberRepositoryImpl: MemberRepositoryImpl): MemberRepository
 
     @Binds
     @Singleton
-    abstract fun bindMemberRepository(
-        memberRepositoryImpl: MemberRepositoryImpl
-    ): MemberRepository
+    abstract fun bindPolicyRepository(policyRepositoryImpl: PolicyRepositoryImpl): PolicyRepository
 
     @Binds
     @Singleton
-    abstract fun bindPolicyRepository(
-        policyRepositoryImpl: PolicyRepositoryImpl
-    ): PolicyRepository
-
+    abstract fun bindScoreRepository(scoreRepositoryImpl: ScoreRepositoryImpl): ScoreRepository
 
     @Binds
     @Singleton
-    abstract fun bindScoreRepository(
-        scoreRepositoryImpl: ScoreRepositoryImpl
-    ): ScoreRepository
+    abstract fun bindFcmRepository(fcmRepositoryImpl: FcmRepositoryImpl): FcmRepository
 
     @Binds
     @Singleton
-    abstract fun bindFcmRepository(
-        fcmRepositoryImpl: FcmRepositoryImpl
-    ): FcmRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindTimerRepository(
-        timerRepository: TimerRepositoryImpl
-    ): TimerRepository
+    abstract fun bindTimerRepository(timerRepository: TimerRepositoryImpl): TimerRepository
 }

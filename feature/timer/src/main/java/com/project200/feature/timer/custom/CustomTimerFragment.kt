@@ -3,7 +3,6 @@ package com.project200.feature.timer.custom
 import android.animation.ValueAnimator
 import android.content.res.ColorStateList
 import android.media.MediaPlayer
-import android.media.RingtoneManager
 import android.os.Bundle
 import android.view.View
 import android.view.animation.LinearInterpolator
@@ -29,7 +28,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
+class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
     private val viewModel: CustomTimerViewModel by viewModels()
     private val args: CustomTimerFragmentArgs by navArgs()
     private var progressAnimator: ValueAnimator? = null
@@ -42,7 +41,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         return FragmentCustomTimerBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.setTimerId(args.customTimerId)
     }
@@ -61,12 +63,15 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             setSubButton(R.drawable.ic_menu, onClick = { showMenu() })
         }
 
-        requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
-                findNavController().popBackStack()
-            }
-        })
+        requireActivity().onBackPressedDispatcher.addCallback(
+            viewLifecycleOwner,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
+                    findNavController().popBackStack()
+                }
+            },
+        )
 
         context?.let {
             stepFinishPlayer = MediaPlayer.create(it, R.raw.sound_custom_timer)
@@ -95,10 +100,11 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     }
 
     private fun initRecyclerView() {
-        stepRVAdapter = StepRVAdapter { position ->
-            cancelAlarmSound()
-            viewModel.jumpToStep(position)
-        }
+        stepRVAdapter =
+            StepRVAdapter { position ->
+                cancelAlarmSound()
+                viewModel.jumpToStep(position)
+            }
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
             viewModel.steps.observe(viewLifecycleOwner) { steps ->
@@ -143,7 +149,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         // 반복 버튼 UI 상태 업데이트를 위한 Observer
         viewModel.isRepeatEnabled.observe(viewLifecycleOwner) { isEnabled ->
             binding.timerRepeatBtn.setImageResource(
-                if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off
+                if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off,
             )
         }
         // 스텝 종료 알림음을 위한 Observer
@@ -160,7 +166,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         }
 
         viewModel.deleteResult.observe(viewLifecycleOwner) { result ->
-            when(result) {
+            when (result) {
                 is BaseResult.Success -> {
                     findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
                     findNavController().popBackStack()
@@ -170,7 +176,6 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
                     Toast.makeText(requireContext(), getString(R.string.custom_timer_error_delete_failed), Toast.LENGTH_SHORT).show()
                 }
             }
-
         }
 
         // 에러 이벤트 처리
@@ -186,9 +191,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
     private fun updateRunningState(isRunning: Boolean) {
         if (isRunning) {
-            binding.timerPlayBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led)
-            )
+            binding.timerPlayBtn.backgroundTintList =
+                ColorStateList.valueOf(
+                    getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led),
+                )
             binding.timerPlayBtn.text = getString(R.string.timer_stop)
 
             // 재생 중인 알림음이 있다면 일시정지
@@ -196,9 +202,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
 
             startProgressBarAnimation()
         } else {
-            binding.timerPlayBtn.backgroundTintList = ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.main)
-            )
+            binding.timerPlayBtn.backgroundTintList =
+                ColorStateList.valueOf(
+                    getColor(requireContext(), com.project200.undabang.presentation.R.color.main),
+                )
             binding.timerPlayBtn.text = getString(R.string.timer_start)
 
             if (viewModel.isTimerFinished.value != true) {
@@ -210,9 +217,10 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
     }
 
     private fun updateUIForTimerEnd() {
-        binding.timerPlayBtn.backgroundTintList = ColorStateList.valueOf(
-            getColor(requireContext(), com.project200.undabang.presentation.R.color.main)
-        )
+        binding.timerPlayBtn.backgroundTintList =
+            ColorStateList.valueOf(
+                getColor(requireContext(), com.project200.undabang.presentation.R.color.main),
+            )
         binding.timerPlayBtn.text = getString(R.string.timer_start)
         binding.timerProgressbar.progress = 1f // 종료 후엔 다시 100%로 설정
         progressAnimator?.cancel()
@@ -238,16 +246,17 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
         val startProgress = (remainingTime.toFloat() / totalStepTime.toFloat()).coerceAtMost(1.0f)
 
         if (totalStepTime > 0 && remainingTime > 0) {
-            progressAnimator = ValueAnimator.ofFloat(startProgress, 0f).apply {
-                duration = remainingTime
-                interpolator = LinearInterpolator()
-                addUpdateListener { animator ->
-                    if (view != null) {
-                        binding.timerProgressbar.progress = animator.animatedValue as Float
+            progressAnimator =
+                ValueAnimator.ofFloat(startProgress, 0f).apply {
+                    duration = remainingTime
+                    interpolator = LinearInterpolator()
+                    addUpdateListener { animator ->
+                        if (view != null) {
+                            binding.timerProgressbar.progress = animator.animatedValue as Float
+                        }
                     }
+                    start()
                 }
-                start()
-            }
         }
     }
 
@@ -277,8 +286,8 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             onEditClicked = {
                 findNavController().navigate(
                     CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
-                        args.customTimerId
-                    )
+                        args.customTimerId,
+                    ),
                 )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() },
@@ -291,7 +300,7 @@ class CustomTimerFragment: BindingFragment<FragmentCustomTimerBinding>(R.layout.
             desc = null,
             onConfirmClicked = {
                 viewModel.deleteTimer()
-            }
+            },
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }
 

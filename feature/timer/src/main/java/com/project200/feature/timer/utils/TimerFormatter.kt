@@ -8,6 +8,7 @@ object TimerFormatter {
         val seconds = this % 60
         return "${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}"
     }
+
     fun Long.toFormattedTimeAsLong(): String {
         val totalSeconds = ceil(this / 1000.0).toLong()
         val minutes = totalSeconds / 60

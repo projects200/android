@@ -9,55 +9,60 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class TokenInterceptor @Inject constructor(
-    private val authStateManager: AuthStateManager,
-    private val fcmTokenProvider: FcmTokenProvider
-) : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val originalRequest = chain.request()
+class TokenInterceptor
+    @Inject
+    constructor(
+        private val authStateManager: AuthStateManager,
+        private val fcmTokenProvider: FcmTokenProvider,
+    ) : Interceptor {
+        override fun intercept(chain: Interceptor.Chain): Response {
+            val originalRequest = chain.request()
 
-        // HTTP 메서드(GET, POST 등)에 접근
-        val httpMethod = originalRequest.method
+            // HTTP 메서드(GET, POST 등)에 접근
+            val httpMethod = originalRequest.method
 
-        // Retrofit 어노테이션 정보를 가져오기
-        val invocation = originalRequest.tag(Invocation::class.java)
-        val method = invocation?.method()
+            // Retrofit 어노테이션 정보를 가져오기
+            val invocation = originalRequest.tag(Invocation::class.java)
+            val method = invocation?.method()
 
-        // 토큰 타입 결정
-        val tokenType: TokenType = when {
-            method?.isAnnotationPresent(AccessTokenApi::class.java) == true -> TokenType.ACCESS
-            method?.isAnnotationPresent(AccessTokenWithFcmApi::class.java) == true -> TokenType.ACCESS_WITH_FCM
-            method?.isAnnotationPresent(IdTokenApi::class.java) == true -> TokenType.ID
-            else -> TokenType.ACCESS // 기본값으로 Access 토큰을 사용하도록 설정
-        }
-
-        // 토큰 타입에 따라 헤더 추가
-        val requestBuilder = originalRequest.newBuilder()
-        when (tokenType) {
-            TokenType.ACCESS -> {
-                authStateManager.getCurrent().accessToken?.let { accessToken ->
-                    requestBuilder.header("Authorization", "Bearer $accessToken")
-                } ?: Timber.w("Access Token is null for $httpMethod ${originalRequest.url}")
-            }
-            TokenType.ID -> {
-                authStateManager.getCurrent().idToken?.let { idToken ->
-                    requestBuilder.header("Authorization", "Bearer $idToken")
-                } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
-            }
-            TokenType.ACCESS_WITH_FCM -> {
-                authStateManager.getCurrent().accessToken?.let { accessToken ->
-                    requestBuilder.header("Authorization", "Bearer $accessToken")
+            // 토큰 타입 결정
+            val tokenType: TokenType =
+                when {
+                    method?.isAnnotationPresent(AccessTokenApi::class.java) == true -> TokenType.ACCESS
+                    method?.isAnnotationPresent(AccessTokenWithFcmApi::class.java) == true -> TokenType.ACCESS_WITH_FCM
+                    method?.isAnnotationPresent(IdTokenApi::class.java) == true -> TokenType.ID
+                    else -> TokenType.ACCESS // 기본값으로 Access 토큰을 사용하도록 설정
                 }
-                fcmTokenProvider.getFcmToken()?.let { fcmToken ->
-                    requestBuilder.header("X-Fcm-Token", fcmToken)
+
+            // 토큰 타입에 따라 헤더 추가
+            val requestBuilder = originalRequest.newBuilder()
+            when (tokenType) {
+                TokenType.ACCESS -> {
+                    authStateManager.getCurrent().accessToken?.let { accessToken ->
+                        requestBuilder.header("Authorization", "Bearer $accessToken")
+                    } ?: Timber.w("Access Token is null for $httpMethod ${originalRequest.url}")
+                }
+                TokenType.ID -> {
+                    authStateManager.getCurrent().idToken?.let { idToken ->
+                        requestBuilder.header("Authorization", "Bearer $idToken")
+                    } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
+                }
+                TokenType.ACCESS_WITH_FCM -> {
+                    authStateManager.getCurrent().accessToken?.let { accessToken ->
+                        requestBuilder.header("Authorization", "Bearer $accessToken")
+                    }
+                    fcmTokenProvider.getFcmToken()?.let { fcmToken ->
+                        requestBuilder.header("X-Fcm-Token", fcmToken)
+                    }
                 }
             }
-        }
 
-        return chain.proceed(requestBuilder.build())
+            return chain.proceed(requestBuilder.build())
+        }
     }
-}
 
 enum class TokenType {
-    ACCESS, ID, ACCESS_WITH_FCM
+    ACCESS,
+    ID,
+    ACCESS_WITH_FCM,
 }
