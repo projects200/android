@@ -86,7 +86,7 @@ class MemberRepositoryImpl
         }
 
         override suspend fun addProfileImage(image: String): BaseResult<Unit> {
-            val imagePart = image.toUri().toMultipartBodyPart(context, "my-profile")
+            val imagePart = image.toUri().toMultipartBodyPart(context, "profilePicture")
             if (imagePart == null) {
                 // Multipart 변환 실패
                 return BaseResult.Error(IMAGE_PART_ERROR, "")

@@ -201,4 +201,10 @@ class ProfileEditViewModel
                 }
             }
         }
+
+        fun postImageError(error: ProfileEditErrorType) {
+            viewModelScope.launch {
+                _errorType.emit(error)
+            }
+        }
     }

@@ -88,7 +88,7 @@ object ImageUtils {
                 Timber.tag(TAG).d("Compressing as PNG")
             } else { // 기본적으로 JPEG 사용 (jpg, jpeg, 기타 이미지 타입 포함)
                 outputFormat = Bitmap.CompressFormat.JPEG
-                outputExtension = ".jpg"
+                outputExtension = ".jpeg"
                 Timber.tag(TAG).d("Compressing as JPEG")
             }
 

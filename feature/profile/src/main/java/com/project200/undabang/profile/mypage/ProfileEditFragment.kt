@@ -12,7 +12,10 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.project200.common.constants.RuleConstants
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.ImageUtils.compressImage
+import com.project200.presentation.utils.ImageValidator
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentProfileEditBinding
 import com.project200.undabang.profile.utils.NicknameValidationState
@@ -27,10 +30,35 @@ class ProfileEditFragment :
 
     private val pickImageLauncher =
         registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            // 사용자가 이미지를 선택하면 이 콜백이 실행됩니다.
-            uri?.let {
-                // 선택된 이미지 URI를 ViewModel에 전달
-                viewModel.updateProfileImageUri(it)
+            uri?.let { selectedUri ->
+                // 이미지 유효성 검사 시작
+                val (isValid, reason) = ImageValidator.validateImageFile(selectedUri, requireContext())
+
+                if (isValid) {
+                    // 유효성 검사 통과 시 ViewModel에 URI 전달
+                    viewModel.updateProfileImageUri(selectedUri)
+                } else {
+                    when (reason) {
+                        // 용량이 클 경우 압축 시도
+                        ImageValidator.OVERSIZE -> {
+                            val compressedUri = compressImage(requireContext(), selectedUri)
+                            if (compressedUri != null) {
+                                viewModel.updateProfileImageUri(compressedUri)
+                            } else {
+                                // 압축 실패 시 에러 메시지 표시
+                                viewModel.postImageError(ProfileEditErrorType.IMAGE_READ_FAILED)
+                            }
+                        }
+                        // 잘못된 파일 타입일 경우
+                        ImageValidator.INVALID_TYPE -> {
+                            viewModel.postImageError(ProfileEditErrorType.IMAGE_INVALID_TYPE)
+                        }
+                        // 파일을 읽을 수 없을 경우
+                        ImageValidator.FAIL_TO_READ -> {
+                            viewModel.postImageError(ProfileEditErrorType.IMAGE_READ_FAILED)
+                        }
+                    }
+                }
             }
         }
 
@@ -147,15 +175,21 @@ class ProfileEditFragment :
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
                     viewModel.errorType.collect { type ->
-                        val messageResId =
+                        val str =
                             when (type) {
-                                ProfileEditErrorType.LOAD_FAILED -> R.string.error_failed_to_load
-                                ProfileEditErrorType.SAME_AS_ORIGINAL -> R.string.same_nickname
-                                ProfileEditErrorType.CHECK_DUPLICATE_FAILED -> R.string.error_unknown
-                                ProfileEditErrorType.NO_CHANGE -> R.string.error_no_changed
-                                ProfileEditErrorType.NO_DUPLICATE_CHECKED -> R.string.error_no_duplicate_checked
+                                ProfileEditErrorType.LOAD_FAILED -> getString(R.string.error_failed_to_load)
+                                ProfileEditErrorType.SAME_AS_ORIGINAL -> getString(R.string.same_nickname)
+                                ProfileEditErrorType.CHECK_DUPLICATE_FAILED -> getString(R.string.error_unknown)
+                                ProfileEditErrorType.NO_CHANGE -> getString(R.string.error_no_changed)
+                                ProfileEditErrorType.NO_DUPLICATE_CHECKED -> getString(R.string.error_no_duplicate_checked)
+                                ProfileEditErrorType.IMAGE_INVALID_TYPE ->
+                                    getString(
+                                        R.string.image_error_invalid_type,
+                                        RuleConstants.ALLOWED_EXTENSIONS.joinToString(", "),
+                                    )
+                                ProfileEditErrorType.IMAGE_READ_FAILED -> getString(R.string.image_error_file_read)
                             }
-                        Toast.makeText(requireContext(), getString(messageResId), Toast.LENGTH_SHORT)
+                        Toast.makeText(requireContext(), str, Toast.LENGTH_SHORT)
                             .show()
                     }
                 }
