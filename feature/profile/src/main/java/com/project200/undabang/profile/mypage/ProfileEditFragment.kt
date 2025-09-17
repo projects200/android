@@ -23,6 +23,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class ProfileEditFragment :
     BindingFragment<FragmentProfileEditBinding>(R.layout.fragment_profile_edit) {
+
     private val viewModel: ProfileEditViewModel by viewModels()
 
     private val pickImageLauncher =
@@ -49,7 +50,7 @@ class ProfileEditFragment :
     private fun initListeners() {
         binding.nicknameEt.doAfterTextChanged {
             viewModel.updateNickname(it.toString())
-            //TODO: 닉네임 중복체크 해제처리
+            // TODO: 닉네임 중복체크 해제처리
         }
 
         binding.duplicateCheckBtn.setOnClickListener {
@@ -73,7 +74,7 @@ class ProfileEditFragment :
         }
 
         binding.profileEditCompleteBtn.setOnClickListener {
-            //TODO: 프로필 수정 완료
+            // TODO: 프로필 수정 완료
         }
 
         binding.profileImgIv.setOnClickListener {
@@ -161,9 +162,7 @@ class ProfileEditFragment :
         }
     }
 
-    private fun setupProfileImage(
-        imageUrl: String?,
-    ) {
+    private fun setupProfileImage(imageUrl: String?) {
         Glide.with(binding.profileImgIv)
             .load(imageUrl)
             .placeholder(R.drawable.ic_profile_default)
@@ -176,5 +175,4 @@ class ProfileEditFragment :
         const val FEMALE = "FEMALE"
         const val HIDDEN = "UNKNOWN"
     }
-
 }

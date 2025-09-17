@@ -2,11 +2,9 @@ package com.project200.undabang.profile.mypage
 
 import android.net.Uri
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project200.common.utils.toLocalDate
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
@@ -19,11 +17,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileEditViewModel @Inject constructor(
+class ProfileEditViewModel
+@Inject
+constructor(
     private val validateNicknameUseCase: ValidateNicknameUseCase,
     private val getUserProfileUseCase: GetUserProfileUseCase,
     private val checkNicknameDuplicatedUseCase: CheckNicknameDuplicatedUseCase,
@@ -44,7 +43,8 @@ class ProfileEditViewModel @Inject constructor(
     val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
 
     // 닉네임 유효성 검사 결과를 UI에 전달하기 위한 LiveData
-    private val _nicknameValidationState = MutableLiveData<NicknameValidationState>(NicknameValidationState.INVISIBLE)
+    private val _nicknameValidationState =
+        MutableLiveData<NicknameValidationState>(NicknameValidationState.INVISIBLE)
     val nicknameValidationState: LiveData<NicknameValidationState> = _nicknameValidationState
 
     // 중복 확인 버튼 활성화 여부 및 중복 체크 완료 상태를 관리
@@ -97,6 +97,10 @@ class ProfileEditViewModel @Inject constructor(
         // TODO: 닉네임 중복 확인 api
     }
 
+    fun updateProfileImageUri(uri: Uri?) {
+        _newProfileImageUri.value = uri
+    }
+
     fun checkIsNicknameDuplicated() {
         val currentNickname = _nickname.value.orEmpty()
 
@@ -125,15 +129,11 @@ class ProfileEditViewModel @Inject constructor(
                         _isNicknameChecked.value = true // 중복 체크 완료 플래그 활성화
                     }
                 }
+
                 is BaseResult.Error -> {
                     _errorType.emit(ProfileEditErrorType.CHECK_DUPLICATE_FAILED)
                 }
             }
         }
-    }
-
-
-    fun updateProfileImageUri(uri: Uri?) {
-        _newProfileImageUri.value = uri
     }
 }
