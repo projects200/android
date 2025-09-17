@@ -43,17 +43,19 @@ fun GetProfileDTO.toModel(): UserProfile {
 
 fun GetProfileImageResponseDto.toModel(): ProfileImageList {
     return ProfileImageList(
-        thumbnail = this.representativeProfileImage?.let {
-            ProfileImage(
-                id = this.representativeProfileImage.profileImageId,
-                url = this.representativeProfileImage.profileImageUrl
-            )
-        },
-        images = this.profileImages.map {
-            ProfileImage(
-                id = it.profileImageId,
-                url = it.profileImageUrl
-            )
-        }
+        thumbnail =
+            this.representativeProfileImage?.let {
+                ProfileImage(
+                    id = this.representativeProfileImage.profileImageId,
+                    url = this.representativeProfileImage.profileImageUrl,
+                )
+            },
+        images =
+            this.profileImages.map {
+                ProfileImage(
+                    id = it.profileImageId,
+                    url = it.profileImageUrl,
+                )
+            },
     )
 }

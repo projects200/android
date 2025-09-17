@@ -11,13 +11,18 @@ import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.ItemProfileImageBinding
 
 class ProfileImageAdapter : ListAdapter<ProfileImage, ProfileImageAdapter.ImageViewHolder>(ImageDiffCallback) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ImageViewHolder {
         val binding = ItemProfileImageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ImageViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ImageViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ImageViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
@@ -31,16 +36,23 @@ class ProfileImageAdapter : ListAdapter<ProfileImage, ProfileImageAdapter.ImageV
     }
 
     companion object {
-        private val ImageDiffCallback = object : DiffUtil.ItemCallback<ProfileImage>() {
-            override fun areItemsTheSame(oldItem: ProfileImage, newItem: ProfileImage): Boolean {
-                // 각 아이템의 고유 ID로 비교
-                return oldItem.id == newItem.id
-            }
+        private val ImageDiffCallback =
+            object : DiffUtil.ItemCallback<ProfileImage>() {
+                override fun areItemsTheSame(
+                    oldItem: ProfileImage,
+                    newItem: ProfileImage,
+                ): Boolean {
+                    // 각 아이템의 고유 ID로 비교
+                    return oldItem.id == newItem.id
+                }
 
-            override fun areContentsTheSame(oldItem: ProfileImage, newItem: ProfileImage): Boolean {
-                // 아이템의 내용(데이터)이 같은지 비교
-                return oldItem == newItem
+                override fun areContentsTheSame(
+                    oldItem: ProfileImage,
+                    newItem: ProfileImage,
+                ): Boolean {
+                    // 아이템의 내용(데이터)이 같은지 비교
+                    return oldItem == newItem
+                }
             }
-        }
     }
 }

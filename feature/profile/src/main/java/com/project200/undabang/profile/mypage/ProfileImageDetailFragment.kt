@@ -14,14 +14,12 @@ import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentProfileImageDetailBinding
-import com.project200.undabang.profile.utils.ProfileImageErrorType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import kotlin.getValue
 
 @AndroidEntryPoint
-class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBinding> (R.layout.fragment_profile_image_detail) {
+class ProfileImageDetailFragment : BindingFragment<FragmentProfileImageDetailBinding> (R.layout.fragment_profile_image_detail) {
     private val viewModel: ProfileImageDetailViewModel by viewModels()
     private lateinit var profileImageAdapter: ProfileImageAdapter
 
@@ -37,13 +35,15 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
     }
 
     private fun initListeners() {
-        binding.profileImageVp.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
-            override fun onPageSelected(position: Int) {
-                super.onPageSelected(position)
-                val currentPage = position + 1
-                binding.currentPageTv.text = currentPage.toString()
-            }
-        })
+        binding.profileImageVp.registerOnPageChangeCallback(
+            object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    super.onPageSelected(position)
+                    val currentPage = position + 1
+                    binding.currentPageTv.text = currentPage.toString()
+                }
+            },
+        )
         binding.backBtn.setOnClickListener {
             findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
             findNavController().popBackStack()
@@ -73,7 +73,7 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
             val currentItem = binding.profileImageVp.currentItem
             binding.currentPageTv.text = getString(R.string.number_format, currentItem + 1)
 
-            binding.menuBtn.visibility = if(images[0].id == EMPTY_ID) View.GONE else View.VISIBLE
+            binding.menuBtn.visibility = if (images[0].id == EMPTY_ID) View.GONE else View.VISIBLE
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -86,30 +86,33 @@ class ProfileImageDetailFragment: BindingFragment<FragmentProfileImageDetailBind
 
                 launch {
                     viewModel.imageSaveResult.collect { result ->
-                        val message = when (result) {
-                            true -> getString(R.string.image_save_success)
-                            false -> getString(R.string.image_save_failed)
-                        }
+                        val message =
+                            when (result) {
+                                true -> getString(R.string.image_save_success)
+                                false -> getString(R.string.image_save_failed)
+                            }
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
 
                 launch {
                     viewModel.imageDeleteResult.collect { result ->
-                        val message = when (result) {
-                            is BaseResult.Success -> getString(R.string.image_delete_success)
-                            is BaseResult.Error -> getString(R.string.error_faild_to_delete_profile_image)
-                        }
+                        val message =
+                            when (result) {
+                                is BaseResult.Success -> getString(R.string.image_delete_success)
+                                is BaseResult.Error -> getString(R.string.error_faild_to_delete_profile_image)
+                            }
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
 
                 launch {
                     viewModel.changeThumbnailResult.collect { result ->
-                        val message = when (result) {
-                            is BaseResult.Success -> getString(R.string.change_thumbnail_success)
-                            is BaseResult.Error -> getString(R.string.change_thumbnail_failed)
-                        }
+                        val message =
+                            when (result) {
+                                is BaseResult.Success -> getString(R.string.change_thumbnail_success)
+                                is BaseResult.Error -> getString(R.string.change_thumbnail_failed)
+                            }
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }

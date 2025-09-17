@@ -11,7 +11,6 @@ import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.Glide
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ProfileImage
-import com.project200.domain.model.ProfileImageList
 import com.project200.domain.usecase.ChangeThumbnailUseCase
 import com.project200.domain.usecase.DeleteProfileImageUseCase
 import com.project200.domain.usecase.GetProfileImagesUseCase
@@ -22,162 +21,165 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.io.IOException
 import javax.inject.Inject
 
 @HiltViewModel
-class ProfileImageDetailViewModel @Inject constructor(
-    private val getProfileImagesUseCase: GetProfileImagesUseCase,
-    private val deleteProfileImageUseCase: DeleteProfileImageUseCase,
-    @ApplicationContext private val context: Context,
-    private val changeThumbnailUseCase: ChangeThumbnailUseCase
-): ViewModel() {
+class ProfileImageDetailViewModel
+    @Inject
+    constructor(
+        private val getProfileImagesUseCase: GetProfileImagesUseCase,
+        private val deleteProfileImageUseCase: DeleteProfileImageUseCase,
+        @ApplicationContext private val context: Context,
+        private val changeThumbnailUseCase: ChangeThumbnailUseCase,
+    ) : ViewModel() {
+        private val _profileImages = MutableLiveData<List<ProfileImage>>()
+        val profileImages: LiveData<List<ProfileImage>> = _profileImages
 
-    private val _profileImages = MutableLiveData<List<ProfileImage>>()
-    val profileImages: LiveData<List<ProfileImage>> = _profileImages
+        private val _getProfileImageErrorToast = MutableSharedFlow<ProfileImageErrorType>()
+        val getProfileImageErrorToast: SharedFlow<ProfileImageErrorType> = _getProfileImageErrorToast
 
-    private val _getProfileImageErrorToast = MutableSharedFlow<ProfileImageErrorType>()
-    val getProfileImageErrorToast: SharedFlow<ProfileImageErrorType> = _getProfileImageErrorToast
+        private val _imageSaveResult = MutableSharedFlow<Boolean>()
+        val imageSaveResult: SharedFlow<Boolean> = _imageSaveResult
 
-    private val _imageSaveResult = MutableSharedFlow<Boolean>()
-    val imageSaveResult: SharedFlow<Boolean> = _imageSaveResult
+        private val _imageDeleteResult = MutableSharedFlow<BaseResult<Unit>>()
+        val imageDeleteResult: SharedFlow<BaseResult<Unit>> = _imageDeleteResult
 
-    private val _imageDeleteResult = MutableSharedFlow<BaseResult<Unit>>()
-    val imageDeleteResult: SharedFlow<BaseResult<Unit>> = _imageDeleteResult
+        private val _changeThumbnailResult = MutableSharedFlow<BaseResult<Unit>>()
+        val changeThumbnailResult: SharedFlow<BaseResult<Unit>> = _changeThumbnailResult
 
-    private val _changeThumbnailResult = MutableSharedFlow<BaseResult<Unit>>()
-    val changeThumbnailResult: SharedFlow<BaseResult<Unit>> = _changeThumbnailResult
+        init {
+            getProfileImageList()
+        }
 
-    init {
-        getProfileImageList()
-    }
+        fun getProfileImageList() {
+            viewModelScope.launch {
+                when (val result = getProfileImagesUseCase()) {
+                    is BaseResult.Success -> {
+                        val imageList = result.data
+                        val displayList = mutableListOf<ProfileImage>()
 
-    fun getProfileImageList() {
-        viewModelScope.launch {
-            when(val result = getProfileImagesUseCase()) {
-                is BaseResult.Success -> {
-                    val imageList = result.data
-                    val displayList = mutableListOf<ProfileImage>()
+                        // 썸네일과 이미지 리스트가 모두 비어있는지 확인
+                        if (imageList.thumbnail == null && imageList.images.isEmpty()) {
+                            // 더미 이미지 아이템을 리스트에 추가
+                            displayList.add(ProfileImage(id = EMPTY_ID, url = ""))
+                        } else {
+                            // 이미지가 있는 경우, 썸네일을 맨 앞에 추가
+                            imageList.thumbnail?.let { thumbnail ->
+                                displayList.add(thumbnail)
+                                displayList.addAll(imageList.images.filter { it.id != thumbnail.id })
+                            } ?: run {
+                                // 썸네일은 없지만 일반 이미지는 있는 경우
+                                displayList.addAll(imageList.images)
+                            }
+                        }
+                        _profileImages.value = displayList
+                    }
+                    is BaseResult.Error -> {
+                        _getProfileImageErrorToast.emit(ProfileImageErrorType.LOAD_FAILED)
+                    }
+                }
+            }
+        }
 
-                    // 썸네일과 이미지 리스트가 모두 비어있는지 확인
-                    if (imageList.thumbnail == null && imageList.images.isEmpty()) {
-                        // 더미 이미지 아이템을 리스트에 추가
-                        displayList.add(ProfileImage(id = EMPTY_ID, url = ""))
-                    } else {
-                        // 이미지가 있는 경우, 썸네일을 맨 앞에 추가
-                        imageList.thumbnail?.let { thumbnail ->
-                            displayList.add(thumbnail)
-                            displayList.addAll(imageList.images.filter { it.id != thumbnail.id })
-                        } ?: run {
-                            // 썸네일은 없지만 일반 이미지는 있는 경우
-                            displayList.addAll(imageList.images)
+        /**
+         * URL로부터 이미지를 다운로드하여 갤러리에 저장합니다.
+         * @param context ContentResolver를 사용하기 위해 필요합니다.
+         * @param imageUrl 저장할 이미지의 URL
+         */
+        fun saveImageToGallery(imageUrl: String) {
+            viewModelScope.launch(Dispatchers.IO) {
+                try {
+                    // Glide를 사용해 URL로부터 이미지를 Bitmap으로 변환합니다.
+                    val bitmap =
+                        Glide.with(context)
+                            .asBitmap()
+                            .load(imageUrl)
+                            .submit()
+                            .get()
+
+                    // MediaStore에 저장할 이미지의 메타데이터를 설정합니다.
+                    val contentValues =
+                        ContentValues().apply {
+                            // 파일명 (중복되지 않도록 현재 시간 사용)
+                            put(MediaStore.Images.Media.DISPLAY_NAME, "IMG_${System.currentTimeMillis()}.jpg")
+                            // 저장될 경로
+                            put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/운다방") // 앱 이름 폴더에 저장
+                            // 파일 타입
+                            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                            // 파일을 쓰는 중에는 다른 곳에서 접근할 수 없도록 설정
+                            put(MediaStore.Images.Media.IS_PENDING, 1)
+                        }
+
+                    val contentResolver = context.contentResolver
+                    // MediaStore에 새로운 이미지 항목을 생성하고 Uri를 받습니다.
+                    val uri =
+                        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+                            ?: throw IOException()
+
+                    // Uri를 통해 OutputStream을 열고, Bitmap 데이터를 압축하여 저장합니다.
+                    contentResolver.openOutputStream(uri)?.use { stream ->
+                        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, QUALITY, stream)) {
+                            throw IOException()
                         }
                     }
-                    _profileImages.value = displayList
-                }
-                is BaseResult.Error -> {
-                    _getProfileImageErrorToast.emit(ProfileImageErrorType.LOAD_FAILED)
+
+                    // IS_PENDING 값을 0으로 업데이트하여 파일을 다른 앱에 노출시킵니다.
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    contentResolver.update(uri, contentValues, null, null)
+
+                    _imageSaveResult.emit(true)
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    _imageSaveResult.emit(false)
                 }
             }
         }
-    }
 
-    /**
-     * URL로부터 이미지를 다운로드하여 갤러리에 저장합니다.
-     * @param context ContentResolver를 사용하기 위해 필요합니다.
-     * @param imageUrl 저장할 이미지의 URL
-     */
-    fun saveImageToGallery(imageUrl: String) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                // Glide를 사용해 URL로부터 이미지를 Bitmap으로 변환합니다.
-                val bitmap = Glide.with(context)
-                    .asBitmap()
-                    .load(imageUrl)
-                    .submit()
-                    .get()
+        fun deleteImage(pictureId: Long) {
+            viewModelScope.launch {
+                val result = deleteProfileImageUseCase(pictureId)
 
-                // MediaStore에 저장할 이미지의 메타데이터를 설정합니다.
-                val contentValues = ContentValues().apply {
-                    // 파일명 (중복되지 않도록 현재 시간 사용)
-                    put(MediaStore.Images.Media.DISPLAY_NAME, "IMG_${System.currentTimeMillis()}.jpg")
-                    // 저장될 경로
-                    put(MediaStore.Images.Media.RELATIVE_PATH, "Pictures/운다방") // 앱 이름 폴더에 저장
-                    // 파일 타입
-                    put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-                    // 파일을 쓰는 중에는 다른 곳에서 접근할 수 없도록 설정
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                }
+                if (result is BaseResult.Success) {
+                    val currentList = _profileImages.value ?: return@launch
 
-                val contentResolver = context.contentResolver
-                // MediaStore에 새로운 이미지 항목을 생성하고 Uri를 받습니다.
-                val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-                    ?: throw IOException()
+                    var updatedList = currentList.filter { it.id != pictureId }
 
-                // Uri를 통해 OutputStream을 열고, Bitmap 데이터를 압축하여 저장합니다.
-                contentResolver.openOutputStream(uri)?.use { stream ->
-                    if (!bitmap.compress(Bitmap.CompressFormat.JPEG, QUALITY, stream)) {
-                        throw IOException()
+                    // 만약 리스트가 비게 되었다면, 더미 아이템을 추가합니다.
+                    if (updatedList.isEmpty()) {
+                        updatedList = listOf(ProfileImage(id = EMPTY_ID, url = ""))
                     }
+                    _profileImages.value = updatedList
                 }
-
-                // IS_PENDING 값을 0으로 업데이트하여 파일을 다른 앱에 노출시킵니다.
-                contentValues.clear()
-                contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
-                contentResolver.update(uri, contentValues, null, null)
-
-                _imageSaveResult.emit(true)
-
-            } catch (e: Exception) {
-                e.printStackTrace()
-                _imageSaveResult.emit(false)
+                _imageDeleteResult.emit(result)
             }
         }
-    }
 
-    fun deleteImage(pictureId: Long) {
-        viewModelScope.launch {
-            val result = deleteProfileImageUseCase(pictureId)
-
-            if (result is BaseResult.Success) {
+        fun changeThumbnail(pictureId: Long) {
+            viewModelScope.launch {
                 val currentList = _profileImages.value ?: return@launch
+                val result = changeThumbnailUseCase(pictureId)
 
-                var updatedList = currentList.filter { it.id != pictureId }
+                if (result is BaseResult.Success) {
+                    val newThumbnail = currentList.find { it.id == pictureId } ?: return@launch
+                    val otherImages = currentList.filter { it.id != pictureId }
 
-                // 만약 리스트가 비게 되었다면, 더미 아이템을 추가합니다.
-                if (updatedList.isEmpty()) {
-                    updatedList = listOf(ProfileImage(id = EMPTY_ID, url = ""))
+                    // 새로운 대표 이미지를 맨 앞에 놓고, 그 뒤에 나머지 이미지들을 붙여 새로운 리스트를 생성합니다.
+                    val updatedList =
+                        mutableListOf<ProfileImage>().apply {
+                            add(newThumbnail)
+                            addAll(otherImages)
+                        }
+
+                    _profileImages.value = updatedList
                 }
-                _profileImages.value = updatedList
+                _changeThumbnailResult.emit(result)
             }
-            _imageDeleteResult.emit(result)
+        }
+
+        companion object {
+            const val EMPTY_ID = -1L
+            const val QUALITY = 95
         }
     }
-
-    fun changeThumbnail(pictureId: Long) {
-        viewModelScope.launch {
-            val currentList = _profileImages.value ?: return@launch
-            val result = changeThumbnailUseCase(pictureId)
-
-            if(result is BaseResult.Success) {
-                val newThumbnail = currentList.find { it.id == pictureId } ?: return@launch
-                val otherImages = currentList.filter { it.id != pictureId }
-
-                // 새로운 대표 이미지를 맨 앞에 놓고, 그 뒤에 나머지 이미지들을 붙여 새로운 리스트를 생성합니다.
-                val updatedList = mutableListOf<ProfileImage>().apply {
-                    add(newThumbnail)
-                    addAll(otherImages)
-                }
-
-                _profileImages.value = updatedList
-            }
-            _changeThumbnailResult.emit(result)
-        }
-    }
-
-    companion object {
-        const val EMPTY_ID = -1L
-        const val QUALITY = 95
-    }
-}
