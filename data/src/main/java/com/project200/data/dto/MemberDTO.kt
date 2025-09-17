@@ -32,3 +32,10 @@ data class PreferredExerciseDTO(
     val daysOfWeek: List<Boolean>,
     val imageUrl: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class PutProfileRequest(
+    val nickname: String,
+    val gender: String,
+    val bio: String,
+)

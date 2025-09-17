@@ -22,6 +22,7 @@ import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
+import com.project200.data.dto.PutProfileRequest
 import com.project200.data.dto.SimpleTimerIdDTO
 import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
@@ -68,10 +69,26 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getProfile(): BaseResponse<GetProfileDTO>
 
+    // 닉네임 중복 체크
     @GET("open/v1/nicknames/check")
     suspend fun getIsNicknameDuplicated(
         @Query("nickname") nickname: String,
     ): BaseResponse<GetIsNicknameDuplicated>
+
+    // 프로필 수정
+    @PUT("api/v1/profile")
+    @AccessTokenApi
+    suspend fun editProfile(
+        @Body profile: PutProfileRequest,
+    ): BaseResponse<Any?>
+
+    // 프로필 사진 생성
+    @Multipart
+    @POST("api/v1/profile-pictures")
+    @AccessTokenApi
+    suspend fun postProfileImage(
+        @Part profilePicture: MultipartBody.Part,
+    ): BaseResponse<Any?>
 
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")

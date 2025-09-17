@@ -7,4 +7,6 @@ import com.project200.domain.model.UserProfile
 interface MemberRepository {
     suspend fun getScore(): BaseResult<Score>
     suspend fun getUserProfile(): BaseResult<UserProfile>
+    suspend fun editUserProfile(nickname: String, gender: String, introduction: String): BaseResult<Unit>
+    suspend fun addProfileImage(uri: String): BaseResult<Unit>
 }

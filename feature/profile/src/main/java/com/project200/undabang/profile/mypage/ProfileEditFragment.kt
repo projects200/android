@@ -49,7 +49,6 @@ class ProfileEditFragment :
     private fun initListeners() {
         binding.nicknameEt.doAfterTextChanged {
             viewModel.updateNickname(it.toString())
-            // TODO: 닉네임 중복체크 해제처리
         }
 
         binding.duplicateCheckBtn.setOnClickListener {
@@ -73,7 +72,7 @@ class ProfileEditFragment :
         }
 
         binding.profileEditCompleteBtn.setOnClickListener {
-            // TODO: 프로필 수정 완료
+            viewModel.completeEditProfile()
         }
 
         binding.profileImgIv.setOnClickListener {
@@ -146,16 +145,31 @@ class ProfileEditFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             // UI가 STARTED 상태일 때만 수집하고, STOPPED 상태가 되면 중단
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.errorType.collect { type ->
-                    val messageResId =
-                        when (type) {
-                            ProfileEditErrorType.LOAD_FAILED -> R.string.error_failed_to_load
-                            ProfileEditErrorType.SAME_AS_ORIGINAL -> R.string.same_nickname
-                            ProfileEditErrorType.CHECK_DUPLICATE_FAILED -> R.string.error_unknown
-                            // 수정 완료 에러 추가
+                launch {
+                    viewModel.errorType.collect { type ->
+                        val messageResId =
+                            when (type) {
+                                ProfileEditErrorType.LOAD_FAILED -> R.string.error_failed_to_load
+                                ProfileEditErrorType.SAME_AS_ORIGINAL -> R.string.same_nickname
+                                ProfileEditErrorType.CHECK_DUPLICATE_FAILED -> R.string.error_unknown
+                                ProfileEditErrorType.NO_CHANGE -> R.string.error_no_changed
+                                ProfileEditErrorType.NO_DUPLICATE_CHECKED -> R.string.error_no_duplicate_checked
+                            }
+                        Toast.makeText(requireContext(), getString(messageResId), Toast.LENGTH_SHORT)
+                            .show()
+                    }
+                }
+
+                launch {
+                    viewModel.editResult.collect { result ->
+                        if (result) {
+                            Toast.makeText(requireContext(), R.string.edit_profile_success, Toast.LENGTH_SHORT).show()
+                            findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
+                            findNavController().popBackStack()
+                        } else {
+                            Toast.makeText(requireContext(), R.string.error_edit_failed, Toast.LENGTH_SHORT).show()
                         }
-                    Toast.makeText(requireContext(), getString(messageResId), Toast.LENGTH_SHORT)
-                        .show()
+                    }
                 }
             }
         }
