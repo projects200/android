@@ -73,14 +73,14 @@ interface ApiService {
     // 닉네임 중복 체크
     @GET("open/v1/nicknames/check")
     suspend fun getIsNicknameDuplicated(
-        @Query("nickname") nickname: String
+        @Query("nickname") nickname: String,
     ): BaseResponse<GetIsNicknameDuplicated>
 
     // 프로필 수정
     @PUT("api/v1/profile")
     @AccessTokenApi
     suspend fun editProfile(
-        @Body profile: PutProfileRequest
+        @Body profile: PutProfileRequest,
     ): BaseResponse<Any?>
 
     // 프로필 사진 생성

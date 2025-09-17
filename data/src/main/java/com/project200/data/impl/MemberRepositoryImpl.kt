@@ -47,56 +47,61 @@ class MemberRepositoryImpl
             )
         }
 
-    override suspend fun getProfileImages(): BaseResult<ProfileImageList> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getProfileImages() },
-            mapper = { dto: GetProfileImageResponseDto? ->
-                dto?.toModel() ?: throw NoSuchElementException("유저 프로필 데이터가 없습니다.")
-            },
-        )
-    }
-
-    override suspend fun changeThumbnail(pictureId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.changeThumbnailImage(pictureId) },
-            mapper = { Unit },
-        )
-    }
-
-    override suspend fun deleteProfileImages(pictureId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteProfileImage(pictureId) },
-            mapper = { Unit },
-        )
-    }
-
-    override suspend fun editUserProfile(nickname: String, gender: String, introduction: String): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.editProfile(PutProfileRequest(nickname, gender, introduction)) },
-            mapper = { Unit },
-        )
-    }
-
-    override suspend fun addProfileImage(image: String): BaseResult<Unit> {
-        val imagePart = image.toUri().toMultipartBodyPart(context, "profilePicture")
-        if (imagePart == null) {
-            // Multipart 변환 실패
-            return BaseResult.Error(IMAGE_PART_ERROR, "")
+        override suspend fun getProfileImages(): BaseResult<ProfileImageList> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getProfileImages() },
+                mapper = { dto: GetProfileImageResponseDto? ->
+                    dto?.toModel() ?: throw NoSuchElementException("유저 프로필 데이터가 없습니다.")
+                },
+            )
         }
 
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = {
-                apiService.postProfileImage(imagePart) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun changeThumbnail(pictureId: Long): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.changeThumbnailImage(pictureId) },
+                mapper = { Unit },
+            )
+        }
 
-    companion object {
-        const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
+        override suspend fun deleteProfileImages(pictureId: Long): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deleteProfileImage(pictureId) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun editUserProfile(
+            nickname: String,
+            gender: String,
+            introduction: String,
+        ): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.editProfile(PutProfileRequest(nickname, gender, introduction)) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun addProfileImage(image: String): BaseResult<Unit> {
+            val imagePart = image.toUri().toMultipartBodyPart(context, "my-profile")
+            if (imagePart == null) {
+                // Multipart 변환 실패
+                return BaseResult.Error(IMAGE_PART_ERROR, "")
+            }
+
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = {
+                    apiService.postProfileImage(imagePart)
+                },
+                mapper = { Unit },
+            )
+        }
+
+        companion object {
+            const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
+        }
     }
-}
