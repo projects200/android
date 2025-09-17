@@ -9,6 +9,7 @@ import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetScoreDTO
@@ -66,6 +67,11 @@ interface ApiService {
     @GET("api/v1/profile")
     @AccessTokenApi
     suspend fun getProfile(): BaseResponse<GetProfileDTO>
+
+    @GET("open/v1/nicknames/check")
+    suspend fun getIsNicknameDuplicated(
+        @Query("nickname") nickname: String,
+    ): BaseResponse<GetIsNicknameDuplicated>
 
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")

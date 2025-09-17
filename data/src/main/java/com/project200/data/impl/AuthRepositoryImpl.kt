@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.utils.apiCallBuilder
@@ -65,6 +66,16 @@ class AuthRepositoryImpl
                         spManager.saveMemberId(it)
                     }
                     Unit
+                },
+            )
+        }
+
+        override suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getIsNicknameDuplicated(nickname) },
+                mapper = { dto: GetIsNicknameDuplicated? ->
+                    dto?.available == true
                 },
             )
         }

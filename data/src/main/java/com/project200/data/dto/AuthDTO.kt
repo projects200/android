@@ -33,3 +33,8 @@ data class PostSignUpData(
     val memberScore: Int?,
     val memberCreatedAt: LocalDateTime,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetIsNicknameDuplicated(
+    val available: Boolean,
+)

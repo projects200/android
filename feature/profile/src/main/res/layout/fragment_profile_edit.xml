@@ -65,7 +65,7 @@
         android:layout_marginEnd="6dp"
         android:backgroundTint="@color/black"
         android:inputType="text"
-        android:maxLength="12"
+        android:maxLength="30"
         android:maxLines="1"
         app:layout_constraintBottom_toBottomOf="@id/nickname_title_tv"
         app:layout_constraintEnd_toStartOf="@id/duplicate_check_btn"
