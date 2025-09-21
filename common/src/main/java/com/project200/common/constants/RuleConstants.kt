@@ -9,4 +9,6 @@ object RuleConstants {
 
     const val SCORE_HIGH_LEVEL = 0.70
     const val SCORE_MIDDLE_LEVEL = 0.33
+
+    const val ZOOM_LEVEL = 18
 }

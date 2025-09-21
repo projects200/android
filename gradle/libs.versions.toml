@@ -74,6 +74,9 @@ circleindicator = "2.1.6"
 # Kizitonwose Calendar
 kizitonwoseCalendar = "2.6.0"
 
+# Kakao SDK
+kakaoMap = "2.12.17"
+
 [libraries]
 
 # Gradle 플러그인 아티팩트 정의
@@ -178,6 +181,9 @@ circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.re
 
 # Kizitonwose Calendar
 kizitonwose-calendar-view = { group = "com.kizitonwose.calendar", name = "view", version.ref = "kizitonwoseCalendar" }
+
+# Kakao SDK
+kakao-map = { group = "com.kakao.maps.open", name = "android", version.ref = "kakaoMap" }
 
 [plugins]
 # Android Gradle Plugins

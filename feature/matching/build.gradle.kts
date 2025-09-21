@@ -43,4 +43,7 @@ dependencies {
 
     // CirlceIndicator
     implementation(libs.circleindicator)
+
+    // Kakao Map
+    implementation(libs.kakao.map)
 }
