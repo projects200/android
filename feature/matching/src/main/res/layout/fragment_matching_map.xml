@@ -31,4 +31,15 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"/>
+    <androidx.appcompat.widget.AppCompatImageButton
+        android:id="@+id/current_location_btn"
+        android:src="@drawable/ic_current_location"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
+        android:layout_margin="@dimen/base_horizontal_margin"
+        android:elevation="2dp"
+        android:padding="12dp"
+        android:background="@drawable/bg_current_location_btn"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
