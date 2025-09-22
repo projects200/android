@@ -1,6 +1,17 @@
+import java.util.Properties
+
 plugins {
     id("convention.android.application")
     alias(libs.plugins.navigation.safeargs)
+}
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+} else {
+    // TODO: CI/CD 환경을 위해 환경 변수 설정
+    localProperties.setProperty("KAKAO_NATIVE_APP_KEY", "")
 }
 
 android {
@@ -8,6 +19,8 @@ android {
 
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperties.getProperty("KAKAO_NATIVE_APP_KEY")}\"")
     }
 
     signingConfigs {
@@ -77,4 +90,7 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
 
     implementation(libs.appauth)
+
+    // Kakao Map
+    implementation(libs.kakao.map)
 }

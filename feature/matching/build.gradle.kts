@@ -43,4 +43,10 @@ dependencies {
 
     // CirlceIndicator
     implementation(libs.circleindicator)
+
+    // Kakao Map
+    implementation(libs.kakao.map)
+
+    // Google Maps
+    implementation(libs.play.services.location)
 }
