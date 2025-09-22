@@ -9,6 +9,7 @@
     <string name="fcm_channel_name">운다방 기본 알림 채널</string>
 
     <string name="exercise_record">기록</string>
+    <string name="matching">매칭</string>
     <string name="timer">타이머</string>
     <string name="profile">MY</string>
 </resources>

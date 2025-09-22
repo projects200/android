@@ -54,6 +54,7 @@ dependencies {
     implementation(projects.feature.profile)
     implementation(projects.feature.exercise)
     implementation(projects.feature.timer)
+    implementation(projects.feature.matching)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
