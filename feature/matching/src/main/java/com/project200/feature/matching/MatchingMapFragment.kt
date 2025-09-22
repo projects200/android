@@ -23,7 +23,6 @@ import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapB
 import timber.log.Timber
 
 class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
-
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
@@ -48,26 +47,29 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
     }
 
     private fun initMapView() {
-        binding.mapView.start(object : MapLifeCycleCallback() {
-            override fun onMapDestroy() {
-                // 지도 API 가 정상적으로 종료될 때 호출
-            }
+        binding.mapView.start(
+            object : MapLifeCycleCallback() {
+                override fun onMapDestroy() {
+                    // 지도 API 가 정상적으로 종료될 때 호출
+                }
 
-            override fun onMapError(error: Exception) {
-                // 인증 실패 및 지도 사용 중 에러 발생 시 호출
-                Timber.d("KakaoMap Error: $error")
-            }
-        }, object : KakaoMapReadyCallback() {
-            override fun onMapReady(map: KakaoMap) {
-                kakaoMap = map
-                setInitialMapPosition()
-                setMapListeners()
-            }
+                override fun onMapError(error: Exception) {
+                    // 인증 실패 및 지도 사용 중 에러 발생 시 호출
+                    Timber.d("KakaoMap Error: $error")
+                }
+            },
+            object : KakaoMapReadyCallback() {
+                override fun onMapReady(map: KakaoMap) {
+                    kakaoMap = map
+                    setInitialMapPosition()
+                    setMapListeners()
+                }
 
-            override fun getZoomLevel(): Int {
-                return ZOOM_LEVEL
-            }
-        })
+                override fun getZoomLevel(): Int {
+                    return ZOOM_LEVEL
+                }
+            },
+        )
     }
 
     private fun initListeners() {
@@ -82,7 +84,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             saveLastLocation(
                 cameraPosition.position.latitude,
                 cameraPosition.position.longitude,
-                cameraPosition.zoomLevel
+                cameraPosition.zoomLevel,
             )
         }
     }
@@ -137,19 +139,26 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         }
     }
 
-    private fun moveCamera(latLng: LatLng, zoomLevel: Int) {
+    private fun moveCamera(
+        latLng: LatLng,
+        zoomLevel: Int,
+    ) {
         kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(latLng, zoomLevel))
     }
 
     private fun isLocationPermissionGranted(): Boolean {
         return ContextCompat.checkSelfPermission(
             requireContext(),
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
     }
 
     // 마지막 위치 저장을 위한 SharedPreferences 로직
-    private fun saveLastLocation(latitude: Double, longitude: Double, zoomLevel: Int) {
+    private fun saveLastLocation(
+        latitude: Double,
+        longitude: Double,
+        zoomLevel: Int,
+    ) {
         val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE) ?: return
         with(sharedPref.edit()) {
             putFloat(KEY_LAST_LAT, latitude.toFloat())
