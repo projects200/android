@@ -1,13 +1,18 @@
 package com.project200.data.impl
 
+import android.content.SharedPreferences
+import androidx.core.content.edit
+import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
+import com.project200.common.utils.DefaultPrefs
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Location
+import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.repository.MatchingRepository
 import javax.inject.Inject
 
 class MatchingRepositoryImpl @Inject constructor(
-
+    @DefaultPrefs private val sharedPreferences: SharedPreferences
 ) : MatchingRepository {
     /**
     * 매칭 지도 상에서 회원들의 정보를 반환하는 함수
@@ -25,13 +30,13 @@ class MatchingRepositoryImpl @Inject constructor(
                     locations = listOf(
                         Location(
                             exerciseLocationName = "강남 파워피트니스",
-                            latitude = "37.4979",
-                            longitude = "127.0276"
+                            latitude = 37.4979,
+                            longitude = 127.0276
                         ),
                         Location(
                             exerciseLocationName = "서울숲 런닝 트랙",
-                            latitude = "37.5445",
-                            longitude = "127.0370"
+                            latitude = 37.5445,
+                            longitude = 127.0370
                         )
                     )
                 ),
@@ -44,8 +49,8 @@ class MatchingRepositoryImpl @Inject constructor(
                     locations = listOf(
                         Location(
                             exerciseLocationName = "홍대 요가스테이",
-                            latitude = "37.5562",
-                            longitude = "126.9224"
+                            latitude = 37.5562,
+                            longitude = 126.9224
                         )
                     )
                 ),
@@ -58,13 +63,13 @@ class MatchingRepositoryImpl @Inject constructor(
                     locations = listOf(
                         Location(
                             exerciseLocationName = "잠실 종합운동장",
-                            latitude = "37.5152",
-                            longitude = "127.0722"
+                            latitude = 37.5152,
+                            longitude = 127.0722
                         ),
                         Location(
                             exerciseLocationName = "효창운동장",
-                            latitude = "37.5393",
-                            longitude = "126.9602"
+                            latitude = 37.5393,
+                            longitude = 126.9602
                         )
                     )
                 ),
@@ -77,12 +82,41 @@ class MatchingRepositoryImpl @Inject constructor(
                     locations = listOf(
                         Location(
                             exerciseLocationName = "더클라임 신림점",
-                            latitude = "37.4842",
-                            longitude = "126.9295"
+                            latitude = 37.4842,
+                            longitude = 126.9295
                         )
                     )
                 )
             )
         )
+    }
+
+    override suspend fun saveLastMapPosition(mapPosition: MapPosition) {
+        sharedPreferences.edit {
+            putFloat(KEY_LAST_LAT, mapPosition.latitude.toFloat())
+            putFloat(KEY_LAST_LON, mapPosition.longitude.toFloat())
+            putInt(KEY_LAST_ZOOM, mapPosition.zoomLevel)
+        }
+    }
+
+    override suspend fun getLastMapPosition(): MapPosition? {
+        val lat = sharedPreferences.getFloat(KEY_LAST_LAT, 0f).toDouble()
+        val lon = sharedPreferences.getFloat(KEY_LAST_LON, 0f).toDouble()
+
+        return if (lat != 0.0 && lon != 0.0) {
+            MapPosition(
+                latitude = lat,
+                longitude = lon,
+                zoomLevel = sharedPreferences.getInt(KEY_LAST_ZOOM, ZOOM_LEVEL)
+            )
+        } else {
+            null
+        }
+    }
+
+    companion object {
+        private const val KEY_LAST_LAT = "key_last_lat"
+        private const val KEY_LAST_LON = "key_last_lon"
+        private const val KEY_LAST_ZOOM = "key_last_zoom"
     }
 }

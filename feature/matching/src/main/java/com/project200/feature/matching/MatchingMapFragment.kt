@@ -2,9 +2,9 @@ package com.project200.feature.matching
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
@@ -15,9 +15,13 @@ import com.kakao.vectormap.KakaoMapReadyCallback
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraUpdateFactory
+import com.kakao.vectormap.label.LabelOptions
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LATITUDE
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
+import com.project200.domain.model.BaseResult
+import com.project200.domain.model.MapPosition
+import com.project200.domain.model.MatchingMember
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
@@ -53,24 +57,19 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
     private fun initMapView() {
         binding.mapView.start(
             object : MapLifeCycleCallback() {
-                override fun onMapDestroy() {
-                    // 지도 API 가 정상적으로 종료될 때 호출
-                }
-
+                override fun onMapDestroy() {}
                 override fun onMapError(error: Exception) {
-                    // 인증 실패 및 지도 사용 중 에러 발생 시 호출
-                    Timber.d("KakaoMap Error: $error")
+                    Timber.d("$error")
                 }
             },
             object : KakaoMapReadyCallback() {
                 override fun onMapReady(map: KakaoMap) {
                     kakaoMap = map
-                    setInitialMapPosition()
-                    setMapListeners()
-                }
 
-                override fun getZoomLevel(): Int {
-                    return ZOOM_LEVEL
+                    setMapListeners()
+                    setupMapRelatedObservers()
+
+                    viewModel.fetchMatchingMembers()
                 }
             },
         )
@@ -85,7 +84,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
     private fun setMapListeners() {
         // 지도 이동이 끝나면 마지막 위치를 저장
         kakaoMap?.setOnCameraMoveEndListener { _, cameraPosition, _ ->
-            saveLastLocation(
+            viewModel.saveLastLocation(
                 cameraPosition.position.latitude,
                 cameraPosition.position.longitude,
                 cameraPosition.zoomLevel,
@@ -93,34 +92,80 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         }
     }
 
-    /**
-     * 지도의 초기 위치를 설정하는 함수
-     */
-    private fun setInitialMapPosition() {
-        if (isLocationPermissionGranted()) {
-            // [수정] SharedPreferences에서 직접 값을 불러와서 처리합니다.
-            val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE)
-            val lat = sharedPref?.getFloat(KEY_LAST_LAT, 0f) ?: 0f
-            val lon = sharedPref?.getFloat(KEY_LAST_LON, 0f) ?: 0f
-            val zoom = sharedPref?.getInt(KEY_LAST_ZOOM, 0) ?: 0
-
-            if (lat != 0f && lon != 0f && zoom != 0) {
-                // 저장된 값이 있으면 해당 위치와 줌 레벨로 카메라 이동
-                moveCamera(LatLng.from(lat.toDouble(), lon.toDouble()), zoom)
+    // 지도와 직접적으로 관련된 옵저버
+    private fun setupMapRelatedObservers() {
+        // 초기 지도 위치 관찰
+        viewModel.initialMapPosition.observe(viewLifecycleOwner) { savedPosition ->
+            if (isLocationPermissionGranted()) { // 권한이 있는 경우
+                if (savedPosition != null) {
+                    moveCamera(
+                        LatLng.from(savedPosition.latitude, savedPosition.longitude),
+                        savedPosition.zoomLevel
+                    )
+                } else {
+                    // 저장된 위치가 없으면, 현재 위치로 이동
+                    moveToCurrentLocation()
+                }
             } else {
-                // 저장된 값이 없으면 현재 위치로 이동
-                moveToCurrentLocation()
+                // 위치 권한이 없는 경우
+                // 기본위치(서울시청)로 이동
+                val defaultPosition = MapPosition(
+                    latitude = SEOUL_CITY_HALL_LATITUDE,
+                    longitude = SEOUL_CITY_HALL_LONGITUDE,
+                    zoomLevel = ZOOM_LEVEL
+                )
+                moveCamera(
+                    LatLng.from(defaultPosition.latitude, defaultPosition.longitude),
+                    defaultPosition.zoomLevel
+                )
+                // 사용자에게 권한을 요청
+                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
-        } else {
-            // 권한이 없다면 서울시청으로 이동하고 권한 요청
-            moveCamera(LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE), ZOOM_LEVEL)
-            locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+
+        // 매칭 회원 목록 관찰
+        viewModel.matchingMembers.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    // 성공 시 마커 표시
+                    drawMemberMarkers(result.data)
+                }
+                is BaseResult.Error -> {
+                    // 실패 시 Toast 메시지 표시
+                    val errorMessage = result.message ?: getString(R.string.error_unknown)
+                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
     /**
-     * 버튼 클릭 시 권한 확인 후 현재 위치로 이동
+     * 전달받은 회원 목록을 지도에 마커로 표시합니다.
      */
+    private fun drawMemberMarkers(members: List<MatchingMember>) {
+        val labelManager = kakaoMap?.labelManager ?: return
+        labelManager.clearAll() // labelManager를 통해 안전하게 초기화
+
+        members.forEach { member ->
+            member.locations.forEach { location ->
+                val options = LabelOptions.from(LatLng.from(location.latitude, location.longitude))
+                    .setStyles(R.drawable.ic_member_marker_png)
+                    .setTag(member)
+
+                labelManager.layer?.addLabel(options)
+            }
+        }
+
+        kakaoMap?.setOnLabelClickListener { kakaoMap, labelLayer, label ->
+            val clickedMember = label.tag as? MatchingMember
+            if (clickedMember != null) {
+                Toast.makeText(requireContext(), clickedMember.nickname, Toast.LENGTH_SHORT).show()
+            }
+            true
+        }
+    }
+
+
     private fun checkPermissionAndMove() {
         if (isLocationPermissionGranted()) {
             moveToCurrentLocation()
@@ -138,15 +183,14 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             if (location != null) {
                 moveCamera(LatLng.from(location.latitude, location.longitude), ZOOM_LEVEL)
             } else {
+                // 현재 위치를 가져오지 못한 경우 기본 위치로 이동
                 moveCamera(LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE), ZOOM_LEVEL)
+                Toast.makeText(requireContext(), R.string.error_cannot_find_current_location, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun moveCamera(
-        latLng: LatLng,
-        zoomLevel: Int,
-    ) {
+    private fun moveCamera(latLng: LatLng, zoomLevel: Int) {
         kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(latLng, zoomLevel))
     }
 
@@ -157,20 +201,6 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    // 마지막 위치 저장을 위한 SharedPreferences 로직
-    private fun saveLastLocation(
-        latitude: Double,
-        longitude: Double,
-        zoomLevel: Int,
-    ) {
-        val sharedPref = activity?.getPreferences(Context.MODE_PRIVATE) ?: return
-        with(sharedPref.edit()) {
-            putFloat(KEY_LAST_LAT, latitude.toFloat())
-            putFloat(KEY_LAST_LON, longitude.toFloat())
-            putInt(KEY_LAST_ZOOM, zoomLevel)
-            apply()
-        }
-    }
 
     override fun onResume() {
         super.onResume()
@@ -180,11 +210,5 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
     override fun onPause() {
         super.onPause()
         binding.mapView.pause()
-    }
-
-    companion object {
-        private const val KEY_LAST_LAT = "key_last_lat"
-        private const val KEY_LAST_LON = "key_last_lon"
-        private const val KEY_LAST_ZOOM = "key_last_zoom"
     }
 }
