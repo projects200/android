@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.viewModels
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.kakao.vectormap.KakaoMap
@@ -20,11 +21,14 @@ import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
+import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
+@AndroidEntryPoint
 class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val viewModel: MatchingMapViewModel by viewModels()
 
     // 위치 권한 요청을 위한 ActivityResultLauncher 정의
     private val locationPermissionLauncher =
