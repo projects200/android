@@ -9,18 +9,17 @@ val localProperties = Properties()
 val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
-} else {
-    // TODO: CI/CD 환경을 위해 환경 변수 설정
-    localProperties.setProperty("KAKAO_NATIVE_APP_KEY", "")
 }
+val kakaoNativeAppKey: String = localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
+    ?: System.getenv("KAKAO_NATIVE_APP_KEY")
 
 android {
     namespace = "com.project200.undabang"
 
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
-        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
-        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperties.getProperty("KAKAO_NATIVE_APP_KEY")}\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
     }
 
     signingConfigs {
