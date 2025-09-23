@@ -10,8 +10,9 @@ val localPropertiesFile = rootProject.file("local.properties")
 if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
-val kakaoNativeAppKey: String = localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
-    ?: System.getenv("KAKAO_NATIVE_APP_KEY")
+val kakaoNativeAppKey: String =
+    localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
+        ?: System.getenv("KAKAO_NATIVE_APP_KEY")
 
 android {
     namespace = "com.project200.undabang"
