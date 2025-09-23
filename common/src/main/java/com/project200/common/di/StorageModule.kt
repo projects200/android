@@ -48,7 +48,9 @@ object StorageModule {
     @Provides
     @Singleton
     @DefaultPrefs
-    fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+    fun provideSharedPreferences(
+        @ApplicationContext context: Context,
+    ): SharedPreferences {
         return context.getSharedPreferences(APP_PREFS_NAME, Context.MODE_PRIVATE)
     }
 }

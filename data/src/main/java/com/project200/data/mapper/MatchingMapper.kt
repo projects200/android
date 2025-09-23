@@ -12,7 +12,7 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
         nickname = this.nickname,
         gender = this.gender,
         birthDate = this.birthDate,
-        locations = this.locations.map { it.toModel() }
+        locations = this.locations.map { it.toModel() },
     )
 }
 
@@ -20,6 +20,6 @@ fun LocationDto.toModel(): Location {
     return Location(
         exerciseLocationName = this.exerciseLocationName,
         latitude = this.latitude,
-        longitude = this.longitude
+        longitude = this.longitude,
     )
 }

@@ -58,6 +58,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         binding.mapView.start(
             object : MapLifeCycleCallback() {
                 override fun onMapDestroy() {}
+
                 override fun onMapError(error: Exception) {
                     Timber.d("$error")
                 }
@@ -100,7 +101,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 if (savedPosition != null) {
                     moveCamera(
                         LatLng.from(savedPosition.latitude, savedPosition.longitude),
-                        savedPosition.zoomLevel
+                        savedPosition.zoomLevel,
                     )
                 } else {
                     // 저장된 위치가 없으면, 현재 위치로 이동
@@ -109,14 +110,15 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             } else {
                 // 위치 권한이 없는 경우
                 // 기본위치(서울시청)로 이동
-                val defaultPosition = MapPosition(
-                    latitude = SEOUL_CITY_HALL_LATITUDE,
-                    longitude = SEOUL_CITY_HALL_LONGITUDE,
-                    zoomLevel = ZOOM_LEVEL
-                )
+                val defaultPosition =
+                    MapPosition(
+                        latitude = SEOUL_CITY_HALL_LATITUDE,
+                        longitude = SEOUL_CITY_HALL_LONGITUDE,
+                        zoomLevel = ZOOM_LEVEL,
+                    )
                 moveCamera(
                     LatLng.from(defaultPosition.latitude, defaultPosition.longitude),
-                    defaultPosition.zoomLevel
+                    defaultPosition.zoomLevel,
                 )
                 // 사용자에게 권한을 요청
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -148,9 +150,10 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
 
         members.forEach { member ->
             member.locations.forEach { location ->
-                val options = LabelOptions.from(LatLng.from(location.latitude, location.longitude))
-                    .setStyles(R.drawable.ic_member_marker_png)
-                    .setTag(member)
+                val options =
+                    LabelOptions.from(LatLng.from(location.latitude, location.longitude))
+                        .setStyles(R.drawable.ic_member_marker_png)
+                        .setTag(member)
 
                 labelManager.layer?.addLabel(options)
             }
@@ -164,7 +167,6 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             true
         }
     }
-
 
     private fun checkPermissionAndMove() {
         if (isLocationPermissionGranted()) {
@@ -190,7 +192,10 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         }
     }
 
-    private fun moveCamera(latLng: LatLng, zoomLevel: Int) {
+    private fun moveCamera(
+        latLng: LatLng,
+        zoomLevel: Int,
+    ) {
         kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(latLng, zoomLevel))
     }
 
@@ -200,7 +205,6 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
     }
-
 
     override fun onResume() {
         super.onResume()
