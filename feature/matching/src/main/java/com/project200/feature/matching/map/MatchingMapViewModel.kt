@@ -1,4 +1,4 @@
-package com.project200.feature.matching
+package com.project200.feature.matching.map
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData

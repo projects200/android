@@ -7,8 +7,21 @@
 
     <fragment
         android:id="@+id/matchingMapFragment"
-        android:name="com.project200.feature.matching.MatchingMapFragment"
+        android:name="com.project200.feature.matching.map.MatchingMapFragment"
         android:label="matchingMap"
         tools:layout="@layout/fragment_matching_map">
+        <action
+            android:id="@+id/action_matchingMapFragment_to_matchingProfileFragment"
+            app:destination="@id/matchingProfileFragment">
+            <argument
+                android:name="memberId"
+                app:argType="string" />
+        </action>
+    </fragment>
+    <fragment
+        android:id="@+id/matchingProfileFragment"
+        android:name="com.project200.feature.matching.map.MatchingProfileFragment"
+        android:label="matchingProfile"
+        tools:layout="@layout/fragment_matching_profile">
     </fragment>
 </navigation>

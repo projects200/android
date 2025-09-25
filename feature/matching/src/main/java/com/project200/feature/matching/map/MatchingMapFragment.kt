@@ -1,4 +1,4 @@
-package com.project200.feature.matching
+package com.project200.feature.matching.map
 
 import android.Manifest
 import android.annotation.SuppressLint
@@ -8,6 +8,7 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.kakao.vectormap.KakaoMap
@@ -162,7 +163,11 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         kakaoMap?.setOnLabelClickListener { kakaoMap, labelLayer, label ->
             val clickedMember = label.tag as? MatchingMember
             if (clickedMember != null) {
-                Toast.makeText(requireContext(), clickedMember.nickname, Toast.LENGTH_SHORT).show()
+                findNavController().navigate(
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
+                        memberId = clickedMember.memberId,
+                    ),
+                )
             }
             true
         }
