@@ -251,4 +251,10 @@ interface ApiService {
         @Path("customTimerId") customTimerId: Long,
         @Body customTimer: PostCustomTimerRequest,
     ): BaseResponse<CustomTimerIdDTO>
+
+    // 매칭지도 회원들 조회
+    // TODO: 향후 필터에 따라 변경될 수 있음
+    @GET("api/v1/members")
+    @AccessTokenApi
+    suspend fun getMatchingMembers(): BaseResponse<List<Any>>
 }

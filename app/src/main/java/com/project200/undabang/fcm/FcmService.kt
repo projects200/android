@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
+import com.project200.common.utils.EncryptedPrefs
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import javax.inject.Inject
@@ -12,6 +13,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class FcmService : FirebaseMessagingService() {
     @Inject
+    @EncryptedPrefs
     lateinit var sharedPreferences: SharedPreferences
 
     /**
