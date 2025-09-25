@@ -32,3 +32,12 @@ data class GetMatchingProfileDTO(
     val exerciseScore: Int,
     val preferredExercises: List<PreferredExerciseDTO>,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetExercisePlaceDTO(
+    val id: Long,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double
+)

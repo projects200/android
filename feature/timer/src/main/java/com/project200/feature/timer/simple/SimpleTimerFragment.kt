@@ -18,7 +18,7 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.domain.model.SimpleTimer
 import com.project200.feature.timer.TimePickerDialog
-import com.project200.feature.timer.utils.MenuStyler
+import com.project200.presentation.utils.MenuStyler
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
@@ -222,7 +222,7 @@ class SimpleTimerFragment : BindingFragment<FragmentSimpleTimerBinding>(R.layout
         view: View,
         simpleTimer: SimpleTimer,
     ) {
-        val contextWrapper = ContextThemeWrapper(requireContext(), R.style.PopupItemStyle)
+        val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
 
         PopupMenu(contextWrapper, view).apply {
             menuInflater.inflate(R.menu.timer_item_menu, this.menu)
