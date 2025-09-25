@@ -7,22 +7,28 @@ import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.ExercisePlace
 import com.project200.undabang.feature.matching.databinding.ItemExercisePlaceBinding
 
-class ExercisePlaceAdapter(
-    val onMenuClicked: (ExercisePlace, View) -> Unit
-) : RecyclerView.Adapter<ExercisePlaceAdapter.ExercisePlaceViewHolder>() {
-
+class ExercisePlaceRVAdapter(
+    val onMenuClicked: (ExercisePlace, View) -> Unit,
+) : RecyclerView.Adapter<ExercisePlaceRVAdapter.ExercisePlaceViewHolder>() {
     private var places: List<ExercisePlace> = emptyList()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ExercisePlaceViewHolder {
-        val binding = ItemExercisePlaceBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ExercisePlaceViewHolder {
+        val binding =
+            ItemExercisePlaceBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false,
+            )
         return ExercisePlaceViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ExercisePlaceViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ExercisePlaceViewHolder,
+        position: Int,
+    ) {
         holder.bind(places[position])
     }
 
@@ -37,7 +43,6 @@ class ExercisePlaceAdapter(
         private val binding: ItemExercisePlaceBinding,
     ) :
         RecyclerView.ViewHolder(binding.root) {
-
         fun bind(place: ExercisePlace) {
             binding.placeNameTv.text = place.name
             binding.placeAddressTv.text = place.address

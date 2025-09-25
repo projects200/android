@@ -7,7 +7,6 @@ import com.project200.common.di.IoDispatcher
 import com.project200.common.utils.DefaultPrefs
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetExerciseCountByRangeDTO
-import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -19,7 +18,6 @@ import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.repository.MatchingRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import okhttp3.internal.UTC
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.collections.map
@@ -192,75 +190,74 @@ class MatchingRepositoryImpl
             )
         }
 
-    /** 운동 장소 리스트를 반환하는 함수
-     * @return 운동 장소 리스트
-     */
-    override suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>> {
-        return BaseResult.Success(
-            listOf(
-                ExercisePlace(
-                    id = 101,
-                    name = "스포애니 강남역 1호점",
-                    address = "서울특별시 강남구 강남대로 390",
-                    latitude = 37.49794,
-                    longitude = 127.02762
+        /** 운동 장소 리스트를 반환하는 함수
+         * @return 운동 장소 리스트
+         */
+        override suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>> {
+            return BaseResult.Success(
+                listOf(
+                    ExercisePlace(
+                        id = 101,
+                        name = "스포애니 강남역 1호점",
+                        address = "서울특별시 강남구 강남대로 390",
+                        latitude = 37.49794,
+                        longitude = 127.02762,
+                    ),
+                    ExercisePlace(
+                        id = 102,
+                        name = "애플짐 대치점",
+                        address = "서울특별시 강남구 남부순환로 2933",
+                        latitude = 37.49443,
+                        longitude = 127.06259,
+                    ),
+                    ExercisePlace(
+                        id = 103,
+                        name = "양재시민의숲",
+                        address = "서울특별시 서초구 매헌로 99",
+                        latitude = 37.47071,
+                        longitude = 127.03613,
+                    ),
+                    // --- 강북/도심 지역 ---
+                    ExercisePlace(
+                        id = 201,
+                        name = "서울숲공원",
+                        address = "서울특별시 성동구 뚝섬로 273",
+                        latitude = 37.54442,
+                        longitude = 127.03650,
+                    ),
+                    ExercisePlace(
+                        id = 202,
+                        name = "남산공원 북측순환로 입구",
+                        address = "서울특별시 중구 삼일대로 231",
+                        latitude = 37.55949,
+                        longitude = 126.98567,
+                    ),
                 ),
-                ExercisePlace(
-                    id = 102,
-                    name = "애플짐 대치점",
-                    address = "서울특별시 강남구 남부순환로 2933",
-                    latitude = 37.49443,
-                    longitude = 127.06259
-                ),
-                ExercisePlace(
-                    id = 103,
-                    name = "양재시민의숲",
-                    address = "서울특별시 서초구 매헌로 99",
-                    latitude = 37.47071,
-                    longitude = 127.03613
-                ),
-
-                // --- 강북/도심 지역 ---
-                ExercisePlace(
-                    id = 201,
-                    name = "서울숲공원",
-                    address = "서울특별시 성동구 뚝섬로 273",
-                    latitude = 37.54442,
-                    longitude = 127.03650
-                ),
-                ExercisePlace(
-                    id = 202,
-                    name = "남산공원 북측순환로 입구",
-                    address = "서울특별시 중구 삼일대로 231",
-                    latitude = 37.55949,
-                    longitude = 126.98567
-                )
             )
-        )
-        /** TODO: 실제 api 완성되면 연결 필요
-         * return apiCallBuilder(
-        ioDispatcher = ioDispatcher,
-        apiCall = { apiService.getExercisePlaces() },
-        mapper = { dtoList: List<GetExercisePlaceDTO>? ->
-        dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
-        },
-        )*/
-    }
+            /** TODO: 실제 api 완성되면 연결 필요
+             * return apiCallBuilder(
+             ioDispatcher = ioDispatcher,
+             apiCall = { apiService.getExercisePlaces() },
+             mapper = { dtoList: List<GetExercisePlaceDTO>? ->
+             dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+             },
+             )*/
+        }
 
-    /** 운동 장소를 추가하는 함수
-     * @param placeId 운동 장소 ID
-     */
-    override suspend fun deleteExercisePlace(placeId: Long): BaseResult<Unit> {
-        return BaseResult.Success(Unit)
-        /** TODO: 실제 api 완성되면 연결 필요
-         * return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteExercisePlace(placeId) },
-            mapper = { Unit }
-        )*/
-    }
+        /** 운동 장소를 추가하는 함수
+         * @param placeId 운동 장소 ID
+         */
+        override suspend fun deleteExercisePlace(placeId: Long): BaseResult<Unit> {
+            return BaseResult.Success(Unit)
+            /** TODO: 실제 api 완성되면 연결 필요
+             * return apiCallBuilder(
+             ioDispatcher = ioDispatcher,
+             apiCall = { apiService.deleteExercisePlace(placeId) },
+             mapper = { Unit }
+             )*/
+        }
 
-    companion object {
+        companion object {
             private const val KEY_LAST_LAT = "key_last_lat"
             private const val KEY_LAST_LON = "key_last_lon"
             private const val KEY_LAST_ZOOM = "key_last_zoom"

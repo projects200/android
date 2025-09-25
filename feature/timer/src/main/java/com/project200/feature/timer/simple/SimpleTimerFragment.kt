@@ -18,9 +18,9 @@ import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.domain.model.SimpleTimer
 import com.project200.feature.timer.TimePickerDialog
-import com.project200.presentation.utils.MenuStyler
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.MenuStyler
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentSimpleTimerBinding
 import dagger.hilt.android.AndroidEntryPoint

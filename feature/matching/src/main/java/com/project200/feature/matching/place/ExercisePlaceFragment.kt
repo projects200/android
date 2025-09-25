@@ -5,7 +5,6 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.viewModels
-import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.ExercisePlace
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
@@ -16,9 +15,9 @@ import com.project200.undabang.feature.matching.databinding.FragmentExercisePlac
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.layout.fragment_exercise_place) {
+class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.layout.fragment_exercise_place) {
     private val viewModel: ExercisePlaceViewModel by viewModels()
-    private lateinit var exercisePlaceAdapter: ExercisePlaceAdapter
+    private lateinit var exercisePlaceAdapter: ExercisePlaceRVAdapter
 
     override fun getViewBinding(view: View): FragmentExercisePlaceBinding {
         return FragmentExercisePlaceBinding.bind(view)
@@ -36,11 +35,11 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
         setupRecyclerView()
     }
 
-
     private fun setupRecyclerView() {
-        exercisePlaceAdapter = ExercisePlaceAdapter(onMenuClicked = { place, view ->
-            showPopupMenu(place, view)
-        })
+        exercisePlaceAdapter =
+            ExercisePlaceRVAdapter(onMenuClicked = { place, view ->
+                showPopupMenu(place, view)
+            })
 
         binding.placeRv.apply {
             adapter = exercisePlaceAdapter
@@ -50,7 +49,7 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
 
     override fun setupObservers() {
         viewModel.places.observe(viewLifecycleOwner) { places ->
-            if(places.isEmpty()) {
+            if (places.isEmpty()) {
                 binding.emptyPlaceTv.visibility = View.VISIBLE
                 binding.placeRv.visibility = View.GONE
             } else {
@@ -61,21 +60,22 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
         }
 
         viewModel.errorToast.observe(viewLifecycleOwner) {
-            val message = when(it) {
-                ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
-                ExercisePlaceErrorType.DELETE_FAILED -> {
-                    binding.emptyPlaceTv.visibility = View.VISIBLE
-                    binding.placeRv.visibility = View.GONE
-                    R.string.error_failed_to_delete_exercise_place
+            val message =
+                when (it) {
+                    ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
+                    ExercisePlaceErrorType.DELETE_FAILED -> {
+                        binding.emptyPlaceTv.visibility = View.VISIBLE
+                        binding.placeRv.visibility = View.GONE
+                        R.string.error_failed_to_delete_exercise_place
+                    }
                 }
-            }
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun showPopupMenu(
         place: ExercisePlace,
-        view: View
+        view: View,
     ) {
         val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
 

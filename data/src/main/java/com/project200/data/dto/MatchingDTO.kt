@@ -39,7 +39,7 @@ data class GetExercisePlaceDTO(
     val name: String,
     val address: String,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
 )
 
 @JsonClass(generateAdapter = true)

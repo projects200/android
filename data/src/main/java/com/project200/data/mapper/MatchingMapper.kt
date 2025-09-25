@@ -9,7 +9,6 @@ import com.project200.domain.model.Location
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.model.PreferredExercise
-import com.project200.domain.usecase.GetExercisePlaceUseCase
 
 fun GetMatchingMembersDto.toModel(): MatchingMember {
     return MatchingMember(
