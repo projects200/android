@@ -50,13 +50,24 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
 
     override fun setupObservers() {
         viewModel.places.observe(viewLifecycleOwner) { places ->
-            exercisePlaceAdapter.submitList(places)
+            if(places.isEmpty()) {
+                binding.emptyPlaceTv.visibility = View.VISIBLE
+                binding.placeRv.visibility = View.GONE
+            } else {
+                binding.emptyPlaceTv.visibility = View.GONE
+                binding.placeRv.visibility = View.VISIBLE
+                exercisePlaceAdapter.submitList(places)
+            }
         }
 
         viewModel.errorToast.observe(viewLifecycleOwner) {
             val message = when(it) {
                 ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
-                ExercisePlaceErrorType.DELETE_FAILED -> R.string.error_failed_to_delete_exercise_place
+                ExercisePlaceErrorType.DELETE_FAILED -> {
+                    binding.emptyPlaceTv.visibility = View.VISIBLE
+                    binding.placeRv.visibility = View.GONE
+                    R.string.error_failed_to_delete_exercise_place
+                }
             }
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }

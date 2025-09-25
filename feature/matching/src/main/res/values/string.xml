@@ -29,6 +29,7 @@
     <string name="skill_level_4">숙련자</string>
     <string name="skill_level_5">선출</string>
 
+    <string name="empty_exercise_place">등록된 운동 장소가 없습니다.</string>
     <string name="error_failed_to_load">프로필 정보를 불러오는데 실패했습니다.</string>
     <string name="error_failed_to_load_exercise_place">운동 장소 목록을 불러오는데 실패했습니다.</string>
     <string name="error_failed_to_delete_exercise_place">운동 장소 삭제에 실패했습니다.</string>

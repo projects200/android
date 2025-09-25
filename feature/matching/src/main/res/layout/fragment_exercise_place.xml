@@ -31,4 +31,15 @@
         android:layout_marginTop="32dp"
         app:layout_constraintTop_toBottomOf="@id/exercise_place_search_btn"
         app:layout_constraintBottom_toBottomOf="parent"/>
+    <TextView
+        android:id="@+id/empty_place_tv"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        style="@style/content_regular"
+        android:textColor="@color/gray200"
+        android:gravity="center"
+        android:text="@string/empty_exercise_place"
+        android:visibility="gone"
+        app:layout_constraintTop_toBottomOf="@id/exercise_place_search_btn"
+        app:layout_constraintBottom_toBottomOf="parent"/>
 </androidx.constraintlayout.widget.ConstraintLayout>
