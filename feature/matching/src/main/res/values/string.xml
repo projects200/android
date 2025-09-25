@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="blank" />
+    <string name="search">검색</string>
+    <string name="exercise_place_register">등록</string>
     <string name="exercise_place">운동 장소</string>
     <string name="exercise_place_list">운동 장소 목록</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
