@@ -17,6 +17,9 @@
                 android:name="memberId"
                 app:argType="string" />
         </action>
+        <action
+            android:id="@+id/action_matchingMapFragment_to_exercisePlaceFragment"
+            app:destination="@id/exercisePlaceFragment" />
     </fragment>
     <fragment
         android:id="@+id/matchingProfileFragment"
@@ -26,5 +29,11 @@
         <argument
             android:name="memberId"
             app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/exercisePlaceFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceFragment"
+        android:label="exercisePlace"
+        tools:layout="@layout/fragment_exercise_place">
     </fragment>
 </navigation>

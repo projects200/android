@@ -7,6 +7,7 @@ import com.project200.data.dto.ExpectedScoreInfoDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetExerciseCountByRangeDTO
+import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsNicknameDuplicated
@@ -267,4 +268,16 @@ interface ApiService {
     ): BaseResponse<GetMatchingProfileDTO>
 
     // TODO: 매칭 타 회원 구간별 운동 기록 조회
+
+    // 운동 장소 리스트 조회
+    @GET("api/v1/exercise-locations")
+    @AccessTokenApi
+    suspend fun getExercisePlaces(): BaseResponse<List<GetExercisePlaceDTO>>
+
+    // 운동 장소 삭제
+    @DELETE("api/v1/exercise-locations/{locationId}")
+    @AccessTokenApi
+    suspend fun deleteExercisePlace(
+        @Path("locationId") locationId: Long,
+    ): BaseResponse<Any?>
 }

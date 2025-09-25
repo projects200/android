@@ -1,4 +1,4 @@
-package com.project200.feature.timer.utils
+package com.project200.presentation.utils
 
 import android.content.Context
 import android.text.SpannableString
@@ -44,7 +44,7 @@ object MenuStyler {
                 .getDeclaredMethod("setForceShowIcon", Boolean::class.java)
                 .invoke(mPopup, true)
         } catch (e: Exception) {
-            Timber.e(e, "Error showing menu icons.")
+            Timber.Forest.e(e, "Error showing menu icons.")
         }
     }
 }

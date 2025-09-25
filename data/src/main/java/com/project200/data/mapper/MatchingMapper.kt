@@ -1,8 +1,10 @@
 package com.project200.data.mapper
 
+import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.LocationDto
+import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.Location
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
@@ -48,5 +50,15 @@ fun GetMatchingProfileDTO.toModel(): MatchingMemberProfile {
                     imageUrl = it.imageUrl,
                 )
             },
+    )
+}
+
+fun GetExercisePlaceDTO.toModel(): ExercisePlace {
+    return ExercisePlace(
+        id = this.id,
+        name = this.name,
+        address = this.address,
+        latitude = this.latitude,
+        longitude = this.longitude,
     )
 }

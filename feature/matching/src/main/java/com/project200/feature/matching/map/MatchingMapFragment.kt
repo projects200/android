@@ -81,6 +81,12 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         binding.currentLocationBtn.setOnClickListener {
             checkPermissionAndMove()
         }
+
+        binding.exercisePlaceListBtn.setOnClickListener {
+            findNavController().navigate(
+                MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+            )
+        }
     }
 
     private fun setMapListeners() {
