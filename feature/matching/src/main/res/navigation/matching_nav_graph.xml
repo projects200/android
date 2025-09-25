@@ -35,5 +35,15 @@
         android:name="com.project200.feature.matching.place.ExercisePlaceFragment"
         android:label="exercisePlace"
         tools:layout="@layout/fragment_exercise_place">
+        <action
+            android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/exercisePlaceSearchFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceSearchFragment"
+        android:label="exercisePlaceSearch"
+        tools:layout="@layout/fragment_exercise_place_search">
     </fragment>
 </navigation>

@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.ExercisePlace
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
@@ -29,7 +30,9 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
             showBackButton(true) { requireActivity().onBackPressedDispatcher.onBackPressed() }
         }
         binding.exercisePlaceSearchBtn.setOnClickListener {
-            // TODO: 장소 검색 화면으로 이동
+            findNavController().navigate(
+                ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment()
+            )
         }
 
         setupRecyclerView()
