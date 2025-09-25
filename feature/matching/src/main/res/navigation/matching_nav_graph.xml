@@ -23,5 +23,8 @@
         android:name="com.project200.feature.matching.map.MatchingProfileFragment"
         android:label="matchingProfile"
         tools:layout="@layout/fragment_matching_profile">
+        <argument
+            android:name="memberId"
+            app:argType="string" />
     </fragment>
 </navigation>

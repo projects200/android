@@ -6,8 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
+import com.project200.domain.usecase.GetMatchingProfileUseCase
 import com.project200.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -21,12 +24,14 @@ import javax.inject.Inject
 class MatchingProfileViewModel
 @Inject
 constructor(
-    private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
-    private val getUserProfileUseCase: GetUserProfileUseCase,
+    private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
+    private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
     private val clockProvider: ClockProvider,
 ) : ViewModel() {
-    private val _profile = MutableLiveData<UserProfile>()
-    val profile: LiveData<UserProfile> = _profile
+    private var memberId: String = ""
+
+    private val _profile = MutableLiveData<MatchingMemberProfile>()
+    val profile: LiveData<MatchingMemberProfile> = _profile
 
     private val _selectedMonth = MutableLiveData<YearMonth>()
     val selectedMonth: LiveData<YearMonth> = _selectedMonth
@@ -44,18 +49,23 @@ constructor(
         onMonthChanged(initialMonth)
     }
 
+    fun setMemberId(id: String) {
+        memberId = id
+        getProfile(memberId)
+    }
+
     fun onMonthChanged(newMonth: YearMonth) {
         _selectedMonth.value = newMonth
 
         if (exerciseCache.containsKey(newMonth)) {
             return
         }
-        getExerciseCounts(newMonth, clockProvider.now())
+        getExerciseCounts(memberId, newMonth, clockProvider.now())
     }
 
-    fun getProfile() {
+    fun getProfile(memberId: String) {
         viewModelScope.launch {
-            when (val result = getUserProfileUseCase()) {
+            when (val result = getMatchingProfileUseCase(memberId)) {
                 is BaseResult.Success -> {
                     _profile.value = result.data
                 }
@@ -69,6 +79,7 @@ constructor(
 
     // 캘린더 한달 운동 조회
     private fun getExerciseCounts(
+        memberId: String,
         yearMonth: YearMonth,
         today: LocalDate,
     ) {
@@ -78,7 +89,7 @@ constructor(
             val endDate =
                 if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
 
-            when (val result = getExerciseCountInMonthUseCase(startDate, endDate)) {
+            when (val result = getMemberExerciseUseCase(memberId, startDate, endDate)) {
                 is BaseResult.Success -> {
                     // 운동 기록 횟수 set 으로 변환
                     val datesWithExercise =

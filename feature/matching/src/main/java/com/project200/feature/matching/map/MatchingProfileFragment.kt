@@ -9,6 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
@@ -27,11 +28,13 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import kotlin.getValue
 
 @AndroidEntryPoint
 class MatchingProfileFragment: BindingFragment<FragmentMatchingProfileBinding> (R.layout.fragment_matching_profile) {
     private val viewModel: MatchingProfileViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
+    private val args: MatchingProfileFragmentArgs by navArgs()
 
     override fun getViewBinding(view: View): FragmentMatchingProfileBinding {
         return FragmentMatchingProfileBinding.bind(view)
@@ -43,7 +46,7 @@ class MatchingProfileFragment: BindingFragment<FragmentMatchingProfileBinding> (
             showBackButton(true) { findNavController().navigateUp() }
         }
         initClickListener()
-        viewModel.getProfile()
+        viewModel.setMemberId(args.memberId)
         setupCalendar()
     }
 
@@ -99,14 +102,6 @@ class MatchingProfileFragment: BindingFragment<FragmentMatchingProfileBinding> (
                         Toast.LENGTH_SHORT,
                     ).show()
                 }
-            }
-        }
-
-        val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
-        savedStateHandle?.getLiveData<Boolean>(REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
-            if (shouldRefresh) {
-                viewModel.getProfile()
-                savedStateHandle.remove<Boolean>(REFRESH_KEY)
             }
         }
     }
@@ -217,8 +212,4 @@ class MatchingProfileFragment: BindingFragment<FragmentMatchingProfileBinding> (
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) : ViewContainer(binding.root)
-
-    companion object {
-        const val REFRESH_KEY = "REFRESH_KEY"
-    }
 }
