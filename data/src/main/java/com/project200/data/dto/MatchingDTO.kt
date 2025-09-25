@@ -41,3 +41,8 @@ data class GetExercisePlaceDTO(
     val latitude: Double,
     val longitude: Double
 )
+
+@JsonClass(generateAdapter = true)
+data class DeleteExercisePlaceDTO(
+    val id: Long,
+)

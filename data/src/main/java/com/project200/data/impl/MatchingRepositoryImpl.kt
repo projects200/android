@@ -19,6 +19,7 @@ import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.repository.MatchingRepository
 import kotlinx.coroutines.CoroutineDispatcher
+import okhttp3.internal.UTC
 import java.time.LocalDate
 import javax.inject.Inject
 import kotlin.collections.map
@@ -246,7 +247,20 @@ class MatchingRepositoryImpl
         )*/
     }
 
-        companion object {
+    /** 운동 장소를 추가하는 함수
+     * @param placeId 운동 장소 ID
+     */
+    override suspend fun deleteExercisePlace(placeId: Long): BaseResult<Unit> {
+        return BaseResult.Success(Unit)
+        /** TODO: 실제 api 완성되면 연결 필요
+         * return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteExercisePlace(placeId) },
+            mapper = { Unit }
+        )*/
+    }
+
+    companion object {
             private const val KEY_LAST_LAT = "key_last_lat"
             private const val KEY_LAST_LON = "key_last_lon"
             private const val KEY_LAST_ZOOM = "key_last_zoom"

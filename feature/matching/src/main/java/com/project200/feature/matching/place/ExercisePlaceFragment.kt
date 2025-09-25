@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.viewModelScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.ExercisePlace
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
@@ -53,12 +54,11 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
         }
 
         viewModel.errorToast.observe(viewLifecycleOwner) {
-            when(it) {
-                ExercisePlaceErrorType.LOAD_FAILED -> {
-                    Toast.makeText(requireContext(), R.string.exercise_place, Toast.LENGTH_SHORT).show()
-                }
-                else -> {}
+            val message = when(it) {
+                ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
+                ExercisePlaceErrorType.DELETE_FAILED -> R.string.error_failed_to_delete_exercise_place
             }
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -80,8 +80,12 @@ class ExercisePlaceFragment: BindingFragment<FragmentExercisePlaceBinding> (R.la
 
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
-                    R.id.action_edit -> { }
-                    R.id.action_delete -> { }
+                    R.id.action_edit -> {
+                        // TODO: 장소 수정 화면으로 이동
+                    }
+                    R.id.action_delete -> {
+                        viewModel.deleteExercisePlace(place.id)
+                    }
                 }
                 true
             }

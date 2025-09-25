@@ -22,4 +22,6 @@ interface MatchingRepository {
 
     // 운동 장소 리스트
     suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>>
+    // 운동 장소 삭제
+    suspend fun deleteExercisePlace(placeId: Long): BaseResult<Unit>
 }

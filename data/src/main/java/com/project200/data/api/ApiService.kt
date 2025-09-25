@@ -270,7 +270,14 @@ interface ApiService {
     // TODO: 매칭 타 회원 구간별 운동 기록 조회
 
     // 운동 장소 리스트 조회
-    @GET("/api/v1/exercise-locations")
+    @GET("api/v1/exercise-locations")
     @AccessTokenApi
     suspend fun getExercisePlaces(): BaseResponse<List<GetExercisePlaceDTO>>
+
+    // 운동 장소 삭제
+    @DELETE("api/v1/exercise-locations/{locationId}")
+    @AccessTokenApi
+    suspend fun deleteExercisePlace(
+        @Path("locationId") locationId: Long,
+    ): BaseResponse<Any?>
 }
