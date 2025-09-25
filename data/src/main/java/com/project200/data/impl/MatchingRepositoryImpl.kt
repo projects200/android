@@ -7,8 +7,6 @@ import com.project200.common.di.IoDispatcher
 import com.project200.common.utils.DefaultPrefs
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetExerciseCountByRangeDTO
-import com.project200.data.dto.GetMatchingProfileDTO
-import com.project200.data.dto.GetProfileDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -19,7 +17,6 @@ import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.repository.MatchingRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import okhttp3.Dispatcher
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -134,48 +131,48 @@ class MatchingRepositoryImpl
             }
         }
 
-    override suspend fun getMatchingProfile(memberId: String): BaseResult<MatchingMemberProfile> {
-        // api 배포되기전 더미데이터입니다.
-        return BaseResult.Success(
-            MatchingMemberProfile(
-                profileThumbnailUrl = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                profileImageUrl = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
-                nickname = "강철헬린이",
-                gender = "MALE",
-                birthDate = "1995-03-15",
-                bio = "3대 500을 향하여! 같이 성장할 파트너를 찾습니다. 꾸준함이 답이라고 믿어요.",
-                yearlyExerciseDays = 250,
-                exerciseCountInLast30Days = 22,
-                exerciseScore = 95,
-                preferredExercises = emptyList()
+        override suspend fun getMatchingProfile(memberId: String): BaseResult<MatchingMemberProfile> {
+            // api 배포되기전 더미데이터입니다.
+            return BaseResult.Success(
+                MatchingMemberProfile(
+                    profileThumbnailUrl = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+                    profileImageUrl = "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b",
+                    nickname = "강철헬린이",
+                    gender = "MALE",
+                    birthDate = "1995-03-15",
+                    bio = "3대 500을 향하여! 같이 성장할 파트너를 찾습니다. 꾸준함이 답이라고 믿어요.",
+                    yearlyExerciseDays = 250,
+                    exerciseCountInLast30Days = 22,
+                    exerciseScore = 95,
+                    preferredExercises = emptyList(),
+                ),
             )
-        )
-        /** TODO: 실제 api 완성되면 연결 필요
-         * return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getMatchingProfile(memberId) },
-            mapper = { dto: GetMatchingProfileDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException()
-            },
-        )*/
-    }
+            /** TODO: 실제 api 완성되면 연결 필요
+             * return apiCallBuilder(
+             ioDispatcher = ioDispatcher,
+             apiCall = { apiService.getMatchingProfile(memberId) },
+             mapper = { dto: GetMatchingProfileDTO? ->
+             dto?.toModel() ?: throw NoSuchElementException()
+             },
+             )*/
+        }
 
-    override suspend fun getMemberExerciseDates(
-        memberId: String,
-        startDate: LocalDate,
-        endDate: LocalDate
-    ): BaseResult<List<ExerciseCount>> {
-        // TODO: API 완성되면 구현 필요 (현재는 내 프로필에서 사용하는 api 재사용)
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
-            mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
-                dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
-            },
-        )
-    }
+        override suspend fun getMemberExerciseDates(
+            memberId: String,
+            startDate: LocalDate,
+            endDate: LocalDate,
+        ): BaseResult<List<ExerciseCount>> {
+            // TODO: API 완성되면 구현 필요 (현재는 내 프로필에서 사용하는 api 재사용)
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
+                mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+                },
+            )
+        }
 
-    companion object {
+        companion object {
             private const val KEY_LAST_LAT = "key_last_lat"
             private const val KEY_LAST_LON = "key_last_lon"
             private const val KEY_LAST_ZOOM = "key_last_zoom"

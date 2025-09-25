@@ -2,13 +2,11 @@ package com.project200.data.mapper
 
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
-import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.LocationDto
 import com.project200.domain.model.Location
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.model.PreferredExercise
-import com.project200.domain.model.UserProfile
 
 fun GetMatchingMembersDto.toModel(): MatchingMember {
     return MatchingMember(
@@ -28,7 +26,6 @@ fun LocationDto.toModel(): Location {
         longitude = this.longitude,
     )
 }
-
 
 fun GetMatchingProfileDTO.toModel(): MatchingMemberProfile {
     return MatchingMemberProfile(

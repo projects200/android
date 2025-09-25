@@ -31,7 +31,7 @@ import java.time.ZoneId
 import kotlin.getValue
 
 @AndroidEntryPoint
-class MatchingProfileFragment: BindingFragment<FragmentMatchingProfileBinding> (R.layout.fragment_matching_profile) {
+class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> (R.layout.fragment_matching_profile) {
     private val viewModel: MatchingProfileViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
     private val args: MatchingProfileFragmentArgs by navArgs()
