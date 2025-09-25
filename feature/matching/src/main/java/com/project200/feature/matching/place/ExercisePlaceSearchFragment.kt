@@ -17,6 +17,7 @@ import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.project200.common.constants.RuleConstants
+import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentExercisePlaceSearchBinding
@@ -50,7 +51,6 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     }
 
     override fun setupViews() {
-        // TODO: 툴바 설정 등 필요한 View 초기화
     }
 
     // 지도 초기화 함수
@@ -66,6 +66,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                 override fun onMapReady(map: KakaoMap) {
                     kakaoMap = map
                     setupInitialMapPosition()
+                    setMapListeners()
                 }
             }
         )
@@ -86,6 +87,42 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                 LatLng.from(RuleConstants.SEOUL_CITY_HALL_LATITUDE, RuleConstants.SEOUL_CITY_HALL_LONGITUDE),
             )
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+
+    /**
+     * 지도 이동 종료 리스너 설정 함수
+     * 지도 이동이 끝날 때마다 호출되어 마커의 끝부분에 맞춰 실제 지도 좌표의 주소를 가져옵니다.
+     *
+     * 마커의 끝부분에 해당하는 화면 상의 픽셀(px) 좌표를 계산합니다.
+     * X 좌표: MapView의 정중앙
+     * Y 좌표: 마커 이미지의 하단(bottom) - MapView의 상단(top)
+     */
+    private fun setMapListeners() {
+        kakaoMap?.setOnCameraMoveEndListener { _, cameraPosition, _ ->
+            val map = kakaoMap ?: return@setOnCameraMoveEndListener
+
+
+            val targetScreenX = binding.mapView.width / 2
+            val targetScreenY = binding.centerMarkerIv.bottom - binding.mapView.top
+
+            val targetLatLng = map.fromScreenPoint(targetScreenX, targetScreenY)
+
+            if (targetLatLng != null) {
+                viewModel.fetchAddressFromCoordinates(targetLatLng.latitude, targetLatLng.longitude)
+            }
+        }
+    }
+
+    override fun setupObservers() {
+        viewModel.placeInfoResult.observe(viewLifecycleOwner) { placeInfo ->
+            if (placeInfo is BaseResult.Success) {
+                binding.placeNameTv.text = placeInfo.data.placeName
+                binding.placeAddressTv.text = placeInfo.data.address
+            } else {
+                // 주소 정보를 가져오지 못한 경우
+                Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

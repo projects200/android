@@ -35,4 +35,5 @@
     <string name="error_failed_to_load">프로필 정보를 불러오는데 실패했습니다.</string>
     <string name="error_failed_to_load_exercise_place">운동 장소 목록을 불러오는데 실패했습니다.</string>
     <string name="error_failed_to_delete_exercise_place">운동 장소 삭제에 실패했습니다.</string>
+    <string name="error_cannot_find_address">주소를 가져오는데 실패했습니다.</string>
 </resources>

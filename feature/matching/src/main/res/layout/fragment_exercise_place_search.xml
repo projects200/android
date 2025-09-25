@@ -57,9 +57,10 @@
         app:layout_constraintTop_toBottomOf="@id/search_toolbar_ll"
         app:layout_constraintBottom_toBottomOf="parent"/>
     <ImageView
-        android:src="@drawable/ic_member_marker"
+        android:id="@+id/center_marker_iv"
+        android:src="@drawable/ic_exercise_place_marker"
         app:layout_constraintTop_toTopOf="@id/map_view"
-        app:layout_constraintBottom_toBottomOf="@id/map_view"
+        app:layout_constraintBottom_toTopOf="@id/place_address_cl"
         app:layout_constraintEnd_toEndOf="@id/map_view"
         app:layout_constraintStart_toStartOf="@id/map_view"
         android:layout_width="wrap_content"

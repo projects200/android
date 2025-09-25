@@ -22,3 +22,10 @@
 -keepclasseswithmembers class * {
     @dagger.hilt.android.qualifiers.ApplicationContext <init>(...);
 }
+
+# Kakao Map SDK v2
+-keep class com.kakao.vectormap.** { *; }
+-keep class kakao.d.d.d.** { *; }
+-keep class com.kakao.sdk.**.** { *; }
+-keep class Kakao.** { *; }
+-dontwarn com.kakao.vectormap.**
