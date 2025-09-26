@@ -11,6 +11,7 @@ import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
+import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -257,4 +258,13 @@ interface ApiService {
     @GET("api/v1/members")
     @AccessTokenApi
     suspend fun getMatchingMembers(): BaseResponse<List<Any>>
+
+    // 매칭 타 회원 프로필 조회
+    @GET("api/v1/members/{memberId}")
+    @AccessTokenApi
+    suspend fun getMatchingProfile(
+        @Path("memberId") memberId: String,
+    ): BaseResponse<GetMatchingProfileDTO>
+
+    // TODO: 매칭 타 회원 구간별 운동 기록 조회
 }
