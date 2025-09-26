@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white300">
+
+    <LinearLayout
+        android:id="@+id/search_toolbar_ll"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/tool_bar_height"
+        android:background="@color/white300"
+        android:gravity="center"
+        android:paddingStart="12dp"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/back_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back"
+            android:visibility="visible" />
+
+        <EditText
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="4dp"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_solid_corner"
+            android:drawableStart="@drawable/ic_search"
+            android:drawablePadding="12dp"
+            android:hint="@string/exercise_place_search"
+            android:paddingHorizontal="12dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/gray200" />
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/search_btn"
+            style="@style/content_bold"
+            android:layout_width="62dp"
+            android:layout_height="33dp"
+            android:layout_marginEnd="@dimen/base_horizontal_margin"
+            android:background="@drawable/bg_complete_btn"
+            android:gravity="center"
+            android:text="@string/search"
+            android:textColor="@color/white300"
+            app:layout_constraintBottom_toBottomOf="@+id/base_toolbar"
+            app:layout_constraintEnd_toEndOf="@+id/base_toolbar"
+            app:layout_constraintTop_toTopOf="@+id/base_toolbar" />
+    </LinearLayout>
+    <com.kakao.vectormap.MapView
+        android:id="@+id/map_view"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/search_toolbar_ll"
+        app:layout_constraintBottom_toBottomOf="parent"/>
+    <ImageView
+        android:id="@+id/center_marker_iv"
+        android:src="@drawable/ic_exercise_place_marker"
+        app:layout_constraintTop_toTopOf="@id/map_view"
+        app:layout_constraintBottom_toTopOf="@id/place_address_cl"
+        app:layout_constraintEnd_toEndOf="@id/map_view"
+        app:layout_constraintStart_toStartOf="@id/map_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:tint="@color/black" />
+    <LinearLayout
+        android:id="@+id/place_address_cl"
+        android:layout_width="match_parent"
+        android:layout_height="100dp"
+        android:orientation="horizontal"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:background="@drawable/bg_bottom_sheet_dialog"
+        android:paddingHorizontal="@dimen/base_horizontal_margin">
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/place_name_tv"
+                android:textColor="@color/black"
+                style="@style/medium_bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp" />
+            <TextView
+                android:id="@+id/place_address_tv"
+                android:fontFamily="@font/pretendard_regular"
+                android:textColor="@color/gray100"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <androidx.appcompat.widget.AppCompatButton
+            android:id="@+id/register_exercise_place__btn"
+            style="@style/content_bold"
+            android:layout_width="62dp"
+            android:layout_height="33dp"
+            android:layout_marginEnd="@dimen/base_horizontal_margin"
+            android:background="@drawable/bg_complete_btn"
+            android:gravity="center"
+            android:text="@string/exercise_place_register"
+            android:textColor="@color/white300"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"/>
+    </LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

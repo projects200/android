@@ -1,5 +1,6 @@
 package com.project200.data.di
 
+import com.project200.data.impl.AddressRepositoryImpl
 import com.project200.data.impl.AppUpdateRepositoryImpl
 import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
@@ -9,6 +10,7 @@ import com.project200.data.impl.MemberRepositoryImpl
 import com.project200.data.impl.PolicyRepositoryImpl
 import com.project200.data.impl.ScoreRepositoryImpl
 import com.project200.data.impl.TimerRepositoryImpl
+import com.project200.domain.repository.AddressRepository
 import com.project200.domain.repository.AppUpdateRepository
 import com.project200.domain.repository.AuthRepository
 import com.project200.domain.repository.ExerciseRecordRepository
@@ -61,5 +63,9 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindMatchingRepository(matchingRepository: MatchingRepositoryImpl): MatchingRepository
+    abstract fun bindMatchingRepository(matchingRepositoryImpl: MatchingRepositoryImpl): MatchingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAddressRepository(addressRepositoryImpl: AddressRepositoryImpl): AddressRepository
 }
