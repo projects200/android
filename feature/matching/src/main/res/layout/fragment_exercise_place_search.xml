@@ -23,11 +23,14 @@
             android:visibility="visible" />
 
         <EditText
+            android:id="@+id/search_exercise_place_et"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="4dp"
             android:layout_marginEnd="12dp"
             android:layout_weight="1"
+            android:maxLines="1"
+            android:inputType="text"
             android:background="@drawable/bg_solid_corner"
             android:drawableStart="@drawable/ic_search"
             android:drawablePadding="12dp"
@@ -110,4 +113,29 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
     </LinearLayout>
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/searched_place_cl"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        android:background="@color/white300"
+        app:layout_constraintTop_toBottomOf="@id/search_toolbar_ll"
+        app:layout_constraintBottom_toBottomOf="parent">
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/searched_place_rv"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"/>
+        <TextView
+            android:id="@+id/searched_place_empty_tv"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            style="@style/content_regular"
+            android:gravity="center"
+            android:visibility="gone"
+            android:text="@string/empty_searched_place"
+            android:textColor="@color/gray200"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
 </androidx.constraintlayout.widget.ConstraintLayout>

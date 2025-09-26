@@ -3,12 +3,13 @@ package com.project200.feature.matching.place
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
 import com.kakao.vectormap.KakaoMap
@@ -23,6 +24,7 @@ import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentExercisePlaceSearchBinding
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
+import androidx.core.view.isVisible
 
 @AndroidEntryPoint
 class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchBinding>(R.layout.fragment_exercise_place_search) {
@@ -30,6 +32,8 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ExercisePlaceSearchViewModel by viewModels()
+
+    private lateinit var searchedPlaceAdapter: SearchedPlaceRVAdapter
 
     // 위치 권한 요청 런처
     private val locationPermissionLauncher =
@@ -44,18 +48,50 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         return FragmentExercisePlaceSearchBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun setupViews() {
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
         initMapView()
+        initClickListeners()
+        setupRecyclerView()
     }
 
-    override fun setupViews() {
+    private fun initClickListeners() {
+        binding.backBtn.setOnClickListener {
+            // 검색 결과가 보이는 상태면 검색 결과 레이아웃을 숨기고, 그렇지 않으면 이전 화면으로 돌아감
+            if(binding.searchedPlaceCl.isVisible) {
+                binding.searchedPlaceCl.visibility = View.GONE
+            } else {
+                findNavController().popBackStack()
+            }
+        }
+
+        binding.searchBtn.setOnClickListener {
+            val query = binding.searchExercisePlaceEt.text.toString()
+            if (query.isNotBlank()) {
+                viewModel.searchPlacesByKeyword(
+                    query = query,
+                    latitude = kakaoMap?.cameraPosition?.position?.latitude
+                        ?: RuleConstants.SEOUL_CITY_HALL_LATITUDE,
+                    longitude = kakaoMap?.cameraPosition?.position?.longitude
+                        ?: RuleConstants.SEOUL_CITY_HALL_LONGITUDE
+                )
+            } else {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.no_search_keyword),
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        binding.registerExercisePlaceBtn.setOnClickListener {
+            // TODO: 장소 등록 상세로 이동
+        }
     }
 
     // 지도 초기화 함수
     private fun initMapView() {
-        binding.mapView.start( // XML에 MapView가 있고 ID가 mapView라고 가정
+        binding.mapView.start(
             object : MapLifeCycleCallback() {
                 override fun onMapDestroy() {}
                 override fun onMapError(error: Exception) {
@@ -102,7 +138,6 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         kakaoMap?.setOnCameraMoveEndListener { _, cameraPosition, _ ->
             val map = kakaoMap ?: return@setOnCameraMoveEndListener
 
-
             val targetScreenX = binding.mapView.width / 2
             val targetScreenY = binding.centerMarkerIv.bottom - binding.mapView.top
 
@@ -115,12 +150,32 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     }
 
     override fun setupObservers() {
-        viewModel.placeInfoResult.observe(viewLifecycleOwner) { placeInfo ->
-            if (placeInfo is BaseResult.Success) {
-                handlePlaceInfoTextView(placeInfo.data.placeName, placeInfo.data.address)
+        viewModel.placeInfoResult.observe(viewLifecycleOwner) { result ->
+            if (result is BaseResult.Success) {
+                handlePlaceInfoTextView(result.data.placeName, result.data.address)
+                viewModel.setPlace(result.data)
             } else {
                 // 주소 정보를 가져오지 못한 경우
                 Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.searchResult.observe(viewLifecycleOwner) { result ->
+            when (result) {
+                is BaseResult.Success -> {
+                    binding.searchedPlaceCl.visibility = View.VISIBLE
+                    if (result.data.isNotEmpty()) {
+                        binding.searchedPlaceRv.visibility = View.VISIBLE
+                        binding.searchedPlaceEmptyTv.visibility = View.GONE
+                        searchedPlaceAdapter.submitList(result.data)
+                    } else {
+                        binding.searchedPlaceRv.visibility = View.GONE
+                        binding.searchedPlaceEmptyTv.visibility = View.VISIBLE
+                    }
+                }
+                is BaseResult.Error -> {
+                    Toast.makeText(requireContext(), getString(R.string.error_failed_to_search_place), Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -137,13 +192,30 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     }
 
     /**
+     * 검색 결과 RecyclerView 설정 함수
+     */
+    private fun setupRecyclerView() {
+        searchedPlaceAdapter = SearchedPlaceRVAdapter { place ->
+            // 검색 결과 아이템 클릭 시 동작
+            moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
+            binding.searchedPlaceCl.visibility = View.GONE
+            handlePlaceInfoTextView(place.placeName, place.address)
+            viewModel.setPlace(place)
+        }
+        binding.searchedPlaceRv.apply {
+            adapter = searchedPlaceAdapter
+            layoutManager = LinearLayoutManager(requireContext())
+        }
+    }
+
+    /**
      * 현재 위치로 카메라를 이동시키는 함수
      */
     @SuppressLint("MissingPermission")
     private fun moveToCurrentLocation() {
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             if (location != null) {
-                moveCamera(LatLng.from(location.latitude, location.longitude),)
+                moveCamera(LatLng.from(location.latitude, location.longitude))
             } else {
                 // 현재 위치를 가져오지 못한 경우 기본 위치로 이동
                 moveCamera(LatLng.from(RuleConstants.SEOUL_CITY_HALL_LATITUDE, RuleConstants.SEOUL_CITY_HALL_LONGITUDE))
