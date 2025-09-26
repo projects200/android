@@ -15,7 +15,7 @@
         android:id="@+id/mypageFragment"
         android:name="com.project200.feature.profile.mypage.MypageFragment"
         android:label="MypageFragment"
-        tools:layout="@layout/fragment_mypage" />
+        tools:layout="@layout/fragment_matching_profile" />
 
     <fragment
         android:id="@+id/timerListFragment"

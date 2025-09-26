@@ -20,3 +20,16 @@ data class MapPosition(
     val longitude: Double,
     val zoomLevel: Int,
 )
+
+data class MatchingMemberProfile(
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
+    val nickname: String,
+    val gender: String,
+    val birthDate: String,
+    val bio: String?,
+    val yearlyExerciseDays: Int,
+    val exerciseCountInLast30Days: Int,
+    val exerciseScore: Int,
+    val preferredExercises: List<PreferredExercise>
+)
