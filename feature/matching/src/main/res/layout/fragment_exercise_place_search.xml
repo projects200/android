@@ -66,33 +66,35 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         app:tint="@color/black" />
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:id="@+id/place_address_cl"
         android:layout_width="match_parent"
         android:layout_height="100dp"
+        android:orientation="horizontal"
+        android:gravity="center"
         app:layout_constraintBottom_toBottomOf="parent"
         android:background="@drawable/bg_bottom_sheet_dialog"
         android:paddingHorizontal="@dimen/base_horizontal_margin">
-        <TextView
-            android:id="@+id/place_name_tv"
-            android:textColor="@color/black"
-            style="@style/medium_bold"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            app:layout_constraintVertical_chainStyle="packed"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintBottom_toTopOf="@id/place_address_tv"
-            app:layout_constraintStart_toStartOf="parent"/>
-        <TextView
-            android:id="@+id/place_address_tv"
-            android:fontFamily="@font/pretendard_regular"
-            android:textColor="@color/gray100"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/place_name_tv"
-            app:layout_constraintBottom_toBottomOf="parent"/>
+            android:layout_weight="1"
+            android:gravity="center_vertical"
+            android:orientation="vertical">
+            <TextView
+                android:id="@+id/place_name_tv"
+                android:textColor="@color/black"
+                style="@style/medium_bold"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp" />
+            <TextView
+                android:id="@+id/place_address_tv"
+                android:fontFamily="@font/pretendard_regular"
+                android:textColor="@color/gray100"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
 
         <androidx.appcompat.widget.AppCompatButton
             android:id="@+id/register_exercise_place__btn"
@@ -107,5 +109,5 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"/>
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

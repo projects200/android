@@ -2,7 +2,6 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.KakaoApiService
-import com.project200.data.dto.KakaoAddressResponse
 import com.project200.data.utils.externalApiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.KakaoPlaceInfo
@@ -13,30 +12,56 @@ import javax.inject.Inject
 class AddressRepositoryImpl @Inject constructor(
     private val kakaoApiService: KakaoApiService,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-): AddressRepository {
+) : AddressRepository {
+    /**
+     * 좌표(위도, 경도)를 주소 정보로 변환합니다.
+     * 1. 먼저, '키워드로 주변 장소 검색' API를 호출하여 가장 가까운 장소를 찾습니다.
+     * 2. 가까운 장소가 있다면, 그 장소의 이름과 주소를 사용합니다.
+     * 3. 가까운 장소가 없다면, '좌표->주소 변환' API를 호출하여 도로명 주소 또는 지번 주소를 사용합니다.
+     * @return API 호출 결과를 BaseResult<PlaceInfo> 형태로 반환
+     */
     override suspend fun getAddressFromCoordinates(latitude: Double, longitude: Double): BaseResult<KakaoPlaceInfo> {
         return externalApiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { kakaoApiService.getAddressFromCoordinates(longitude, latitude) },
-            mapper = { response: KakaoAddressResponse ->
-                val document = response.documents.firstOrNull()
-                    ?: throw NoSuchElementException()
+            apiCall = {
+                // 키워드로 주변 장소 검색 api를 호출합니다.
+                val nearestPlace = kakaoApiService.searchNearbyPlaces("", latitude, longitude, 20).documents.firstOrNull()
 
-                val roadAddress = document.roadAddress
-                if (roadAddress != null) {
+                if (nearestPlace != null) {
+                    // 가까운 장소를 찾았다면, 이 정보를 사용합니다.
+                    val finalAddress = if (nearestPlace.roadAddressName.isNotBlank()) {
+                        nearestPlace.roadAddressName
+                    } else {
+                        nearestPlace.addressName
+                    }
                     KakaoPlaceInfo(
-                        placeName = roadAddress.buildingName.ifBlank { roadAddress.addressName },
-                        address = roadAddress.addressName
+                        placeName = nearestPlace.placeName,
+                        address = finalAddress
                     )
                 } else {
-                    val jibunAddress = document.address
+                    // 가까운 장소가 없다면, '좌표->주소 변환' API를 호출합니다.
+                    val addressResponse = kakaoApiService.getAddressFromCoordinates(longitude, latitude)
+                    val addressDocument = addressResponse.documents.firstOrNull()
                         ?: throw NoSuchElementException()
-                    KakaoPlaceInfo(
-                        placeName = jibunAddress.addressName,
-                        address = jibunAddress.addressName
-                    )
+
+                    val roadAddress = addressDocument.roadAddress
+                    if (roadAddress != null) {
+                        // 도로명 주소가 있으면 사용합니다.
+                        KakaoPlaceInfo(
+                            placeName = roadAddress.buildingName,
+                            address = roadAddress.addressName
+                        )
+                    } else {
+                        // 도로명 주소가 없으면 지번 주소를 사용합니다.
+                        val jibunAddress = addressDocument.address ?: throw NoSuchElementException()
+                        KakaoPlaceInfo(
+                            placeName = jibunAddress.addressName,
+                            address = jibunAddress.addressName
+                        )
+                    }
                 }
-            }
+            },
+            mapper = { placeInfo: KakaoPlaceInfo -> placeInfo }
         )
     }
 }

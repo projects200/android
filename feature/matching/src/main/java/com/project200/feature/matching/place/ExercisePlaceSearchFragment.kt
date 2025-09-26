@@ -117,12 +117,22 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     override fun setupObservers() {
         viewModel.placeInfoResult.observe(viewLifecycleOwner) { placeInfo ->
             if (placeInfo is BaseResult.Success) {
-                binding.placeNameTv.text = placeInfo.data.placeName
-                binding.placeAddressTv.text = placeInfo.data.address
+                handlePlaceInfoTextView(placeInfo.data.placeName, placeInfo.data.address)
             } else {
                 // 주소 정보를 가져오지 못한 경우
                 Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    private fun handlePlaceInfoTextView(placeName: String, address: String) {
+        if (placeName.isEmpty() || placeName == address) { // 장소명이 없는 경우
+            binding.placeAddressTv.visibility = View.GONE
+            binding.placeNameTv.text = address
+        } else { // 장소명이 있는 경우
+            binding.placeAddressTv.visibility = View.VISIBLE
+            binding.placeNameTv.text = placeName
+            binding.placeAddressTv.text = address
         }
     }
 
