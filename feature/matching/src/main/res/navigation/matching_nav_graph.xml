@@ -45,5 +45,44 @@
         android:name="com.project200.feature.matching.place.ExercisePlaceSearchFragment"
         android:label="exercisePlaceSearch"
         tools:layout="@layout/fragment_exercise_place_search">
+        <action
+            android:id="@+id/action_exercisePlaceSearchFragment_to_exercisePlaceRegisterFragment"
+            app:destination="@id/exercisePlaceRegisterFragment">
+            <argument
+                android:name="name"
+                app:argType="string" />
+            <argument
+                android:name="address"
+                app:argType="string" />
+            <argument
+                android:name="latitude"
+                app:argType="string" />
+            <argument
+                android:name="longitude"
+                app:argType="string" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/exercisePlaceRegisterFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceRegisterFragment"
+        android:label="exercisePlaceRegister"
+        tools:layout="@layout/fragment_exercise_place_register">
+        <argument
+            android:name="placeId"
+            app:argType="long"
+            android:defaultValue="-1L"/>
+        <argument
+            android:name="name"
+            app:argType="string" />
+        <argument
+            android:name="address"
+            app:argType="string" />
+        <argument
+            android:name="latitude"
+            app:argType="string" />
+        <argument
+            android:name="longitude"
+            app:argType="string" />
     </fragment>
 </navigation>

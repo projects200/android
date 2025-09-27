@@ -85,7 +85,20 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         }
 
         binding.registerExercisePlaceBtn.setOnClickListener {
-            // TODO: 장소 등록 상세로 이동
+            val currentPlace = viewModel.place.value
+            if(currentPlace == null) {
+                Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            findNavController().navigate(
+                ExercisePlaceSearchFragmentDirections.actionExercisePlaceSearchFragmentToExercisePlaceRegisterFragment(
+                    name = currentPlace.placeName,
+                    address = currentPlace.address,
+                    latitude = currentPlace.latitude.toString(),
+                    longitude = currentPlace.longitude.toString()
+                )
+            )
         }
     }
 
