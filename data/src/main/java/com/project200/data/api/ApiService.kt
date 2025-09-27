@@ -2,6 +2,7 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerIdDTO
+import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
@@ -21,6 +22,7 @@ import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostCustomTimerRequest
+import com.project200.data.dto.PostExercisePlaceDTO
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostSignUpData
@@ -279,5 +281,20 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteExercisePlace(
         @Path("locationId") locationId: Long,
+    ): BaseResponse<Any?>
+
+    // 운동 장소 등록
+    @POST("api/v1/exercise-locations")
+    @AccessTokenApi
+    suspend fun postExercisePlace(
+        @Body placeInfo: PostExercisePlaceDTO,
+    ): BaseResponse<Any?>
+
+    // 운동 장소 수정
+    @PUT("api/v1/exercise-locations/{locationId}")
+    @AccessTokenApi
+    suspend fun putExercisePlace(
+        @Path("locationId") locationId: Long,
+        @Body placeName: EditExercisePlaceDTO,
     ): BaseResponse<Any?>
 }

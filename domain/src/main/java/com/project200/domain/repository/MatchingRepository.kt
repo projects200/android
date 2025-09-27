@@ -3,6 +3,7 @@ package com.project200.domain.repository
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
@@ -24,4 +25,8 @@ interface MatchingRepository {
     suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>>
     // 운동 장소 삭제
     suspend fun deleteExercisePlace(placeId: Long): BaseResult<Unit>
+    // 운동 장소 등록
+    suspend fun addExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit>
+    // 운동 장소 수정
+    suspend fun editExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit>
 }

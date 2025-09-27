@@ -6,7 +6,9 @@ import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
 import com.project200.common.di.IoDispatcher
 import com.project200.common.utils.DefaultPrefs
 import com.project200.data.api.ApiService
+import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.GetExerciseCountByRangeDTO
+import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -257,7 +259,23 @@ class MatchingRepositoryImpl
              )*/
         }
 
-        companion object {
+    override suspend fun addExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postExercisePlace(placeInfo.toDTO())},
+            mapper = { Unit }
+        )
+    }
+
+    override suspend fun editExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.putExercisePlace(placeInfo.id, EditExercisePlaceDTO(placeInfo.name))},
+            mapper = { Unit }
+        )
+    }
+
+    companion object {
             private const val KEY_LAST_LAT = "key_last_lat"
             private const val KEY_LAST_LON = "key_last_lon"
             private const val KEY_LAST_ZOOM = "key_last_zoom"
