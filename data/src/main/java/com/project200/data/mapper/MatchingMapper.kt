@@ -15,6 +15,7 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
     return MatchingMember(
         memberId = this.memberId,
         profileThumbnailUrl = this.profileThumbnailUrl,
+        profileImageUrl = this.profileImageUrl,
         nickname = this.nickname,
         gender = this.gender,
         birthDate = this.birthDate,
