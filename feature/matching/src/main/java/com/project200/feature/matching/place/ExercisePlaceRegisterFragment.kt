@@ -63,8 +63,7 @@ class ExercisePlaceRegisterFragment: BindingFragment<FragmentExercisePlaceRegist
             when (result) {
                 is BaseResult.Success -> {
                     Toast.makeText(requireContext(), getString(R.string.success_register_place), Toast.LENGTH_SHORT).show()
-                    findNavController().navigateUp()
-                    // TODO: 진입 경로에 따라 완료 후 화면 이동 경로 변경
+                    findNavController().navigate(R.id.action_complete_registration_and_go_to_place_list)
                 }
                 is BaseResult.Error -> {
                     Toast.makeText(requireContext(), R.string.error_fail_to_register_place, Toast.LENGTH_SHORT).show()

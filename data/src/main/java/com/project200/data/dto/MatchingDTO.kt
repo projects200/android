@@ -5,8 +5,8 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class GetMatchingMembersDto(
     val memberId: String,
-    val profileThumbnailUrl: String,
-    val profileImageUrl: String,
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
     val nickname: String,
     val gender: String,
     val birthDate: String,
