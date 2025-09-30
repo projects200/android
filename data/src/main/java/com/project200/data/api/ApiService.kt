@@ -13,6 +13,7 @@ import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
+import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -47,6 +48,7 @@ import retrofit2.http.Query
 import java.time.LocalDate
 
 interface ApiService {
+    /** 인증 */
     // 로그인
     @POST("api/v1/login")
     @AccessTokenWithFcmApi
@@ -69,6 +71,7 @@ interface ApiService {
         @Body signUpRequest: PostSignUpRequest,
     ): BaseResponse<PostSignUpData>
 
+    /** 회원 */
     // 프로필 조회
     @GET("api/v1/profile")
     @AccessTokenApi
@@ -114,6 +117,7 @@ interface ApiService {
         @Path("pictureId") pictureId: Long,
     ): BaseResponse<Any?>
 
+    /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")
     @AccessTokenApi
@@ -184,12 +188,14 @@ interface ApiService {
     @GET("api/v1/scores/expected-points-info")
     suspend fun getExpectedScoreInfo(): BaseResponse<ExpectedScoreInfoDTO>
 
+    /** 정책 */
     // 정책 그룹 조회
     @GET("open/v1/policy-groups/{groupName}/policies")
     suspend fun getPolicyGroup(
         @Path("groupName") groupName: String,
     ): BaseResponse<PolicyGroupDTO>
 
+    /** 타이머 */
     // 심플 타이머 조회
     @GET("api/v1/simple-timers")
     @AccessTokenApi
@@ -256,21 +262,28 @@ interface ApiService {
         @Body customTimer: PostCustomTimerRequest,
     ): BaseResponse<CustomTimerIdDTO>
 
+    /** 매칭 - 회원 */
     // 매칭지도 회원들 조회
-    // TODO: 향후 필터에 따라 변경될 수 있음
     @GET("api/v1/members")
     @AccessTokenApi
-    suspend fun getMatchingMembers(): BaseResponse<List<Any>>
+    suspend fun getMatchingMembers(): BaseResponse<List<GetMatchingMembersDto>>
 
     // 매칭 타 회원 프로필 조회
-    @GET("api/v1/members/{memberId}")
+    @GET("api/v1/members/{memberId}/profile")
     @AccessTokenApi
     suspend fun getMatchingProfile(
         @Path("memberId") memberId: String,
     ): BaseResponse<GetMatchingProfileDTO>
 
-    // TODO: 매칭 타 회원 구간별 운동 기록 조회
+    // 타 회원 캘린더 운동 기록 횟수 조회
+    @GET("api/v1/members/{memberId}")
+    @AccessTokenApi
+    suspend fun getMatchingMemberCalendar(
+        @Query("start") startDate: LocalDate,
+        @Query("end") endDate: LocalDate,
+    ): BaseResponse<List<GetExerciseCountByRangeDTO>>
 
+    /** 매칭 - 장소 */
     // 운동 장소 리스트 조회
     @GET("api/v1/exercise-locations")
     @AccessTokenApi
