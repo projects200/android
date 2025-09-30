@@ -33,3 +33,11 @@ data class MatchingMemberProfile(
     val exerciseScore: Int,
     val preferredExercises: List<PreferredExercise>
 )
+
+data class ExercisePlace(
+    val id: Long,
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double
+)
