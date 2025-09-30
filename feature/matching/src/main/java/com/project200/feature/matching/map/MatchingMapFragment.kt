@@ -8,6 +8,9 @@ import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationServices
@@ -27,6 +30,7 @@ import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
@@ -43,6 +47,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 moveToCurrentLocation()
             }
         }
+
 
     override fun getViewBinding(view: View): FragmentMatchingMapBinding {
         return FragmentMatchingMapBinding.bind(view)
@@ -97,6 +102,22 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 cameraPosition.position.longitude,
                 cameraPosition.zoomLevel,
             )
+        }
+    }
+
+    override fun setupObservers() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.isOpenUrlExist.collect { isExist ->
+                        if (!isExist) {
+                            findNavController().navigate(
+                                MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 
