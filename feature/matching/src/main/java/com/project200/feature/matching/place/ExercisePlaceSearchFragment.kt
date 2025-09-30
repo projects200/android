@@ -2,8 +2,10 @@ package com.project200.feature.matching.place
 
 import android.Manifest
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
@@ -25,6 +27,7 @@ import com.project200.undabang.feature.matching.databinding.FragmentExercisePlac
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 import androidx.core.view.isVisible
+import com.project200.domain.model.KakaoPlaceInfo
 
 @AndroidEntryPoint
 class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchBinding>(R.layout.fragment_exercise_place_search) {
@@ -85,7 +88,20 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         }
 
         binding.registerExercisePlaceBtn.setOnClickListener {
-            // TODO: 장소 등록 상세로 이동
+            val currentPlace = viewModel.place.value
+            if(currentPlace == null) {
+                Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+
+            findNavController().navigate(
+                ExercisePlaceSearchFragmentDirections.actionExercisePlaceSearchFragmentToExercisePlaceRegisterFragment(
+                    name = currentPlace.placeName,
+                    address = currentPlace.address,
+                    latitude = currentPlace.latitude.toString(),
+                    longitude = currentPlace.longitude.toString()
+                )
+            )
         }
     }
 
@@ -144,7 +160,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             val targetLatLng = map.fromScreenPoint(targetScreenX, targetScreenY)
 
             if (targetLatLng != null) {
-                viewModel.fetchAddressFromCoordinates(targetLatLng.latitude, targetLatLng.longitude)
+                viewModel.onMapMoved(targetLatLng.latitude, targetLatLng.longitude)
             }
         }
     }
@@ -152,8 +168,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     override fun setupObservers() {
         viewModel.placeInfoResult.observe(viewLifecycleOwner) { result ->
             if (result is BaseResult.Success) {
-                handlePlaceInfoTextView(result.data.placeName, result.data.address)
-                viewModel.setPlace(result.data)
+                handlePlaceInfo(result.data)
             } else {
                 // 주소 정보를 가져오지 못한 경우
                 Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
@@ -180,14 +195,14 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         }
     }
 
-    private fun handlePlaceInfoTextView(placeName: String, address: String) {
-        if (placeName.isEmpty() || placeName == address) { // 장소명이 없는 경우
+    private fun handlePlaceInfo(place: KakaoPlaceInfo) {
+        if (place.placeName.isEmpty() || place.placeName == place.address) { // 장소명이 없는 경우
             binding.placeAddressTv.visibility = View.GONE
-            binding.placeNameTv.text = address
+            binding.placeNameTv.text = place.address
         } else { // 장소명이 있는 경우
             binding.placeAddressTv.visibility = View.VISIBLE
-            binding.placeNameTv.text = placeName
-            binding.placeAddressTv.text = address
+            binding.placeNameTv.text = place.placeName
+            binding.placeAddressTv.text = place.address
         }
     }
 
@@ -199,8 +214,8 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             // 검색 결과 아이템 클릭 시 동작
             moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
             binding.searchedPlaceCl.visibility = View.GONE
-            handlePlaceInfoTextView(place.placeName, place.address)
-            viewModel.setPlace(place)
+            handlePlaceInfo(place)
+            viewModel.selectSearchedPlace(place)
         }
         binding.searchedPlaceRv.apply {
             adapter = searchedPlaceAdapter

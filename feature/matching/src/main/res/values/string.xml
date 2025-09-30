@@ -5,6 +5,7 @@
     <string name="exercise_place_register">등록</string>
     <string name="exercise_place">운동 장소</string>
     <string name="exercise_place_list">운동 장소 목록</string>
+    <string name="exercise_place_register_title">운동 장소 등록</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
 
     <string name="error_unknown">알 수 없는 오류가 발생했습니다.</string>
@@ -36,8 +37,19 @@
     <string name="error_failed_to_load_exercise_place">운동 장소 목록을 불러오는데 실패했습니다.</string>
     <string name="error_failed_to_delete_exercise_place">운동 장소 삭제에 실패했습니다.</string>
     <string name="error_cannot_find_address">주소를 가져오는데 실패했습니다.</string>
+    
+    <string name="place_name_title">장소명 (필수)</string>
+    <string name="place_name_hint">장소명을 입력해주세요.</string>
+    <string name="place_name_notice_title">등록하신 운동 장소는 다른 이용자에게 공개됩니다.</string>
+    <string name="place_name_notice_content">회원님이 등록하는 운동 장소 정보는\n운동 메이트를 찾기 위한 목적으로 다른 이용자들에게 공개됩니다.\n&#160;&#160;•&#160;&#160;제공받는 자: 본 서비스를 이용하는 다른 모든 회원
+\n&#160;&#160;•&#160;&#160;제공하는 정보: 회원님이 등록한 운동 장소의 위치 정보\n&#160;&#160;•&#160;&#160;보유 및 이용 기간: 회원 탈퇴 또는 해당 운동 장소 삭제 시까지</string>
+    <string name="exercise_place_register_complete">주소 등록</string>
 
     <string name="no_search_keyword">검색어를 입력해주세요.</string>
     <string name="empty_searched_place">검색 결과가 없습니다.</string>
     <string name="error_failed_to_search_place">검색 중 오류가 발생했습니다.</string>
+
+    <string name="success_register_place">운동 장소가 등록되었습니다.</string>
+    <string name="empty_place_name">운동 장소를 입력해주세요.</string>
+    <string name="error_fail_to_register_place">운동장소 등록에 실패했습니다.</string>
 </resources>
