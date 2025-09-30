@@ -15,6 +15,7 @@ import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
+import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -116,6 +117,10 @@ interface ApiService {
     suspend fun deleteProfileImage(
         @Path("pictureId") pictureId: Long,
     ): BaseResponse<Any?>
+
+    @GET("api/v1/open-chat")
+    @AccessTokenApi
+    suspend fun getOpenChatUrl(): BaseResponse<GetOpenChatUrlDTO>
 
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
