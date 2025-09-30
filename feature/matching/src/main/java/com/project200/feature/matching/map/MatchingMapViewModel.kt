@@ -5,10 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
-import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.GetOpenUrlUseCase
@@ -83,18 +81,17 @@ class MatchingMapViewModel
             }
         }
 
-
         /**
          * 카카오톡 오픈 URL을 가져옵니다.
          */
         fun getOpenUrl() {
             viewModelScope.launch {
-                when(val result = getOpenUrlUseCase()) {
+                when (val result = getOpenUrlUseCase()) {
                     is BaseResult.Success -> {
                         _isOpenUrlExist.emit(result.data.isNotEmpty())
                     }
                     is BaseResult.Error -> {
-                        if(result.errorCode == NO_URL) _isOpenUrlExist.emit(false)
+                        if (result.errorCode == NO_URL) _isOpenUrlExist.emit(false)
                     }
                 }
             }

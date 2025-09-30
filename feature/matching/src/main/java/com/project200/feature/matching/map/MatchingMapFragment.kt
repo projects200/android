@@ -48,7 +48,6 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             }
         }
 
-
     override fun getViewBinding(view: View): FragmentMatchingMapBinding {
         return FragmentMatchingMapBinding.bind(view)
     }

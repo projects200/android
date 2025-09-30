@@ -101,15 +101,15 @@ class MemberRepositoryImpl
             )
         }
 
-    override suspend fun getOpenUrl(): BaseResult<String> {
-        return apiCallBuilder (
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getOpenChatUrl() },
-            mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
-        )
-    }
+        override suspend fun getOpenUrl(): BaseResult<String> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getOpenChatUrl() },
+                mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
+            )
+        }
 
-    companion object {
+        companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }
