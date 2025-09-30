@@ -5,7 +5,8 @@ import com.squareup.moshi.JsonClass
 @JsonClass(generateAdapter = true)
 data class GetMatchingMembersDto(
     val memberId: String,
-    val profileThumbnailUrl: String,
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
     val nickname: String,
     val gender: String,
     val birthDate: String,
@@ -45,4 +46,17 @@ data class GetExercisePlaceDTO(
 @JsonClass(generateAdapter = true)
 data class DeleteExercisePlaceDTO(
     val id: Long,
+)
+
+@JsonClass(generateAdapter = true)
+data class PostExercisePlaceDTO(
+    val name: String,
+    val address: String,
+    val latitude: Double,
+    val longitude: Double,
+)
+
+@JsonClass(generateAdapter = true)
+data class EditExercisePlaceDTO(
+    val exerciseLocationName: String,
 )

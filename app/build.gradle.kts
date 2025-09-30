@@ -14,6 +14,10 @@ val kakaoNativeAppKey: String =
     localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
         ?: System.getenv("KAKAO_NATIVE_APP_KEY")
 
+val kakaoRestApiKey: String =
+    localProperties.getProperty("KAKAO_REST_API_KEY")
+        ?: System.getenv("KAKAO_REST_API_KEY")
+
 android {
     namespace = "com.project200.undabang"
 
@@ -21,6 +25,7 @@ android {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
+        buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
     }
 
     signingConfigs {

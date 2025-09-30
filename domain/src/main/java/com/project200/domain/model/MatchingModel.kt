@@ -2,7 +2,8 @@ package com.project200.domain.model
 
 data class MatchingMember(
     val memberId: String,
-    val profileThumbnailUrl: String,
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
     val nickname: String,
     val gender: String,
     val birthDate: String,
