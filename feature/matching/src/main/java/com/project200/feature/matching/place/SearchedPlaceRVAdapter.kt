@@ -7,17 +7,22 @@ import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.undabang.feature.matching.databinding.ItemSearchedPlaceBinding
 
 class SearchedPlaceRVAdapter(
-    private val onItemClick: (KakaoPlaceInfo) -> Unit
+    private val onItemClick: (KakaoPlaceInfo) -> Unit,
 ) : RecyclerView.Adapter<SearchedPlaceRVAdapter.SearchedPlaceViewHolder>() {
-
     private var items: List<KakaoPlaceInfo> = emptyList()
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SearchedPlaceViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): SearchedPlaceViewHolder {
         val binding = ItemSearchedPlaceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return SearchedPlaceViewHolder(binding, onItemClick)
     }
 
-    override fun onBindViewHolder(holder: SearchedPlaceViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: SearchedPlaceViewHolder,
+        position: Int,
+    ) {
         holder.bind(items[position])
     }
 
@@ -30,7 +35,7 @@ class SearchedPlaceRVAdapter(
 
     class SearchedPlaceViewHolder(
         private val binding: ItemSearchedPlaceBinding,
-        private val onItemClick: (KakaoPlaceInfo) -> Unit
+        private val onItemClick: (KakaoPlaceInfo) -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: KakaoPlaceInfo) {
             binding.placeNameTv.text = item.placeName

@@ -17,7 +17,6 @@ import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExercisePlace
-import com.project200.domain.model.Location
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
@@ -86,7 +85,7 @@ class MatchingRepositoryImpl
                 apiCall = { apiService.getMatchingProfile(memberId) },
                 mapper = { dto: GetMatchingProfileDTO? ->
                     dto?.toModel() ?: throw NoSuchElementException()
-                }
+                },
             )
         }
 
@@ -103,20 +102,11 @@ class MatchingRepositoryImpl
         ): BaseResult<List<ExerciseCount>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
-                mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
-                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
-                },
-            )
-
-            // TODO: API 완성되면 사용 필요 (현재는 내 프로필에서 사용하는 api 재사용)
-/*            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
                 apiCall = { apiService.getMatchingMemberCalendar(startDate, endDate) },
                 mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
                     dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
                 },
-            )*/
+            )
         }
 
         /** 운동 장소 리스트를 반환하는 함수
@@ -139,33 +129,33 @@ class MatchingRepositoryImpl
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.deleteExercisePlace(placeId) },
-                mapper = { Unit }
+                mapper = { Unit },
             )
         }
 
-    /** 운동 장소를 추가하는 함수
-     * @param placeInfo 추가할 운동 장소 정보
-     */
-    override suspend fun addExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postExercisePlace(placeInfo.toDTO())},
-            mapper = { Unit }
-        )
-    }
+        /** 운동 장소를 추가하는 함수
+         * @param placeInfo 추가할 운동 장소 정보
+         */
+        override suspend fun addExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postExercisePlace(placeInfo.toDTO()) },
+                mapper = { Unit },
+            )
+        }
 
-    /** 운동 장소를 수정하는 함수
-     * @param placeInfo 수정할 운동 장소 정보
-     */
-    override suspend fun editExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.putExercisePlace(placeInfo.id, EditExercisePlaceDTO(placeInfo.name))},
-            mapper = { Unit }
-        )
-    }
+        /** 운동 장소를 수정하는 함수
+         * @param placeInfo 수정할 운동 장소 정보
+         */
+        override suspend fun editExercisePlace(placeInfo: ExercisePlace): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.putExercisePlace(placeInfo.id, EditExercisePlaceDTO(placeInfo.name)) },
+                mapper = { Unit },
+            )
+        }
 
-    companion object {
+        companion object {
             private const val KEY_LAST_LAT = "key_last_lat"
             private const val KEY_LAST_LON = "key_last_lon"
             private const val KEY_LAST_ZOOM = "key_last_zoom"

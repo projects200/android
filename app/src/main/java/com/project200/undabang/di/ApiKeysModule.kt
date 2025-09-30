@@ -11,7 +11,6 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object ApiKeysModule {
-
     @Provides
     @Singleton
     @Named("kakao_rest_api_key")

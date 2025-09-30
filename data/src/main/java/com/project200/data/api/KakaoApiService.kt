@@ -12,7 +12,7 @@ interface KakaoApiService {
     @Named("kakao")
     suspend fun getAddressFromCoordinates(
         @Query("x") longitude: Double,
-        @Query("y") latitude: Double
+        @Query("y") latitude: Double,
     ): KakaoAddressResponse
 
     // 카카오 좌표로 가까운 장소명 검색
@@ -23,7 +23,7 @@ interface KakaoApiService {
         @Query("y") latitude: Double,
         @Query("x") longitude: Double,
         @Query("radius") radius: Int,
-        @Query("sort") sort: String = "distance"
+        @Query("sort") sort: String = "distance",
     ): KakaoKeywordSearchResponse
 
     // 카카오 키워드로 검색
@@ -33,6 +33,6 @@ interface KakaoApiService {
         @Query("query") query: String,
         @Query("y") latitude: Double,
         @Query("x") longitude: Double,
-        @Query("sort") sort: String = "distance"
+        @Query("sort") sort: String = "distance",
     ): KakaoKeywordSearchResponse
 }

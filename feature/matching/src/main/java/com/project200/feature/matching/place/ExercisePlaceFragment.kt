@@ -31,7 +31,7 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
         }
         binding.exercisePlaceSearchBtn.setOnClickListener {
             findNavController().navigate(
-                ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment()
+                ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment(),
             )
         }
 
