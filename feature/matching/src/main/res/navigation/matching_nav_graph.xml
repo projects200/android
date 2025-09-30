@@ -38,6 +38,25 @@
         <action
             android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceSearchFragment"
             app:destination="@id/exercisePlaceSearchFragment" />
+        <action
+            android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceRegisterFragment"
+            app:destination="@id/exercisePlaceRegisterFragment">
+            <argument
+                android:name="placeId"
+                app:argType="long" />
+            <argument
+                android:name="name"
+                app:argType="string" />
+            <argument
+                android:name="address"
+                app:argType="string" />
+            <argument
+                android:name="latitude"
+                app:argType="string" />
+            <argument
+                android:name="longitude"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <fragment
@@ -84,5 +103,11 @@
         <argument
             android:name="longitude"
             app:argType="string" />
+
+        <action
+            android:id="@+id/action_complete_registration_and_go_to_place_list"
+            app:destination="@id/exercisePlaceFragment"
+            app:popUpTo="@id/matchingMapFragment"
+            app:popUpToInclusive="false" />
     </fragment>
 </navigation>

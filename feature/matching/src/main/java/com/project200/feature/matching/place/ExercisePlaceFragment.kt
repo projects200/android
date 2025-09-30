@@ -95,7 +95,15 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_edit -> {
-                        // TODO: 장소 수정 화면으로 이동
+                        findNavController().navigate(
+                            ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceRegisterFragment(
+                                placeId = place.id,
+                                name = place.name,
+                                address = place.address,
+                                latitude = place.latitude.toString(),
+                                longitude = place.longitude.toString(),
+                            ),
+                        )
                     }
                     R.id.action_delete -> {
                         viewModel.deleteExercisePlace(place.id)

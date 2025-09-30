@@ -304,7 +304,7 @@ interface ApiService {
     ): BaseResponse<Any?>
 
     // 운동 장소 수정
-    @PUT("api/v1/exercise-locations/{locationId}")
+    @PATCH("api/v1/exercise-locations/{locationId}")
     @AccessTokenApi
     suspend fun putExercisePlace(
         @Path("locationId") locationId: Long,
