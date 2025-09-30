@@ -20,22 +20,23 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 object KakaoNetworkModule {
-
     @Provides
     @Singleton
     @Named("kakaoClient")
     fun provideKakaoOkHttpClient(
-        @Named("kakao_rest_api_key") apiKey: String
+        @Named("kakao_rest_api_key") apiKey: String,
     ): OkHttpClient {
         Timber.d("Kakao API Key being used: $apiKey")
 
-        val authInterceptor = Interceptor { chain ->
-            val original = chain.request()
-            val requestBuilder = original.newBuilder()
-                .header("Authorization", "KakaoAK $apiKey")
-            val request = requestBuilder.build()
-            chain.proceed(request)
-        }
+        val authInterceptor =
+            Interceptor { chain ->
+                val original = chain.request()
+                val requestBuilder =
+                    original.newBuilder()
+                        .header("Authorization", "KakaoAK $apiKey")
+                val request = requestBuilder.build()
+                chain.proceed(request)
+            }
 
         return OkHttpClient.Builder()
             .addInterceptor(authInterceptor)
@@ -47,7 +48,7 @@ object KakaoNetworkModule {
     @Named("kakao")
     fun provideKakaoRetrofit(
         @Named("kakaoClient") okHttpClient: OkHttpClient,
-        moshi: Moshi
+        moshi: Moshi,
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl("https://dapi.kakao.com") // 카카오 로컬 API 베이스 URL
@@ -58,7 +59,9 @@ object KakaoNetworkModule {
 
     @Provides
     @Singleton
-    fun provideKakaoLocalApiService(@Named("kakao") retrofit: Retrofit): KakaoApiService {
+    fun provideKakaoLocalApiService(
+        @Named("kakao") retrofit: Retrofit,
+    ): KakaoApiService {
         return retrofit.create(KakaoApiService::class.java)
     }
 }

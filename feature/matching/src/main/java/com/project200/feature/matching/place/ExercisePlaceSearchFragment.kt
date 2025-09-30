@@ -2,13 +2,12 @@ package com.project200.feature.matching.place
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.content.Context
 import android.content.pm.PackageManager
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,17 +20,15 @@ import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.project200.common.constants.RuleConstants
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentExercisePlaceSearchBinding
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
-import androidx.core.view.isVisible
-import com.project200.domain.model.KakaoPlaceInfo
 
 @AndroidEntryPoint
 class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchBinding>(R.layout.fragment_exercise_place_search) {
-
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: ExercisePlaceSearchViewModel by viewModels()
@@ -61,7 +58,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     private fun initClickListeners() {
         binding.backBtn.setOnClickListener {
             // 검색 결과가 보이는 상태면 검색 결과 레이아웃을 숨기고, 그렇지 않으면 이전 화면으로 돌아감
-            if(binding.searchedPlaceCl.isVisible) {
+            if (binding.searchedPlaceCl.isVisible) {
                 binding.searchedPlaceCl.visibility = View.GONE
             } else {
                 findNavController().popBackStack()
@@ -73,23 +70,25 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             if (query.isNotBlank()) {
                 viewModel.searchPlacesByKeyword(
                     query = query,
-                    latitude = kakaoMap?.cameraPosition?.position?.latitude
-                        ?: RuleConstants.SEOUL_CITY_HALL_LATITUDE,
-                    longitude = kakaoMap?.cameraPosition?.position?.longitude
-                        ?: RuleConstants.SEOUL_CITY_HALL_LONGITUDE
+                    latitude =
+                        kakaoMap?.cameraPosition?.position?.latitude
+                            ?: RuleConstants.SEOUL_CITY_HALL_LATITUDE,
+                    longitude =
+                        kakaoMap?.cameraPosition?.position?.longitude
+                            ?: RuleConstants.SEOUL_CITY_HALL_LONGITUDE,
                 )
             } else {
                 Toast.makeText(
                     requireContext(),
                     getString(R.string.no_search_keyword),
-                    Toast.LENGTH_SHORT
+                    Toast.LENGTH_SHORT,
                 ).show()
             }
         }
 
         binding.registerExercisePlaceBtn.setOnClickListener {
             val currentPlace = viewModel.place.value
-            if(currentPlace == null) {
+            if (currentPlace == null) {
                 Toast.makeText(requireContext(), R.string.error_cannot_find_address, Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
@@ -99,8 +98,8 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                     name = currentPlace.placeName,
                     address = currentPlace.address,
                     latitude = currentPlace.latitude.toString(),
-                    longitude = currentPlace.longitude.toString()
-                )
+                    longitude = currentPlace.longitude.toString(),
+                ),
             )
         }
     }
@@ -110,6 +109,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         binding.mapView.start(
             object : MapLifeCycleCallback() {
                 override fun onMapDestroy() {}
+
                 override fun onMapError(error: Exception) {
                     Timber.d("$error")
                 }
@@ -120,10 +120,9 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                     setupInitialMapPosition()
                     setMapListeners()
                 }
-            }
+            },
         )
     }
-
 
     /**
      * 초기 지도 위치 설정 함수
@@ -210,13 +209,14 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
      * 검색 결과 RecyclerView 설정 함수
      */
     private fun setupRecyclerView() {
-        searchedPlaceAdapter = SearchedPlaceRVAdapter { place ->
-            // 검색 결과 아이템 클릭 시 동작
-            moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
-            binding.searchedPlaceCl.visibility = View.GONE
-            handlePlaceInfo(place)
-            viewModel.selectSearchedPlace(place)
-        }
+        searchedPlaceAdapter =
+            SearchedPlaceRVAdapter { place ->
+                // 검색 결과 아이템 클릭 시 동작
+                moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
+                binding.searchedPlaceCl.visibility = View.GONE
+                handlePlaceInfo(place)
+                viewModel.selectSearchedPlace(place)
+            }
         binding.searchedPlaceRv.apply {
             adapter = searchedPlaceAdapter
             layoutManager = LinearLayoutManager(requireContext())
@@ -249,7 +249,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     private fun isLocationPermissionGranted(): Boolean {
         return ContextCompat.checkSelfPermission(
             requireContext(),
-            Manifest.permission.ACCESS_FINE_LOCATION
+            Manifest.permission.ACCESS_FINE_LOCATION,
         ) == PackageManager.PERMISSION_GRANTED
     }
 

@@ -1,8 +1,6 @@
 package com.project200.feature.matching.place
 
-import android.content.Context
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.viewModels
@@ -15,7 +13,7 @@ import com.project200.undabang.feature.matching.databinding.FragmentExercisePlac
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint // Hilt 어노테이션 추가
-class ExercisePlaceRegisterFragment: BindingFragment<FragmentExercisePlaceRegisterBinding> (R.layout.fragment_exercise_place_register) {
+class ExercisePlaceRegisterFragment : BindingFragment<FragmentExercisePlaceRegisterBinding> (R.layout.fragment_exercise_place_register) {
     private val viewModel: ExercisePlaceRegisterViewModel by viewModels()
     private val args: ExercisePlaceRegisterFragmentArgs by navArgs()
 
@@ -34,8 +32,8 @@ class ExercisePlaceRegisterFragment: BindingFragment<FragmentExercisePlaceRegist
             id = args.placeId,
             placeName = args.name,
             placeAddress = args.address,
-            latitude= args.latitude.toDouble(),
-            longitude = args.longitude.toDouble()
+            latitude = args.latitude.toDouble(),
+            longitude = args.longitude.toDouble(),
         )
         binding.placeNameEt.setText(args.name)
         setupListeners()
@@ -56,7 +54,7 @@ class ExercisePlaceRegisterFragment: BindingFragment<FragmentExercisePlaceRegist
 
     override fun setupObservers() {
         viewModel.customPlaceName.observe(viewLifecycleOwner) { name ->
-            binding.placeNameTv.text = if(name.isBlank()) getString(R.string.place_name_hint) else name
+            binding.placeNameTv.text = if (name.isBlank()) getString(R.string.place_name_hint) else name
         }
 
         viewModel.registrationResult.observe(viewLifecycleOwner) { result ->
