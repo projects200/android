@@ -9,4 +9,10 @@ interface AddressRepository {
      * @return API 호출 결과를 BaseResult<PlaceInfo> 형태로 반환
      */
     suspend fun getAddressFromCoordinates(latitude: Double, longitude: Double): BaseResult<KakaoPlaceInfo>
+
+    /**
+     * 키워드로 장소를 검색합니다.
+     * @return API 호출 결과를 BaseResult<List<PlaceInfo>> 형태로 반환
+     */
+    suspend fun getPlacesByKeyword(query: String, latitude: Double, longitude: Double): BaseResult<List<KakaoPlaceInfo>>
 }

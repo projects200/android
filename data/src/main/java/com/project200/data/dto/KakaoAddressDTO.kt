@@ -36,6 +36,8 @@ data class KakaoKeywordSearchResponse(
 data class PlaceDocument(
     @Json(name = "place_name") val placeName: String,
     @Json(name = "address_name") val addressName: String,
-    @Json(name = "road_address_name") val roadAddressName: String
+    @Json(name = "road_address_name") val roadAddressName: String,
+    @Json(name = "x") val longitude: String,
+    @Json(name = "y") val latitude: String,
 )
 

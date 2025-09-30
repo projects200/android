@@ -23,6 +23,16 @@ interface KakaoApiService {
         @Query("y") latitude: Double,
         @Query("x") longitude: Double,
         @Query("radius") radius: Int,
-        @Query("sort") sort: String = "distance" // 거리순 정렬
+        @Query("sort") sort: String = "distance"
+    ): KakaoKeywordSearchResponse
+
+    // 카카오 키워드로 검색
+    @GET("/v2/local/search/keyword.json")
+    @Named("kakao")
+    suspend fun searchPlacesByKeyword(
+        @Query("query") query: String,
+        @Query("y") latitude: Double,
+        @Query("x") longitude: Double,
+        @Query("sort") sort: String = "distance"
     ): KakaoKeywordSearchResponse
 }
