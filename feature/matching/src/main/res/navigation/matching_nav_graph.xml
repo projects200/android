@@ -118,8 +118,5 @@
         android:name="com.project200.feature.matching.map.MatchingGuideFragment"
         android:label="matchingGuide"
         tools:layout="@layout/fragment_matching_guide">
-        <action
-            android:id="@+id/action_matchingGuideFragment_to_exercisePlaceSearchFragment"
-            app:destination="@id/exercisePlaceSearchFragment" />
     </fragment>
 </navigation>

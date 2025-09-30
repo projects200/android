@@ -12,9 +12,7 @@ class MatchingGuideFragment: BindingFragment<FragmentMatchingGuideBinding> (R.la
 
     override fun setupViews() {
         binding.registerBtn.setOnClickListener {
-            findNavController().navigate(
-                MatchingGuideFragmentDirections.actionMatchingGuideFragmentToExercisePlaceSearchFragment()
-            )
+            // TODO: url 등록 화면으로 이동
         }
     }
 }
