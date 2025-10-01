@@ -39,7 +39,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
     override fun setupViews() {
         initClickListener()
-        viewModel.getProfile()
         setupCalendar()
     }
 
@@ -67,6 +66,10 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
+        }
+
+        binding.editOpenChatBtn.setOnClickListener {
+
         }
     }
 
@@ -101,6 +104,10 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
             exerciseCompleteDates = dates
             binding.exerciseCalendar.notifyCalendarChanged()
+        }
+
+        viewModel.openUrl.observe(viewLifecycleOwner) { url ->
+            binding.urlTv.text = url
         }
 
         viewLifecycleOwner.lifecycleScope.launch {

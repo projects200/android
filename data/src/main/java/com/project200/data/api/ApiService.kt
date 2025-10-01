@@ -118,6 +118,7 @@ interface ApiService {
         @Path("pictureId") pictureId: Long,
     ): BaseResponse<Any?>
 
+    // 내 오픈채팅방 URL 조회
     @GET("api/v1/open-chats")
     @AccessTokenApi
     suspend fun getOpenChatUrl(): BaseResponse<GetOpenChatUrlDTO>
@@ -288,6 +289,14 @@ interface ApiService {
         @Query("start") startDate: LocalDate,
         @Query("end") endDate: LocalDate,
     ): BaseResponse<List<GetExerciseCountByRangeDTO>>
+
+    // 타 회원 오픈채팅방 URL 조회
+    @GET("api/v1/members/{memberId}/open-chat")
+    @AccessTokenApi
+    suspend fun getMatchingMemberOpenChatUrl(
+        @Path("memberId") memberId: String,
+    ): BaseResponse<GetOpenChatUrlDTO>
+
 
     /** 매칭 - 장소 */
     // 운동 장소 리스트 조회
