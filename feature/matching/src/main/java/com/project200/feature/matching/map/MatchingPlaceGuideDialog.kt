@@ -8,7 +8,6 @@ import com.project200.presentation.base.BaseDialogFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.DialogMatchingPlaceGuideBinding
 import dagger.hilt.android.AndroidEntryPoint
-import java.util.Locale
 
 @AndroidEntryPoint
 class MatchingPlaceGuideDialog(
