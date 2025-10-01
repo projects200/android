@@ -11,7 +11,6 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
-import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
@@ -110,16 +109,15 @@ class MatchingRepositoryImpl
             )
         }
 
-    override suspend fun getMemberOpenUrl(memberId: String): BaseResult<String> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getMatchingMemberOpenChatUrl(memberId) },
-            mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
-        )
-    }
+        override suspend fun getMemberOpenUrl(memberId: String): BaseResult<String> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getMatchingMemberOpenChatUrl(memberId) },
+                mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
+            )
+        }
 
-
-    /** 운동 장소 리스트를 반환하는 함수
+        /** 운동 장소 리스트를 반환하는 함수
          * @return 운동 장소 리스트
          */
         override suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>> {

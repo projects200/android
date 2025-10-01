@@ -123,17 +123,17 @@ class MypageViewModel
             _selectedMonth.value = newMonth
         }
 
-    fun getOpenUrl() {
-        viewModelScope.launch {
-            when (val result = getOpenUrlUseCase()) {
-                is BaseResult.Success -> {
-                    _openUrl.value = result.data
-                }
+        fun getOpenUrl() {
+            viewModelScope.launch {
+                when (val result = getOpenUrlUseCase()) {
+                    is BaseResult.Success -> {
+                        _openUrl.value = result.data
+                    }
 
-                is BaseResult.Error -> {
-                    _toast.emit(true)
+                    is BaseResult.Error -> {
+                        _toast.emit(true)
+                    }
                 }
             }
         }
-    }
     }

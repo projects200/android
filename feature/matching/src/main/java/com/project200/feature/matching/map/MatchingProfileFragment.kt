@@ -1,10 +1,10 @@
 package com.project200.feature.matching.map
 
 import android.content.Intent
-import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -31,7 +31,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
 import kotlin.getValue
-import androidx.core.net.toUri
 
 @AndroidEntryPoint
 class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> (R.layout.fragment_matching_profile) {

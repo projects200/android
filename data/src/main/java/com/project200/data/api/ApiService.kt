@@ -297,7 +297,6 @@ interface ApiService {
         @Path("memberId") memberId: String,
     ): BaseResponse<GetOpenChatUrlDTO>
 
-
     /** 매칭 - 장소 */
     // 운동 장소 리스트 조회
     @GET("api/v1/exercise-locations")

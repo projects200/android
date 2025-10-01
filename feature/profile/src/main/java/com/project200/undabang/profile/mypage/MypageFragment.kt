@@ -69,7 +69,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         }
 
         binding.editOpenChatBtn.setOnClickListener {
-
         }
     }
 

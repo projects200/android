@@ -10,7 +10,6 @@ import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
 import com.project200.domain.usecase.GetMatchingMemberOpenUrlUseCase
 import com.project200.domain.usecase.GetMatchingProfileUseCase
-import com.project200.domain.usecase.GetOpenUrlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -21,125 +20,125 @@ import javax.inject.Inject
 
 @HiltViewModel
 class MatchingProfileViewModel
-@Inject
-constructor(
-    private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
-    private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
-    private val getMemberOpenUrlUseCase: GetMatchingMemberOpenUrlUseCase,
-    private val clockProvider: ClockProvider,
-) : ViewModel() {
-    private var memberId: String = ""
+    @Inject
+    constructor(
+        private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
+        private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
+        private val getMemberOpenUrlUseCase: GetMatchingMemberOpenUrlUseCase,
+        private val clockProvider: ClockProvider,
+    ) : ViewModel() {
+        private var memberId: String = ""
 
-    private val _profile = MutableLiveData<MatchingMemberProfile>()
-    val profile: LiveData<MatchingMemberProfile> = _profile
+        private val _profile = MutableLiveData<MatchingMemberProfile>()
+        val profile: LiveData<MatchingMemberProfile> = _profile
 
-    private val _selectedMonth = MutableLiveData<YearMonth>()
-    val selectedMonth: LiveData<YearMonth> = _selectedMonth
+        private val _selectedMonth = MutableLiveData<YearMonth>()
+        val selectedMonth: LiveData<YearMonth> = _selectedMonth
 
-    private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
+        private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
 
-    private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
-    val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
+        private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
+        val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
-    private val _openUrl = MutableLiveData<String>()
-    val openUrl: LiveData<String> = _openUrl
+        private val _openUrl = MutableLiveData<String>()
+        val openUrl: LiveData<String> = _openUrl
 
-    private val _toast = MutableSharedFlow<Boolean>()
-    val toast: SharedFlow<Boolean> = _toast
+        private val _toast = MutableSharedFlow<Boolean>()
+        val toast: SharedFlow<Boolean> = _toast
 
-    fun setMemberId(id: String) {
-        memberId = id
-        getProfile(memberId)
+        fun setMemberId(id: String) {
+            memberId = id
+            getProfile(memberId)
 
-        val initialMonth = clockProvider.yearMonthNow()
-        onMonthChanged(initialMonth)
+            val initialMonth = clockProvider.yearMonthNow()
+            onMonthChanged(initialMonth)
 
-        getOpenUrl(memberId)
-    }
-
-    fun onMonthChanged(newMonth: YearMonth) {
-        _selectedMonth.value = newMonth
-
-        if (exerciseCache.containsKey(newMonth)) {
-            return
+            getOpenUrl(memberId)
         }
-        getExerciseCounts(memberId, newMonth, clockProvider.now())
-    }
 
-    fun getProfile(memberId: String) {
-        viewModelScope.launch {
-            when (val result = getMatchingProfileUseCase(memberId)) {
-                is BaseResult.Success -> {
-                    _profile.value = result.data
+        fun onMonthChanged(newMonth: YearMonth) {
+            _selectedMonth.value = newMonth
+
+            if (exerciseCache.containsKey(newMonth)) {
+                return
+            }
+            getExerciseCounts(memberId, newMonth, clockProvider.now())
+        }
+
+        fun getProfile(memberId: String) {
+            viewModelScope.launch {
+                when (val result = getMatchingProfileUseCase(memberId)) {
+                    is BaseResult.Success -> {
+                        _profile.value = result.data
+                    }
+
+                    is BaseResult.Error -> {
+                        _toast.emit(true)
+                    }
                 }
+            }
+        }
 
-                is BaseResult.Error -> {
-                    _toast.emit(true)
+        // 캘린더 한달 운동 조회
+        private fun getExerciseCounts(
+            memberId: String,
+            yearMonth: YearMonth,
+            today: LocalDate,
+        ) {
+            viewModelScope.launch {
+                val startDate = yearMonth.atDay(1)
+                // 이번 달인 경우, 끝 날짜를 오늘로 설정
+                val endDate =
+                    if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
+
+                when (val result = getMemberExerciseUseCase(memberId, startDate, endDate)) {
+                    is BaseResult.Success -> {
+                        // 운동 기록 횟수 set 으로 변환
+                        val datesWithExercise =
+                            result.data
+                                .filter { it.count > 0 }
+                                .map { it.date }
+                                .toSet()
+
+                        exerciseCache[yearMonth] = datesWithExercise
+                        _exerciseDates.value = exerciseCache.values.flatten().toSet()
+                    }
+
+                    is BaseResult.Error -> {
+                        _toast.emit(true)
+                    }
+                }
+            }
+        }
+
+        fun onPreviousMonthClicked() {
+            val currentMonth = _selectedMonth.value ?: YearMonth.now()
+            val newMonth = currentMonth.minusMonths(1)
+
+            _selectedMonth.value = newMonth
+        }
+
+        fun onNextMonthClicked() {
+            val currentMonth = _selectedMonth.value ?: YearMonth.now()
+            val newMonth = currentMonth.plusMonths(1)
+
+            if (newMonth.isAfter(YearMonth.now())) {
+                return
+            }
+
+            _selectedMonth.value = newMonth
+        }
+
+        fun getOpenUrl(memberId: String) {
+            viewModelScope.launch {
+                when (val result = getMemberOpenUrlUseCase(memberId)) {
+                    is BaseResult.Success -> {
+                        _openUrl.value = result.data
+                    }
+                    is BaseResult.Error -> {
+                        _toast.emit(true)
+                    }
                 }
             }
         }
     }
-
-    // 캘린더 한달 운동 조회
-    private fun getExerciseCounts(
-        memberId: String,
-        yearMonth: YearMonth,
-        today: LocalDate,
-    ) {
-        viewModelScope.launch {
-            val startDate = yearMonth.atDay(1)
-            // 이번 달인 경우, 끝 날짜를 오늘로 설정
-            val endDate =
-                if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
-
-            when (val result = getMemberExerciseUseCase(memberId, startDate, endDate)) {
-                is BaseResult.Success -> {
-                    // 운동 기록 횟수 set 으로 변환
-                    val datesWithExercise =
-                        result.data
-                            .filter { it.count > 0 }
-                            .map { it.date }
-                            .toSet()
-
-                    exerciseCache[yearMonth] = datesWithExercise
-                    _exerciseDates.value = exerciseCache.values.flatten().toSet()
-                }
-
-                is BaseResult.Error -> {
-                    _toast.emit(true)
-                }
-            }
-        }
-    }
-
-    fun onPreviousMonthClicked() {
-        val currentMonth = _selectedMonth.value ?: YearMonth.now()
-        val newMonth = currentMonth.minusMonths(1)
-
-        _selectedMonth.value = newMonth
-    }
-
-    fun onNextMonthClicked() {
-        val currentMonth = _selectedMonth.value ?: YearMonth.now()
-        val newMonth = currentMonth.plusMonths(1)
-
-        if (newMonth.isAfter(YearMonth.now())) {
-            return
-        }
-
-        _selectedMonth.value = newMonth
-    }
-
-    fun getOpenUrl(memberId: String) {
-        viewModelScope.launch {
-            when (val result = getMemberOpenUrlUseCase(memberId)) {
-                is BaseResult.Success -> {
-                    _openUrl.value = result.data
-                }
-                is BaseResult.Error -> {
-                    _toast.emit(true)
-                }
-            }
-        }
-    }
-}
