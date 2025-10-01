@@ -281,9 +281,10 @@ interface ApiService {
     ): BaseResponse<GetMatchingProfileDTO>
 
     // 타 회원 캘린더 운동 기록 횟수 조회
-    @GET("api/v1/members/{memberId}")
+    @GET("api/v1/members/{memberId}/calendars")
     @AccessTokenApi
     suspend fun getMatchingMemberCalendar(
+        @Path("memberId") memberId: String,
         @Query("start") startDate: LocalDate,
         @Query("end") endDate: LocalDate,
     ): BaseResponse<List<GetExerciseCountByRangeDTO>>
