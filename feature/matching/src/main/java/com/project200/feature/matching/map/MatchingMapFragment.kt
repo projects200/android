@@ -206,7 +206,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         val dialog = MatchingPlaceGuideDialog(
             onGoToPlaceRegister = {
                 findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceSearchFragment(),
                 )
             })
         dialog.isCancelable = false // 바깥 영역 터치 시 다이얼로그가 닫히지 않도록 설정
