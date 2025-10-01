@@ -92,16 +92,13 @@ class MatchingMapViewModel
          * ViewModel 생성 시 단 한 번만 호출되는 최초 설정 검사 함수.
          */
         private fun checkIsGuideNeed() {
-            Timber.tag(
-                "checkIsGuideNeed",
-            ).d("isPlaceCheckDone: $isPlaceCheckDone\nwasUrlMissed: $wasUrlMissed\nisUrlCheckDone: $isUrlCheckDone")
             if (isUrlCheckDone) return
             isUrlCheckDone = true // 중복 실행 방지를 위해 플래그를 먼저 올림
 
             viewModelScope.launch {
                 when (val urlResult = getOpenUrlUseCase()) {
                     is BaseResult.Success -> {
-                        if (urlResult.data.isNotEmpty()) {
+                        if (urlResult.data.url.isNotEmpty()) {
                             // URL 존재
                             wasUrlMissed = false
                             // 즉시 운동 장소 검사를 진행
