@@ -129,11 +129,14 @@ class MypageViewModel
                     is BaseResult.Success -> {
                         _openUrl.value = result.data
                     }
-
                     is BaseResult.Error -> {
-                        _toast.emit(true)
+                        if(result.errorCode != NO_URL) _toast.emit(true)
                     }
                 }
             }
+        }
+
+        companion object {
+            const val NO_URL = "404"
         }
     }
