@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <TextView
+        style="@style/content_bold"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:text="@string/guide_toolbar" />
+
+    <ImageView
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:layout_gravity="center"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/bg_guide_character"
+        android:padding="10dp"
+        android:src="@drawable/ic_guide_character" />
+
+    <TextView
+        style="@style/header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="@dimen/base_horizontal_margin"
+        android:text="@string/guide_title" />
+
+    <TextView
+        style="@style/medium_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginTop="10dp"
+        android:gravity="center"
+        android:text="@string/guide_content"
+        android:textAlignment="center"
+        android:textColor="@color/gray100"
+        android:textSize="15sp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginTop="30dp"
+        android:background="@drawable/bg_guide_character"
+        android:orientation="vertical">
+
+        <TextView
+            style="@style/content_bold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_margin="@dimen/base_horizontal_margin"
+            android:text="@string/guide_before_title" />
+
+        <TextView
+            style="@style/medium_bold"
+            android:textColor="@color/gray100"
+            android:textSize="14sp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/base_horizontal_margin"
+            android:layout_marginBottom="@dimen/base_horizontal_margin"
+            android:drawableStart="@drawable/ic_guide_1"
+            android:drawablePadding="14dp"
+            android:gravity="center"
+            android:text="@string/guide_before_content_1" />
+
+        <TextView
+            style="@style/medium_bold"
+            android:textColor="@color/gray100"
+            android:textSize="14sp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/base_horizontal_margin"
+            android:layout_marginBottom="@dimen/base_horizontal_margin"
+            android:drawableStart="@drawable/ic_guide_2"
+            android:drawablePadding="14dp"
+            android:gravity="center"
+            android:text="@string/guide_before_content_2" />
+
+        <TextView
+            style="@style/medium_bold"
+            android:textColor="@color/gray100"
+            android:textSize="14sp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/base_horizontal_margin"
+            android:layout_marginBottom="@dimen/base_horizontal_margin"
+            android:drawableStart="@drawable/ic_guide_3"
+            android:drawablePadding="14dp"
+            android:gravity="center"
+            android:text="@string/guide_before_content_3" />
+    </LinearLayout>
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/register_btn"
+        style="@style/content_bold"
+        android:layout_width="match_parent"
+        android:layout_height="55dp"
+        android:layout_gravity="bottom"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginVertical="40dp"
+        android:background="@drawable/basic_activate_btn"
+        android:gravity="center"
+        android:text="@string/guide_start"
+        android:textColor="@color/white300" />
+</LinearLayout>

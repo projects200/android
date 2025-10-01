@@ -2,8 +2,8 @@ root = true
 
 [*.{kt,kts}]
 ktlint_standard_filename = enabled
+ktlint_standard_no-consecutive-comments = disabled
 
-ktlint_standard_comment-wrapping = disabled
 
 
 # DTO 파일 패턴에 대해서만 filename 규칙을 비활성화합니다.
