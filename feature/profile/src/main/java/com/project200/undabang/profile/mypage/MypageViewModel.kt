@@ -130,7 +130,7 @@ class MypageViewModel
                         _openUrl.value = result.data
                     }
                     is BaseResult.Error -> {
-                        if(result.errorCode != NO_URL) _toast.emit(true)
+                        if (result.errorCode != NO_URL) _toast.emit(true)
                     }
                 }
             }
