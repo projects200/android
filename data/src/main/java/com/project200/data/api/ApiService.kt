@@ -118,7 +118,7 @@ interface ApiService {
         @Path("pictureId") pictureId: Long,
     ): BaseResponse<Any?>
 
-    @GET("api/v1/open-chat")
+    @GET("api/v1/open-chats")
     @AccessTokenApi
     suspend fun getOpenChatUrl(): BaseResponse<GetOpenChatUrlDTO>
 

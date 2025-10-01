@@ -23,6 +23,9 @@
         <action
             android:id="@+id/action_matchingMapFragment_to_matchingGuideFragment"
             app:destination="@id/matchingGuideFragment" />
+        <action
+            android:id="@+id/action_matchingMapFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
     </fragment>
     <fragment
         android:id="@+id/matchingProfileFragment"

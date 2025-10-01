@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
+import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.GetOpenUrlUseCase
@@ -15,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -25,6 +27,7 @@ class MatchingMapViewModel
         private val getLastMapPositionUseCase: GetLastMapPositionUseCase,
         private val saveLastMapPositionUseCase: SaveLastMapPositionUseCase,
         private val getOpenUrlUseCase: GetOpenUrlUseCase,
+        private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
     ) : ViewModel() {
         // 회원 목록
         private val _matchingMembers = MutableLiveData<BaseResult<List<MatchingMember>>>()
@@ -34,17 +37,22 @@ class MatchingMapViewModel
         private val _initialMapPosition = MutableLiveData<MapPosition?>()
         val initialMapPosition: LiveData<MapPosition?> = _initialMapPosition
 
-        // 카카오 오픈 url
-        private val _isOpenUrlExist = MutableSharedFlow<Boolean>()
-        val isOpenUrlExist: SharedFlow<Boolean> = _isOpenUrlExist
+    // URL 안내 화면으로 이동 알림
+    private val _shouldNavigateToGuide = MutableSharedFlow<Unit>()
+    val shouldNavigateToGuide: SharedFlow<Unit> = _shouldNavigateToGuide
 
-        // 운동 장소
-        private val _hasExercisePlace = MutableLiveData<Boolean>()
-        val hasExercisePlace: LiveData<Boolean> = _hasExercisePlace
+    // 장소 안내 다이얼로그 표시 알림
+    private val _shouldShowPlaceDialog = MutableSharedFlow<Unit>()
+    val shouldShowPlaceDialog: SharedFlow<Unit> = _shouldShowPlaceDialog
+
+
+    private var isUrlCheckDone = false // 최초 URL 검사가 완료되었는가?
+    private var wasUrlMissed = false // 최초 검사 시 URL이 없었는가?
+    private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
             loadInitialMapPosition()
-            getOpenUrl()
+            checkIsGuideNeed()
         }
 
         /**
@@ -81,21 +89,77 @@ class MatchingMapViewModel
             }
         }
 
-        /**
-         * 카카오톡 오픈 URL을 가져옵니다.
-         */
-        fun getOpenUrl() {
-            viewModelScope.launch {
-                when (val result = getOpenUrlUseCase()) {
-                    is BaseResult.Success -> {
-                        _isOpenUrlExist.emit(result.data.isNotEmpty())
+    /**
+     * ViewModel 생성 시 단 한 번만 호출되는 최초 설정 검사 함수.
+     */
+    private fun checkIsGuideNeed() {
+        Timber.tag("checkIsGuideNeed").d("isPlaceCheckDone: $isPlaceCheckDone\nwasUrlMissed: $wasUrlMissed\nisUrlCheckDone: $isUrlCheckDone")
+        if (isUrlCheckDone) return
+        isUrlCheckDone = true // 중복 실행 방지를 위해 플래그를 먼저 올림
+
+        viewModelScope.launch {
+            when (val urlResult = getOpenUrlUseCase()) {
+                is BaseResult.Success -> {
+                    if (urlResult.data.isNotEmpty()) {
+                        // URL 존재
+                        wasUrlMissed = false
+                        // 즉시 운동 장소 검사를 진행
+                        checkExercisePlace()
+                    } else {
+                        // 빈 URL
+                        wasUrlMissed = true
+                        _shouldNavigateToGuide.emit(Unit)
                     }
-                    is BaseResult.Error -> {
-                        if (result.errorCode == NO_URL) _isOpenUrlExist.emit(false)
+                }
+                is BaseResult.Error -> {
+                    if (urlResult.errorCode == NO_URL) {
+                        // URL이 생성되지 않은 경우
+                        wasUrlMissed = true
+                        _shouldNavigateToGuide.emit(Unit)
                     }
                 }
             }
         }
+    }
+
+    /**
+     * Fragment가 onResume 될 때 호출될 함수.
+     * url 안내 페이지에서 돌아온 경우를 처리합니다.
+     */
+    fun checkHasPlaceGuideBeenShown() {
+        // 최초에 URL이 없어서 안내 페이지로 갔었고, 아직 장소 다이얼로그가 뜬 적이 없다면
+        if (wasUrlMissed && !isPlaceCheckDone) {
+            // 이제 돌아왔으니 운동 장소 검사를 진행
+            checkExercisePlace()
+        }
+    }
+
+    /**
+     * 운동 장소를 검사하고, 없다면 다이얼로그를 띄우는 공통 함수.
+     * 이 함수가 호출되면 다이얼로그는 최대 한 번만 띄웁니다.
+     */
+    private fun checkExercisePlace() {
+        // 이미 다이얼로그를 보여줬다면 더 이상 검사하지 않음
+        if (isPlaceCheckDone) return
+
+        viewModelScope.launch {
+            when (val result = getExercisePlaceUseCase()) {
+                is BaseResult.Success -> {
+                    if (result.data.isEmpty()) {
+                        // 장소가 없으면 다이얼로그 표시 요청
+                        _shouldShowPlaceDialog.emit(Unit)
+                        // 다이얼로그를 띄웠다고 플래그를 설정하여 다시는 띄우지 않도록 함
+                        isPlaceCheckDone = true
+                    }
+                }
+                is BaseResult.Error -> {
+                    // 에러 발생 시에도 없다고 간주하고 다이얼로그 표시
+                    _shouldShowPlaceDialog.emit(Unit)
+                    isPlaceCheckDone = true
+                }
+            }
+        }
+    }
 
         companion object {
             const val NO_URL = "404"

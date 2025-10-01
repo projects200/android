@@ -41,14 +41,12 @@ class MatchingProfileViewModel
         private val _toast = MutableSharedFlow<Boolean>()
         val toast: SharedFlow<Boolean> = _toast
 
-        init {
-            val initialMonth = clockProvider.yearMonthNow()
-            onMonthChanged(initialMonth)
-        }
-
         fun setMemberId(id: String) {
             memberId = id
             getProfile(memberId)
+
+            val initialMonth = clockProvider.yearMonthNow()
+            onMonthChanged(initialMonth)
         }
 
         fun onMonthChanged(newMonth: YearMonth) {

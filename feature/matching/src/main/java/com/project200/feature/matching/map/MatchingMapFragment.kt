@@ -108,12 +108,15 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.isOpenUrlExist.collect { isExist ->
-                        if (!isExist) {
-                            findNavController().navigate(
-                                MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
-                            )
-                        }
+                    viewModel.shouldNavigateToGuide.collect {
+                        findNavController().navigate(
+                            MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
+                        )
+                    }
+                }
+                launch {
+                    viewModel.shouldShowPlaceDialog.collect {
+                        showPlaceGuideDialog()
                     }
                 }
             }
@@ -199,6 +202,18 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
         }
     }
 
+    private fun showPlaceGuideDialog() {
+        val dialog = MatchingPlaceGuideDialog(
+            onGoToPlaceRegister = {
+                findNavController().navigate(
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+                )
+            })
+        dialog.isCancelable = false // 바깥 영역 터치 시 다이얼로그가 닫히지 않도록 설정
+        dialog.show(parentFragmentManager, this::class.java.simpleName)
+    }
+
+
     private fun checkPermissionAndMove() {
         if (isLocationPermissionGranted()) {
             moveToCurrentLocation()
@@ -240,6 +255,7 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
     override fun onResume() {
         super.onResume()
         binding.mapView.resume()
+        viewModel.checkHasPlaceGuideBeenShown()
     }
 
     override fun onPause() {
