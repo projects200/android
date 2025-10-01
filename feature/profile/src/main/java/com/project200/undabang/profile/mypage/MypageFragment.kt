@@ -69,6 +69,12 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         }
 
         binding.editOpenChatBtn.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToUrlFormFragment(
+                    id = viewModel.openUrl.value?.id ?: -1L,
+                    url = viewModel.openUrl.value?.url ?: "",
+                ),
+            )
         }
     }
 
@@ -105,8 +111,8 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             binding.exerciseCalendar.notifyCalendarChanged()
         }
 
-        viewModel.openUrl.observe(viewLifecycleOwner) { url ->
-            binding.urlTv.text = url
+        viewModel.openUrl.observe(viewLifecycleOwner) { openUrl ->
+            binding.urlTv.text = openUrl.url
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -126,6 +132,13 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             if (shouldRefresh) {
                 viewModel.getProfile()
                 savedStateHandle.remove<Boolean>(REFRESH_KEY)
+            }
+        }
+
+        savedStateHandle?.getLiveData<Boolean>(OPEN_URL_REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                viewModel.getOpenUrl()
+                savedStateHandle.remove<Boolean>(OPEN_URL_REFRESH_KEY)
             }
         }
     }
@@ -239,5 +252,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
     companion object {
         const val REFRESH_KEY = "REFRESH_KEY"
+        const val OPEN_URL_REFRESH_KEY = "OPEN_URL_REFRESH_KEY"
     }
 }

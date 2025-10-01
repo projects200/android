@@ -1,8 +1,10 @@
 package com.project200.data.mapper
 
+import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
+import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImage
 import com.project200.domain.model.ProfileImageList
@@ -57,5 +59,12 @@ fun GetProfileImageResponseDto.toModel(): ProfileImageList {
                     url = it.profileImageUrl,
                 )
             },
+    )
+}
+
+fun GetOpenChatUrlDTO.toModel(): OpenUrl {
+    return OpenUrl(
+        id = this.openChatroomId,
+        url = this.openChatroomUrl,
     )
 }

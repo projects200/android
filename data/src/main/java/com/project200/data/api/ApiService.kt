@@ -123,6 +123,21 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getOpenChatUrl(): BaseResponse<GetOpenChatUrlDTO>
 
+    // 내 오픈채팅방 URL 등록
+    @POST("api/v1/open-chats")
+    @AccessTokenApi
+    suspend fun postOpenChatUrl(
+        @Body url: String,
+    ): BaseResponse<Any?>
+
+    // 내 오픈채팅방 URL 수정
+    @PATCH("api/v1/open-chats/{openChatId}")
+    @AccessTokenApi
+    suspend fun patchOpenChatUrl(
+        @Path("openChatId") openChatId: Long,
+        @Body url: String,
+    ): BaseResponse<Any?>
+
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")

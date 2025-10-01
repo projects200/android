@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -12,6 +13,7 @@ import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
@@ -101,15 +103,34 @@ class MemberRepositoryImpl
             )
         }
 
-        override suspend fun getOpenUrl(): BaseResult<String> {
+        override suspend fun getOpenUrl(): BaseResult<OpenUrl> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.getOpenChatUrl() },
-                mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
+                mapper = { dto: GetOpenChatUrlDTO? -> dto?.toModel() ?: throw NoSuchElementException() },
             )
         }
 
-        companion object {
+    override suspend fun addOpenUrl(url: String): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postOpenChatUrl(url) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun editOpenUrl(
+        id: Long,
+        url: String
+    ): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchOpenChatUrl(id, url) },
+            mapper = { Unit },
+        )
+    }
+
+    companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }

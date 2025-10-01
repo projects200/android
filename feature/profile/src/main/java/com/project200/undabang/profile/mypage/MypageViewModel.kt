@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetOpenUrlUseCase
@@ -38,8 +39,8 @@ class MypageViewModel
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
-        private val _openUrl = MutableLiveData<String>()
-        val openUrl: LiveData<String> = _openUrl
+        private val _openUrl = MutableLiveData<OpenUrl>()
+        val openUrl: LiveData<OpenUrl> = _openUrl
 
         private val _toast = MutableSharedFlow<Boolean>()
         val toast: SharedFlow<Boolean> = _toast

@@ -45,7 +45,7 @@
 
     <string name="open_chat_link">오픈 채팅 링크</string>
     <string name="open_chat_announce">채팅 기능이 개발 중입니다. 카카오 오픈 채팅을 사용해주세요!</string>
-    <string name="open_chat_type">https://open.kakao.com/</string>
+    <string name="open_chat_type">https://open.kakao.com/o/</string>
     <string name="open_chat_error">링크를 열 수 없습니다.</string>
     <string name="open_chat_invalid">유효한 오픈채팅 URL이 아닙니다.</string>
 
