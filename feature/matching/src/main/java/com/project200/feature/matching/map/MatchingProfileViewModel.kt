@@ -135,9 +135,7 @@ class MatchingProfileViewModel
                     is BaseResult.Success -> {
                         _openUrl.value = result.data
                     }
-                    is BaseResult.Error -> {
-                        _toast.emit(true)
-                    }
+                    is BaseResult.Error -> {}
                 }
             }
         }
