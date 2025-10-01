@@ -102,7 +102,7 @@ class MatchingRepositoryImpl
         ): BaseResult<List<ExerciseCount>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getMatchingMemberCalendar(startDate, endDate) },
+                apiCall = { apiService.getMatchingMemberCalendar(memberId, startDate, endDate) },
                 mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
                     dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
                 },
