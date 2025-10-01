@@ -11,8 +11,10 @@ import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentUrlFormBinding
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
+@AndroidEntryPoint
 class UrlFormFragment : BindingFragment<FragmentUrlFormBinding>(R.layout.fragment_url_form) {
     private val viewModel: UrlFormViewModel by viewModels()
     private val args: UrlFormFragmentArgs by navArgs()
