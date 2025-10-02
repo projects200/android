@@ -1,5 +1,6 @@
 package com.project200.undabang.profile.mypage
 
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -130,7 +131,9 @@ class MypageViewModel
                     is BaseResult.Success -> {
                         _openUrl.value = result.data
                     }
-                    is BaseResult.Error -> { }
+                    is BaseResult.Error -> {
+                        _openUrl.value = OpenUrl(-1L, "")
+                    }
                 }
             }
         }

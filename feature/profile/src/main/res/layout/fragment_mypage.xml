@@ -244,16 +244,6 @@
                     app:layout_constraintBottom_toBottomOf="parent"/>
                 <TextView
                     android:id="@+id/url_empty_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingVertical="@dimen/base_horizontal_margin"
-                    android:paddingHorizontal="12dp"
-                    style="@style/subtext_14"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_solid_corner"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
-                <TextView
                     style="@style/content_bold"
                     android:layout_width="match_parent"
                     android:layout_height="60dp"
@@ -262,6 +252,7 @@
                     android:text="@string/open_chat_empty"
                     android:textColor="@color/gray200"
                     android:visibility="gone"
+                    android:layout_marginTop="8dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv" />
             </androidx.constraintlayout.widget.ConstraintLayout>

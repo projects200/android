@@ -28,7 +28,10 @@ android {
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
 
         ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a", "x86_64"))
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("armeabi-v7a")
+            abiFilters.add("x86")
+            abiFilters.add("x86_64")
         }
     }
 
