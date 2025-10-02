@@ -109,6 +109,14 @@ class MatchingRepositoryImpl
             )
         }
 
+        override suspend fun getMemberOpenUrl(memberId: String): BaseResult<String> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getMatchingMemberOpenChatUrl(memberId) },
+                mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
+            )
+        }
+
         /** 운동 장소 리스트를 반환하는 함수
          * @return 운동 장소 리스트
          */

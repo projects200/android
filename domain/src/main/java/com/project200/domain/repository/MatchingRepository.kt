@@ -20,6 +20,7 @@ interface MatchingRepository {
     // 매칭 멤버 프로필 및 운동 기록
     suspend fun getMatchingProfile(memberId: String): BaseResult<MatchingMemberProfile>
     suspend fun getMemberExerciseDates(memberId: String, startDate: LocalDate, endDate: LocalDate): BaseResult<List<ExerciseCount>>
+    suspend fun getMemberOpenUrl(memberId: String): BaseResult<String>
 
     // 운동 장소 리스트
     suspend fun getExercisePlaces(): BaseResult<List<ExercisePlace>>

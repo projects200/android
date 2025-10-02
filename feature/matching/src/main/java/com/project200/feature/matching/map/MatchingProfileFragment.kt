@@ -1,8 +1,10 @@
 package com.project200.feature.matching.map
 
+import android.content.Intent
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
+import androidx.core.net.toUri
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -58,6 +60,22 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
         }
+
+        binding.urlTv.setOnClickListener {
+            val url = binding.urlTv.text.toString()
+
+            // URL이 비어있지 않고, 유효한 카카오톡 오픈채팅 URL 형식인지 확인합니다
+            if (url.isNotEmpty() && url.startsWith(getString(R.string.open_chat_type))) {
+                try {
+                    startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
+                } catch (e: Exception) {
+                    // URL을 처리할 수 있는 앱이 없는 경우 등 예외 처리
+                    Toast.makeText(context, getString(R.string.open_chat_error), Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, getString(R.string.open_chat_invalid), Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     override fun setupObservers() {
@@ -91,6 +109,10 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
             exerciseCompleteDates = dates
             binding.exerciseCalendar.notifyCalendarChanged()
+        }
+
+        viewModel.openUrl.observe(viewLifecycleOwner) { url ->
+            binding.urlTv.text = url
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
