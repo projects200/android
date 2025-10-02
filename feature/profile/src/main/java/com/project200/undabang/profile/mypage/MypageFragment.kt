@@ -79,7 +79,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         binding.urlEmptyTv.setOnClickListener {
             findNavController().navigate(
-                MypageFragmentDirections.actionMypageFragmentToUrlFormFragment()
+                MypageFragmentDirections.actionMypageFragmentToUrlFormFragment(),
             )
         }
     }
@@ -119,7 +119,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         viewModel.openUrl.observe(viewLifecycleOwner) { openUrl ->
             binding.urlTv.text = openUrl.url
-            if(openUrl.id == -1L) {
+            if (openUrl.id == -1L) {
                 binding.editOpenChatBtn.visibility = View.GONE
                 binding.urlEmptyTv.visibility = View.VISIBLE
             } else {

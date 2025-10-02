@@ -58,9 +58,10 @@ suspend fun <DTO, Domain> apiCallBuilder(
                         Timber.d("errorBody: $errorBody")
                         if (!errorBody.isNullOrBlank()) {
                             try {
-                                val moshi = Moshi.Builder()
-                                    .add(KotlinJsonAdapterFactory())
-                                    .build()
+                                val moshi =
+                                    Moshi.Builder()
+                                        .add(KotlinJsonAdapterFactory())
+                                        .build()
 
                                 val adapter = moshi.adapter(ErrorResponse::class.java)
                                 val errorResponse = adapter.fromJson(errorBody)

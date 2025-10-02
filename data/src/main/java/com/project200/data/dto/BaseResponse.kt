@@ -15,5 +15,5 @@ data class BaseResponse<T>(
 data class ErrorResponse(
     @Json(name = "succeed") val succeed: Boolean,
     @Json(name = "code") val code: String?,
-    @Json(name = "message") val message: String?
+    @Json(name = "message") val message: String?,
 )
