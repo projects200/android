@@ -19,6 +19,18 @@
         <action
             android:id="@+id/action_mypageFragment_to_profileImageDetailFragment"
             app:destination="@id/profileImageDetailFragment"/>
+        <action
+            android:id="@+id/action_mypageFragment_to_urlFormFragment"
+            app:destination="@id/urlFormFragment">
+            <argument
+                android:name="url"
+                app:argType="string"
+                android:defaultValue="" />
+            <argument
+                android:name="id"
+                app:argType="long"
+                android:defaultValue="-1L" />
+        </action>
     </fragment>
 
     <fragment
@@ -41,5 +53,20 @@
         android:label="profileImageDetail"
         tools:layout="@layout/fragment_profile_image_detail">
 
+    </fragment>
+
+    <fragment
+        android:id="@+id/urlFormFragment"
+        android:name="com.project200.undabang.profile.mypage.UrlFormFragment"
+        android:label="urlForm"
+        tools:layout="@layout/fragment_url_form" >
+        <argument
+            android:name="url"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="id"
+            app:argType="long"
+            android:defaultValue="-1L" />
     </fragment>
 </navigation>
