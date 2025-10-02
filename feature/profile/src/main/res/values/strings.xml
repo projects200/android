@@ -37,6 +37,7 @@
     <string name="open_url_form_title">카카오 오픈 채팅</string>
     <string name="open_chat_link">오픈 채팅 링크</string>
     <string name="open_chat_announce">채팅 기능이 개발 중입니다. 카카오 오픈 채팅을 사용해주세요!</string>
+    <string name="open_chat_empty">카카오 오픈 채팅 URL을 추가해 주세요 +</string>
     <string name="open_chat_url">카카오 오픈 채팅 URL</string>
     <string name="open_chat_hint">예시) https://open.kakao.com/o/undabang</string>
 

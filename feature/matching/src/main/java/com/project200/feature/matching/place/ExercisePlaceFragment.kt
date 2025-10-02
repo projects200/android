@@ -30,6 +30,12 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
             showBackButton(true) { requireActivity().onBackPressedDispatcher.onBackPressed() }
         }
         binding.exercisePlaceSearchBtn.setOnClickListener {
+            viewModel.places.value?.size?.let { it ->
+                if (it >= 10) {
+                    Toast.makeText(requireContext(), R.string.max_place_count, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+            }
             findNavController().navigate(
                 ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment(),
             )

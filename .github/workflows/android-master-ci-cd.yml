@@ -11,6 +11,7 @@ jobs:
   # CI - 코드 검증 (Lint, Unit Test, Instrumented Test)
   # ===================================================================
   ci-test:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -85,7 +86,7 @@ jobs:
   # ===================================================================
   cd-deploy:
     needs: ci-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && (needs.ci-test.result == 'success' || needs.ci-test.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -118,6 +118,12 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                 override fun onMapReady(map: KakaoMap) {
                     kakaoMap = map
                     setupInitialMapPosition()
+
+                    // 두 손가락으로 지도를 회전시키는 제스처 비활성화
+                    kakaoMap?.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
+                    // 두 손가락으로 지도를 기울이는 제스처(틸트) 비활성화
+                    kakaoMap?.setGestureEnable(com.kakao.vectormap.GestureType.Tilt, false)
+
                     setMapListeners()
                 }
             },
