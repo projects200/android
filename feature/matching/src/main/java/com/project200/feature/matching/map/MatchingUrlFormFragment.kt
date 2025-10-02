@@ -32,8 +32,11 @@ class MatchingUrlFormFragment : BindingFragment<FragmentMatchingUrlFormBinding>(
     private fun setupListeners() {
         binding.confirmBtn.setOnClickListener {
             val url = binding.urlEt.text.toString()
-            if(url.startsWith(getString(R.string.open_chat_type))) viewModel.confirmUrl(url)
-            else Toast.makeText(requireContext(), getString(R.string.open_chat_invalid), Toast.LENGTH_SHORT).show()
+            if (url.startsWith(getString(R.string.open_chat_type))) {
+                viewModel.confirmUrl(url)
+            } else {
+                Toast.makeText(requireContext(), getString(R.string.open_chat_invalid), Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -44,7 +47,7 @@ class MatchingUrlFormFragment : BindingFragment<FragmentMatchingUrlFormBinding>(
                     when (result) {
                         is BaseResult.Success -> {
                             findNavController().navigate(
-                                MatchingUrlFormFragmentDirections.actionMatchingUrlFormFragmentToMatchingMapFragment()
+                                MatchingUrlFormFragmentDirections.actionMatchingUrlFormFragmentToMatchingMapFragment(),
                             )
                         }
                         is BaseResult.Error -> {
@@ -54,6 +57,5 @@ class MatchingUrlFormFragment : BindingFragment<FragmentMatchingUrlFormBinding>(
                 }
             }
         }
-
     }
 }

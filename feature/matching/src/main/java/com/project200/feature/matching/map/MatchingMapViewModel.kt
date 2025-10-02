@@ -92,7 +92,9 @@ class MatchingMapViewModel
          * ViewModel 생성 시 단 한 번만 호출되는 최초 설정 검사 함수.
          */
         private fun checkIsGuideNeed() {
-            Timber.tag("MatchingMapViewModel").d("isUrlCheckDone: $isUrlCheckDone / wasUrlMissed: $wasUrlMissed / isPlaceCheckDone: $isPlaceCheckDone")
+            Timber.tag(
+                "MatchingMapViewModel",
+            ).d("isUrlCheckDone: $isUrlCheckDone / wasUrlMissed: $wasUrlMissed / isPlaceCheckDone: $isPlaceCheckDone")
             if (isUrlCheckDone) return
             isUrlCheckDone = true // 중복 실행 방지를 위해 플래그를 먼저 올림
 

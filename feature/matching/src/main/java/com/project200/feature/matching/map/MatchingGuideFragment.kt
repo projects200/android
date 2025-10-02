@@ -13,7 +13,7 @@ class MatchingGuideFragment : BindingFragment<FragmentMatchingGuideBinding> (R.l
     override fun setupViews() {
         binding.registerBtn.setOnClickListener {
             findNavController().navigate(
-                MatchingGuideFragmentDirections.actionMatchingGuideFragmentToUrlFormFragment()
+                MatchingGuideFragmentDirections.actionMatchingGuideFragmentToUrlFormFragment(),
             )
         }
     }
