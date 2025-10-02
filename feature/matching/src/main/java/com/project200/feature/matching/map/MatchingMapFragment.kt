@@ -199,24 +199,29 @@ class MatchingMapFragment :
      * @param members 지도에 표시할 회원 목록
      * @param places 지도에 표시할 운동 장소 목록
      */
-    private fun redrawAllMarkers(members: List<MatchingMember>, places: List<ExercisePlace>) {
+    private fun redrawAllMarkers(
+        members: List<MatchingMember>,
+        places: List<ExercisePlace>,
+    ) {
         val labelManager = kakaoMap?.labelManager ?: return
         labelManager.clearAll()
 
         // 운동 장소 마커를 그립니다.
         places.forEach { place ->
-            val options = LabelOptions.from(LatLng.from(place.latitude, place.longitude))
-                .setStyles(R.drawable.ic_place_marker)
-                .setTag(place) // 태그에 place 객체 저장
+            val options =
+                LabelOptions.from(LatLng.from(place.latitude, place.longitude))
+                    .setStyles(R.drawable.ic_place_marker)
+                    .setTag(place) // 태그에 place 객체 저장
             labelManager.layer?.addLabel(options)
         }
 
         // 회원 마커를 그립니다.
         members.forEach { member ->
             member.locations.forEach { location ->
-                val options = LabelOptions.from(LatLng.from(location.latitude, location.longitude))
-                    .setStyles(R.drawable.ic_member_marker_png)
-                    .setTag(member) // 태그에 member 객체 저장
+                val options =
+                    LabelOptions.from(LatLng.from(location.latitude, location.longitude))
+                        .setStyles(R.drawable.ic_member_marker_png)
+                        .setTag(member) // 태그에 member 객체 저장
                 labelManager.layer?.addLabel(options)
             }
         }

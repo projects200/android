@@ -242,7 +242,10 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     /**
      * 카메라를 지정된 위치로 이동시키는 함수
      */
-    private fun moveCamera(latLng: LatLng, zoomLevel: Int = DEFAULT_ZOOM_LEVEL) {
+    private fun moveCamera(
+        latLng: LatLng,
+        zoomLevel: Int = DEFAULT_ZOOM_LEVEL,
+    ) {
         kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(latLng, zoomLevel))
     }
 
