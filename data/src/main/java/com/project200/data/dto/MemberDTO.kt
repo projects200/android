@@ -56,6 +56,6 @@ data class ProfileImageDto(
 
 @JsonClass(generateAdapter = true)
 data class GetOpenChatUrlDTO(
-    val openChatroomId: Long,
+    val openChatroomId: Long = -1L,
     val openChatroomUrl: String,
 )

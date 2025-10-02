@@ -110,6 +110,10 @@ class MatchingRepositoryImpl
             )
         }
 
+        /** 특정 회원의 오픈채팅 URL을 반환하는 함수
+         * @param memberId 조회할 회원의 ID
+         * @return 회원의 오픈채팅 URL
+         */
         override suspend fun getMemberOpenUrl(memberId: String): BaseResult<String> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,

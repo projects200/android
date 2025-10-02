@@ -23,7 +23,7 @@ import com.kakao.vectormap.label.LabelOptions
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LATITUDE
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
-import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.presentation.base.BindingFragment
@@ -34,7 +34,8 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
-class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
+class MatchingMapFragment :
+    BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
@@ -102,6 +103,26 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 cameraPosition.zoomLevel,
             )
         }
+
+        kakaoMap?.setOnLabelClickListener { _, _, label ->
+            // label.tag의 타입에 따라 다른 동작을 수행
+            when (val clickedTag = label.tag) {
+                is MatchingMember -> {
+                    findNavController().navigate(
+                        MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
+                            memberId = clickedTag.memberId,
+                        ),
+                    )
+                }
+
+                is ExercisePlace -> {
+                    findNavController().navigate(
+                        MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+                    )
+                }
+            }
+            true
+        }
     }
 
     override fun setupObservers() {
@@ -117,6 +138,12 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 launch {
                     viewModel.shouldShowPlaceDialog.collect {
                         showPlaceGuideDialog()
+                    }
+                }
+                // --- 추가: 에러 이벤트 구독 ---
+                launch {
+                    viewModel.errorEvents.collect { message ->
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
             }
@@ -155,50 +182,48 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
             }
         }
 
-        // 매칭 회원 목록 관찰
-        viewModel.matchingMembers.observe(viewLifecycleOwner) { result ->
-            when (result) {
-                is BaseResult.Success -> {
-                    // 성공 시 마커 표시
-                    drawMemberMarkers(result.data)
-                }
-                is BaseResult.Error -> {
-                    // 실패 시 Toast 메시지 표시
-                    val errorMessage = result.message ?: getString(R.string.error_unknown)
-                    Toast.makeText(requireContext(), errorMessage, Toast.LENGTH_SHORT).show()
+        // --- 변경: 개별 LiveData 구독 대신, 결합된 StateFlow를 구독 ---
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // member와 place 데이터가 합쳐진 최종 UI 상태를 구독
+                viewModel.combinedMapData.collect { (members, places) ->
+                    // Pair를 구조 분해하여 사용
+                    redrawAllMarkers(members, places)
                 }
             }
         }
     }
 
     /**
-     * 전달받은 회원 목록을 지도에 마커로 표시합니다.
+     * 지도 위의 모든 마커를 지우고, 전달받은 최신 데이터로 다시 그립니다.
+     * @param members 지도에 표시할 회원 목록
+     * @param places 지도에 표시할 운동 장소 목록
      */
-    private fun drawMemberMarkers(members: List<MatchingMember>) {
+    private fun redrawAllMarkers(
+        members: List<MatchingMember>,
+        places: List<ExercisePlace>,
+    ) {
         val labelManager = kakaoMap?.labelManager ?: return
-        labelManager.clearAll() // labelManager를 통해 안전하게 초기화
+        labelManager.clearAll()
 
+        // 운동 장소 마커를 그립니다.
+        places.forEach { place ->
+            val options =
+                LabelOptions.from(LatLng.from(place.latitude, place.longitude))
+                    .setStyles(R.drawable.ic_place_marker)
+                    .setTag(place) // 태그에 place 객체 저장
+            labelManager.layer?.addLabel(options)
+        }
+
+        // 회원 마커를 그립니다.
         members.forEach { member ->
             member.locations.forEach { location ->
                 val options =
                     LabelOptions.from(LatLng.from(location.latitude, location.longitude))
                         .setStyles(R.drawable.ic_member_marker_png)
-                        .setTag(member)
-
+                        .setTag(member) // 태그에 member 객체 저장
                 labelManager.layer?.addLabel(options)
             }
-        }
-
-        kakaoMap?.setOnLabelClickListener { kakaoMap, labelLayer, label ->
-            val clickedMember = label.tag as? MatchingMember
-            if (clickedMember != null) {
-                findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
-                        memberId = clickedMember.memberId,
-                    ),
-                )
-            }
-            true
         }
     }
 
@@ -233,8 +258,15 @@ class MatchingMapFragment : BindingFragment<FragmentMatchingMapBinding>(R.layout
                 moveCamera(LatLng.from(location.latitude, location.longitude), ZOOM_LEVEL)
             } else {
                 // 현재 위치를 가져오지 못한 경우 기본 위치로 이동
-                moveCamera(LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE), ZOOM_LEVEL)
-                Toast.makeText(requireContext(), R.string.error_cannot_find_current_location, Toast.LENGTH_SHORT).show()
+                moveCamera(
+                    LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE),
+                    ZOOM_LEVEL,
+                )
+                Toast.makeText(
+                    requireContext(),
+                    R.string.error_cannot_find_current_location,
+                    Toast.LENGTH_SHORT,
+                ).show()
             }
         }
     }

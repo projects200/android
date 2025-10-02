@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.usecase.GetExercisePlaceUseCase
@@ -14,7 +15,12 @@ import com.project200.domain.usecase.GetOpenUrlUseCase
 import com.project200.domain.usecase.SaveLastMapPositionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -30,8 +36,36 @@ class MatchingMapViewModel
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
     ) : ViewModel() {
         // 회원 목록
-        private val _matchingMembers = MutableLiveData<BaseResult<List<MatchingMember>>>()
-        val matchingMembers: LiveData<BaseResult<List<MatchingMember>>> = _matchingMembers
+        private val matchingMembers =
+            MutableStateFlow<BaseResult<List<MatchingMember>>>(BaseResult.Success(emptyList()))
+
+        // 내 운동 장소 목록
+        private val exercisePlaces =
+            MutableStateFlow<BaseResult<List<ExercisePlace>>>(BaseResult.Success(emptyList()))
+
+        private val _errorEvents = MutableSharedFlow<String>()
+        val errorEvents: SharedFlow<String> = _errorEvents
+
+        val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
+            combine(
+                matchingMembers,
+                exercisePlaces,
+            ) { membersResult, placesResult ->
+                // 성공 데이터만 추출, 실패 시 빈 리스트
+                val members = (membersResult as? BaseResult.Success)?.data ?: emptyList()
+                val places = (placesResult as? BaseResult.Success)?.data ?: emptyList()
+
+                // 에러 결과는 별도의 이벤트 스트림으로 전달
+                (membersResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
+                (placesResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
+
+                // 최종적으로 성공 데이터만 Pair로 묶어서 UI에 전달
+                Pair(members, places)
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5000),
+                initialValue = Pair(emptyList(), emptyList()),
+            )
 
         // 지도 초기 위치
         private val _initialMapPosition = MutableLiveData<MapPosition?>()
@@ -59,8 +93,8 @@ class MatchingMapViewModel
          */
         fun fetchMatchingMembers() {
             viewModelScope.launch {
-                val result = getMatchingMembersUseCase()
-                _matchingMembers.value = result
+                // --- 변경: StateFlow의 value를 업데이트 ---
+                matchingMembers.value = getMatchingMembersUseCase()
             }
         }
 
@@ -92,9 +126,8 @@ class MatchingMapViewModel
          * ViewModel 생성 시 단 한 번만 호출되는 최초 설정 검사 함수.
          */
         private fun checkIsGuideNeed() {
-            Timber.tag(
-                "MatchingMapViewModel",
-            ).d("isUrlCheckDone: $isUrlCheckDone / wasUrlMissed: $wasUrlMissed / isPlaceCheckDone: $isPlaceCheckDone")
+            Timber.tag("MatchingMapViewModel")
+                .d("isUrlCheckDone: $isUrlCheckDone / wasUrlMissed: $wasUrlMissed / isPlaceCheckDone: $isPlaceCheckDone")
             if (isUrlCheckDone) return
             isUrlCheckDone = true // 중복 실행 방지를 위해 플래그를 먼저 올림
 
@@ -112,6 +145,7 @@ class MatchingMapViewModel
                             _shouldNavigateToGuide.emit(Unit)
                         }
                     }
+
                     is BaseResult.Error -> {
                         if (urlResult.errorCode == NO_URL) {
                             // URL이 생성되지 않은 경우
@@ -144,23 +178,24 @@ class MatchingMapViewModel
          * 이 함수가 호출되면 다이얼로그는 최대 한 번만 띄웁니다.
          */
         private fun checkExercisePlace() {
-            // 이미 다이얼로그를 보여줬다면 더 이상 검사하지 않음
             if (isPlaceCheckDone) return
+            isPlaceCheckDone = true // 검사가 시작되면 다시 호출되지 않도록 플래그를 먼저 올림
 
             viewModelScope.launch {
-                when (val result = getExercisePlaceUseCase()) {
+                val result = getExercisePlaceUseCase()
+                // --- 변경: StateFlow의 value를 업데이트 ---
+                exercisePlaces.value = result
+
+                when (result) {
                     is BaseResult.Success -> {
                         if (result.data.isEmpty()) {
-                            // 장소가 없으면 다이얼로그 표시 요청
                             _shouldShowPlaceDialog.emit(Unit)
-                            // 다이얼로그를 띄웠다고 플래그를 설정하여 다시는 띄우지 않도록 함
-                            isPlaceCheckDone = true
                         }
                     }
+
                     is BaseResult.Error -> {
                         // 에러 발생 시에도 없다고 간주하고 다이얼로그 표시
                         _shouldShowPlaceDialog.emit(Unit)
-                        isPlaceCheckDone = true
                     }
                 }
             }
