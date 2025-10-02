@@ -13,6 +13,7 @@ import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentUrlFormBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @AndroidEntryPoint
 class UrlFormFragment : BindingFragment<FragmentUrlFormBinding>(R.layout.fragment_url_form) {
@@ -28,7 +29,9 @@ class UrlFormFragment : BindingFragment<FragmentUrlFormBinding>(R.layout.fragmen
             setTitle(getString(R.string.open_url_form_title))
             showBackButton(true) { findNavController().navigateUp() }
         }
+        Timber.tag("UrlFormFragment").d("args.id: ${args.id}, args.url: ${args.url}")
         viewModel.setInitialUrl(args.id, args.url)
+        binding.urlEt.setText(args.url)
         setupListeners()
     }
 
