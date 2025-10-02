@@ -122,9 +122,11 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             if (openUrl.id == -1L) {
                 binding.editOpenChatBtn.visibility = View.GONE
                 binding.urlEmptyTv.visibility = View.VISIBLE
+                binding.urlTv.visibility = View.GONE
             } else {
                 binding.editOpenChatBtn.visibility = View.VISIBLE
                 binding.urlEmptyTv.visibility = View.GONE
+                binding.urlTv.visibility = View.VISIBLE
             }
         }
 
