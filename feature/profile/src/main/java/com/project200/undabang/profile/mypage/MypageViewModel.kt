@@ -130,7 +130,7 @@ class MypageViewModel
                     is BaseResult.Success -> {
                         _openUrl.value = result.data
                     }
-                    is BaseResult.Error -> {  }
+                    is BaseResult.Error -> { }
                 }
             }
         }

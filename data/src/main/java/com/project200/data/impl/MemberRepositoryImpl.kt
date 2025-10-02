@@ -111,26 +111,26 @@ class MemberRepositoryImpl
             )
         }
 
-    override suspend fun addOpenUrl(url: String): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postOpenChatUrl(url) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun addOpenUrl(url: String): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postOpenChatUrl(url) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun editOpenUrl(
-        id: Long,
-        url: String
-    ): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.patchOpenChatUrl(id, url) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun editOpenUrl(
+            id: Long,
+            url: String,
+        ): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.patchOpenChatUrl(id, url) },
+                mapper = { Unit },
+            )
+        }
 
-    companion object {
+        companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }

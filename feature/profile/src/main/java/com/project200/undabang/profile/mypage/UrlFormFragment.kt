@@ -38,8 +38,11 @@ class UrlFormFragment : BindingFragment<FragmentUrlFormBinding>(R.layout.fragmen
     private fun setupListeners() {
         binding.confirmBtn.setOnClickListener {
             val url = binding.urlEt.text.toString()
-            if(url.startsWith(getString(R.string.open_chat_type))) viewModel.confirmUrl(url)
-            else Toast.makeText(requireContext(), getString(R.string.open_chat_invalid), Toast.LENGTH_SHORT).show()
+            if (url.startsWith(getString(R.string.open_chat_type))) {
+                viewModel.confirmUrl(url)
+            } else {
+                Toast.makeText(requireContext(), getString(R.string.open_chat_invalid), Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -60,6 +63,5 @@ class UrlFormFragment : BindingFragment<FragmentUrlFormBinding>(R.layout.fragmen
                 }
             }
         }
-
     }
 }
