@@ -64,7 +64,7 @@ class ExercisePlaceRegisterFragment : BindingFragment<FragmentExercisePlaceRegis
                     findNavController().navigate(R.id.action_complete_registration_and_go_to_place_list)
                 }
                 is BaseResult.Error -> {
-                    Toast.makeText(requireContext(), R.string.error_fail_to_register_place, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                 }
             }
         }

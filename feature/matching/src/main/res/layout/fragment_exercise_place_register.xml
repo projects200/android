@@ -85,11 +85,11 @@
         android:textSize="12sp" />
 
     <TextView
-        style="@style/content_bold"
+        style="@style/subtext_12"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginHorizontal="@dimen/base_horizontal_margin"
-        android:layout_marginTop="30dp"
+        android:layout_marginTop="12dp"
         android:text="@string/place_name_notice_content"
         android:textColor="@color/gray200"
         android:textSize="12sp" />

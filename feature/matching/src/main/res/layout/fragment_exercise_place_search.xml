@@ -89,22 +89,22 @@
                 android:textColor="@color/black"
                 style="@style/medium_bold"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp" />
+                android:layout_height="wrap_content" />
             <TextView
                 android:id="@+id/place_address_tv"
+                android:visibility="gone"
                 android:fontFamily="@font/pretendard_regular"
                 android:textColor="@color/gray100"
+                android:layout_marginTop="8dp"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content" />
         </LinearLayout>
 
-        <androidx.appcompat.widget.AppCompatButton
-            android:id="@+id/register_exercise_place__btn"
+        <TextView
+            android:id="@+id/register_exercise_place_btn"
             style="@style/content_bold"
             android:layout_width="62dp"
             android:layout_height="33dp"
-            android:layout_marginEnd="@dimen/base_horizontal_margin"
             android:background="@drawable/bg_complete_btn"
             android:gravity="center"
             android:text="@string/exercise_place_register"
