@@ -1,6 +1,5 @@
 package com.project200.undabang.profile.mypage
 
-import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
