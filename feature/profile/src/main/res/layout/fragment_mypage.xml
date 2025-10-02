@@ -226,6 +226,7 @@
                 <ImageView
                     android:id="@+id/edit_open_chat_btn"
                     android:src="@drawable/ic_edit"
+                    android:visibility="gone"
                     app:layout_constraintTop_toTopOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     android:layout_width="wrap_content"
@@ -241,6 +242,28 @@
                     android:background="@drawable/bg_solid_corner"
                     app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv"
                     app:layout_constraintBottom_toBottomOf="parent"/>
+                <TextView
+                    android:id="@+id/url_empty_tv"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="@dimen/base_horizontal_margin"
+                    android:paddingHorizontal="12dp"
+                    style="@style/subtext_14"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_solid_corner"
+                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv"
+                    app:layout_constraintBottom_toBottomOf="parent"/>
+                <TextView
+                    style="@style/content_bold"
+                    android:layout_width="match_parent"
+                    android:layout_height="60dp"
+                    android:background="@drawable/bg_empty_preferred_exercise"
+                    android:gravity="center"
+                    android:text="@string/open_chat_empty"
+                    android:textColor="@color/gray200"
+                    android:visibility="gone"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv" />
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
@@ -300,7 +323,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="@dimen/base_horizontal_margin"
-                android:layout_marginTop="10dp"
+                android:layout_marginTop="5dp"
                 android:paddingBottom="24dp"
                 android:background="@color/white300">
 
