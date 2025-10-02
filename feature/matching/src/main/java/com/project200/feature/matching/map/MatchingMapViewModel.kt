@@ -93,15 +93,15 @@ class MatchingMapViewModel
          */
         private fun checkIsGuideNeed() {
             Timber.tag(
-                "checkIsGuideNeed",
-            ).d("isPlaceCheckDone: $isPlaceCheckDone\nwasUrlMissed: $wasUrlMissed\nisUrlCheckDone: $isUrlCheckDone")
+                "MatchingMapViewModel",
+            ).d("isUrlCheckDone: $isUrlCheckDone / wasUrlMissed: $wasUrlMissed / isPlaceCheckDone: $isPlaceCheckDone")
             if (isUrlCheckDone) return
             isUrlCheckDone = true // 중복 실행 방지를 위해 플래그를 먼저 올림
 
             viewModelScope.launch {
                 when (val urlResult = getOpenUrlUseCase()) {
                     is BaseResult.Success -> {
-                        if (urlResult.data.isNotEmpty()) {
+                        if (urlResult.data.url.isNotEmpty()) {
                             // URL 존재
                             wasUrlMissed = false
                             // 즉시 운동 장소 검사를 진행
@@ -117,6 +117,10 @@ class MatchingMapViewModel
                             // URL이 생성되지 않은 경우
                             wasUrlMissed = true
                             _shouldNavigateToGuide.emit(Unit)
+                        } else {
+                            // 그 외의 에러는 무시하고, 운동 장소 검사만 진행
+                            wasUrlMissed = false
+                            checkExercisePlace()
                         }
                     }
                 }

@@ -7,6 +7,7 @@ import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.model.OpenUrl
 import java.time.LocalDate
 
 interface MatchingRepository {

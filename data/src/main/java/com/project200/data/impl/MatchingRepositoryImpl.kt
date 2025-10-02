@@ -11,6 +11,7 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
+import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
@@ -113,7 +114,7 @@ class MatchingRepositoryImpl
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.getMatchingMemberOpenChatUrl(memberId) },
-                mapper = { it?.openChatroomUrl ?: throw NoSuchElementException() },
+                mapper = { dto: GetOpenChatUrlDTO? -> dto?.openChatroomUrl ?: throw NoSuchElementException() },
             )
         }
 

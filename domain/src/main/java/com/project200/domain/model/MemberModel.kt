@@ -37,3 +37,8 @@ data class ProfileImage(
     val id: Long,
     val url: String
 )
+
+data class OpenUrl(
+    val id: Long,
+    val url: String
+)
