@@ -231,7 +231,6 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                     val correctedTargetLatLng = LatLng.from(correctedLatitude, place.longitude.toDouble())
 
                     moveCamera(correctedTargetLatLng)
-
                 } ?: run {
                     // kakaoMap 객체가 null일 경우, 보정 없이 그냥 이동합니다 (안전장치).
                     moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
@@ -246,6 +245,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             layoutManager = LinearLayoutManager(requireContext())
         }
     }
+
     /**
      * 현재 위치로 카메라를 이동시키는 함수
      */
