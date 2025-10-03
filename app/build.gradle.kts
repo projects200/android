@@ -71,6 +71,24 @@ android {
         }
     }
 
+    splits {
+        abi {
+            // ABI 분리 빌드를 활성화합니다.
+            isEnable = true
+
+            // 모든 ABI에 대해 APK를 생성하지 않고, 아래 목록에 있는 ABI만 생성하도록 리셋합니다.
+            reset()
+
+            // 프로젝트에서 지원할 ABI 목록을 명시적으로 포함시킵니다.
+            // abiFilters에 있는 목록과 동일하게 유지하는 것이 좋습니다.
+            include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
+
+            // 이 옵션은 모든 ABI를 포함하는 'fat' APK를 생성할지 여부입니다.
+            // 테스트 APK는 하나만 필요하므로 false로 두는 것이 좋습니다.
+            isUniversalApk = false
+        }
+    }
+
     buildFeatures {
         viewBinding = true
     }
