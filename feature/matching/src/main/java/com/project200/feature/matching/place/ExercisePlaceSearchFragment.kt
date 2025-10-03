@@ -218,7 +218,25 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         searchedPlaceAdapter =
             SearchedPlaceRVAdapter { place ->
                 // 검색 결과 아이템 클릭 시 동작
-                moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
+                kakaoMap?.let { map ->
+                    // 현재 화면을 기준으로, 지도 중앙과 마커 끝의 위도 값을 구합니다.
+                    val mapCenterLatLng = map.fromScreenPoint(binding.mapView.width / 2, binding.mapView.height / 2)
+                    val markerTipLatLng = map.fromScreenPoint(binding.mapView.width / 2, binding.centerMarkerIv.bottom)
+
+                    // 두 위도 값의 차이를 계산하여 '보정값(offset)'을 구합니다. (null일 경우를 대비해 기본값 0.0 사용)
+                    val latOffset = (mapCenterLatLng?.latitude ?: 0.0) - (markerTipLatLng?.latitude ?: 0.0)
+
+                    // 사용자가 클릭한 장소의 실제 위도에 보정값을 더해 카메라의 새 중앙점을 계산합니다.
+                    val correctedLatitude = place.latitude.toDouble() - latOffset
+                    val correctedTargetLatLng = LatLng.from(correctedLatitude, place.longitude.toDouble())
+
+                    moveCamera(correctedTargetLatLng)
+
+                } ?: run {
+                    // kakaoMap 객체가 null일 경우, 보정 없이 그냥 이동합니다 (안전장치).
+                    moveCamera(LatLng.from(place.latitude.toDouble(), place.longitude.toDouble()))
+                }
+
                 binding.searchedPlaceCl.visibility = View.GONE
                 handlePlaceInfo(place)
                 viewModel.selectSearchedPlace(place)
@@ -228,7 +246,6 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             layoutManager = LinearLayoutManager(requireContext())
         }
     }
-
     /**
      * 현재 위치로 카메라를 이동시키는 함수
      */

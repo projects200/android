@@ -69,10 +69,13 @@ jobs:
       - name: Run Android Instrumentation Tests (Release)
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
-          target: google_apis
-          arch: x86_64
-          profile: Nexus 6
+          api-level: 33
+          target: google_apis # Google API 포함 이미지를 명시하는 것이 중요
+          arch: x86_64 # x86_64를 유지하되, google_apis와 함께 사용
+          ram-size: 2048M
+          disk-size: 4096M
+          emulator-options: "-no-window -no-snapshot -no-audio -no-boot-anim"
+          disable-animations: true
           script: ./gradlew connectedAndroidTest
         env:
           SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}

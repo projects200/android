@@ -27,6 +27,7 @@ android {
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
 
+        ndkVersion = "26.1.10909125"
         ndk {
             abiFilters.add("arm64-v8a")
             abiFilters.add("armeabi-v7a")
