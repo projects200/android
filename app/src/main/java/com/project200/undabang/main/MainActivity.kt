@@ -129,6 +129,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.profile.R.id.profileEditFragment,
                 com.project200.undabang.feature.profile.R.id.profileImageDetailFragment,
                 com.project200.undabang.feature.profile.R.id.urlFormFragment,
+                com.project200.undabang.feature.profile.R.id.notificationFragment,
                 com.project200.undabang.feature.matching.R.id.matchingProfileFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceSearchFragment,
