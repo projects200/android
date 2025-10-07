@@ -94,7 +94,7 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
             when {
                 ContextCompat.checkSelfPermission(
                     requireContext(),
-                    Manifest.permission.POST_NOTIFICATIONS
+                    Manifest.permission.POST_NOTIFICATIONS,
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     // 이미 권한이 있는 경우
                     viewModel.setNotificationState(true)
@@ -118,9 +118,10 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
 
     // 앱의 알림 설정 화면으로 이동
     private fun openAppSettings() {
-        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-            putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
-        }
+        val intent =
+            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, requireContext().packageName)
+            }
         startActivity(intent)
     }
 }
