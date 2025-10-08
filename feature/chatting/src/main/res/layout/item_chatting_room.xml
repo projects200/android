@@ -59,7 +59,7 @@
         android:layout_marginEnd="@dimen/base_horizontal_margin"
         android:background="@drawable/bg_badge"
         android:paddingHorizontal="7dp"
-        android:paddingVertical="3dp"
+        android:paddingVertical="1.5dp"
         android:textColor="@color/white300"
         app:layout_constraintBottom_toBottomOf="@id/last_message_tv"
         app:layout_constraintEnd_toEndOf="parent"
