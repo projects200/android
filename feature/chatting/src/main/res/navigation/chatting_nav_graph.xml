@@ -7,8 +7,8 @@
 
     <fragment
         android:id="@+id/chattingFragment"
-        android:name="com.project200.feature.chatting.ChattingFragment"
+        android:name="com.project200.feature.chatting.ChattingListFragment"
         android:label="chatting"
-        tools:layout="@layout/fragment_chatting" >
+        tools:layout="@layout/fragment_chatting_list" >
     </fragment>
 </navigation>

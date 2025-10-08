@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_img_iv"
+        android:layout_width="54dp"
+        android:layout_height="54dp"
+        android:layout_margin="@dimen/base_horizontal_margin"
+        android:src="@drawable/ic_profile_default"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/nickname_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="15dp"
+        android:layout_marginBottom="10dp"
+        app:layout_constraintBottom_toTopOf="@id/last_message_tv"
+        app:layout_constraintStart_toEndOf="@id/profile_img_iv"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_chainStyle="packed" />
+
+    <TextView
+        android:id="@+id/last_message_tv"
+        style="@style/subtext_14"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/gray200"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/badge_tv"
+        app:layout_constraintStart_toStartOf="@id/nickname_tv"
+        app:layout_constraintTop_toBottomOf="@id/nickname_tv" />
+
+    <TextView
+        android:id="@+id/last_time_tv"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:textColor="@color/gray200"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_tv"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/nickname_tv" />
+
+    <TextView
+        android:id="@+id/badge_tv"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:background="@drawable/bg_badge"
+        android:paddingHorizontal="7dp"
+        android:paddingVertical="3dp"
+        android:textColor="@color/white300"
+        app:layout_constraintBottom_toBottomOf="@id/last_message_tv"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@id/last_message_tv" />
+</androidx.constraintlayout.widget.ConstraintLayout>
