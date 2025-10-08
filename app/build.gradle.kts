@@ -59,16 +59,6 @@ android {
         }
     }
 
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            // 카카오맵 SDK가 지원하는 ARM 아키텍처만 포함시킵니다.
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
-        }
-    }
-
     buildFeatures {
         viewBinding = true
     }
