@@ -5,6 +5,7 @@ import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
+import com.project200.data.dto.GetChattingRoomsDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetExerciseCountByRangeDTO
@@ -339,4 +340,10 @@ interface ApiService {
         @Path("locationId") locationId: Long,
         @Body placeName: EditExercisePlaceDTO,
     ): BaseResponse<Any?>
+
+    /** 채팅 */
+    // 내 채팅방 목록 조회
+    @GET("api/v1/chat-rooms")
+    @AccessTokenApi
+    suspend fun getChattingRooms(): BaseResponse<List<GetChattingRoomsDTO>>
 }

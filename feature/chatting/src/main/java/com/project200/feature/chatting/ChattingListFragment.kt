@@ -9,7 +9,10 @@ import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingListBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @AndroidEntryPoint
 class ChattingListFragment: BindingFragment<FragmentChattingListBinding>(R.layout.fragment_chatting_list) {
@@ -28,11 +31,25 @@ class ChattingListFragment: BindingFragment<FragmentChattingListBinding>(R.layou
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    // Fragment가 STARTED 상태가 되면 폴링 시작
+                    // STOPPED 상태가 되면 자동으로 코루틴 취소
+                    while (isActive) {
+                        viewModel.fetchChattingRooms()
+                        delay(POLLING_PERIOD)
+                    }
+                }
                 viewModel.chattingRooms.collect { chatRooms ->
-                    // ListAdapter의 submitList를 통해 리스트를 업데이트
+                    Timber.tag(TAG).d("Polling: $chatRooms")
                     chattingListAdapter.submitList(chatRooms)
                 }
             }
         }
+    }
+
+
+    companion object {
+        const val POLLING_PERIOD = 15000L
+        const val TAG = "ChattingListFragment"
     }
 }

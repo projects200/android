@@ -6,8 +6,12 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_SLASH_KR
+import com.project200.common.utils.CommonDateTimeFormatters.a_h_mm_KR
 import com.project200.domain.model.ChattingRoom
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
+import java.time.LocalDate
+import java.time.LocalDateTime
 
 class ChattingListRVAdapter :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
@@ -27,16 +31,28 @@ class ChattingListRVAdapter :
         fun bind(chattingRoom: ChattingRoom) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
-            binding.lastTimeTv.text = chattingRoom.lastChattedAt
+
+            // lastChattedAt을 조건에 따라 포맷팅
+            binding.lastTimeTv.text = formatTimestamp(chattingRoom.lastChattedAt)
 
             if (chattingRoom.unreadCount > 0) {
                 binding.badgeTv.visibility = View.VISIBLE
+                binding.badgeTv.text = chattingRoom.unreadCount.toString()
             } else {
                 binding.badgeTv.visibility = View.GONE
             }
+        }
 
-            binding.badgeTv.text = chattingRoom.unreadCount.toString()
+        // 시간 포맷팅을 처리하는 함수
+        private fun formatTimestamp(dateTime: LocalDateTime): String {
+            val today = LocalDate.now()
+            val messageDate = dateTime.toLocalDate()
 
+            return if (messageDate.isEqual(today)) {
+                dateTime.format(a_h_mm_KR)
+            } else {
+                dateTime.format(YYYY_MM_DD_SLASH_KR)
+            }
         }
     }
 
