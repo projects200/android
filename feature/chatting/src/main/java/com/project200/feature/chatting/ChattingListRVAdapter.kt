@@ -1,6 +1,7 @@
 package com.project200.feature.chatting
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
@@ -27,7 +28,15 @@ class ChattingListRVAdapter :
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
             binding.lastTimeTv.text = chattingRoom.lastChattedAt
+
+            if (chattingRoom.unreadCount > 0) {
+                binding.badgeTv.visibility = View.VISIBLE
+            } else {
+                binding.badgeTv.visibility = View.GONE
+            }
+
             binding.badgeTv.text = chattingRoom.unreadCount.toString()
+
         }
     }
 
