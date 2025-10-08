@@ -143,7 +143,7 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led,
+                            com.project200.undabang.presentation.R.color.error_red,
                         ),
                     )
                 }
@@ -153,7 +153,7 @@ class ProfileEditFragment :
                     binding.duplicateMessageTv.setTextColor(
                         getColor(
                             requireContext(),
-                            com.project200.undabang.presentation.R.color.error_led,
+                            com.project200.undabang.presentation.R.color.error_red,
                         ),
                     )
                 }

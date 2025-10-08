@@ -193,7 +193,7 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         if (isRunning) {
             binding.timerPlayBtn.backgroundTintList =
                 ColorStateList.valueOf(
-                    getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led),
+                    getColor(requireContext(), com.project200.undabang.presentation.R.color.error_red),
                 )
             binding.timerPlayBtn.text = getString(R.string.timer_stop)
 
