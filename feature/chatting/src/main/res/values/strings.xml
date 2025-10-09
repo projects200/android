@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chatting_message_hint">메시지 입력</string>
+</resources>
