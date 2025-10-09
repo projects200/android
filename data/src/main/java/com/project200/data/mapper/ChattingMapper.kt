@@ -11,6 +11,6 @@ fun GetChattingRoomsDTO.toModel(): ChattingRoom {
         thumbnailImageUrl = this.otherMemberThumbnailImageUrl,
         lastMessage = this.lastChatContent,
         lastChattedAt = this.lastChatSendedAt,
-        unreadCount = this.unreadCount
+        unreadCount = this.unreadCount,
     )
 }

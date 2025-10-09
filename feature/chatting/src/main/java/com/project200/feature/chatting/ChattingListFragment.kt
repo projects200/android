@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
-class ChattingListFragment: BindingFragment<FragmentChattingListBinding>(R.layout.fragment_chatting_list) {
+class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layout.fragment_chatting_list) {
     private val viewModel: ChattingListViewModel by viewModels()
     private lateinit var chattingListAdapter: ChattingListRVAdapter
 
@@ -46,7 +46,6 @@ class ChattingListFragment: BindingFragment<FragmentChattingListBinding>(R.layou
             }
         }
     }
-
 
     companion object {
         const val POLLING_PERIOD = 15000L

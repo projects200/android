@@ -11,5 +11,5 @@ data class GetChattingRoomsDTO(
     val otherMemberThumbnailImageUrl: String?,
     val lastChatContent: String,
     val lastChatSendedAt: LocalDateTime,
-    val unreadCount: Int
+    val unreadCount: Int,
 )

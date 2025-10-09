@@ -15,14 +15,19 @@ import java.time.LocalDateTime
 
 class ChattingListRVAdapter :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChattingRoomViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ChattingRoomViewHolder {
         val binding =
             ItemChattingRoomBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ChattingRoomViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ChattingRoomViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ChattingRoomViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
@@ -58,12 +63,18 @@ class ChattingListRVAdapter :
 
     class ChattingRoomDiffCallback : DiffUtil.ItemCallback<ChattingRoom>() {
         // 아이템의 고유 ID를 비교하여 같은 아이템인지 확인합니다.
-        override fun areItemsTheSame(oldItem: ChattingRoom, newItem: ChattingRoom): Boolean {
+        override fun areItemsTheSame(
+            oldItem: ChattingRoom,
+            newItem: ChattingRoom,
+        ): Boolean {
             return oldItem.id == newItem.id
         }
 
         // 아이템의 내용이 같은지 비교합니다. areItemsTheSame이 true일 때만 호출됩니다.
-        override fun areContentsTheSame(oldItem: ChattingRoom, newItem: ChattingRoom): Boolean {
+        override fun areContentsTheSame(
+            oldItem: ChattingRoom,
+            newItem: ChattingRoom,
+        ): Boolean {
             return oldItem == newItem
         }
     }
