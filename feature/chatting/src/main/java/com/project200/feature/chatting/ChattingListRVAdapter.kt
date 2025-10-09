@@ -13,7 +13,7 @@ import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBind
 import java.time.LocalDate
 import java.time.LocalDateTime
 
-class ChattingListRVAdapter :
+class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -28,12 +28,13 @@ class ChattingListRVAdapter :
         holder: ChattingRoomViewHolder,
         position: Int,
     ) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), onItemClicked)
     }
 
     class ChattingRoomViewHolder(private val binding: ItemChattingRoomBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(chattingRoom: ChattingRoom) {
+
+        fun bind(chattingRoom: ChattingRoom, onItemClicked: (Long) -> Unit) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
 
@@ -45,6 +46,10 @@ class ChattingListRVAdapter :
                 binding.badgeTv.text = chattingRoom.unreadCount.toString()
             } else {
                 binding.badgeTv.visibility = View.GONE
+            }
+
+            itemView.setOnClickListener {
+                onItemClicked(chattingRoom.id)
             }
         }
 

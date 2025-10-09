@@ -5,6 +5,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingListBinding
@@ -24,7 +25,9 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
     }
 
     override fun setupViews() {
-        chattingListAdapter = ChattingListRVAdapter()
+        chattingListAdapter = ChattingListRVAdapter { roomId ->
+            findNavController().navigate(ChattingListFragmentDirections.actionChattingFragmentToChattingRoomFragment(roomId))
+        }
         binding.chattingRoomRv.adapter = chattingListAdapter
     }
 
