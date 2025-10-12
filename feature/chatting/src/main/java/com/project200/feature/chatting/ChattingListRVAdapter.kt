@@ -6,13 +6,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_SLASH_KR
-import com.project200.common.utils.CommonDateTimeFormatters.a_h_mm_KR
 import com.project200.domain.model.ChattingRoom
 import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
-import java.time.LocalDate
-import java.time.LocalDateTime
 
 class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
@@ -34,8 +30,10 @@ class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
 
     class ChattingRoomViewHolder(private val binding: ItemChattingRoomBinding) :
         RecyclerView.ViewHolder(binding.root) {
-
-        fun bind(chattingRoom: ChattingRoom, onItemClicked: (Long) -> Unit) {
+        fun bind(
+            chattingRoom: ChattingRoom,
+            onItemClicked: (Long) -> Unit,
+        ) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
 

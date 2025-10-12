@@ -45,19 +45,26 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
         binding.chattingMessageRv.apply {
             adapter = chatAdapter
-            layoutManager = LinearLayoutManager(requireContext()).apply {
-                stackFromEnd = true // 기본적으로 하단 정렬
-            }
+            layoutManager =
+                LinearLayoutManager(requireContext()).apply {
+                    stackFromEnd = true // 기본적으로 하단 정렬
+                }
             itemAnimator = null
 
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    super.onScrolled(recyclerView, dx, dy)
-                    if (!recyclerView.canScrollVertically(-1)) {
-                        viewModel.loadPreviousMessages()
+            addOnScrollListener(
+                object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(
+                        recyclerView: RecyclerView,
+                        dx: Int,
+                        dy: Int,
+                    ) {
+                        super.onScrolled(recyclerView, dx, dy)
+                        if (!recyclerView.canScrollVertically(-1)) {
+                            viewModel.loadPreviousMessages()
+                        }
                     }
-                }
-            })
+                },
+            )
         }
     }
 
@@ -86,9 +93,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                             binding.chattingMessageRv.post {
                                 val layoutManager = binding.chattingMessageRv.layoutManager as LinearLayoutManager
 
-                                val totalHeight = (0 until layoutManager.itemCount).sumOf {
-                                    layoutManager.findViewByPosition(it)?.height ?: 0
-                                }
+                                val totalHeight =
+                                    (0 until layoutManager.itemCount).sumOf {
+                                        layoutManager.findViewByPosition(it)?.height ?: 0
+                                    }
 
                                 if (totalHeight < binding.chattingMessageRv.height) {
                                     layoutManager.stackFromEnd = false

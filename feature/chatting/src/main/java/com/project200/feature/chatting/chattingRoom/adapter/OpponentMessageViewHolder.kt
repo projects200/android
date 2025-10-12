@@ -31,7 +31,7 @@ class OpponentMessageViewHolder(
                 binding.root.paddingLeft,
                 binding.root.paddingTop,
                 binding.root.paddingRight,
-                binding.root.context.resources.getDimensionPixelSize(R.dimen.chatting_margin)
+                binding.root.context.resources.getDimensionPixelSize(R.dimen.chatting_margin),
             )
             // 시간 표시
             binding.timeTv.visibility = View.VISIBLE
@@ -42,7 +42,7 @@ class OpponentMessageViewHolder(
                 binding.root.paddingLeft,
                 binding.root.paddingTop,
                 binding.root.paddingRight,
-                binding.root.context.resources.getDimensionPixelSize(R.dimen.chatting_in_group_margin)
+                binding.root.context.resources.getDimensionPixelSize(R.dimen.chatting_in_group_margin),
             )
             // 시간 표시 안함
             binding.timeTv.visibility = View.INVISIBLE
@@ -51,21 +51,26 @@ class OpponentMessageViewHolder(
     }
 
     // 그룹의 마지막 메시지 여부 (시간 표시 결정)
-    fun isLastInGroup(current: ChattingMessage, next: ChattingMessage?): Boolean {
+    fun isLastInGroup(
+        current: ChattingMessage,
+        next: ChattingMessage?,
+    ): Boolean {
         if (next == null) return true // 마지막 메시지
         // 다음 메시지가 시스템 메시지거나, 보낸사람이 다르거나, 분(minute)이 다르면 현재 그룹 종료
         return next.chatType == "SYSTEM" ||
-                current.senderId != next.senderId ||
-                current.sentAt.minute != next.sentAt.minute
+            current.senderId != next.senderId ||
+            current.sentAt.minute != next.sentAt.minute
     }
 
     // 그룹의 첫 메시지 여부 (프로필, 닉네임 표시 결정)
-    fun isFirstInGroup(current: ChattingMessage, prev: ChattingMessage?): Boolean {
+    fun isFirstInGroup(
+        current: ChattingMessage,
+        prev: ChattingMessage?,
+    ): Boolean {
         if (prev == null) return true // 첫 메시지
         // 이전 메시지가 시스템 메시지거나, 보낸사람이 다르거나, 분(minute)이 다르면 새 그룹 시작
         return prev.chatType == "SYSTEM" ||
-                current.senderId != prev.senderId ||
-                current.sentAt.minute != prev.sentAt.minute
+            current.senderId != prev.senderId ||
+            current.sentAt.minute != prev.sentAt.minute
     }
-
 }

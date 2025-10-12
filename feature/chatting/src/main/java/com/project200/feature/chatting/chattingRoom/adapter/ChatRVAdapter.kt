@@ -9,7 +9,6 @@ import com.project200.domain.model.ChattingMessage
 import com.project200.undabang.feature.chatting.databinding.ItemMyMessageBinding
 import com.project200.undabang.feature.chatting.databinding.ItemOpponentMessageBinding
 import com.project200.undabang.feature.chatting.databinding.ItemSystemMessageBinding
-import timber.log.Timber
 
 class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(DiffCallback) {
     override fun getItemViewType(position: Int): Int {
@@ -21,7 +20,10 @@ class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(Diff
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): RecyclerView.ViewHolder {
         return when (viewType) {
             VIEW_TYPE_MY_MESSAGE -> {
                 val binding = ItemMyMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
@@ -38,7 +40,10 @@ class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(Diff
         }
     }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+    ) {
         val currentMessage = getItem(position)
         when (holder.itemViewType) {
             VIEW_TYPE_MY_MESSAGE -> (holder as MyMessageViewHolder).bind(currentMessage)
@@ -52,16 +57,23 @@ class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(Diff
         private const val VIEW_TYPE_OTHER_MESSAGE = 2
         private const val VIEW_TYPE_SYSTEM_MESSAGE = 3
 
-        private val DiffCallback = object : DiffUtil.ItemCallback<ChattingMessage>() {
-            override fun areItemsTheSame(oldItem: ChattingMessage, newItem: ChattingMessage): Boolean {
-                return oldItem.chatId == newItem.chatId
-            }
+        private val DiffCallback =
+            object : DiffUtil.ItemCallback<ChattingMessage>() {
+                override fun areItemsTheSame(
+                    oldItem: ChattingMessage,
+                    newItem: ChattingMessage,
+                ): Boolean {
+                    return oldItem.chatId == newItem.chatId
+                }
 
-            override fun areContentsTheSame(oldItem: ChattingMessage, newItem: ChattingMessage): Boolean {
-                return oldItem == newItem &&
+                override fun areContentsTheSame(
+                    oldItem: ChattingMessage,
+                    newItem: ChattingMessage,
+                ): Boolean {
+                    return oldItem == newItem &&
                         oldItem.showTime == newItem.showTime &&
                         oldItem.showProfile == newItem.showProfile
+                }
             }
-        }
     }
 }
