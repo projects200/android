@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_SLASH_KR
 import com.project200.common.utils.CommonDateTimeFormatters.a_h_mm_KR
 import com.project200.domain.model.ChattingRoom
+import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -50,18 +51,6 @@ class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
 
             itemView.setOnClickListener {
                 onItemClicked(chattingRoom.id)
-            }
-        }
-
-        // 시간 포맷팅을 처리하는 함수
-        private fun formatTimestamp(dateTime: LocalDateTime): String {
-            val today = LocalDate.now()
-            val messageDate = dateTime.toLocalDate()
-
-            return if (messageDate.isEqual(today)) {
-                dateTime.format(a_h_mm_KR)
-            } else {
-                dateTime.format(YYYY_MM_DD_SLASH_KR)
             }
         }
     }

@@ -35,4 +35,9 @@ dependencies {
 
     // CircleImageView
     implementation(libs.circleimageview)
+
+
+    // Glide
+    implementation(libs.glide)
+    ksp(libs.glide.compiler.ksp)
 }

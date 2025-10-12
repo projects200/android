@@ -10,8 +10,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 
-// ChattingListViewModel.kt
-
 @HiltViewModel
 class ChattingListViewModel
     @Inject
