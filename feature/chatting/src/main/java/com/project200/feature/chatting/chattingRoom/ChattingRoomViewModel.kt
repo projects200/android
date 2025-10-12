@@ -75,7 +75,6 @@ class ChattingRoomViewModel @Inject constructor(
     fun startPolling() {
         viewModelScope.launch {
             while (true) {
-                delay(2000) // 2초 대기
                 val newMessage = listOf<ChattingMessage>(ChattingMessage(
                     chatId = newMessageCounter--,
                     senderId = "user_1",
