@@ -27,7 +27,7 @@ android {
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
 
-        ndkVersion = "26.1.10909125"
+        ndkVersion = "28.0.10027231"
     }
 
     signingConfigs {
@@ -56,16 +56,6 @@ android {
         }
         debug {
             resValue("string", "app_name", "운다방(Debug)")
-        }
-    }
-
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            // 카카오맵 SDK가 지원하는 ARM 아키텍처만 포함시킵니다.
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
         }
     }
 
