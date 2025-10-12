@@ -58,6 +58,11 @@ jobs:
       - name: Build Debug APK
         run: ./gradlew assembleDebug
 
+      - name: Check for APK
+        run: |
+          echo "Checking the contents of the build output directory..."
+          ls -R app/build/outputs/apk
+
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 

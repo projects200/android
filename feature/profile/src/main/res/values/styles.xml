@@ -11,4 +11,10 @@
         <item name="fontFamily">@font/pretendard_regular</item>
         <item name="android:lineSpacingMultiplier">1.2</item>
     </style>
+    <style name="notification_switch">
+        <item name="thumbTint">@color/white300</item>
+        <item name="track">@drawable/style_toggle_track</item>
+        <item name="android:thumb">@drawable/style_toggle_thumb</item>
+        <item name="android:enabled">true</item>
+    </style>
 </resources>

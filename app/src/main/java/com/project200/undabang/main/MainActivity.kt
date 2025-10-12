@@ -55,6 +55,8 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         // 스플래시 화면을 계속 보여줄 조건 설정
         splashScreen.setKeepOnScreenCondition { isLoading }
 
+        checkNotificationPermission()
+
         requestNotificationPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
                 if (isGranted) {
@@ -129,6 +131,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.profile.R.id.profileEditFragment,
                 com.project200.undabang.feature.profile.R.id.profileImageDetailFragment,
                 com.project200.undabang.feature.profile.R.id.urlFormFragment,
+                com.project200.undabang.feature.profile.R.id.notificationFragment,
                 com.project200.undabang.feature.matching.R.id.matchingProfileFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceSearchFragment,
@@ -175,7 +178,6 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
             when (result) {
                 is BaseResult.Success -> {
                     proceedToContent()
-                    checkNotificationPermission()
                 }
                 is BaseResult.Error -> {
                     navigateToLogin()
@@ -193,14 +195,24 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     }
 
     private fun checkNotificationPermission() {
+        // Android 13 (Tiramisu, API 33) 이상에서만 동작
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             val permission = Manifest.permission.POST_NOTIFICATIONS
+
             // 권한이 이미 허용되었는지 확인
             if (ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED) {
                 Timber.i("알림 권한이 이미 허용되어 있음")
                 return
             }
-            // 권한 요청 실행
+
+            // 사용자가 이전에 권한 요청을 거부했는지 확인
+            if (shouldShowRequestPermissionRationale(permission)) {
+                Timber.i("사용자가 이전에 알림 권한을 거부했음. 앱 시작 시 자동 요청하지 않음.")
+                return
+            }
+
+            // 권한이 없고, 이전에 거부한 적도 없는 경우 (== 최초 요청인 경우)
+            Timber.i("최초로 알림 권한을 요청합니다.")
             requestNotificationPermissionLauncher.launch(permission)
         }
     }

@@ -37,7 +37,17 @@
         android:id="@+id/settingFragment"
         android:name="com.project200.undabang.profile.setting.SettingFragment"
         android:label="setting"
-        tools:layout="@layout/fragment_setting" />
+        tools:layout="@layout/fragment_setting" >
+        <action
+            android:id="@+id/action_settingFragment_to_notificationFragment"
+            app:destination="@id/notificationFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/notificationFragment"
+        android:name="com.project200.undabang.profile.setting.NotificationFragment"
+        android:label="notification"
+        tools:layout="@layout/fragment_notification" />
 
     <fragment
         android:id="@+id/profileEditFragment"
