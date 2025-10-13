@@ -2,28 +2,41 @@ package com.project200.feature.chatting.chattingRoom
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.ClockProvider
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
+import com.project200.domain.usecase.GetChatMessagesUseCase
+import com.project200.domain.usecase.GetNewChatMessagesUseCase
+import com.project200.domain.usecase.SendChatMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.time.LocalDateTime
 import javax.inject.Inject
 
 @HiltViewModel
 class ChattingRoomViewModel @Inject constructor(
-
+    private val getChatMessagesUseCase: GetChatMessagesUseCase,
+    private val getNewChatMessagesUseCase: GetNewChatMessagesUseCase,
+    private val sendChatMessageUseCase: SendChatMessageUseCase,
+    private val clockProvider: ClockProvider,
 ): ViewModel() {
 
     private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
     val messages = _messages.asStateFlow()
 
-    // 새 메시지의 고유 ID 생성을 위한 카운터
-    private var newMessageCounter = NEW_MESSAGE_DEFAULT_ID
+    // 이전 메시지 로딩 상태를 관리하는 StateFlow 추가
+    private val _isLoadingPreviousMessages = MutableStateFlow(false)
+    val isLoadingPreviousMessages = _isLoadingPreviousMessages.asStateFlow()
 
-    init {
-        loadInitialMessages()
+    private var chatRoomId: Long = DEFAULT_ID
+    private var prevChatId: Long? = null // 이전 메시지 조회를 위한 가장 오래된 메시지 ID
+    private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
+    var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
+
+    fun setChatRoomId(id: Long) {
+        chatRoomId = id
+        loadInitialMessages(id)
     }
 
     private fun updateAndEmitMessages(updatedList: List<ChattingMessage>) {
@@ -38,10 +51,10 @@ class ChattingRoomViewModel @Inject constructor(
             val next = messages.getOrNull(index + 1)
 
             val isFirstInGroup = prev == null || prev.chatType == ChatType.SYSTEM.str ||
-                    current.senderId != prev.senderId || current.sentAt.minute != prev.sentAt.minute
+                    current.isMine != prev.isMine || current.sentAt.minute != prev.sentAt.minute
 
             val isLastInGroup = next == null || next.chatType == ChatType.SYSTEM.str ||
-                    current.senderId != next.senderId || current.sentAt.minute != next.sentAt.minute
+                    current.isMine != next.isMine || current.sentAt.minute != next.sentAt.minute
 
             // copy()를 사용하여 새로운 객체를 생성. DiffUtil이 변화를 감지할 수 있게 함.
             val newMessage = current.copy(
@@ -53,19 +66,25 @@ class ChattingRoomViewModel @Inject constructor(
         }
     }
 
-    private fun loadInitialMessages() {
-        // 임시 더미 데이터
-        val sampleData = listOf(
-            ChattingMessage(1, "user_2", "김땡구리", null, null, "안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요안녕하세요", "USER", LocalDateTime.now().withHour(10).withMinute(45), false),
-            ChattingMessage(2, "user_1", "나", null, null, "안녕하세요", "USER", LocalDateTime.now().withHour(10).withMinute(45), true),
-            ChattingMessage(3, "user_2", "김땡구리", null, null, "반갑습니다", "USER", LocalDateTime.now().withHour(10).withMinute(45), false),
-            ChattingMessage(4, "user_2", "김땡구리", null, null, "김땡구리 입니다.", "USER", LocalDateTime.now().withHour(10).withMinute(45), false),
-            ChattingMessage(5, "user_2", "김땡구리", null, null, "반갑습니다", "USER", LocalDateTime.now().withHour(10).withMinute(46), false),
-            ChattingMessage(6, "user_2", "김땡구리", null, null, "김땡구리 입니다.", "USER", LocalDateTime.now().withHour(10).withMinute(46), false),
-            ChattingMessage(7, "system_1", "system", null, null, "(상대방 닉네임)님이 채팅방을 나갔습니다.", "SYSTEM", LocalDateTime.now().withHour(10).withMinute(47), false),
-            ChattingMessage(8, "system_1", "system", null, null, "(상대방 닉네임)님이 채팅방에 입장했습니다.", "SYSTEM", LocalDateTime.now().withHour(10).withMinute(48), false)
-        )
-        updateAndEmitMessages(sampleData)
+    /**
+     * 초기 메세지 목록 조회
+     */
+    private fun loadInitialMessages(id: Long) {
+        viewModelScope.launch {
+            // 초기 메시지 로드 (prevChatId 없이 최신 메시지부터 size 만큼 가져옴)
+            when (val result = getChatMessagesUseCase(id, size = LOAD_SIZE)) {
+                is BaseResult.Success -> {
+                    val chattingModel = result.data
+                    updateAndEmitMessages(chattingModel.messages)
+                    hasNextMessages = chattingModel.hasNext
+                    prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
+                    lastChatId = chattingModel.messages.lastOrNull()?.chatId
+                }
+                is BaseResult.Error -> {
+                    // TODO: 에러 처리 (토스트 메시지, 로그 등)
+                }
+            }
+        }
     }
 
 
@@ -73,22 +92,27 @@ class ChattingRoomViewModel @Inject constructor(
      * 새 메시지를 받아오는 폴링 함수
      */
     fun startPolling() {
+        if(chatRoomId == DEFAULT_ID) return
         viewModelScope.launch {
-            while (true) {
-                delay(2000) // 2초 대기
-                val newMessage = listOf<ChattingMessage>(ChattingMessage(
-                    chatId = newMessageCounter--,
-                    senderId = "user_1",
-                    nickname = "나",
-                    profileUrl = null,
-                    thumbnailImageUrl = null,
-                    content = "새 메시지 입니다. ${LocalDateTime.now()}",
-                    chatType = "USER",
-                    sentAt = LocalDateTime.now(),
-                    isMine = false
-                ))
-                // 기존 리스트의 맨 뒤에 새 메시지 추가
-                updateAndEmitMessages(_messages.value + newMessage)
+            when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
+                is BaseResult.Success -> {
+                    if (result.data.messages.isNotEmpty()) {
+                        // 기존 메시지 리스트에 새로운 메시지를 추가
+                        val currentMessages = _messages.value.toMutableList()
+                        // 중복 방지
+                        val uniqueNewMessages = result.data.messages.filter { newMessage ->
+                            !currentMessages.any { it.chatId == newMessage.chatId }
+                        }
+                        if (uniqueNewMessages.isNotEmpty()) {
+                            lastChatId = uniqueNewMessages.lastOrNull()?.chatId
+                            updateAndEmitMessages(currentMessages + uniqueNewMessages)
+                        }
+                    }
+                }
+
+                is BaseResult.Error -> {
+                    // TODO: 에러 처리
+                }
             }
         }
     }
@@ -98,47 +122,66 @@ class ChattingRoomViewModel @Inject constructor(
      */
     fun sendMessage(text: String) {
         if (text.isBlank()) return
+        if(chatRoomId == DEFAULT_ID) return
 
-        // 더미 데이터
-        val myMessage = listOf<ChattingMessage>(ChattingMessage(
-            chatId = newMessageCounter++,
-            senderId = "user_1",
+        val messageToSend = ChattingMessage(
+            chatId = DEFAULT_ID, // 임시 아이디
+            senderId = "my_user_id", // TODO: 실제 로그인한 사용자의 ID로 교체해야 합니다.
             nickname = "나",
             profileUrl = null,
             thumbnailImageUrl = null,
             content = text,
             chatType = "USER",
-            sentAt = LocalDateTime.now(),
+            sentAt = clockProvider.localDateTimeNow(),
             isMine = true
-        ))
-        // 기존 리스트의 맨 뒤에 내가 보낸 메시지 추가
-        updateAndEmitMessages(_messages.value + myMessage)
+        )
 
-        //TODO: 메세지 전송 api 호출
+        viewModelScope.launch {
+            when (val result = sendChatMessageUseCase(chatRoomId, text)) {
+                is BaseResult.Success -> {
+                    // 서버로부터 받은 chatId로 설정
+                    val confirmedMessage = messageToSend.copy(
+                        chatId = result.data
+                    )
+                    updateAndEmitMessages(_messages.value + confirmedMessage)
+                }
+                is BaseResult.Error -> {
+                    // TODO: 전송 실패 시 처리
+                }
+            }
+        }
     }
 
 
     fun loadPreviousMessages() {
+        if (!hasNextMessages || chatRoomId == DEFAULT_ID || prevChatId == null) {
+            return
+        }
+
         viewModelScope.launch {
-            // 더미 데이터
-            val myMessage = listOf<ChattingMessage>(ChattingMessage(
-                chatId = newMessageCounter++,
-                senderId = "user_1",
-                nickname = "나",
-                profileUrl = null,
-                thumbnailImageUrl = null,
-                content = "이전 메세지",
-                chatType = "USER",
-                sentAt = LocalDateTime.now(),
-                isMine = true
-            ))
-            // 기존 리스트의 맨 뒤에 내가 보낸 메시지 추가
-            updateAndEmitMessages(myMessage + _messages.value)
-            // TODO: 이전 페이지의 메시지를 가져오는 api 호출 구현
+            _isLoadingPreviousMessages.value = true // 로딩 시작
+            when (val result = getChatMessagesUseCase(chatRoomId, prevChatId, LOAD_SIZE)) {
+                is BaseResult.Success -> {
+                    if (result.data.messages.isNotEmpty()) {
+                        // 기존 리스트 앞에 새롭게 불러온 메시지 추가
+                        // 기존 메시지의 가장 오래된 ID를 업데이트
+                        updateAndEmitMessages(result.data.messages + _messages.value)
+                        prevChatId = result.data.messages.firstOrNull()?.chatId
+                    }
+                    hasNextMessages = result.data.hasNext
+                }
+
+                is BaseResult.Error -> {
+                    // TODO: 에러 처리
+                }
+            }
+
+            _isLoadingPreviousMessages.value = false
         }
     }
 
     companion object {
-        const val NEW_MESSAGE_DEFAULT_ID = -1L
+        const val DEFAULT_ID = -1L
+        const val LOAD_SIZE = 30 // 초기 로드 메시지 개수
     }
 }

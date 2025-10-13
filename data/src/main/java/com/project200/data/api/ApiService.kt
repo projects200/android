@@ -5,6 +5,7 @@ import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
+import com.project200.data.dto.GetChattingMessagesDTO
 import com.project200.data.dto.GetChattingRoomsDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
@@ -16,6 +17,7 @@ import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
+import com.project200.data.dto.GetNewChattingMessagesDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -24,10 +26,12 @@ import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO
+import com.project200.data.dto.PostChatMessageRequest
 import com.project200.data.dto.PostCustomTimerRequest
 import com.project200.data.dto.PostExercisePlaceDTO
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
+import com.project200.data.dto.PostMessageResponse
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
@@ -346,4 +350,30 @@ interface ApiService {
     @GET("api/v1/chat-rooms")
     @AccessTokenApi
     suspend fun getChattingRooms(): BaseResponse<List<GetChattingRoomsDTO>>
+
+
+    // 채팅 메세지 목록 조회
+    @GET("api/v1/chat-rooms/{chatroomId}/messages")
+    @AccessTokenApi
+    suspend fun getChatMessages(
+        @Path("chatroomId") chatRoomId: Long,
+        @Query("prevChatId") prevChatId: Long?,
+        @Query("size") size: Int
+    ): BaseResponse<GetChattingMessagesDTO>
+
+    // 새 채팅 메세지 목록 조회
+    @GET("api/v1/chat-rooms/{chatRoomId}/messages/new")
+    @AccessTokenApi
+    suspend fun getNewChatMessages(
+        @Path("chatRoomId") chatRoomId: Long,
+        @Query("lastMessageId") lastMessageId: Long?,
+    ): BaseResponse<GetNewChattingMessagesDTO>
+
+    // 메세지 전송
+    @GET("api/v1/chat-rooms/{chatRoomId}/messages")
+    @AccessTokenApi
+    suspend fun postChatMessage(
+        @Path("chatRoomId") chatRoomId: Long,
+        @Body content: PostChatMessageRequest
+    ): BaseResponse<PostMessageResponse>
 }
