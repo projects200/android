@@ -9,4 +9,9 @@ object RuleConstants {
 
     const val SCORE_HIGH_LEVEL = 0.70
     const val SCORE_MIDDLE_LEVEL = 0.33
+
+    const val ZOOM_LEVEL = 18
+
+    const val SEOUL_CITY_HALL_LATITUDE = 37.5666805
+    const val SEOUL_CITY_HALL_LONGITUDE = 126.9784147
 }

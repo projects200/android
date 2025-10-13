@@ -1,17 +1,21 @@
 package com.project200.data.di
 
+import com.project200.data.impl.AddressRepositoryImpl
 import com.project200.data.impl.AppUpdateRepositoryImpl
 import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
 import com.project200.data.impl.FcmRepositoryImpl
+import com.project200.data.impl.MatchingRepositoryImpl
 import com.project200.data.impl.MemberRepositoryImpl
 import com.project200.data.impl.PolicyRepositoryImpl
 import com.project200.data.impl.ScoreRepositoryImpl
 import com.project200.data.impl.TimerRepositoryImpl
+import com.project200.domain.repository.AddressRepository
 import com.project200.domain.repository.AppUpdateRepository
 import com.project200.domain.repository.AuthRepository
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.domain.repository.FcmRepository
+import com.project200.domain.repository.MatchingRepository
 import com.project200.domain.repository.MemberRepository
 import com.project200.domain.repository.PolicyRepository
 import com.project200.domain.repository.ScoreRepository
@@ -56,4 +60,12 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTimerRepository(timerRepository: TimerRepositoryImpl): TimerRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMatchingRepository(matchingRepositoryImpl: MatchingRepositoryImpl): MatchingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindAddressRepository(addressRepositoryImpl: AddressRepositoryImpl): AddressRepository
 }

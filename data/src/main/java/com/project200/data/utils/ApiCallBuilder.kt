@@ -1,7 +1,10 @@
 package com.project200.data.utils
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.ErrorResponse
 import com.project200.domain.model.BaseResult
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -50,9 +53,31 @@ suspend fun <DTO, Domain> apiCallBuilder(
                     }
                     is retrofit2.HttpException -> { // HTTP 상태 코드 오류
                         val errorBody = exception.response()?.errorBody()?.string()
+                        var errorMessage = errorBody // 기본값은 파싱 전 원본 문자열
+
+                        Timber.d("errorBody: $errorBody")
+                        if (!errorBody.isNullOrBlank()) {
+                            try {
+                                val moshi =
+                                    Moshi.Builder()
+                                        .add(KotlinJsonAdapterFactory())
+                                        .build()
+
+                                val adapter = moshi.adapter(ErrorResponse::class.java)
+                                val errorResponse = adapter.fromJson(errorBody)
+
+                                // 파싱 성공 후 메시지가 있다면 사용
+                                if (errorResponse != null && !errorResponse.message.isNullOrEmpty()) {
+                                    Timber.d("Parsed error message: ${errorResponse.message}")
+                                    errorMessage = errorResponse.message
+                                }
+                            } catch (e: Exception) {
+                                Timber.e(e, "Failed to parse error body JSON with Moshi.")
+                            }
+                        }
                         BaseResult.Error(
                             errorCode = exception.code().toString(),
-                            message = "HTTP 오류 ${exception.code()}: ${errorBody ?: exception.message()}",
+                            message = errorMessage, // 추출한 메시지 또는 원본 문자열 사용
                             cause = exception,
                         )
                     }

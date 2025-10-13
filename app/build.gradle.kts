@@ -1,13 +1,33 @@
+import java.util.Properties
+
 plugins {
     id("convention.android.application")
     alias(libs.plugins.navigation.safeargs)
 }
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+val kakaoNativeAppKey: String =
+    localProperties.getProperty("KAKAO_NATIVE_APP_KEY")
+        ?: System.getenv("KAKAO_NATIVE_APP_KEY")
+
+val kakaoRestApiKey: String =
+    localProperties.getProperty("KAKAO_REST_API_KEY")
+        ?: System.getenv("KAKAO_REST_API_KEY")
 
 android {
     namespace = "com.project200.undabang"
 
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
+        buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
+
+        ndkVersion = "28.0.10027231"
     }
 
     signingConfigs {
@@ -54,6 +74,7 @@ dependencies {
     implementation(projects.feature.profile)
     implementation(projects.feature.exercise)
     implementation(projects.feature.timer)
+    implementation(projects.feature.matching)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
@@ -76,4 +97,7 @@ dependencies {
     implementation(libs.androidx.navigation.ui.ktx)
 
     implementation(libs.appauth)
+
+    // Kakao Map
+    implementation(libs.kakao.map)
 }

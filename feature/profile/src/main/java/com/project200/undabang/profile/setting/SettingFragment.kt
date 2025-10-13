@@ -67,6 +67,9 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
             }
             termsLl.setOnClickListener { showTermsDialog(TERMS) }
             privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
+            notificationLl.setOnClickListener {
+                findNavController().navigate(R.id.action_settingFragment_to_notificationFragment)
+            }
         }
 
     private fun performLogout() {

@@ -11,7 +11,8 @@ jobs:
   # CI - 코드 검증 (Lint, Unit Test, Instrumented Test)
   # ===================================================================
   ci-test:
-    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
 
@@ -39,6 +40,8 @@ jobs:
           echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID }}" >> local.properties
           echo "COGNITO_APP_CLIENT_ID=${{ secrets.COGNITO_APP_CLIENT_ID }}" >> local.properties
           echo "COGNITO_REGION=${{ secrets.COGNITO_REGION }}" >> local.properties
+          echo "KAKAO_NATIVE_APP_KEY=${{ secrets.KAKAO_NATIVE_APP_KEY_DEV }}" >> local.properties
+          echo "KAKAO_REST_API_KEY=${{ secrets.KAKAO_REST_API_KEY }}" >> local.properties
         shell: bash
 
       - name: Grant execute permission for gradlew
@@ -66,10 +69,14 @@ jobs:
       - name: Run Android Instrumentation Tests (Release)
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 29
-          target: default
-          arch: x86_64
-          profile: Nexus 6
+          api-level: 33
+          target: google_apis
+          arch: arm64-v8a
+          ram-size: 2048M
+          disk-size: 4096M
+          emulator-options: "-no-snapshot -no-window -no-audio -no-boot-anim"
+          disable-animations: true
+          emulator-boot-timeout: 1800
           script: ./gradlew connectedAndroidTest
         env:
           SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
@@ -83,7 +90,7 @@ jobs:
   # ===================================================================
   cd-deploy:
     needs: ci-test
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    if: github.event_name == 'push' && (needs.ci-test.result == 'success' || needs.ci-test.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

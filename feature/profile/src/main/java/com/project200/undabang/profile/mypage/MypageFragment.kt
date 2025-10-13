@@ -39,7 +39,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
     override fun setupViews() {
         initClickListener()
-        viewModel.getProfile()
         setupCalendar()
     }
 
@@ -67,6 +66,21 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
+        }
+
+        binding.editOpenChatBtn.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToUrlFormFragment(
+                    id = viewModel.openUrl.value?.id ?: -1L,
+                    url = viewModel.openUrl.value?.url ?: "",
+                ),
+            )
+        }
+
+        binding.urlEmptyTv.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToUrlFormFragment(),
+            )
         }
     }
 
@@ -103,6 +117,19 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             binding.exerciseCalendar.notifyCalendarChanged()
         }
 
+        viewModel.openUrl.observe(viewLifecycleOwner) { openUrl ->
+            binding.urlTv.text = openUrl.url
+            if (openUrl.id == -1L) {
+                binding.editOpenChatBtn.visibility = View.GONE
+                binding.urlEmptyTv.visibility = View.VISIBLE
+                binding.urlTv.visibility = View.GONE
+            } else {
+                binding.editOpenChatBtn.visibility = View.VISIBLE
+                binding.urlEmptyTv.visibility = View.GONE
+                binding.urlTv.visibility = View.VISIBLE
+            }
+        }
+
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.toast.collect { isVisible ->
@@ -120,6 +147,13 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
             if (shouldRefresh) {
                 viewModel.getProfile()
                 savedStateHandle.remove<Boolean>(REFRESH_KEY)
+            }
+        }
+
+        savedStateHandle?.getLiveData<Boolean>(OPEN_URL_REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                viewModel.getOpenUrl()
+                savedStateHandle.remove<Boolean>(OPEN_URL_REFRESH_KEY)
             }
         }
     }
@@ -233,5 +267,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
     companion object {
         const val REFRESH_KEY = "REFRESH_KEY"
+        const val OPEN_URL_REFRESH_KEY = "OPEN_URL_REFRESH_KEY"
     }
 }

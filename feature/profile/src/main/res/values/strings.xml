@@ -7,6 +7,8 @@
     <string name="terms">이용약관</string>
     <string name="privacy">개인정보 처리방침</string>
     <string name="version_info">버전정보</string>
+    <string name="notification_setting">알림 설정</string>
+    <string name="notification">알림</string>
 
     <string name="alert_logout">정말 로그아웃 하시겠어요?</string>
     <string name="logout_error">로그아웃 중 오류가 발생했습니다</string>
@@ -33,6 +35,25 @@
     <string name="skill_level_3">고급자</string>
     <string name="skill_level_4">숙련자</string>
     <string name="skill_level_5">선출</string>
+
+    <string name="open_url_form_title">카카오 오픈 채팅</string>
+    <string name="open_chat_link">오픈 채팅 링크</string>
+    <string name="open_chat_announce">채팅 기능이 개발 중입니다. 카카오 오픈 채팅을 사용해주세요!</string>
+    <string name="open_chat_empty">카카오 오픈 채팅 URL을 추가해 주세요 +</string>
+    <string name="open_chat_url">카카오 오픈 채팅 URL</string>
+    <string name="open_chat_hint">예시) https://open.kakao.com/o/undabang</string>
+
+    <string name="how_to_create_open_url">카카오톡 오픈채팅방 만드는 법</string>
+    <string name="success_to_save_url">오픈채팅 링크가 저장되었습니다.</string>
+    <string name="fail_to_save_url">오픈채팅 링크 저장에 실패했습니다.</string>
+
+    <string name="url_notice_title">등록하신 카카오 오픈채팅 URL은 다른 이용자에게 공개됩니다.</string>
+    <string name="url_notice_content">회원님이 등록하는 오픈채팅 URL 정보는\n운동 메이트와 연결하기 위한 목적으로 다른 이용자들에게 공개됩니다.\n&#160;&#160;•&#160;&#160;제공받는 자: 본 서비스를 이용하는 다른 모든 회원
+\n&#160;&#160;•&#160;&#160;제공하는 정보: 회원님이 등록한 오픈채팅 URL 정보\n&#160;&#160;•&#160;&#160;보유 및 이용 기간: 회원 탈퇴 또는 해당 URL 정보 삭제 시까지</string>
+
+    <string name="open_chat_type">https://open.kakao.com/o/</string>
+    <string name="open_chat_invalid">유효한 오픈채팅 URL이 아닙니다.</string>
+
 
     <!-- 프로필 수정 -->
     <string name="profile_edit">프로필 수정</string>
@@ -72,4 +93,9 @@
     <string name="error_failed_">기본 이미지는 저장할 수 없습니다.</string>
     <string name="change_thumbnail_success">대표 이미지를 변경했습니다.</string>
     <string name="image_delete_success">이미지를 삭제했습니다.</string>
+
+    <!-- 알림 -->
+    <string name="noti_active">알림이 활성화되었습니다.</string>
+    <string name="noti_permission_announce">알림을 받으려면 앱 설정에서 권한을 허용해주세요.</string>
+    <string name="noti_deactive">알림이 활성화되었습니다.</string>
 </resources>

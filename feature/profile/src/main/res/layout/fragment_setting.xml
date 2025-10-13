@@ -21,7 +21,6 @@
         style="@style/content_bold"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-
         android:text="@string/setting"
         app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
         app:layout_constraintStart_toEndOf="@id/back_btn_iv"
@@ -149,9 +148,10 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/version_info_ll"
+        android:id="@+id/notification_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
         app:layout_constraintTop_toBottomOf="@id/privacy_ll">
 
         <ImageView
@@ -160,7 +160,31 @@
             android:layout_gravity="center"
             android:layout_marginVertical="19dp"
             android:layout_marginStart="20dp"
-            android:src="@drawable/ic_document" />
+            android:src="@drawable/ic_notification" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/notification" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/version_info_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toBottomOf="@+id/notification_ll">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_version_info" />
 
         <TextView
             style="@style/content_regular"

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/matching_nav_graph"
+    app:startDestination="@id/matchingMapFragment">
+
+    <fragment
+        android:id="@+id/matchingMapFragment"
+        android:name="com.project200.feature.matching.map.MatchingMapFragment"
+        android:label="matchingMap"
+        tools:layout="@layout/fragment_matching_map">
+        <action
+            android:id="@+id/action_matchingMapFragment_to_matchingProfileFragment"
+            app:destination="@id/matchingProfileFragment">
+            <argument
+                android:name="memberId"
+                app:argType="string" />
+        </action>
+        <action
+            android:id="@+id/action_matchingMapFragment_to_exercisePlaceFragment"
+            app:destination="@id/exercisePlaceFragment" />
+        <action
+            android:id="@+id/action_matchingMapFragment_to_matchingGuideFragment"
+            app:destination="@id/matchingGuideFragment"
+            app:popUpTo="@id/matchingMapFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_matchingMapFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/matchingProfileFragment"
+        android:name="com.project200.feature.matching.map.MatchingProfileFragment"
+        android:label="matchingProfile"
+        tools:layout="@layout/fragment_matching_profile">
+        <argument
+            android:name="memberId"
+            app:argType="string" />
+    </fragment>
+    <fragment
+        android:id="@+id/exercisePlaceFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceFragment"
+        android:label="exercisePlace"
+        tools:layout="@layout/fragment_exercise_place">
+        <action
+            android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
+        <action
+            android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceRegisterFragment"
+            app:destination="@id/exercisePlaceRegisterFragment">
+            <argument
+                android:name="placeId"
+                app:argType="long" />
+            <argument
+                android:name="name"
+                app:argType="string" />
+            <argument
+                android:name="address"
+                app:argType="string" />
+            <argument
+                android:name="latitude"
+                app:argType="string" />
+            <argument
+                android:name="longitude"
+                app:argType="string" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/exercisePlaceSearchFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceSearchFragment"
+        android:label="exercisePlaceSearch"
+        tools:layout="@layout/fragment_exercise_place_search">
+        <action
+            android:id="@+id/action_exercisePlaceSearchFragment_to_exercisePlaceRegisterFragment"
+            app:destination="@id/exercisePlaceRegisterFragment">
+            <argument
+                android:name="name"
+                app:argType="string" />
+            <argument
+                android:name="address"
+                app:argType="string" />
+            <argument
+                android:name="latitude"
+                app:argType="string" />
+            <argument
+                android:name="longitude"
+                app:argType="string" />
+        </action>
+    </fragment>
+
+    <fragment
+        android:id="@+id/exercisePlaceRegisterFragment"
+        android:name="com.project200.feature.matching.place.ExercisePlaceRegisterFragment"
+        android:label="exercisePlaceRegister"
+        tools:layout="@layout/fragment_exercise_place_register">
+        <argument
+            android:name="placeId"
+            app:argType="long"
+            android:defaultValue="-1L"/>
+        <argument
+            android:name="name"
+            app:argType="string" />
+        <argument
+            android:name="address"
+            app:argType="string" />
+        <argument
+            android:name="latitude"
+            app:argType="string" />
+        <argument
+            android:name="longitude"
+            app:argType="string" />
+
+        <action
+            android:id="@+id/action_complete_registration_and_go_to_place_list"
+            app:destination="@id/exercisePlaceFragment"
+            app:popUpTo="@id/matchingMapFragment"
+            app:popUpToInclusive="false" />
+    </fragment>
+    <fragment
+        android:id="@+id/matchingGuideFragment"
+        android:name="com.project200.feature.matching.map.MatchingGuideFragment"
+        android:label="matchingGuide"
+        tools:layout="@layout/fragment_matching_guide">
+        <action
+            android:id="@+id/action_matchingGuideFragment_to_urlFormFragment"
+            app:destination="@id/matchingUrlFormFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/matchingUrlFormFragment"
+        android:name="com.project200.feature.matching.map.MatchingUrlFormFragment"
+        android:label="matchingUrlForm"
+        tools:layout="@layout/fragment_matching_url_form" >
+        <action
+            android:id="@+id/action_matchingUrlFormFragment_to_matchingMapFragment"
+            app:destination="@id/matchingMapFragment"
+            app:popUpTo="@id/matchingMapFragment"
+            app:popUpToInclusive="true" >
+        </action>
+    </fragment>
+</navigation>
