@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.ChattingMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -72,23 +71,21 @@ class ChattingRoomViewModel @Inject constructor(
     /**
      * 새 메시지를 받아오는 폴링 함수
      */
-    fun startPolling() {
+    fun getNewMessages() {
         viewModelScope.launch {
-            while (true) {
-                val newMessage = listOf<ChattingMessage>(ChattingMessage(
-                    chatId = newMessageCounter--,
-                    senderId = "user_1",
-                    nickname = "나",
-                    profileUrl = null,
-                    thumbnailImageUrl = null,
-                    content = "새 메시지 입니다. ${LocalDateTime.now()}",
-                    chatType = "USER",
-                    sentAt = LocalDateTime.now(),
-                    isMine = false
-                ))
-                // 기존 리스트의 맨 뒤에 새 메시지 추가
-                updateAndEmitMessages(_messages.value + newMessage)
-            }
+            val newMessage = listOf<ChattingMessage>(ChattingMessage(
+                chatId = newMessageCounter--,
+                senderId = "user_1",
+                nickname = "나",
+                profileUrl = null,
+                thumbnailImageUrl = null,
+                content = "새 메시지 입니다. ${LocalDateTime.now()}",
+                chatType = "USER",
+                sentAt = LocalDateTime.now(),
+                isMine = false
+            ))
+            // 기존 리스트의 맨 뒤에 새 메시지 추가
+            updateAndEmitMessages(_messages.value + newMessage)
         }
     }
 

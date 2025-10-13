@@ -75,7 +75,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                     // Fragment가 STARTED 상태가 되면 폴링 시작
                     // STOPPED 상태가 되면 자동으로 코루틴 취소
                     while (isActive) {
-                        viewModel.startPolling()
+                        viewModel.getNewMessages()
                         delay(POLLING_PERIOD)
                     }
                 }
