@@ -1,15 +1,20 @@
 package com.project200.feature.chatting.chattingRoom
 
+import android.view.ContextThemeWrapper
 import android.view.View
+import android.widget.PopupMenu
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.project200.domain.model.ExercisePlace
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.MenuStyler
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -40,6 +45,13 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     }
 
     private fun setupListeners() {
+        binding.baseToolbar.apply {
+            setTitle(args.nickname)
+            showBackButton(true) { findNavController().navigateUp() }
+        }
+
+        binding.menuBtn.setOnClickListener { showPopupMenu(binding.menuBtn) }
+
         binding.sendBtn.setOnClickListener {
             val messageText = binding.chattingMessageEt.text.toString()
             if (messageText.isNotBlank()) {
@@ -135,6 +147,31 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         val firstVisibleItemView = layoutManager.findViewByPosition(firstVisibleItemPositionBeforeLoad)
         // 뷰의 top 좌표를 offset으로 저장
         firstVisibleItemOffsetBeforeLoad = firstVisibleItemView?.top ?: 0
+    }
+
+    private fun showPopupMenu(
+        view: View,
+    ) {
+        val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
+
+        PopupMenu(contextWrapper, view).apply {
+            menuInflater.inflate(R.menu.chatting_room_item_menu, this.menu)
+
+            menu.findItem(R.id.action_exit)?.let {
+                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
+            }
+
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_exit -> {
+                        //TODO: 채팅방 나가기
+                    }
+                }
+                true
+            }
+
+            MenuStyler.showIcons(this)
+        }.show()
     }
 
     companion object {
