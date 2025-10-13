@@ -15,44 +15,37 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:src="@drawable/ic_profile_default"/>
 
+    <TextView
+        android:id="@+id/message_tv"
+        style="@style/content_regular"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_message"
+        android:paddingHorizontal="15dp"
+        android:paddingVertical="10dp"
+        android:layout_marginStart="10dp"
+        app:layout_constrainedWidth="true"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintTop_toTopOf="@id/profile_img_iv"
+        app:layout_constraintEnd_toStartOf="@+id/guideline_end"
+        app:layout_constraintStart_toEndOf="@+id/profile_img_iv" />
+
+    <TextView
+        android:id="@+id/time_tv"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:layout_marginStart="5dp"
+        app:layout_constraintStart_toEndOf="@id/message_tv"
+        app:layout_constraintBottom_toBottomOf="@id/message_tv"
+        android:textColor="@color/gray200" />
+
     <androidx.constraintlayout.widget.Guideline
         android:id="@+id/guideline_end"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        app:layout_constraintGuide_percent="0.85" />
-
-    <LinearLayout
-        android:id="@+id/bubble_container"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="10dp"
-        android:orientation="horizontal"
-        app:layout_constrainedWidth="true"
-        app:layout_constraintEnd_toStartOf="@+id/guideline_end"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toEndOf="@id/profile_img_iv"
-        app:layout_constraintTop_toTopOf="@id/profile_img_iv">
-
-        <TextView
-            android:id="@+id/message_tv"
-            style="@style/content_regular"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/bg_message"
-            android:paddingHorizontal="15dp"
-            android:paddingVertical="10dp" />
-
-        <TextView
-            android:id="@+id/time_tv"
-            style="@style/subtext_12"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="bottom"
-            android:layout_marginStart="5dp"
-            android:textColor="@color/gray200" />
-
-    </LinearLayout>
+        app:layout_constraintGuide_percent="0.7" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
