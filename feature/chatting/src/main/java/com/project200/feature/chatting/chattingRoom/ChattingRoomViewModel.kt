@@ -91,8 +91,8 @@ class ChattingRoomViewModel @Inject constructor(
     /**
      * 새 메시지를 받아오는 폴링 함수
      */
-    fun startPolling() {
-        if(chatRoomId == DEFAULT_ID) return
+    fun getNewMessages() {
+        if (chatRoomId == DEFAULT_ID) return
         viewModelScope.launch {
             when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
                 is BaseResult.Success -> {
@@ -116,7 +116,7 @@ class ChattingRoomViewModel @Inject constructor(
             }
         }
     }
-
+    
     /**
      * 사용자가 보낸 메시지를 리스트에 추가하는 함수
      */
