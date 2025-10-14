@@ -4,6 +4,16 @@ import com.squareup.moshi.JsonClass
 import java.time.LocalDateTime
 
 @JsonClass(generateAdapter = true)
+data class PostChatRoomResponse(
+    val chatRoomId: Long,
+)
+
+@JsonClass(generateAdapter = true)
+data class PostChatRoomRequest(
+    val receiverId: String,
+)
+
+@JsonClass(generateAdapter = true)
 data class GetChattingRoomsDTO(
     val chatroomId: Long,
     val otherMemberNickname: String,

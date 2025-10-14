@@ -27,6 +27,8 @@ import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostChatMessageRequest
+import com.project200.data.dto.PostChatRoomRequest
+import com.project200.data.dto.PostChatRoomResponse
 import com.project200.data.dto.PostCustomTimerRequest
 import com.project200.data.dto.PostExercisePlaceDTO
 import com.project200.data.dto.PostExerciseRequestDto
@@ -346,6 +348,20 @@ interface ApiService {
     ): BaseResponse<Any?>
 
     /** 채팅 */
+    // 채팅방 생성
+    @POST("api/v1/chat-rooms")
+    @AccessTokenApi
+    suspend fun postChatRoom(
+        @Body request: PostChatRoomRequest,
+    ): BaseResponse<PostChatRoomResponse>
+
+    // 채팅방 나가기
+    @POST("/api/v1/chat-rooms/{chatroomId}")
+    @AccessTokenApi
+    suspend fun deleteChatRoom(
+        @Path("chatRoomId") chatRoomId: Long,
+    ): BaseResponse<Any?>
+
     // 내 채팅방 목록 조회
     @GET("api/v1/chat-rooms")
     @AccessTokenApi
