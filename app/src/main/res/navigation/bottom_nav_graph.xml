@@ -6,6 +6,7 @@
 
     <include app:graph="@navigation/exercise_nav_graph" />
     <include app:graph="@navigation/matching_nav_graph"/>
+    <include app:graph="@navigation/chatting_nav_graph"/>
     <include app:graph="@navigation/timer_nav_graph" />
     <include app:graph="@navigation/profile_nav_graph" />
 

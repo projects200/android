@@ -75,6 +75,7 @@ dependencies {
     implementation(projects.feature.exercise)
     implementation(projects.feature.timer)
     implementation(projects.feature.matching)
+    implementation(projects.feature.chatting)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)

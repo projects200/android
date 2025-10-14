@@ -10,6 +10,7 @@
 
     <string name="exercise_record">기록</string>
     <string name="matching">매칭</string>
+    <string name="chatting">채팅</string>
     <string name="timer">타이머</string>
     <string name="profile">MY</string>
 </resources>

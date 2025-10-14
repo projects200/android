@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/chatting_nav_graph"
+    app:startDestination="@id/chattingFragment">
+
+    <fragment
+        android:id="@+id/chattingFragment"
+        android:name="com.project200.feature.chatting.ChattingFragment"
+        android:label="chatting"
+        tools:layout="@layout/fragment_chatting" >
+    </fragment>
+</navigation>
