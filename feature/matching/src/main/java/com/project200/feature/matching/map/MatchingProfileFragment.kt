@@ -1,6 +1,7 @@
 package com.project200.feature.matching.map
 
 import android.content.Intent
+import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
@@ -19,6 +20,7 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.domain.model.BaseResult
 import com.project200.feature.matching.utils.GenderType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
@@ -61,7 +63,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
             viewModel.onNextMonthClicked()
         }
         binding.chatBtn.setOnClickListener {
-            findNavController()
+            viewModel.createChatRoom()
         }
     }
 
@@ -100,12 +102,24 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.toast.collect { isVisible ->
+                launch { viewModel.toast.collect { isVisible ->
                     Toast.makeText(
                         requireContext(),
                         getString(R.string.error_failed_to_load),
                         Toast.LENGTH_SHORT,
                     ).show()
+                } }
+                launch {
+                    viewModel.createChatRoomResult.collect { result ->
+                        when(result) {
+                            is BaseResult.Success -> {
+                                findNavController().navigate("app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}".toUri())
+                            }
+                            is BaseResult.Error -> {
+                                Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
                 }
             }
         }

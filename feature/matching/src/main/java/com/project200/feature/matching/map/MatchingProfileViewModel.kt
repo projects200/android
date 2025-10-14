@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.usecase.CreateChatRoomUseCase
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
 import com.project200.domain.usecase.GetMatchingProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,6 +24,7 @@ class MatchingProfileViewModel
     constructor(
         private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
         private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
+        private val createChatRoomUseCase: CreateChatRoomUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private var memberId: String = ""
@@ -40,6 +42,9 @@ class MatchingProfileViewModel
 
         private val _toast = MutableSharedFlow<Boolean>()
         val toast: SharedFlow<Boolean> = _toast
+
+        private val _createChatRoomResult = MutableSharedFlow<BaseResult<Long>>()
+        val createChatRoomResult: SharedFlow<BaseResult<Long>> = _createChatRoomResult
 
         fun setMemberId(id: String) {
             memberId = id
@@ -121,4 +126,10 @@ class MatchingProfileViewModel
 
             _selectedMonth.value = newMonth
         }
+
+    fun createChatRoom() {
+        viewModelScope.launch {
+            _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+        }
+    }
     }

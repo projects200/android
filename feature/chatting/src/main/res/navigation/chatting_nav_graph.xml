@@ -26,6 +26,7 @@
         android:name="com.project200.feature.chatting.chattingRoom.ChattingRoomFragment"
         android:label="chattingRoom"
         tools:layout="@layout/fragment_chatting_room" >
+        <deepLink app:uri="app://chatting/room/{roomId}/{nickname}" />
         <argument
             android:name="roomId"
             app:argType="long"/>

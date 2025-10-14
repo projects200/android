@@ -297,7 +297,7 @@
         android:layout_width="match_parent"
         android:layout_height="60dp"
         android:layout_margin="@dimen/base_horizontal_margin"
-        android:background="@drawable/bg_complete_btn"
+        android:background="@drawable/basic_activate_btn"
         android:elevation="2dp"
         android:textColor="@color/white300"
         android:text="@string/chat_request"
