@@ -34,12 +34,11 @@ fun ChatMessageDTO.toModel(): ChattingMessage {
     )
 }
 
-
 fun GetChattingMessagesDTO.toModel(): ChattingModel {
     return ChattingModel(
         hasNext = this.hasNext,
         opponentActive = this.opponentActive,
-        messages = this.content.map { it.toModel() }
+        messages = this.content.map { it.toModel() },
     )
 }
 
@@ -47,6 +46,6 @@ fun GetNewChattingMessagesDTO.toModel(): ChattingModel {
     return ChattingModel(
         hasNext = false,
         opponentActive = this.opponentActive,
-        messages = this.newChats.map { it.toModel() }
+        messages = this.newChats.map { it.toModel() },
     )
 }

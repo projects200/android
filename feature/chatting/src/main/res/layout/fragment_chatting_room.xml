@@ -1,22 +1,35 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:background="@color/white300">
     <com.project200.presentation.base.BaseToolbar
         android:id="@+id/base_toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        app:layout_constraintTop_toTopOf="parent"/>
+    <ImageView
+        android:id="@+id/menu_btn"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_menu"
+        app:layout_constraintTop_toTopOf="@id/base_toolbar"
+        app:layout_constraintBottom_toBottomOf="@id/base_toolbar"
+        app:layout_constraintEnd_toEndOf="@id/base_toolbar"
+        android:layout_marginEnd="12dp"/>
     <androidx.recyclerview.widget.RecyclerView
         android:background="@color/main_background"
         android:id="@+id/chatting_message_rv"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:paddingTop="@dimen/base_horizontal_margin"
-        android:clipToPadding="false"/>
+        app:layout_constraintTop_toBottomOf="@id/base_toolbar"
+        app:layout_constraintBottom_toTopOf="@id/send_message_ll"
+        android:paddingVertical="@dimen/base_horizontal_margin"
+        android:clipToPadding="false" />
     <LinearLayout
+        android:id="@+id/send_message_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
@@ -24,7 +37,8 @@
         android:paddingVertical="10dp"
         android:minHeight="44dp"
         android:maxHeight="150dp"
-        android:background="@color/white300">
+        android:background="@color/white300"
+        app:layout_constraintBottom_toBottomOf="parent">
         <EditText
             android:id="@+id/chatting_message_et"
             android:layout_width="0dp"
@@ -44,6 +58,8 @@
             android:layout_height="wrap_content"
             android:src="@drawable/ic_message_send"
             android:layout_marginHorizontal="10dp"
-            android:layout_gravity="bottom"/>
+            android:layout_gravity="bottom"
+            android:focusable="false"
+            android:focusableInTouchMode="false"/>
     </LinearLayout>
-</LinearLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

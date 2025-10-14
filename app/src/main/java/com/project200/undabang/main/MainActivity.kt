@@ -22,7 +22,8 @@ import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
-import com.project200.presentation.utils.hideKeyboardOnTouchOutside
+import com.project200.presentation.utils.KeyboardControlInterface
+import com.project200.presentation.utils.KeyboardUtils.hideKeyboardOnTouchOutside
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
@@ -239,7 +240,21 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     }
 
     override fun dispatchTouchEvent(ev: MotionEvent?): Boolean {
-        hideKeyboardOnTouchOutside(ev)
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+        val currentFragment = navHostFragment?.childFragmentManager?.fragments?.get(0)
+
+        var shouldHide = true
+        // 현재 프래그먼트가 KeyboardControlInterface를 구현했다면,
+        if (currentFragment is KeyboardControlInterface && ev != null) {
+            // 키보드를 숨길지 여부를 프래그먼트에게 위임
+            shouldHide = currentFragment.shouldHideKeyboardOnTouch(ev)
+        }
+
+        // 프래그먼트가 숨겨야 한다고 결정한 경우에만 hideKeyboard 로직을 실행
+        if (shouldHide) {
+            hideKeyboardOnTouchOutside(ev)
+        }
+
         return super.dispatchTouchEvent(ev)
     }
 }

@@ -10,7 +10,7 @@ import com.project200.domain.model.ChattingRoom
 import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
 
-class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
+class ChattingListRVAdapter(private val onItemClicked: (Long, String) -> Unit) :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -32,7 +32,7 @@ class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
             chattingRoom: ChattingRoom,
-            onItemClicked: (Long) -> Unit,
+            onItemClicked: (Long, String) -> Unit,
         ) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
@@ -48,7 +48,7 @@ class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
             }
 
             itemView.setOnClickListener {
-                onItemClicked(chattingRoom.id)
+                onItemClicked(chattingRoom.id, chattingRoom.nickname)
             }
         }
     }

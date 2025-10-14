@@ -16,6 +16,9 @@
             <argument
                 android:name="roomId"
                 app:argType="long"/>
+            <argument
+                android:name="nickname"
+                app:argType="string"/>
         </action>
     </fragment>
     <fragment
@@ -26,5 +29,8 @@
         <argument
             android:name="roomId"
             app:argType="long"/>
+        <argument
+            android:name="nickname"
+            app:argType="string"/>
     </fragment>
 </navigation>
