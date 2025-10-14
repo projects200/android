@@ -352,14 +352,14 @@ interface ApiService {
     @POST("api/v1/chat-rooms")
     @AccessTokenApi
     suspend fun postChatRoom(
-        @Body request: PostChatRoomRequest
+        @Body request: PostChatRoomRequest,
     ): BaseResponse<PostChatRoomResponse>
 
     // 채팅방 나가기
     @POST("/api/v1/chat-rooms/{chatroomId}")
     @AccessTokenApi
     suspend fun deleteChatRoom(
-        @Path("chatRoomId") chatRoomId: Long
+        @Path("chatRoomId") chatRoomId: Long,
     ): BaseResponse<Any?>
 
     // 내 채팅방 목록 조회
