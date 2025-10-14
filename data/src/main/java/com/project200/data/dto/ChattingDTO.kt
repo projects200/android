@@ -13,3 +13,38 @@ data class GetChattingRoomsDTO(
     val lastChatSendedAt: LocalDateTime,
     val unreadCount: Int,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetChattingMessagesDTO(
+    val content: List<ChatMessageDTO>,
+    val hasNext: Boolean,
+    val opponentActive: Boolean,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetNewChattingMessagesDTO(
+    val newChats: List<ChatMessageDTO>,
+    val opponentActive: Boolean
+)
+
+@JsonClass(generateAdapter = true)
+data class ChatMessageDTO(
+    val chatId: Long,
+    val senderId: String,
+    val senderNickname: String,
+    val senderProfileUrl: String?,
+    val senderThumbnailUrl: String?,
+    val chatContent: String,
+    val chatType: String,
+    val sentAt: LocalDateTime,
+    val isMine: Boolean,
+)
+
+@JsonClass(generateAdapter = true)
+data class PostMessageResponse(
+    val chatId: Long
+)
+@JsonClass(generateAdapter = true)
+data class PostChatMessageRequest(
+    val content: String
+)

@@ -5,6 +5,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
@@ -20,6 +21,13 @@ import kotlinx.coroutines.launch
 class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layout.fragment_chatting_room) {
     private val viewModel: ChattingRoomViewModel by viewModels()
     private lateinit var chatAdapter: ChatRVAdapter
+    private val args: ChattingRoomFragmentArgs by navArgs()
+
+    // 이전 메시지 로드 상태를 추적하는 플래그
+    private var isPaging = false
+    // 스크롤 위치 복원을 위해 저장할 변수
+    private var firstVisibleItemPositionBeforeLoad = 0
+    private var firstVisibleItemOffsetBeforeLoad = 0
 
     override fun getViewBinding(view: View): FragmentChattingRoomBinding {
         return FragmentChattingRoomBinding.bind(view)
@@ -28,6 +36,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupViews() {
         setupRecyclerView()
         setupListeners()
+        viewModel.setChatRoomId(args.roomId)
     }
 
     private fun setupListeners() {
@@ -42,25 +51,26 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
     private fun setupRecyclerView() {
         chatAdapter = ChatRVAdapter()
+        val layoutManager = LinearLayoutManager(requireContext()).apply {
+            stackFromEnd = true // 기본적으로 하단 정렬
+        }
 
         binding.chattingMessageRv.apply {
             adapter = chatAdapter
-            layoutManager =
-                LinearLayoutManager(requireContext()).apply {
-                    stackFromEnd = true // 기본적으로 하단 정렬
-                }
+            this.layoutManager = layoutManager
             itemAnimator = null
 
             addOnScrollListener(
                 object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(
-                        recyclerView: RecyclerView,
-                        dx: Int,
-                        dy: Int,
-                    ) {
-                        super.onScrolled(recyclerView, dx, dy)
-                        if (!recyclerView.canScrollVertically(-1)) {
-                            viewModel.loadPreviousMessages()
+                    override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                        super.onScrollStateChanged(recyclerView, newState)
+                        // 스크롤이 멈췄고, 최상단에 도달했을 때
+                        if (newState == RecyclerView.SCROLL_STATE_IDLE && !recyclerView.canScrollVertically(-1)) {
+                            // 더 불러올 메시지가 있고, 현재 로딩 중이 아닐 때만 호출
+                            if (viewModel.hasNextMessages && !viewModel.isLoadingPreviousMessages.value) {
+                                saveScrollState(layoutManager)
+                                viewModel.loadPreviousMessages()
+                            }
                         }
                     }
                 },
@@ -84,30 +94,31 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                     // 리스트가 업데이트 되기 전, 현재 스크롤 상태를 확인
                     val isScrolledToBottom = !binding.chattingMessageRv.canScrollVertically(1)
                     val isInitialLoad = chatAdapter.currentList.isEmpty() && messageList.isNotEmpty()
-                    val isNewMessageAdded = chatAdapter.currentList.isNotEmpty() && chatAdapter.currentList.size < messageList.size
+                    val oldListSize = chatAdapter.currentList.size
 
                     chatAdapter.submitList(messageList) {
                         // 리스트 업데이트가 완료된 후 실행되는 콜백
-                        if (isInitialLoad) {
-                            // 최초 로드 시, 메시지 양에 따라 상단/하단 정렬을 결정하는 로직
-                            binding.chattingMessageRv.post {
-                                val layoutManager = binding.chattingMessageRv.layoutManager as LinearLayoutManager
+                        val layoutManager = binding.chattingMessageRv.layoutManager as LinearLayoutManager
 
-                                val totalHeight =
-                                    (0 until layoutManager.itemCount).sumOf {
-                                        layoutManager.findViewByPosition(it)?.height ?: 0
-                                    }
+                        // 데이터 업데이트 후, 저장된 스크롤 상태로 복원
+                        if (isPaging) {
+                            val itemsAdded = messageList.size - oldListSize
+                            val newPosition = firstVisibleItemPositionBeforeLoad + itemsAdded
+                            layoutManager.scrollToPositionWithOffset(newPosition, firstVisibleItemOffsetBeforeLoad)
+                            isPaging = false // 페이징 상태 초기화
+                        } else if (isInitialLoad) {
+                            binding.chattingMessageRv.post {
+                                val totalHeight = (0 until layoutManager.itemCount).sumOf {
+                                    layoutManager.findViewByPosition(it)?.height ?: 0
+                                }
 
                                 if (totalHeight < binding.chattingMessageRv.height) {
                                     layoutManager.stackFromEnd = false
                                 } else {
-                                    binding.chattingMessageRv.post {
-                                        binding.chattingMessageRv.scrollToPosition(chatAdapter.itemCount - 1)
-                                    }
+                                    binding.chattingMessageRv.scrollToPosition(chatAdapter.itemCount - 1)
                                 }
                             }
-                        } else if (isNewMessageAdded && isScrolledToBottom) {
-                            // 새 메시지가 추가되었고, 사용자가 스크롤을 맨 아래에 두고 있었을 때만 자동 스크롤
+                        } else if (isScrolledToBottom) {
                             binding.chattingMessageRv.post {
                                 binding.chattingMessageRv.scrollToPosition(chatAdapter.itemCount - 1)
                             }
@@ -116,6 +127,14 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 }
             }
         }
+    }
+
+    private fun saveScrollState(layoutManager: LinearLayoutManager) {
+        isPaging = true // 페이징 시작을 알림
+        firstVisibleItemPositionBeforeLoad = layoutManager.findFirstVisibleItemPosition()
+        val firstVisibleItemView = layoutManager.findViewByPosition(firstVisibleItemPositionBeforeLoad)
+        // 뷰의 top 좌표를 offset으로 저장
+        firstVisibleItemOffsetBeforeLoad = firstVisibleItemView?.top ?: 0
     }
 
     companion object {

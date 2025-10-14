@@ -27,7 +27,7 @@ data class ChattingMessage(
 )
 
 data class ChattingModel(
-    val hasNext: Boolean,
+    val hasNext: Boolean = false,
     val opponentActive: Boolean,
     val messages: List<ChattingMessage>
 )
