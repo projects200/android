@@ -9,7 +9,6 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
-import com.project200.domain.usecase.GetOpenUrlUseCase
 import com.project200.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow

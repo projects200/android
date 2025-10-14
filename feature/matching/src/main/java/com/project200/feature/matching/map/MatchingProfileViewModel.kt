@@ -8,7 +8,6 @@ import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MatchingMemberProfile
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
-import com.project200.domain.usecase.GetMatchingMemberOpenUrlUseCase
 import com.project200.domain.usecase.GetMatchingProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,7 +23,6 @@ class MatchingProfileViewModel
     constructor(
         private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
         private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
-        private val getMemberOpenUrlUseCase: GetMatchingMemberOpenUrlUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private var memberId: String = ""
@@ -40,9 +38,6 @@ class MatchingProfileViewModel
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
-        private val _openUrl = MutableLiveData<String>()
-        val openUrl: LiveData<String> = _openUrl
-
         private val _toast = MutableSharedFlow<Boolean>()
         val toast: SharedFlow<Boolean> = _toast
 
@@ -52,8 +47,6 @@ class MatchingProfileViewModel
 
             val initialMonth = clockProvider.yearMonthNow()
             onMonthChanged(initialMonth)
-
-            getOpenUrl(memberId)
         }
 
         fun onMonthChanged(newMonth: YearMonth) {
@@ -127,16 +120,5 @@ class MatchingProfileViewModel
             }
 
             _selectedMonth.value = newMonth
-        }
-
-        fun getOpenUrl(memberId: String) {
-            viewModelScope.launch {
-                when (val result = getMemberOpenUrlUseCase(memberId)) {
-                    is BaseResult.Success -> {
-                        _openUrl.value = result.data
-                    }
-                    is BaseResult.Error -> {}
-                }
-            }
         }
     }

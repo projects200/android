@@ -134,18 +134,10 @@ class MatchingMapFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.shouldNavigateToGuide.collect {
-                        findNavController().navigate(
-                            MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
-                        )
-                    }
-                }
-                launch {
                     viewModel.shouldShowPlaceDialog.collect {
                         showPlaceGuideDialog()
                     }
                 }
-                // --- 추가: 에러 이벤트 구독 ---
                 launch {
                     viewModel.errorEvents.collect { message ->
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
@@ -293,7 +285,6 @@ class MatchingMapFragment :
     override fun onResume() {
         super.onResume()
         binding.mapView.resume()
-        viewModel.checkHasPlaceGuideBeenShown()
     }
 
     override fun onPause() {

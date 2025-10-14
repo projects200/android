@@ -202,64 +202,6 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/white300"
-                android:layout_marginTop="5dp"
-                android:padding="@dimen/base_horizontal_margin">
-                <TextView
-                    android:id="@+id/open_chat_title_tv"
-                    android:text="@string/open_chat_link"
-                    style="@style/content_bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/open_chat_content_tv"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_title_tv"
-                    app:layout_constraintStart_toStartOf="parent"
-                    android:text="@string/open_chat_announce"
-                    style="@style/subtext_12"
-                    android:textColor="@color/gray200"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <ImageView
-                    android:id="@+id/edit_open_chat_btn"
-                    android:src="@drawable/ic_edit"
-                    android:visibility="gone"
-                    app:layout_constraintTop_toTopOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/url_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingVertical="@dimen/base_horizontal_margin"
-                    android:paddingHorizontal="12dp"
-                    style="@style/subtext_14"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_solid_corner"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
-                <TextView
-                    android:id="@+id/url_empty_tv"
-                    style="@style/content_bold"
-                    android:layout_width="match_parent"
-                    android:layout_height="60dp"
-                    android:background="@drawable/bg_empty_preferred_exercise"
-                    android:gravity="center"
-                    android:text="@string/open_chat_empty"
-                    android:textColor="@color/gray200"
-                    android:visibility="gone"
-                    android:layout_marginTop="8dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv" />
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
                 android:background="@color/white300"
                 android:paddingHorizontal="@dimen/base_horizontal_margin"
