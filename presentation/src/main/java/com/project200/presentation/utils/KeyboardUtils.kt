@@ -32,4 +32,3 @@ object KeyboardUtils {
         view.clearFocus()
     }
 }
-

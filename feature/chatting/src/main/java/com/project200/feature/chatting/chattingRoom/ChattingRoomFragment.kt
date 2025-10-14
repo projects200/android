@@ -1,7 +1,6 @@
 package com.project200.feature.chatting.chattingRoom
 
 import android.graphics.Rect
-import android.graphics.Typeface
 import android.view.ContextThemeWrapper
 import android.view.GestureDetector
 import android.view.Gravity
@@ -10,7 +9,6 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.content.ContextCompat.getDrawable
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
@@ -36,8 +34,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import org.w3c.dom.Text
-import timber.log.Timber
 import java.time.LocalDate
 
 @AndroidEntryPoint
@@ -48,6 +44,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
     // 이전 메시지 로드 상태를 추적하는 플래그
     private var isPaging = false
+
     // 스크롤 위치 복원을 위해 저장할 변수
     private var firstVisibleItemPositionBeforeLoad = 0
     private var firstVisibleItemOffsetBeforeLoad = 0
@@ -93,29 +90,44 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
             }
         }
 
-        gestureDetector = GestureDetector(requireContext(), object : GestureDetector.SimpleOnGestureListener() {
-            override fun onSingleTapUp(e: MotionEvent): Boolean {
-                // 탭 동작이 감지되면 키보드 숨김
-                requireActivity().hideKeyboard(binding.chattingMessageEt)
-                return true
-            }
-        })
+        gestureDetector =
+            GestureDetector(
+                requireContext(),
+                object : GestureDetector.SimpleOnGestureListener() {
+                    override fun onSingleTapUp(e: MotionEvent): Boolean {
+                        // 탭 동작이 감지되면 키보드 숨김
+                        requireActivity().hideKeyboard(binding.chattingMessageEt)
+                        return true
+                    }
+                },
+            )
 
-        binding.chattingMessageRv.addOnItemTouchListener(object : RecyclerView.OnItemTouchListener {
-            override fun onInterceptTouchEvent(rv: RecyclerView, e: MotionEvent): Boolean {
-                gestureDetector.onTouchEvent(e)
-                return false
-            }
-            override fun onTouchEvent(rv: RecyclerView, e: MotionEvent) { }
-            override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) { }
-        })
+        binding.chattingMessageRv.addOnItemTouchListener(
+            object : RecyclerView.OnItemTouchListener {
+                override fun onInterceptTouchEvent(
+                    rv: RecyclerView,
+                    e: MotionEvent,
+                ): Boolean {
+                    gestureDetector.onTouchEvent(e)
+                    return false
+                }
+
+                override fun onTouchEvent(
+                    rv: RecyclerView,
+                    e: MotionEvent,
+                ) { }
+
+                override fun onRequestDisallowInterceptTouchEvent(disallowIntercept: Boolean) { }
+            },
+        )
     }
 
     private fun setupRecyclerView() {
         chatAdapter = ChatRVAdapter()
-        val layoutManager = LinearLayoutManager(requireContext()).apply {
-            stackFromEnd = true // 기본적으로 하단 정렬
-        }
+        val layoutManager =
+            LinearLayoutManager(requireContext()).apply {
+                stackFromEnd = true // 기본적으로 하단 정렬
+            }
 
         binding.chattingMessageRv.apply {
             adapter = chatAdapter
@@ -124,7 +136,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
             addOnScrollListener(
                 object : RecyclerView.OnScrollListener() {
-                    override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                    override fun onScrollStateChanged(
+                        recyclerView: RecyclerView,
+                        newState: Int,
+                    ) {
                         super.onScrollStateChanged(recyclerView, newState)
                         // 스크롤이 멈췄고, 최상단에 도달했을 때
                         if (newState == RecyclerView.SCROLL_STATE_IDLE && !recyclerView.canScrollVertically(-1)) {
@@ -136,7 +151,11 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                         }
                     }
 
-                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                    override fun onScrolled(
+                        recyclerView: RecyclerView,
+                        dx: Int,
+                        dy: Int,
+                    ) {
                         super.onScrolled(recyclerView, dx, dy)
 
                         // 현재 화면 상단에 보이는 아이템의 위치를 찾습니다.
@@ -190,7 +209,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         }
     }
 
-    private fun restoreScrollStateAfterPaging(newSize: Int, oldSize: Int) {
+    private fun restoreScrollStateAfterPaging(
+        newSize: Int,
+        oldSize: Int,
+    ) {
         val itemsAdded = newSize - oldSize
         val newPosition = firstVisibleItemPositionBeforeLoad + itemsAdded
         (binding.chattingMessageRv.layoutManager as LinearLayoutManager)
@@ -201,9 +223,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private fun handleInitialLoad() {
         binding.chattingMessageRv.post {
             val layoutManager = binding.chattingMessageRv.layoutManager as LinearLayoutManager
-            val totalHeight = (0 until layoutManager.itemCount).sumOf {
-                layoutManager.findViewByPosition(it)?.height ?: 0
-            }
+            val totalHeight =
+                (0 until layoutManager.itemCount).sumOf {
+                    layoutManager.findViewByPosition(it)?.height ?: 0
+                }
             if (totalHeight < binding.chattingMessageRv.height) {
                 layoutManager.stackFromEnd = false
             } else {
@@ -212,7 +235,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         }
     }
 
-    private fun scrollToBottomIfNeeded(newSize: Int, oldSize: Int) {
+    private fun scrollToBottomIfNeeded(
+        newSize: Int,
+        oldSize: Int,
+    ) {
         val isScrolledToBottom = !binding.chattingMessageRv.canScrollVertically(1)
         if (isScrolledToBottom && newSize > oldSize) {
             binding.chattingMessageRv.post {
@@ -234,7 +260,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         firstVisibleItemOffsetBeforeLoad = firstVisibleItemView?.top ?: 0
     }
 
-
     private fun updateSendButtonState(isEnabled: Boolean) {
         binding.sendBtn.isEnabled = isEnabled
         binding.sendBtn.setImageDrawable(
@@ -242,7 +267,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 getDrawable(requireContext(), R.drawable.ic_message_send)
             } else {
                 getDrawable(requireContext(), R.drawable.ic_message_send_unable)
-            }
+            },
         )
     }
 
@@ -268,9 +293,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         snackBar.show()
     }
 
-    private fun showPopupMenu(
-        view: View,
-    ) {
+    private fun showPopupMenu(view: View) {
         val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
 
         PopupMenu(contextWrapper, view).apply {
@@ -283,7 +306,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_exit -> {
-                        //TODO: 채팅방 나가기
+                        // TODO: 채팅방 나가기
                     }
                 }
                 true
@@ -310,12 +333,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         return !sendButtonRect.contains(x, y)
     }
 
-
     override fun onDestroyView() {
         keyboardHelper.stop()
         super.onDestroyView()
     }
-
 
     companion object {
         const val POLLING_PERIOD = 2000L

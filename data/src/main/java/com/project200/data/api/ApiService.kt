@@ -351,14 +351,13 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getChattingRooms(): BaseResponse<List<GetChattingRoomsDTO>>
 
-
     // 채팅 메세지 목록 조회
     @GET("api/v1/chat-rooms/{chatroomId}/messages")
     @AccessTokenApi
     suspend fun getChatMessages(
         @Path("chatroomId") chatRoomId: Long,
         @Query("prevChatId") prevChatId: Long?,
-        @Query("size") size: Int
+        @Query("size") size: Int,
     ): BaseResponse<GetChattingMessagesDTO>
 
     // 새 채팅 메세지 목록 조회
@@ -374,6 +373,6 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postChatMessage(
         @Path("chatRoomId") chatRoomId: Long,
-        @Body content: PostChatMessageRequest
+        @Body content: PostChatMessageRequest,
     ): BaseResponse<PostMessageResponse>
 }

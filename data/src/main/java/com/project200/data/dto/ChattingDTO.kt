@@ -24,7 +24,7 @@ data class GetChattingMessagesDTO(
 @JsonClass(generateAdapter = true)
 data class GetNewChattingMessagesDTO(
     val newChats: List<ChatMessageDTO>,
-    val opponentActive: Boolean
+    val opponentActive: Boolean,
 )
 
 @JsonClass(generateAdapter = true)
@@ -42,9 +42,10 @@ data class ChatMessageDTO(
 
 @JsonClass(generateAdapter = true)
 data class PostMessageResponse(
-    val chatId: Long
+    val chatId: Long,
 )
+
 @JsonClass(generateAdapter = true)
 data class PostChatMessageRequest(
-    val content: String
+    val content: String,
 )
