@@ -1,19 +1,17 @@
 package com.project200.feature.chatting.chattingRoom
 
 import android.graphics.Rect
-import android.text.Editable
-import android.text.TextWatcher
+import android.graphics.Typeface
 import android.view.ContextThemeWrapper
 import android.view.GestureDetector
+import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
-import android.view.ViewTreeObserver
+import android.widget.FrameLayout
 import android.widget.PopupMenu
-import androidx.core.content.ContextCompat.getColor
+import android.widget.TextView
+import android.widget.Toast
 import androidx.core.content.ContextCompat.getDrawable
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import androidx.core.widget.ImageViewCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -23,20 +21,24 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.project200.domain.model.ExercisePlace
+import com.google.android.material.snackbar.Snackbar
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
 import com.project200.feature.chatting.utils.KeyboardVisibilityHelper
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
 import com.project200.presentation.utils.MenuStyler
+import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import org.w3c.dom.Text
 import timber.log.Timber
+import java.time.LocalDate
 
 @AndroidEntryPoint
 class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layout.fragment_chatting_room), KeyboardControlInterface {
@@ -53,6 +55,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private lateinit var keyboardHelper: KeyboardVisibilityHelper
 
     private lateinit var gestureDetector: GestureDetector
+
+    private var lastDisplayedDate: LocalDate? = null
+
+    private var currentSnackBar: Snackbar? = null
 
     override fun getViewBinding(view: View): FragmentChattingRoomBinding {
         return FragmentChattingRoomBinding.bind(view)
@@ -129,6 +135,27 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                             }
                         }
                     }
+
+                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                        super.onScrolled(recyclerView, dx, dy)
+
+                        // 현재 화면 상단에 보이는 아이템의 위치를 찾습니다.
+                        val firstVisibleItemPosition = layoutManager.findFirstVisibleItemPosition()
+
+                        // 유효한 위치인지 확인
+                        if (firstVisibleItemPosition == RecyclerView.NO_POSITION) return
+
+                        // 해당 위치의 메시지 데이터를 가져옵니다.
+                        val message = chatAdapter.currentList.getOrNull(firstVisibleItemPosition) ?: return
+
+                        val currentDate = message.sentAt.toLocalDate()
+
+                        // 마지막으로 표시된 날짜와 현재 날짜가 다를 경우에만 스낵바를 표시합니다.
+                        if (currentDate != lastDisplayedDate) {
+                            showCustomSnackBar(currentDate.format(YYYY_MM_DD_KR))
+                            lastDisplayedDate = currentDate // 마지막 표시 날짜를 업데이트
+                        }
+                    }
                 },
             )
         }
@@ -190,6 +217,11 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         if (isScrolledToBottom && newSize > oldSize) {
             binding.chattingMessageRv.post {
                 binding.chattingMessageRv.scrollToPosition(chatAdapter.itemCount - 1)
+
+                val latestMessageDate = chatAdapter.currentList.lastOrNull()?.sentAt?.toLocalDate()
+                if (latestMessageDate != null) {
+                    lastDisplayedDate = latestMessageDate
+                }
             }
         }
     }
@@ -212,6 +244,28 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 getDrawable(requireContext(), R.drawable.ic_message_send_unable)
             }
         )
+    }
+
+    private fun showCustomSnackBar(message: String) {
+        val snackBar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
+        val snackBarView = snackBar.view
+
+        val params = snackBarView.layoutParams as FrameLayout.LayoutParams
+
+        params.apply {
+            width = FrameLayout.LayoutParams.WRAP_CONTENT
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            topMargin = binding.baseToolbar.bottom + dpToPx(requireContext(), 40f)
+        }
+
+        snackBarView.layoutParams = params
+
+        val snackBarText = snackBarView.findViewById<TextView>(com.google.android.material.R.id.snackbar_text)
+        snackBarText.textAlignment = View.TEXT_ALIGNMENT_CENTER
+
+        snackBarView.background = getDrawable(requireContext(), R.drawable.bg_snack_bar)
+
+        snackBar.show()
     }
 
     private fun showPopupMenu(

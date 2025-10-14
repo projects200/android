@@ -96,26 +96,26 @@ constructor(
         } else {
             // 이전 메시지 로드
             listOf(
-                ChattingMessage(1, "user_2", "상대방", null, null, "혹시 채팅 테스트 하시나요?", "USER", LocalDateTime.now().minusMinutes(20), false),
-                ChattingMessage(2, "user_1", "나", null, null, "네 맞아요. 스크롤 기능 테스트 중입니다.", "USER", LocalDateTime.now().minusMinutes(19), true),
-                ChattingMessage(3, "user_2", "상대방", null, null, "아하 그렇군요. 이전 메시지 불러오는 기능인가요?", "USER", LocalDateTime.now().minusMinutes(19), false),
-                ChattingMessage(4, "user_1", "나", null, null, "네. 상단으로 스크롤했을 때 자연스럽게 로딩되는지 확인하고 있습니다.", "USER", LocalDateTime.now().minusMinutes(18), true),
-                ChattingMessage(5, "user_2", "상대방", null, null, "알겠습니다. 제가 메시지를 몇 개 더 보내서 길이를 늘려 드릴게요.", "USER", LocalDateTime.now().minusMinutes(17), false),
-                ChattingMessage(6, "user_1", "나", null, null, "감사합니다! 그럼 테스트가 훨씬 수월할 것 같아요.", "USER", LocalDateTime.now().minusMinutes(16), true),
-                ChattingMessage(7, "system_1", "system", null, null, "상대방이 채팅방에 초대되었습니다.", "SYSTEM", LocalDateTime.now().minusMinutes(15), false),
-                ChattingMessage(8, "user_2", "상대방", null, null, "스크롤 테스트 메시지 1", "USER", LocalDateTime.now().minusMinutes(14), false),
-                ChattingMessage(9, "user_2", "상대방", null, null, "스크롤 테스트 메시지 2", "USER", LocalDateTime.now().minusMinutes(14), false),
-                ChattingMessage(10, "user_1", "나", null, null, "잘 올라오네요. 조금만 더 보내주시겠어요?", "USER", LocalDateTime.now().minusMinutes(13), true),
-                ChattingMessage(11, "user_2", "상대방", null, null, "스크롤 테스트 메시지 3", "USER", LocalDateTime.now().minusMinutes(12), false),
-                ChattingMessage(12, "user_2", "상대방", null, null, "스크롤 테스트 메시지 4", "USER", LocalDateTime.now().minusMinutes(12), false),
-                ChattingMessage(13, "user_2", "상대방", null, null, "스크롤 테스트 메시지 5", "USER", LocalDateTime.now().minusMinutes(12), false),
-                ChattingMessage(14, "user_1", "나", null, null, "좋습니다. 이제 충분한 것 같아요.", "USER", LocalDateTime.now().minusMinutes(11), true),
-                ChattingMessage(15, "user_2", "상대방", null, null, "필요하시면 더 말씀해주세요.", "USER", LocalDateTime.now().minusMinutes(10), false),
-                ChattingMessage(16, "user_1", "나", null, null, "네, 감사합니다. 테스트 마저 진행해볼게요.", "USER", LocalDateTime.now().minusMinutes(9), true),
-                ChattingMessage(17, "user_2", "상대방", null, null, "화이팅입니다.", "USER", LocalDateTime.now().minusMinutes(8), false),
-                ChattingMessage(18, "user_1", "나", null, null, "ㅎㅎ", "USER", LocalDateTime.now().minusMinutes(7), true),
-                ChattingMessage(19, "user_1", "나", null, null, "테스트가 거의 끝나갑니다.", "USER", LocalDateTime.now().minusMinutes(2), true),
-                ChattingMessage(20, "user_2", "상대방", null, null, "수고하셨습니다!", "USER", LocalDateTime.now().minusMinutes(1), false)
+                ChattingMessage(1, "user_2", "상대방", null, null, "혹시 채팅 테스트 하시나요?", "USER", LocalDateTime.now().minusMinutes(20).minusDays(4), false),
+                ChattingMessage(2, "user_1", "나", null, null, "네 맞아요. 스크롤 기능 테스트 중입니다.", "USER", LocalDateTime.now().minusMinutes(19).minusDays(4), true),
+                ChattingMessage(3, "user_2", "상대방", null, null, "아하 그렇군요. 이전 메시지 불러오는 기능인가요?", "USER", LocalDateTime.now().minusMinutes(19).minusDays(4), false),
+                ChattingMessage(4, "user_1", "나", null, null, "네. 상단으로 스크롤했을 때 자연스럽게 로딩되는지 확인하고 있습니다.", "USER", LocalDateTime.now().minusMinutes(18).minusDays(4), true),
+                ChattingMessage(5, "user_2", "상대방", null, null, "알겠습니다. 제가 메시지를 몇 개 더 보내서 길이를 늘려 드릴게요.", "USER", LocalDateTime.now().minusMinutes(17).minusDays(4), false),
+                ChattingMessage(6, "user_1", "나", null, null, "감사합니다! 그럼 테스트가 훨씬 수월할 것 같아요.", "USER", LocalDateTime.now().minusMinutes(16).minusDays(4), true),
+                ChattingMessage(7, "system_1", "system", null, null, "상대방이 채팅방에 초대되었습니다.", "SYSTEM", LocalDateTime.now().minusMinutes(15).minusDays(4), false),
+                ChattingMessage(8, "user_2", "상대방", null, null, "스크롤 테스트 메시지 1", "USER", LocalDateTime.now().minusMinutes(14).minusDays(4), false),
+                ChattingMessage(9, "user_2", "상대방", null, null, "스크롤 테스트 메시지 2", "USER", LocalDateTime.now().minusMinutes(14).minusDays(3), false),
+                ChattingMessage(10, "user_1", "나", null, null, "잘 올라오네요. 조금만 더 보내주시겠어요?", "USER", LocalDateTime.now().minusMinutes(13).minusDays(3), true),
+                ChattingMessage(11, "user_2", "상대방", null, null, "스크롤 테스트 메시지 3", "USER", LocalDateTime.now().minusMinutes(12).minusDays(3), false),
+                ChattingMessage(12, "user_2", "상대방", null, null, "스크롤 테스트 메시지 4", "USER", LocalDateTime.now().minusMinutes(12).minusDays(3), false),
+                ChattingMessage(13, "user_2", "상대방", null, null, "스크롤 테스트 메시지 5", "USER", LocalDateTime.now().minusMinutes(12).minusDays(3), false),
+                ChattingMessage(14, "user_1", "나", null, null, "좋습니다. 이제 충분한 것 같아요.", "USER", LocalDateTime.now().minusMinutes(11).minusDays(2), true),
+                ChattingMessage(15, "user_2", "상대방", null, null, "필요하시면 더 말씀해주세요.", "USER", LocalDateTime.now().minusMinutes(10).minusDays(2), false),
+                ChattingMessage(16, "user_1", "나", null, null, "네, 감사합니다. 테스트 마저 진행해볼게요.", "USER", LocalDateTime.now().minusMinutes(9).minusDays(2), true),
+                ChattingMessage(17, "user_2", "상대방", null, null, "화이팅입니다.", "USER", LocalDateTime.now().minusMinutes(8).minusDays(2), false),
+                ChattingMessage(18, "user_1", "나", null, null, "ㅎㅎ", "USER", LocalDateTime.now().minusMinutes(7).minusDays(1), true),
+                ChattingMessage(19, "user_1", "나", null, null, "테스트가 거의 끝나갑니다.", "USER", LocalDateTime.now().minusMinutes(2).minusDays(1), true),
+                ChattingMessage(20, "user_2", "상대방", null, null, "수고하셨습니다!", "USER", LocalDateTime.now().minusMinutes(1).minusDays(1), false)
             )
         }
 
