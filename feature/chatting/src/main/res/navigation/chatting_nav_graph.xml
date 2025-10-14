@@ -10,5 +10,19 @@
         android:name="com.project200.feature.chatting.ChattingListFragment"
         android:label="chatting"
         tools:layout="@layout/fragment_chatting_list" >
+        <action
+            android:id="@+id/action_chattingFragment_to_chattingRoomFragment"
+            app:destination="@id/chattingRoomFragment">
+            <argument
+                android:name="roomId"
+                app:argType="long"/>
+        </action>
+    </fragment>
+    <fragment
+        android:id="@+id/chattingRoomFragment"
+        android:name="com.project200.feature.chatting.chattingRoom.ChattingRoomFragment"
+        android:label="chattingRoom"
+        tools:layout="@layout/fragment_chatting_room" >
+
     </fragment>
 </navigation>

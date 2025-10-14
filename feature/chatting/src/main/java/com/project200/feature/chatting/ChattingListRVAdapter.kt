@@ -6,14 +6,11 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_SLASH_KR
-import com.project200.common.utils.CommonDateTimeFormatters.a_h_mm_KR
 import com.project200.domain.model.ChattingRoom
+import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
-import java.time.LocalDate
-import java.time.LocalDateTime
 
-class ChattingListRVAdapter :
+class ChattingListRVAdapter(private val onItemClicked: (Long) -> Unit) :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -28,12 +25,15 @@ class ChattingListRVAdapter :
         holder: ChattingRoomViewHolder,
         position: Int,
     ) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), onItemClicked)
     }
 
     class ChattingRoomViewHolder(private val binding: ItemChattingRoomBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(chattingRoom: ChattingRoom) {
+        fun bind(
+            chattingRoom: ChattingRoom,
+            onItemClicked: (Long) -> Unit,
+        ) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
 
@@ -46,17 +46,9 @@ class ChattingListRVAdapter :
             } else {
                 binding.badgeTv.visibility = View.GONE
             }
-        }
 
-        // 시간 포맷팅을 처리하는 함수
-        private fun formatTimestamp(dateTime: LocalDateTime): String {
-            val today = LocalDate.now()
-            val messageDate = dateTime.toLocalDate()
-
-            return if (messageDate.isEqual(today)) {
-                dateTime.format(a_h_mm_KR)
-            } else {
-                dateTime.format(YYYY_MM_DD_SLASH_KR)
+            itemView.setOnClickListener {
+                onItemClicked(chattingRoom.id)
             }
         }
     }
