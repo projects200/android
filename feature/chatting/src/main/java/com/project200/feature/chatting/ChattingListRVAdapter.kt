@@ -38,7 +38,9 @@ class ChattingListRVAdapter(private val onItemClicked: (Long, String) -> Unit) :
             binding.lastMessageTv.text = chattingRoom.lastMessage
 
             // lastChattedAt을 조건에 따라 포맷팅
-            binding.lastTimeTv.text = formatTimestamp(chattingRoom.lastChattedAt)
+            chattingRoom.lastChattedAt?.let {
+                binding.lastTimeTv.text = formatTimestamp(it)
+            }
 
             if (chattingRoom.unreadCount > 0) {
                 binding.badgeTv.visibility = View.VISIBLE

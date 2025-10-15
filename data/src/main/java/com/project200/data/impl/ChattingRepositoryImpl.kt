@@ -24,6 +24,7 @@ class ChattingRepositoryImpl
         private val apiService: ApiService,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ChattingRepository {
+        // 채팅방 생성
         override suspend fun createChatRoom(receiverId: String): BaseResult<Long> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
@@ -34,6 +35,7 @@ class ChattingRepositoryImpl
             )
         }
 
+        // 채팅방 나가기
         override suspend fun deleteChatRoom(chatRoomId: Long): BaseResult<Unit> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,

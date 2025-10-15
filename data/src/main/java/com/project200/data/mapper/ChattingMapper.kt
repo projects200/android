@@ -10,12 +10,12 @@ import com.project200.domain.model.ChattingRoom
 
 fun GetChattingRoomsDTO.toModel(): ChattingRoom {
     return ChattingRoom(
-        id = this.chatroomId,
+        id = this.chatRoomId,
         nickname = this.otherMemberNickname,
         profileImageUrl = this.otherMemberProfileImageUrl,
         thumbnailImageUrl = this.otherMemberThumbnailImageUrl,
         lastMessage = this.lastChatContent,
-        lastChattedAt = this.lastChatSendedAt,
+        lastChattedAt = this.lastChatReceivedAt,
         unreadCount = this.unreadCount,
     )
 }
@@ -30,7 +30,7 @@ fun ChatMessageDTO.toModel(): ChattingMessage {
         content = this.chatContent,
         chatType = this.chatType,
         sentAt = this.sentAt,
-        isMine = this.isMine,
+        isMine = this.mine,
     )
 }
 

@@ -51,6 +51,11 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.fetchChattingRooms()
+    }
+
     companion object {
         const val POLLING_PERIOD = 15000L
         const val TAG = "ChattingListFragment"

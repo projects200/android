@@ -5,11 +5,15 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
+import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
 import com.project200.domain.usecase.SendChatMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -21,14 +25,20 @@ class ChattingRoomViewModel
         private val getChatMessagesUseCase: GetChatMessagesUseCase,
         private val getNewChatMessagesUseCase: GetNewChatMessagesUseCase,
         private val sendChatMessageUseCase: SendChatMessageUseCase,
+        private val exitChatRoomUseCase: ExitChatRoomUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
         val messages = _messages.asStateFlow()
 
-        // 이전 메시지 로딩 상태를 관리하는 StateFlow 추가
-        private val _isLoadingPreviousMessages = MutableStateFlow(false)
-        val isLoadingPreviousMessages = _isLoadingPreviousMessages.asStateFlow()
+        private val _opponentState = MutableStateFlow<Boolean>(false)
+        val opponentState: StateFlow<Boolean> = _opponentState
+
+        private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
+        val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
+
+        private val _toast = MutableSharedFlow<String>()
+        val toast: SharedFlow<String> = _toast
 
         private var chatRoomId: Long = DEFAULT_ID
         private var prevChatId: Long? = null // 이전 메시지 조회를 위한 가장 오래된 메시지 ID
@@ -83,9 +93,12 @@ class ChattingRoomViewModel
                         hasNextMessages = chattingModel.hasNext
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
+
+                        if(_opponentState.value != result.data.opponentActive)
+                            _opponentState.emit(result.data.opponentActive)
                     }
                     is BaseResult.Error -> {
-                        // TODO: 에러 처리 (토스트 메시지, 로그 등)
+                        _toast.emit(result.message.toString())
                     }
                 }
             }
@@ -111,11 +124,14 @@ class ChattingRoomViewModel
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
+
+                            if(_opponentState.value != result.data.opponentActive)
+                                _opponentState.emit(result.data.opponentActive)
                         }
                     }
 
                     is BaseResult.Error -> {
-                        // TODO: 에러 처리
+                        _toast.emit(result.message.toString())
                     }
                 }
             }
@@ -131,7 +147,7 @@ class ChattingRoomViewModel
             val messageToSend =
                 ChattingMessage(
                     chatId = DEFAULT_ID, // 임시 아이디
-                    senderId = "my_user_id", // TODO: 실제 로그인한 사용자의 ID로 교체해야 합니다.
+                    senderId = "my_user_id",
                     nickname = "나",
                     profileUrl = null,
                     thumbnailImageUrl = null,
@@ -152,7 +168,7 @@ class ChattingRoomViewModel
                         updateAndEmitMessages(_messages.value + confirmedMessage)
                     }
                     is BaseResult.Error -> {
-                        // TODO: 전송 실패 시 처리
+                        _toast.emit(result.message.toString())
                     }
                 }
             }
@@ -164,7 +180,6 @@ class ChattingRoomViewModel
             }
 
             viewModelScope.launch {
-                _isLoadingPreviousMessages.value = true // 로딩 시작
                 when (val result = getChatMessagesUseCase(chatRoomId, prevChatId, LOAD_SIZE)) {
                     is BaseResult.Success -> {
                         if (result.data.messages.isNotEmpty()) {
@@ -177,13 +192,17 @@ class ChattingRoomViewModel
                     }
 
                     is BaseResult.Error -> {
-                        // TODO: 에러 처리
+                        _toast.emit(result.message.toString())
                     }
                 }
-
-                _isLoadingPreviousMessages.value = false
             }
         }
+
+    fun exitChatRoom() {
+        viewModelScope.launch {
+            _exitResult.emit(exitChatRoomUseCase(chatRoomId))
+        }
+    }
 
         companion object {
             const val DEFAULT_ID = -1L
