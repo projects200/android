@@ -356,10 +356,10 @@ interface ApiService {
     ): BaseResponse<PostChatRoomResponse>
 
     // 채팅방 나가기
-    @POST("/api/v1/chat-rooms/{chatroomId}")
+    @DELETE("api/v1/chat-rooms/{chatroomId}")
     @AccessTokenApi
     suspend fun deleteChatRoom(
-        @Path("chatRoomId") chatRoomId: Long,
+        @Path("chatroomId") chatRoomId: Long,
     ): BaseResponse<Any?>
 
     // 내 채팅방 목록 조회
@@ -377,18 +377,18 @@ interface ApiService {
     ): BaseResponse<GetChattingMessagesDTO>
 
     // 새 채팅 메세지 목록 조회
-    @GET("api/v1/chat-rooms/{chatRoomId}/messages/new")
+    @GET("api/v1/chat-rooms/{chatroomId}/messages/new")
     @AccessTokenApi
     suspend fun getNewChatMessages(
-        @Path("chatRoomId") chatRoomId: Long,
+        @Path("chatroomId") chatRoomId: Long,
         @Query("lastMessageId") lastMessageId: Long?,
     ): BaseResponse<GetNewChattingMessagesDTO>
 
     // 메세지 전송
-    @GET("api/v1/chat-rooms/{chatRoomId}/messages")
+    @POST("api/v1/chat-rooms/{chatroomId}/messages")
     @AccessTokenApi
     suspend fun postChatMessage(
-        @Path("chatRoomId") chatRoomId: Long,
+        @Path("chatroomId") chatRoomId: Long,
         @Body content: PostChatMessageRequest,
     ): BaseResponse<PostMessageResponse>
 }

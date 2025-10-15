@@ -15,12 +15,12 @@ data class PostChatRoomRequest(
 
 @JsonClass(generateAdapter = true)
 data class GetChattingRoomsDTO(
-    val chatroomId: Long,
+    val chatRoomId: Long,
     val otherMemberNickname: String,
     val otherMemberProfileImageUrl: String?,
     val otherMemberThumbnailImageUrl: String?,
-    val lastChatContent: String,
-    val lastChatSendedAt: LocalDateTime,
+    val lastChatContent: String?,
+    val lastChatReceivedAt: LocalDateTime?,
     val unreadCount: Int,
 )
 
@@ -40,14 +40,14 @@ data class GetNewChattingMessagesDTO(
 @JsonClass(generateAdapter = true)
 data class ChatMessageDTO(
     val chatId: Long,
-    val senderId: String,
-    val senderNickname: String,
+    val senderId: String?,
+    val senderNickname: String?,
     val senderProfileUrl: String?,
     val senderThumbnailUrl: String?,
     val chatContent: String,
     val chatType: String,
     val sentAt: LocalDateTime,
-    val isMine: Boolean,
+    val mine: Boolean,
 )
 
 @JsonClass(generateAdapter = true)

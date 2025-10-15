@@ -7,15 +7,15 @@ data class ChattingRoom(
     val nickname: String,
     val profileImageUrl: String?,
     val thumbnailImageUrl: String?,
-    val lastMessage: String,
-    val lastChattedAt: LocalDateTime,
+    val lastMessage: String?,
+    val lastChattedAt: LocalDateTime?,
     val unreadCount: Int
 )
 
 data class ChattingMessage(
     val chatId: Long,
-    val senderId: String,
-    val nickname: String,
+    val senderId: String?,
+    val nickname: String?,
     val profileUrl: String?,
     val thumbnailImageUrl: String?,
     val content: String,

@@ -9,7 +9,6 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
-import com.project200.domain.usecase.GetOpenUrlUseCase
 import com.project200.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,7 +24,6 @@ class MypageViewModel
     constructor(
         private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
         private val getUserProfileUseCase: GetUserProfileUseCase,
-        private val getOpenUrlUseCase: GetOpenUrlUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private val _profile = MutableLiveData<UserProfile>()
@@ -47,7 +45,6 @@ class MypageViewModel
 
         init {
             getProfile()
-            getOpenUrl()
             val initialMonth = clockProvider.yearMonthNow()
             onMonthChanged(initialMonth)
         }
@@ -122,18 +119,5 @@ class MypageViewModel
             }
 
             _selectedMonth.value = newMonth
-        }
-
-        fun getOpenUrl() {
-            viewModelScope.launch {
-                when (val result = getOpenUrlUseCase()) {
-                    is BaseResult.Success -> {
-                        _openUrl.value = result.data
-                    }
-                    is BaseResult.Error -> {
-                        _openUrl.value = OpenUrl(-1L, "")
-                    }
-                }
-            }
         }
     }

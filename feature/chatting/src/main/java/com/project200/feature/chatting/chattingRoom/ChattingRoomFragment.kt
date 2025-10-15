@@ -9,6 +9,8 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.TextView
+import android.widget.Toast
+import androidx.core.content.ContextCompat.getColor
 import androidx.core.content.ContextCompat.getDrawable
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
@@ -54,8 +56,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private lateinit var gestureDetector: GestureDetector
 
     private var lastDisplayedDate: LocalDate? = null
-
-    private var currentSnackBar: Snackbar? = null
 
     override fun getViewBinding(view: View): FragmentChattingRoomBinding {
         return FragmentChattingRoomBinding.bind(view)
@@ -143,8 +143,8 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                         super.onScrollStateChanged(recyclerView, newState)
                         // 스크롤이 멈췄고, 최상단에 도달했을 때
                         if (newState == RecyclerView.SCROLL_STATE_IDLE && !recyclerView.canScrollVertically(-1)) {
-                            // 더 불러올 메시지가 있고, 현재 로딩 중이 아닐 때만 호출
-                            if (viewModel.hasNextMessages && !viewModel.isLoadingPreviousMessages.value) {
+                            // 더 불러올 메시지가 있을 때
+                            if (viewModel.hasNextMessages) {
                                 saveScrollState(layoutManager)
                                 viewModel.loadPreviousMessages()
                             }
@@ -189,6 +189,36 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                     while (isActive) {
                         viewModel.getNewMessages()
                         delay(POLLING_PERIOD)
+                    }
+                }
+
+                launch {
+                    viewModel.opponentState.collect { isActive ->
+                        if (isActive) {
+                            binding.chattingMessageEt.text.clear()
+                            binding.chattingMessageEt.setTextColor(
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
+                            )
+                        } else {
+                            binding.chattingMessageEt.setText(getString(R.string.chatting_opponent_exit))
+                            binding.chattingMessageEt.setTextColor(
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
+                            )
+                        }
+                        binding.chattingMessageEt.isEnabled = isActive
+                        updateSendButtonState(isActive)
+                    }
+                }
+
+                launch {
+                    viewModel.toast.collect { message ->
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+
+                launch {
+                    viewModel.exitResult.collect {
+                        findNavController().navigateUp()
                     }
                 }
 
@@ -306,7 +336,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_exit -> {
-                        // TODO: 채팅방 나가기
+                        viewModel.exitChatRoom()
                     }
                 }
                 true
