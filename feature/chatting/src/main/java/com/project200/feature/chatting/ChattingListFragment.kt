@@ -46,6 +46,8 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
                 viewModel.chattingRooms.collect { chatRooms ->
                     Timber.tag(TAG).d("Polling: $chatRooms")
                     chattingListAdapter.submitList(chatRooms)
+                    if(chatRooms.isEmpty()) binding.emptyTv.visibility = View.VISIBLE
+                    else binding.emptyTv.visibility = View.GONE
                 }
             }
         }
