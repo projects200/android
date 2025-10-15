@@ -70,13 +70,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
-          target: google_apis
+          target: default
           arch: x86_64
-          ram-size: 2048M
-          disk-size: 4096M
-          emulator-options: "-no-snapshot -no-window -no-audio -no-boot-anim"
-          disable-animations: true
-          emulator-boot-timeout: 1800
+          profile: Nexus 6
           script: ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.project200.feature.matching.MapTest
         env:
           SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
