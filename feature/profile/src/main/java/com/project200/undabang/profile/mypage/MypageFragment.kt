@@ -67,7 +67,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
         }
-
     }
 
     override fun setupObservers() {

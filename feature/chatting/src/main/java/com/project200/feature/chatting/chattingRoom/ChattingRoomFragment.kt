@@ -194,12 +194,16 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
                 launch {
                     viewModel.opponentState.collect { isActive ->
-                        if(isActive) {
+                        if (isActive) {
                             binding.chattingMessageEt.text.clear()
-                            binding.chattingMessageEt.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.black))
+                            binding.chattingMessageEt.setTextColor(
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
+                            )
                         } else {
                             binding.chattingMessageEt.setText(getString(R.string.chatting_opponent_exit))
-                            binding.chattingMessageEt.setTextColor(getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200))
+                            binding.chattingMessageEt.setTextColor(
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
+                            )
                         }
                         binding.chattingMessageEt.isEnabled = isActive
                         updateSendButtonState(isActive)

@@ -127,9 +127,9 @@ class MatchingProfileViewModel
             _selectedMonth.value = newMonth
         }
 
-    fun createChatRoom() {
-        viewModelScope.launch {
-            _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+        fun createChatRoom() {
+            viewModelScope.launch {
+                _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+            }
         }
-    }
     }

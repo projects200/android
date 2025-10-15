@@ -1,7 +1,5 @@
 package com.project200.feature.matching.map
 
-import android.content.Intent
-import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
@@ -102,18 +100,22 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch { viewModel.toast.collect { isVisible ->
-                    Toast.makeText(
-                        requireContext(),
-                        getString(R.string.error_failed_to_load),
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                } }
+                launch {
+                    viewModel.toast.collect { isVisible ->
+                        Toast.makeText(
+                            requireContext(),
+                            getString(R.string.error_failed_to_load),
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }
+                }
                 launch {
                     viewModel.createChatRoomResult.collect { result ->
-                        when(result) {
+                        when (result) {
                             is BaseResult.Success -> {
-                                findNavController().navigate("app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}".toUri())
+                                findNavController().navigate(
+                                    "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}".toUri(),
+                                )
                             }
                             is BaseResult.Error -> {
                                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()

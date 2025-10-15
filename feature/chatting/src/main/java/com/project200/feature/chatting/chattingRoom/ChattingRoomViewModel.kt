@@ -94,8 +94,9 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        if(_opponentState.value != result.data.opponentActive)
+                        if (_opponentState.value != result.data.opponentActive) {
                             _opponentState.emit(result.data.opponentActive)
+                        }
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -125,8 +126,9 @@ class ChattingRoomViewModel
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
 
-                            if(_opponentState.value != result.data.opponentActive)
+                            if (_opponentState.value != result.data.opponentActive) {
                                 _opponentState.emit(result.data.opponentActive)
+                            }
                         }
                     }
 
@@ -198,11 +200,11 @@ class ChattingRoomViewModel
             }
         }
 
-    fun exitChatRoom() {
-        viewModelScope.launch {
-            _exitResult.emit(exitChatRoomUseCase(chatRoomId))
+        fun exitChatRoom() {
+            viewModelScope.launch {
+                _exitResult.emit(exitChatRoomUseCase(chatRoomId))
+            }
         }
-    }
 
         companion object {
             const val DEFAULT_ID = -1L

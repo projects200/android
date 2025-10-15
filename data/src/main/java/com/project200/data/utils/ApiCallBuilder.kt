@@ -52,7 +52,7 @@ suspend fun <DTO, Domain> apiCallBuilder(
                         )
                     }
                     is retrofit2.HttpException -> { // HTTP 상태 코드 오류
-                        if(exception.response()?.code() == 500) {
+                        if (exception.response()?.code() == 500) {
                             return@fold BaseResult.Error(
                                 errorCode = "UNKNOWN_ERROR",
                                 message = "알 수 없는 오류가 발생했습니다.",
