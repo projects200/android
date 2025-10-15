@@ -12,7 +12,7 @@ jobs:
   # ===================================================================
   ci-test:
     if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
 
@@ -70,7 +70,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 33
-          target: default
+          target: google_apis
           arch: x86_64
           profile: Nexus 6
           script: ./gradlew connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.notAnnotation=com.project200.feature.matching.MapTest
