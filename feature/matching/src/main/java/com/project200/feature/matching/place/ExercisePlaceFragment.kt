@@ -95,7 +95,7 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
                 MenuStyler.applyTextColor(requireContext(), it, android.R.color.black)
             }
             menu.findItem(R.id.action_delete)?.let {
-                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_led)
+                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
             }
 
             setOnMenuItemClickListener { menuItem ->

@@ -43,4 +43,6 @@ object CommonDateTimeFormatters {
     val YY_MM_DD_HH_MM: DateTimeFormatter = DateTimeFormatter.ofPattern("yy.MM.dd HH:mm", Locale.KOREAN)
     val YYYY_MM_DD_KR = DateTimeFormatter.ofPattern("yyyy년 MM월 dd일", Locale.KOREA)
     val YYYY_M_KR = DateTimeFormatter.ofPattern("yyyy년 M월", Locale.KOREA)
+    val a_h_mm_KR = DateTimeFormatter.ofPattern("a h:mm", Locale.KOREAN)
+    val YYYY_MM_DD_SLASH_KR = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.KOREAN)
 }

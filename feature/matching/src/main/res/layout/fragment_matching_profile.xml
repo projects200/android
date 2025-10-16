@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/main_background">
@@ -179,43 +180,6 @@
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@color/white300"
-                android:layout_marginTop="5dp"
-                android:padding="@dimen/base_horizontal_margin">
-                <TextView
-                    android:id="@+id/open_chat_title_tv"
-                    android:text="@string/open_chat_link"
-                    style="@style/content_bold"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/open_chat_content_tv"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_title_tv"
-                    app:layout_constraintStart_toStartOf="parent"
-                    android:text="@string/open_chat_announce"
-                    style="@style/subtext_12"
-                    android:textColor="@color/gray200"
-                    android:layout_marginTop="4dp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"/>
-                <TextView
-                    android:id="@+id/url_tv"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:paddingVertical="@dimen/base_horizontal_margin"
-                    android:paddingHorizontal="12dp"
-                    style="@style/subtext_14"
-                    android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_solid_corner"
-                    app:layout_constraintTop_toBottomOf="@id/open_chat_content_tv"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
-            </androidx.constraintlayout.widget.ConstraintLayout>
-
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
                 android:background="@color/white300"
                 android:paddingHorizontal="@dimen/base_horizontal_margin"
@@ -271,7 +235,7 @@
                 android:layout_height="wrap_content"
                 android:paddingHorizontal="@dimen/base_horizontal_margin"
                 android:layout_marginTop="5dp"
-                android:paddingBottom="24dp"
+                android:paddingBottom="124dp"
                 android:background="@color/white300">
 
                 <ImageView
@@ -326,5 +290,19 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
+
+    <TextView
+        android:id="@+id/chat_btn"
+        style="@style/content_bold"
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:layout_margin="@dimen/base_horizontal_margin"
+        android:background="@drawable/basic_activate_btn"
+        android:elevation="2dp"
+        android:textColor="@color/white300"
+        android:text="@string/chat_request"
+        android:gravity="center"
+        app:layout_constraintBottom_toBottomOf="parent"
+        tools:layout_editor_absoluteX="20dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

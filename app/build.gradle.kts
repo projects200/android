@@ -28,6 +28,16 @@ android {
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
 
         ndkVersion = "28.0.10027231"
+
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     signingConfigs {
@@ -75,6 +85,7 @@ dependencies {
     implementation(projects.feature.exercise)
     implementation(projects.feature.timer)
     implementation(projects.feature.matching)
+    implementation(projects.feature.chatting)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
