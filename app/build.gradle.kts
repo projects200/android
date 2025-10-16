@@ -1,3 +1,4 @@
+import com.android.build.api.dsl.Packaging
 import java.util.Properties
 
 plugins {
@@ -28,6 +29,16 @@ android {
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
 
         ndkVersion = "28.0.10027231"
+
+        ndk {
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a") )
+        }
+    }
+
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+        }
     }
 
     signingConfigs {
