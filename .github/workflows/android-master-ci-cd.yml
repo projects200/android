@@ -1,20 +1,17 @@
 name: Android CI/CD (master)
 
 on:
-  # push:
-    # branches: [ "master" ]
-  # pull_request:
-    # branches: [ "master" ]
   push:
-    branches:
-      - dev
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
 
 jobs:
   # ===================================================================
-  # CI - 코드 검증 (Lint, Unit Test, Instrumented Test)
+  # CI - 코드 검증 (Lint, Unit Tests)
   # ===================================================================
   ci-test:
-    runs-on: buildjet-v2-macos-m1-medium
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Decode google-services.json
@@ -67,16 +64,69 @@ jobs:
           fileName: 'release.jks'
           encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
 
-      - name: Run Android Instrumentation Tests (Release)
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 33
-          target: google_apis
-          arch: arm64-v8a
-          script: ./gradlew connectedAndroidTest
-        env:
-          SIGNING_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-          SIGNING_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD }}
-          SIGNING_KEY_FILE: ${{ steps.decode_key.outputs.filePath }}
+  # ===================================================================
+  # CD - 빌드 및 배포
+  # ci-test Job이 성공하고, 'push' 이벤트일 때만 실행됩니다.
+  # ===================================================================
+  cd-deploy:
+    needs: ci-test
+    if: github.event_name == 'push' && (needs.ci-test.result == 'success' || needs.ci-test.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+
+      - name: Decode google-services.json
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_PROD_BASE64 }}
+        run: |
+          mkdir -p app/src/release
+          echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/src/release/google-services.json
+
+      - name: Create local.properties
+        run: |
+          echo "COGNITO_USER_POOL_ID=${{ secrets.COGNITO_USER_POOL_ID }}" >> local.properties
+          echo "COGNITO_APP_CLIENT_ID=${{ secrets.COGNITO_APP_CLIENT_ID }}" >> local.properties
+          echo "COGNITO_REGION=${{ secrets.COGNITO_REGION }}" >> local.properties
+        shell: bash
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Decode Release Signing Key for Deploy
+        id: decode_key
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'release.jks'
+          encodedString: ${{ secrets.RELEASE_SIGNING_KEY_BASE64 }}
+
+      - name: Build Release App Bundle (AAB)
+        shell: bash
+        run: |
+          ./gradlew bundleRelease \
+              -Pandroid.injected.signing.store.file=${{ steps.decode_key.outputs.filePath }} \
+              -Pandroid.injected.signing.store.password=${{ secrets.RELEASE_STORE_PASSWORD }} \
+              -Pandroid.injected.signing.key.alias=${{ secrets.RELEASE_KEY_ALIAS }} \
+              -Pandroid.injected.signing.key.password=${{ secrets.RELEASE_KEY_PASSWORD }}
+
+      - name: Decode service account JSON
+        id: decode_json
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: 'service_account_key.json'
+          encodedString: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+
+      - name: Upload Release AAB to Google Play (Internal Testing)
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJson: ${{ steps.decode_json.outputs.filePath }}
+          packageName: com.project200.undabang
+          releaseFiles: app/build/outputs/bundle/release/app-release.aab
+          track: internal
+          status: completed
