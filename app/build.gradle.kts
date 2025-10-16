@@ -1,4 +1,3 @@
-import com.android.build.api.dsl.Packaging
 import java.util.Properties
 
 plugins {
@@ -31,7 +30,7 @@ android {
         ndkVersion = "28.0.10027231"
 
         ndk {
-            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a") )
+            abiFilters.addAll(listOf("armeabi-v7a", "arm64-v8a"))
         }
     }
 
