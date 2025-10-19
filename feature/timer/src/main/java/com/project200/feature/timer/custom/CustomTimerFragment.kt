@@ -1,11 +1,8 @@
 package com.project200.feature.timer.custom
 
-import android.animation.ValueAnimator
 import android.content.res.ColorStateList
-import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.View
-import android.view.animation.LinearInterpolator
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat.getColor
@@ -18,6 +15,8 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.BaseResult
 import com.project200.feature.timer.TimerListFragment
+import com.project200.feature.timer.custom.adapter.StepItemDecoration
+import com.project200.feature.timer.custom.adapter.StepRVAdapter
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment

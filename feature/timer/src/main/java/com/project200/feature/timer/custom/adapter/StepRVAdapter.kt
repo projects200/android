@@ -1,4 +1,4 @@
-package com.project200.feature.timer.custom
+package com.project200.feature.timer.custom.adapter
 
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
