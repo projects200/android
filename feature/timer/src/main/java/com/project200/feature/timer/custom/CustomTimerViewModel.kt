@@ -1,11 +1,5 @@
 package com.project200.feature.timer.custom
 
-import android.app.Application
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -15,6 +9,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
 import com.project200.domain.usecase.DeleteCustomTimerUseCase
 import com.project200.domain.usecase.GetCustomTimerUseCase
+import com.project200.feature.timer.utils.CustomTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -24,7 +19,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class CustomTimerViewModel @Inject constructor(
-    private val application: Application,
+    private val timerServiceManager: CustomTimerServiceManager,
     private val getCustomTimerUseCase: GetCustomTimerUseCase,
     private val deleteCustomTimerUseCase: DeleteCustomTimerUseCase,
 ) : ViewModel() {
@@ -32,29 +27,14 @@ class CustomTimerViewModel @Inject constructor(
 
     // Service와 통신하기 위한 설정
     private val _service = MutableLiveData<CustomTimerService?>()
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            Timber.tag("타이머").d("onServiceConnected: Service에 연결되었습니다.")
-            val binder = service as CustomTimerService.TimerBinder
-            val timerService = binder.getService()
-            _service.postValue(binder.getService())
-
-            if (!_steps.value.isNullOrEmpty()) {
-                // 데이터가 있다면, 즉시 Service로 전달하여 상태를 동기화합니다.
-                Timber.tag("타이머").d("onServiceConnected: 이미 로드된 데이터가 있어 Service로 전달합니다.")
-                timerService.loadTimerData(_steps.value!!)
-            }
-        }
-        override fun onServiceDisconnected(name: ComponentName?) {
-            Timber.tag("타이머").d("nServiceDisconnected: Service와 연결이 끊어졌습니다.")
-            _service.postValue(null)
-        }
-    }
 
     init {
-        // ViewModel이 생성될 때 서비스에 바인딩
-        Intent(application, CustomTimerService::class.java).also { intent ->
-            application.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        timerServiceManager.bindService()
+
+        viewModelScope.launch {
+            timerServiceManager.service.collect { serviceInstance ->
+                _service.postValue(serviceInstance)
+            }
         }
     }
 
@@ -132,6 +112,6 @@ class CustomTimerViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        application.unbindService(serviceConnection)
+        timerServiceManager.unbindService()
     }
 }
