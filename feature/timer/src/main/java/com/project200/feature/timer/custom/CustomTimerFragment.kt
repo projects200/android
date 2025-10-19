@@ -37,20 +37,14 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         return FragmentCustomTimerBinding.bind(view)
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        viewModel.setTimerId(args.customTimerId)
-    }
-
     override fun onResume() {
         super.onResume()
         viewModel.loadTimerData()
     }
 
     override fun setupViews() {
+        viewModel.setTimerId(args.customTimerId)
+
         binding.baseToolbar.apply {
             showBackButton(true) {
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)

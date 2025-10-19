@@ -3,6 +3,7 @@ package com.project200.feature.timer.custom
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asFlow
 import androidx.lifecycle.switchMap
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -13,6 +14,7 @@ import com.project200.feature.timer.utils.CustomTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -27,16 +29,6 @@ class CustomTimerViewModel @Inject constructor(
 
     // Service와 통신하기 위한 설정
     private val _service = MutableLiveData<CustomTimerService?>()
-
-    init {
-        timerServiceManager.bindService()
-
-        viewModelScope.launch {
-            timerServiceManager.service.collect { serviceInstance ->
-                _service.postValue(serviceInstance)
-            }
-        }
-    }
 
     // service가 연결되면, service 내부 LiveData를 관찰
     val isTimerRunning: LiveData<Boolean> = _service.switchMap { it?.isTimerRunning ?: MutableLiveData(false) }
@@ -59,6 +51,25 @@ class CustomTimerViewModel @Inject constructor(
 
     private val _errorEvent = MutableSharedFlow<Unit>()
     val errorEvent = _errorEvent.asSharedFlow()
+
+    init {
+        timerServiceManager.bindService()
+
+        viewModelScope.launch {
+            timerServiceManager.service.combine(_steps.asFlow()) { service, steps ->
+                Pair(service, steps)
+            }.collect { (service, steps) ->
+                if (_service.value != service) {
+                    _service.postValue(service)
+                }
+                // (서비스 연결, 스텝 조회)이 모두 완료되면 Service로 데이터를 전달
+                if (service != null && steps.isNotEmpty()) {
+                    Timber.tag("타이머").d("Service and Steps are ready. Passing data to service.")
+                    service.loadTimerData(steps)
+                }
+            }
+        }
+    }
 
     fun setTimerId(id: Long) {
         timerId = id
