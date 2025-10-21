@@ -14,7 +14,6 @@ import javax.inject.Inject
 
 @AndroidEntryPoint
 class SimpleTimerService : LifecycleService() {
-
     @Inject
     lateinit var timerManager: TimerManager
 
@@ -57,7 +56,11 @@ class SimpleTimerService : LifecycleService() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY
     }

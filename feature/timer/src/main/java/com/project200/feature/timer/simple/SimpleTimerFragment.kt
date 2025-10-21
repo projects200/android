@@ -1,14 +1,8 @@
 package com.project200.feature.timer.simple
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
-import android.content.Intent
-import android.media.MediaPlayer
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.ViewTreeObserver
-import android.view.animation.LinearInterpolator
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.fragment.app.viewModels

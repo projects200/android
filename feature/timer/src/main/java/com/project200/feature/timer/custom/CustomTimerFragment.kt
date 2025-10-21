@@ -1,7 +1,6 @@
 package com.project200.feature.timer.custom
 
 import android.content.res.ColorStateList
-import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
@@ -108,7 +107,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
             updateButtonState(isRunning)
         }
-
 
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTimeAsLong()

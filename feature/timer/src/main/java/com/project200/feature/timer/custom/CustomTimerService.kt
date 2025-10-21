@@ -19,7 +19,6 @@ import javax.inject.Inject
  */
 @AndroidEntryPoint
 class CustomTimerService : LifecycleService() {
-
     @Inject
     lateinit var timerManager: TimerManager
 
@@ -66,7 +65,11 @@ class CustomTimerService : LifecycleService() {
         setupTimerManager()
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         super.onStartCommand(intent, flags, startId)
         return START_STICKY // 시스템에 의해 강제 종료 시, 서비스를 재시작
     }
@@ -156,7 +159,7 @@ class CustomTimerService : LifecycleService() {
         totalStepTime = steps.firstOrNull()?.time?.toLong()?.times(1000) ?: 0L
         _remainingTime.postValue(totalStepTime)
 
-        if(isUserAction) {
+        if (isUserAction) {
             stopSound()
         }
     }
@@ -198,7 +201,7 @@ class CustomTimerService : LifecycleService() {
         }
         stepFinishPlayer?.seekTo(0)
     }
-    
+
     override fun onDestroy() {
         super.onDestroy()
         stepFinishPlayer?.release()

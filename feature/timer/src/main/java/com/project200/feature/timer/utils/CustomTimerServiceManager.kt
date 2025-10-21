@@ -13,27 +13,34 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class CustomTimerServiceManager @Inject constructor(private val application: Application) {
-    private val _service = MutableStateFlow< CustomTimerService?>(null)
-    val service: StateFlow<CustomTimerService?> = _service
+class CustomTimerServiceManager
+    @Inject
+    constructor(private val application: Application) {
+        private val _service = MutableStateFlow<CustomTimerService?>(null)
+        val service: StateFlow<CustomTimerService?> = _service
 
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
-            val binder = service as CustomTimerService.TimerBinder
-            _service.value = binder.getService()
+        private val serviceConnection =
+            object : ServiceConnection {
+                override fun onServiceConnected(
+                    name: ComponentName?,
+                    service: IBinder?,
+                ) {
+                    val binder = service as CustomTimerService.TimerBinder
+                    _service.value = binder.getService()
+                }
+
+                override fun onServiceDisconnected(name: ComponentName?) {
+                    _service.value = null
+                }
+            }
+
+        fun bindService() {
+            Intent(application, CustomTimerService::class.java).also { intent ->
+                application.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+            }
         }
-        override fun onServiceDisconnected(name: ComponentName?) {
-            _service.value = null
+
+        fun unbindService() {
+            application.unbindService(serviceConnection)
         }
     }
-
-    fun bindService() {
-        Intent(application, CustomTimerService::class.java).also { intent ->
-            application.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-        }
-    }
-
-    fun unbindService() {
-        application.unbindService(serviceConnection)
-    }
-}
