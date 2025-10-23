@@ -15,6 +15,9 @@
     <string name="timer_stop">일시 정지</string>
     <string name="timer_end">종료</string>
 
+    <string name="custom_timer_notify_title_format">%1$d / %2$d %3$s</string>
+    <string name="timer_notify_time_format">%02d:%02d</string>
+
     <string name="custom_timer_error_empty_title">타이머 제목을 입력해주세요.</string>
     <string name="custom_timer_error_no_steps">스텝을 1개 이상 추가해주세요.</string>
     <string name="custom_timer_error_invalid_time">스텝의 시간을 5초 이상으로 설정해주세요.</string>

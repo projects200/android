@@ -33,4 +33,6 @@ dependencies {
     testImplementation(libs.androidx.arch.core.testing)
     testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.navigation.testing)
+
+    implementation(libs.androidx.media)
 }
