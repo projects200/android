@@ -126,7 +126,7 @@ class CustomTimerViewModel
         }
 
         override fun onCleared() {
-            super.onCleared()
             timerServiceManager.unbindService()
+            super.onCleared()
         }
     }

@@ -66,12 +66,17 @@ class SimpleTimerService : LifecycleService() {
 
     private fun observeTimerState() {
         // 타이머 실행 상태가 변경되면 알림의 아이콘(재생/정지)을 업데이트
-        isTimerRunning.observe(this) { updateNotification() }
+        isTimerRunning.observe(this) { isRunning ->
+            // 타이머가 멈췄을 때만 알림의 아이콘을 갱신하기 위해 호출
+            if (!isRunning) {
+                updateNotification()
+            }
+        }
     }
 
     private fun setupTimerManager() {
         timerManager.setOnTickListener { millisUntilFinished ->
-            _remainingTime.postValue(millisUntilFinished)
+            _remainingTime.value = millisUntilFinished
             // 1초에 한 번만 알림 업데이트
             val seconds = millisUntilFinished.toSeconds()
             if (seconds != lastPostedSecond) {
@@ -93,38 +98,33 @@ class SimpleTimerService : LifecycleService() {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_TOGGLE_PAUSE_RESUME -> if (_isTimerRunning.value == true) pauseTimer() else startTimer()
-            ACTION_STOP -> stopTimerService()
         }
         return START_STICKY
     }
 
     fun setAndStartTimer(timeInSeconds: Int) {
-        setTimer(timeInSeconds)
-        if (totalTime > 0L) {
-            startTimer()
-        }
-    }
-
-    fun setTimer(timeInSeconds: Int) {
         timerManager.cancel()
         stopSound()
         totalTime = timeInSeconds * 1000L
-        _remainingTime.postValue(totalTime)
-        _isTimerRunning.postValue(false)
         lastPostedSecond = -1L
+        _remainingTime.value = totalTime
+        _isTimerRunning.value = true
+        timerManager.start(totalTime)
+
+        if (!isForeground) {
+            startForeground(NOTIFICATION_ID, buildNotification())
+            isForeground = true
+        } else {
+            // 이미 포그라운드 상태라면 알림 내용만 업데이트
+            updateNotification()
+        }
     }
 
     fun startTimer() {
         if (_isTimerRunning.value == true || (_remainingTime.value ?: 0L) <= 0L) return
         stopSound()
-        _isTimerRunning.postValue(true)
-
+        _isTimerRunning.value = true
         timerManager.start(_remainingTime.value ?: 0L)
-
-        if (!isForeground) {
-            startForeground(NOTIFICATION_ID, buildNotification())
-            isForeground = true
-        }
     }
 
     fun pauseTimer() {
@@ -165,7 +165,6 @@ class SimpleTimerService : LifecycleService() {
         val remainingSeconds = seconds ?: (_remainingTime.value ?: 0L).toSeconds()
 
         val toggleIntent = Intent(this, SimpleTimerService::class.java).apply { action = ACTION_TOGGLE_PAUSE_RESUME }
-        val stopIntent = Intent(this, SimpleTimerService::class.java).apply { action = ACTION_STOP }
 
         val appOpenIntent: Intent? = packageManager.getLaunchIntentForPackage(packageName)
         val appOpenPendingIntent = if (appOpenIntent != null) {
@@ -192,12 +191,7 @@ class SimpleTimerService : LifecycleService() {
                 getString(if (_isTimerRunning.value == true) R.string.timer_stop else R.string.timer_start),
                 PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
             )
-            .addAction(
-                com.project200.undabang.presentation.R.drawable.ic_close,
-                getString(R.string.timer_end),
-                PendingIntent.getService(this, 2, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-            )
-            .setStyle(MediaStyle().setShowActionsInCompactView(0, 1))
+            .setStyle(MediaStyle().setShowActionsInCompactView(0))
             .build()
     }
 
@@ -231,6 +225,5 @@ class SimpleTimerService : LifecycleService() {
         const val NOTIFICATION_CHANNEL_ID = "simple_timer_channel"
         const val NOTIFICATION_ID = 102
         const val ACTION_TOGGLE_PAUSE_RESUME = "ACTION_TOGGLE_PAUSE_RESUME"
-        const val ACTION_STOP = "ACTION_STOP"
     }
 }

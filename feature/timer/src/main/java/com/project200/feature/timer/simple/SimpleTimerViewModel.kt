@@ -146,8 +146,8 @@ class SimpleTimerViewModel
         }
 
         override fun onCleared() {
-            super.onCleared()
             simpleTimerServiceManager.unbindService()
+            super.onCleared()
         }
 
         companion object {
