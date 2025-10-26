@@ -123,7 +123,7 @@ class CustomTimerService : LifecycleService() {
 
             // 알림은 1초에 한 번만 업데이트
             val seconds = millisUntilFinished.toSeconds()
-            Timber.tag("타이머").d("Tick - Second: ${seconds}, Real: $millisUntilFinished last: $lastPostedSecond")
+            Timber.tag("타이머").d("Tick - Second: $seconds, Real: $millisUntilFinished last: $lastPostedSecond")
             if (seconds != lastPostedSecond) {
                 lastPostedSecond = seconds
                 if (seconds >= 0) {
@@ -255,11 +255,12 @@ class CustomTimerService : LifecycleService() {
     }
 
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            CustomTimerService::class.java.simpleName,
-            NotificationManager.IMPORTANCE_LOW
-        )
+        val channel =
+            NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                CustomTimerService::class.java.simpleName,
+                NotificationManager.IMPORTANCE_LOW,
+            )
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -284,12 +285,13 @@ class CustomTimerService : LifecycleService() {
         // 앱의 기본 실행 인텐트
         val appOpenIntent: Intent? = packageManager.getLaunchIntentForPackage(packageName)
 
-        val appOpenPendingIntent = if (appOpenIntent != null) {
-            PendingIntent.getActivity(this, 0, appOpenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        } else {
-            // 런처 인텐트를 찾지 못하는 경우
-            null
-        }
+        val appOpenPendingIntent =
+            if (appOpenIntent != null) {
+                PendingIntent.getActivity(this, 0, appOpenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            } else {
+                // 런처 인텐트를 찾지 못하는 경우
+                null
+            }
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(
@@ -297,15 +299,15 @@ class CustomTimerService : LifecycleService() {
                     R.string.custom_timer_notify_title_format,
                     currentStepIndexValue + 1,
                     steps.size,
-                    currentStep?.name ?: getString(R.string.custom_timer_default)
-                )
+                    currentStep?.name ?: getString(R.string.custom_timer_default),
+                ),
             )
             .setContentText(
                 getString(
                     R.string.timer_notify_time_format,
                     remainingSeconds / 60,
-                    remainingSeconds % 60
-                )
+                    remainingSeconds % 60,
+                ),
             )
             .setSmallIcon(R.drawable.ic_clock)
             .setContentIntent(appOpenPendingIntent)
@@ -314,12 +316,12 @@ class CustomTimerService : LifecycleService() {
             .addAction(
                 if (_isTimerRunning.value == true) R.drawable.ic_stop else R.drawable.ic_play,
                 getString(if (_isTimerRunning.value == true) R.string.timer_stop else R.string.timer_start),
-                PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
             )
             .addAction(
                 com.project200.undabang.presentation.R.drawable.ic_close,
                 getString(R.string.timer_end),
-                PendingIntent.getService(this, 2, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                PendingIntent.getService(this, 2, stopIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
             )
             .setStyle(MediaStyle().setShowActionsInCompactView(0, 1))
             .build()
@@ -327,7 +329,6 @@ class CustomTimerService : LifecycleService() {
 
     // 올림된 초 단위 시간으로 변환
     private fun Long.toSeconds() = ceil(this / 1000.0).toLong()
-
 
     private fun playSound() {
         if (stepFinishPlayer == null) {
@@ -365,8 +366,6 @@ class CustomTimerService : LifecycleService() {
 
         timerManager.cancel()
     }
-
-
 
     companion object {
         const val NOTIFICATION_CHANNEL_ID = "custom_timer_channel"

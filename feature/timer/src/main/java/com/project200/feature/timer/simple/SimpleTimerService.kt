@@ -18,11 +18,8 @@ import androidx.media.app.NotificationCompat.MediaStyle
 import com.project200.domain.manager.TimerManager
 import com.project200.undabang.feature.timer.R
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
-import java.util.Locale
 import javax.inject.Inject
 import kotlin.math.ceil
-import kotlin.math.roundToLong
 
 @AndroidEntryPoint
 class SimpleTimerService : LifecycleService() {
@@ -94,7 +91,11 @@ class SimpleTimerService : LifecycleService() {
         }
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+    override fun onStartCommand(
+        intent: Intent?,
+        flags: Int,
+        startId: Int,
+    ): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
             ACTION_TOGGLE_PAUSE_RESUME -> if (_isTimerRunning.value == true) pauseTimer() else startTimer()
@@ -145,13 +146,13 @@ class SimpleTimerService : LifecycleService() {
         stopSelf()
     }
 
-
     private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            NOTIFICATION_CHANNEL_ID,
-            getString(R.string.simple_timer),
-            NotificationManager.IMPORTANCE_LOW
-        )
+        val channel =
+            NotificationChannel(
+                NOTIFICATION_CHANNEL_ID,
+                getString(R.string.simple_timer),
+                NotificationManager.IMPORTANCE_LOW,
+            )
         notificationManager.createNotificationChannel(channel)
     }
 
@@ -167,11 +168,12 @@ class SimpleTimerService : LifecycleService() {
         val toggleIntent = Intent(this, SimpleTimerService::class.java).apply { action = ACTION_TOGGLE_PAUSE_RESUME }
 
         val appOpenIntent: Intent? = packageManager.getLaunchIntentForPackage(packageName)
-        val appOpenPendingIntent = if (appOpenIntent != null) {
-            PendingIntent.getActivity(this, 0, appOpenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
-        } else {
-            null
-        }
+        val appOpenPendingIntent =
+            if (appOpenIntent != null) {
+                PendingIntent.getActivity(this, 0, appOpenIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            } else {
+                null
+            }
 
         return NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
             .setContentTitle(getString(R.string.simple_timer))
@@ -179,8 +181,8 @@ class SimpleTimerService : LifecycleService() {
                 getString(
                     R.string.timer_notify_time_format,
                     remainingSeconds / 60,
-                    remainingSeconds % 60
-                )
+                    remainingSeconds % 60,
+                ),
             )
             .setSmallIcon(R.drawable.ic_clock)
             .setContentIntent(appOpenPendingIntent)
@@ -189,7 +191,7 @@ class SimpleTimerService : LifecycleService() {
             .addAction(
                 if (_isTimerRunning.value == true) R.drawable.ic_stop else R.drawable.ic_play,
                 getString(if (_isTimerRunning.value == true) R.string.timer_stop else R.string.timer_start),
-                PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+                PendingIntent.getService(this, 1, toggleIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE),
             )
             .setStyle(MediaStyle().setShowActionsInCompactView(0))
             .build()
