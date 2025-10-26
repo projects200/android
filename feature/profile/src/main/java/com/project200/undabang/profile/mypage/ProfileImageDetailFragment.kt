@@ -79,7 +79,7 @@ class ProfileImageDetailFragment : BindingFragment<FragmentProfileImageDetailBin
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.getProfileImageErrorToast.collect { errorType ->
+                    viewModel.getProfileImageErrorToast.collect {
                         Toast.makeText(requireContext(), R.string.error_faild_to_load_profile_image, Toast.LENGTH_SHORT).show()
                     }
                 }

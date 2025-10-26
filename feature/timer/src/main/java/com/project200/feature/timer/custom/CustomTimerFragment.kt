@@ -92,7 +92,7 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
             }
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            viewModel.steps.observe(viewLifecycleOwner) { steps ->
+            viewModel.steps.observe(viewLifecycleOwner) {
                 adapter = stepRVAdapter
             }
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
@@ -164,7 +164,7 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         // 에러 이벤트 처리
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.errorEvent.collect { error ->
+                viewModel.errorEvent.collect {
                     Toast.makeText(requireContext(), getString(R.string.error_failed_to_load_list), Toast.LENGTH_SHORT).show()
                     findNavController().navigateUp()
                 }

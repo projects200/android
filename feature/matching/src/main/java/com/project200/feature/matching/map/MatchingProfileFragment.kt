@@ -101,7 +101,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.toast.collect { isVisible ->
+                    viewModel.toast.collect {
                         Toast.makeText(
                             requireContext(),
                             getString(R.string.error_failed_to_load),

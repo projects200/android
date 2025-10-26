@@ -30,7 +30,7 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
             showBackButton(true) { requireActivity().onBackPressedDispatcher.onBackPressed() }
         }
         binding.exercisePlaceSearchBtn.setOnClickListener {
-            viewModel.places.value?.size?.let { it ->
+            viewModel.places.value?.size?.let {
                 if (it >= 10) {
                     Toast.makeText(requireContext(), R.string.max_place_count, Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
@@ -77,6 +77,7 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
                         binding.placeRv.visibility = View.GONE
                         R.string.error_failed_to_delete_exercise_place
                     }
+                    null -> return@observe
                 }
             Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
         }

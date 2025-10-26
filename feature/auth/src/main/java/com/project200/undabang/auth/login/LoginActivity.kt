@@ -72,7 +72,7 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
                 when {
                     // 이미 같은 이메일로 다른 소셜에 가입되어 있는 경우, 계정 통합 안내
                     exception?.errorDescription?.contains("ACCOUNT_LINKED_SUCCESS") == true -> {
-                        Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
+                        Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception.errorDescription))
                         Toast.makeText(this@LoginActivity, getString(R.string.account_merged), Toast.LENGTH_LONG).show()
                     }
                     else -> {
