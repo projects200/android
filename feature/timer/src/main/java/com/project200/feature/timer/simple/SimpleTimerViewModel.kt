@@ -1,9 +1,9 @@
 package com.project200.feature.timer.simple
 
-import android.os.CountDownTimer
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.switchMap
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
@@ -11,46 +11,52 @@ import com.project200.domain.usecase.AddSimpleTimerUseCase
 import com.project200.domain.usecase.DeleteSimpleTimerUseCase
 import com.project200.domain.usecase.EditSimpleTimerUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
+import com.project200.feature.timer.utils.SimpleTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class SimpleTimerViewModel
     @Inject
     constructor(
+        private val simpleTimerServiceManager: SimpleTimerServiceManager,
         private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
         private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
         private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
         private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase,
     ) : ViewModel() {
-        var totalTime: Long = 0
+        private val service = MutableLiveData<SimpleTimerService?>()
+
+        val remainingTime: LiveData<Long> = service.switchMap { it?.remainingTime ?: MutableLiveData(0L) }
+        val isTimerRunning: LiveData<Boolean> = service.switchMap { it?.isTimerRunning ?: MutableLiveData(false) }
+        val totalTime: Long
+            get() = service.value?.totalTime ?: 0L
 
         // 타이머 아이템 리스트
         private val _timerItems = MutableLiveData<List<SimpleTimer>>()
         val timerItems: LiveData<List<SimpleTimer>> = _timerItems
 
-        private val _remainingTime = MutableLiveData<Long>()
-        val remainingTime: LiveData<Long> = _remainingTime
-
-        private val _isTimerRunning = MutableLiveData<Boolean>()
-        val isTimerRunning: LiveData<Boolean> = _isTimerRunning
-
         private var isAscending = true
+
+        init {
+            simpleTimerServiceManager.bindService()
+            viewModelScope.launch {
+                simpleTimerServiceManager.service.collect { serviceInstance ->
+                    service.postValue(serviceInstance)
+                }
+            }
+            loadTimerItems()
+        }
 
         // 이벤트를 전달할 SharedFlow 생성
         private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
         val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage
 
-        private var countDownTimer: CountDownTimer? = null
-
-        init {
-            _remainingTime.value = 0L
-            _isTimerRunning.value = false
-            loadTimerItems()
+        fun setAndStartTimer(timeInSeconds: Int) {
+            service.value?.setAndStartTimer(timeInSeconds)
         }
 
         fun loadTimerItems() {
@@ -111,43 +117,14 @@ class SimpleTimerViewModel
             }
         }
 
-        // 심플 타이머 아이템 클릭 시 타이머를 설정
-        fun setTimer(timeInSeconds: Int) {
-            // 기존 타이머가 있으면 취소
-            countDownTimer?.cancel()
-
-            // 새로운 타이머 시간으로 상태를 업데이트합니다.
-            totalTime = timeInSeconds * 1000L
-            _remainingTime.value = totalTime
-            _isTimerRunning.value = false
-        }
-
-        // 타이머 시
+        // 타이머 시작
         fun startTimer() {
-            if (_isTimerRunning.value == true || _remainingTime.value == 0L) {
-                return
-            }
-
-            val remainingTimeMillis = _remainingTime.value ?: 0L
-            countDownTimer =
-                object : CountDownTimer(remainingTimeMillis, COUNTDOWN_INTERVAL) {
-                    override fun onTick(millisUntilFinished: Long) {
-                        _remainingTime.value = millisUntilFinished
-                    }
-
-                    override fun onFinish() {
-                        _isTimerRunning.value = false
-                        _remainingTime.value = 0L
-                    }
-                }.start()
-
-            _isTimerRunning.value = true
+            service.value?.startTimer()
         }
 
         // 타이머 일시정지
         fun pauseTimer() {
-            countDownTimer?.cancel()
-            _isTimerRunning.value = false
+            service.value?.pauseTimer()
         }
 
         // 타이머 아이템을 수정하는 함수
@@ -162,7 +139,6 @@ class SimpleTimerViewModel
                 viewModelScope.launch {
                     val result = editSimpleTimerUseCase(updatedTimer)
                     if (result is BaseResult.Error) {
-                        Timber.e("타이머 수정 실패: ${result.message}")
                         _toastMessage.emit(SimpleTimerToastMessage.EDIT_ERROR)
                     }
                 }
@@ -171,11 +147,10 @@ class SimpleTimerViewModel
 
         override fun onCleared() {
             super.onCleared()
-            countDownTimer?.cancel()
+            simpleTimerServiceManager.unbindService()
         }
 
         companion object {
-            const val COUNTDOWN_INTERVAL = 50L // 50ms
             const val MAX_TIMER_COUNT = 6
             const val DEFAULT_ADD_TIME_SEC = 60
         }

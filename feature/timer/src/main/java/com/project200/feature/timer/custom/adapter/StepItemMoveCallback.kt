@@ -1,4 +1,4 @@
-package com.project200.feature.timer.custom
+package com.project200.feature.timer.custom.adapter
 
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
