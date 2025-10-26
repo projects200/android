@@ -34,8 +34,8 @@ object ImageUtils {
         jpegQuality: Int = 80,
     ): Uri? {
         var inputStream: InputStream? = null
-        var rotatedBitmap: Bitmap? = null // 최종적으로 압축될 비트맵
-        var originalBitmap: Bitmap? = null // 최초 로드된 비트맵
+        var rotatedBitmap: Bitmap? // 최종적으로 압축될 비트맵
+        var originalBitmap: Bitmap? // 최초 로드된 비트맵
 
         try {
             // 이미지 경계만 읽어와서 샘플링 크기 계산 준비

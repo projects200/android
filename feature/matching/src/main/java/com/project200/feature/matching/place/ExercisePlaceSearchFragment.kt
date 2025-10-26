@@ -156,7 +156,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
      * Y 좌표: 마커 이미지의 하단(bottom) - MapView의 상단(top)
      */
     private fun setMapListeners() {
-        kakaoMap?.setOnCameraMoveEndListener { _, cameraPosition, _ ->
+        kakaoMap?.setOnCameraMoveEndListener { _, _, _ ->
             val map = kakaoMap ?: return@setOnCameraMoveEndListener
 
             val targetScreenX = binding.mapView.width / 2

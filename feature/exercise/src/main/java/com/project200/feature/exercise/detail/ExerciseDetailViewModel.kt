@@ -33,13 +33,13 @@ class ExerciseDetailViewModel
 
         fun getExerciseRecord() {
             viewModelScope.launch {
-                _exerciseRecord.value = recordId?.let { exerciseRecordDetailUseCase(it) }
+                _exerciseRecord.value = exerciseRecordDetailUseCase(recordId)
             }
         }
 
         fun deleteExerciseRecord() {
             viewModelScope.launch {
-                _deleteResult.value = recordId?.let { deleteExerciseRecordUseCase(it) }
+                _deleteResult.value = deleteExerciseRecordUseCase(recordId)
             }
         }
     }

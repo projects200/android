@@ -104,7 +104,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.toast.collect { isVisible ->
+                viewModel.toast.collect {
                     Toast.makeText(
                         requireContext(),
                         getString(R.string.error_failed_to_load),

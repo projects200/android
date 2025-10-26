@@ -3,235 +3,130 @@ package com.project200.feature.timer.custom
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asFlow
+import androidx.lifecycle.switchMap
 import androidx.lifecycle.viewModelScope
-import com.project200.domain.manager.TimerManager
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
 import com.project200.domain.usecase.DeleteCustomTimerUseCase
 import com.project200.domain.usecase.GetCustomTimerUseCase
+import com.project200.feature.timer.utils.CustomTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
 class CustomTimerViewModel
     @Inject
     constructor(
-        private val timerManager: TimerManager,
+        private val timerServiceManager: CustomTimerServiceManager,
         private val getCustomTimerUseCase: GetCustomTimerUseCase,
         private val deleteCustomTimerUseCase: DeleteCustomTimerUseCase,
     ) : ViewModel() {
-        // 전체 타이머 시간 (밀리초 단위)
-        var totalTime: Long = 0L
-            private set
+        private var timerId: Long = -1
 
-        // 현재 스텝의 전체 시간 (밀리초 단위)
-        var totalStepTime: Long = 0L
-            private set
+        // Service와 통신하기 위한 설정
+        private val service = MutableLiveData<CustomTimerService?>()
 
-        private var customTimerId: Long = DUMMY_TIMER_ID
+        // service가 연결되면, service 내부 LiveData를 관찰
+        val isTimerRunning: LiveData<Boolean> = service.switchMap { it?.isTimerRunning ?: MutableLiveData(false) }
+        val remainingTime: LiveData<Long> = service.switchMap { it?.remainingTime ?: MutableLiveData(0L) }
+        val currentStepIndex: LiveData<Int> = service.switchMap { it?.currentStepIndex ?: MutableLiveData(0) }
+        val isTimerFinished: LiveData<Boolean> = service.switchMap { it?.isTimerFinished ?: MutableLiveData(false) }
+        val isRepeatEnabled: LiveData<Boolean> = service.switchMap { it?.isRepeatEnabled ?: MutableLiveData(false) }
+
+        val totalStepTime: Long
+            get() = service.value?.totalStepTime ?: 0L
 
         private val _title = MutableLiveData<String>()
         val title: LiveData<String> = _title
 
-        private val _currentStepIndex = MutableLiveData<Int>()
-        val currentStepIndex: LiveData<Int> = _currentStepIndex
-
-        private val _isTimerFinished = MutableLiveData<Boolean>()
-        val isTimerFinished: LiveData<Boolean> = _isTimerFinished
-
-        private val _isRepeatEnabled = MutableLiveData<Boolean>(false)
-        val isRepeatEnabled: LiveData<Boolean> = _isRepeatEnabled
-
-        private val _shouldPlayFinishAlarm = MutableLiveData<Boolean>(false)
-        val shouldPlayFinishAlarm: LiveData<Boolean> = _shouldPlayFinishAlarm
-
-        private var isFinishAlarmTriggeredForCurrentStep = false
-
-        // Step의 time은 '초' 단위
         private val _steps = MutableLiveData<List<Step>>()
         val steps: LiveData<List<Step>> = _steps
-
-        private val _remainingTime = MutableLiveData<Long>()
-        val remainingTime: LiveData<Long> = _remainingTime
-
-        private val _isTimerRunning = MutableLiveData<Boolean>()
-        val isTimerRunning: LiveData<Boolean> = _isTimerRunning
-
-        private val _errorEvent = MutableSharedFlow<Boolean>()
-        val errorEvent: SharedFlow<Boolean> = _errorEvent
 
         private val _deleteResult = MutableLiveData<BaseResult<Unit>>()
         val deleteResult: LiveData<BaseResult<Unit>> = _deleteResult
 
+        private val _errorEvent = MutableSharedFlow<Unit>()
+        val errorEvent = _errorEvent.asSharedFlow()
+
         init {
-            setupTimerManager()
-            resetTimer(true)
+            timerServiceManager.bindService()
+
+            viewModelScope.launch {
+                timerServiceManager.service.combine(_steps.asFlow()) { service, steps ->
+                    Pair(service, steps)
+                }.collect { (service, steps) ->
+                    if (this@CustomTimerViewModel.service.value != service) {
+                        this@CustomTimerViewModel.service.postValue(service)
+                    }
+                    // (서비스 연결, 스텝 조회)이 모두 완료되면 Service로 데이터를 전달
+                    if (service != null && steps.isNotEmpty()) {
+                        Timber.tag("타이머").d("Service and Steps are ready. Passing data to service.")
+                        service.loadTimerData(steps)
+                    }
+                }
+            }
         }
 
         fun setTimerId(id: Long) {
-            if (id == DUMMY_TIMER_ID) return
-            this.customTimerId = id
+            timerId = id
         }
 
-        fun loadTimerData() {
+        fun loadTimerData() =
             viewModelScope.launch {
-                when (val result = getCustomTimerUseCase(customTimerId)) {
+                when (val result = getCustomTimerUseCase(timerId)) {
                     is BaseResult.Success -> {
-                        val customTimer = result.data
-                        _title.value = customTimer.name
-                        _steps.value = customTimer.steps.sortedBy { it.order }
-                        resetTimer(true)
+                        _title.value = result.data.name
+                        _steps.value = result.data.steps
+
+                        // 서비스가 연결되었는지 확인
+                        if (service.value == null) {
+                            Timber.tag("타이머").d("loadTimerData: 데이터 로딩은 성공했지만, 아직 Service에 연결되지 않았습니다.")
+                        }
+
+                        service.value?.loadTimerData(result.data.steps)
                     }
                     is BaseResult.Error -> {
-                        _errorEvent.emit(true)
+                        _errorEvent.emit(Unit)
                     }
                 }
             }
-        }
 
-        fun deleteTimer() {
+        fun deleteTimer() =
             viewModelScope.launch {
-                if (customTimerId == -1L) return@launch
-                _deleteResult.value = deleteCustomTimerUseCase(customTimerId)
+                _deleteResult.value = deleteCustomTimerUseCase(timerId)
             }
-        }
 
-        // TimerManager의 콜백을 설정하는 초기화 함수
-        private fun setupTimerManager() {
-            timerManager.setOnTickListener { millisUntilFinished ->
-                _remainingTime.value = millisUntilFinished
-
-                if (millisUntilFinished <= 3000L && !isFinishAlarmTriggeredForCurrentStep) {
-                    _shouldPlayFinishAlarm.value = true
-                    isFinishAlarmTriggeredForCurrentStep = true
-                }
-            }
-            timerManager.setOnFinishListener {
-                _remainingTime.value = 0L
-                moveToNextStep()
-            }
-        }
-
-        // 타이머를 시작하거나, 일시정지 상태에서 재개합니다.
         fun startTimer() {
-            if (_isTimerRunning.value == true || (_remainingTime.value ?: 0L) <= 0) {
+            if (service.value == null) {
                 return
             }
-
-            _isTimerRunning.value = true
-            _isTimerFinished.value = false
-            startCurrentStepTimer()
+            service.value?.startTimer()
         }
 
-        // 현재 스텝의 남은 시간을 기준으로 CountDownTimer를 생성하고 시작합니다.
-        private fun startCurrentStepTimer() {
-            val remainingTimeMillis = _remainingTime.value ?: 0L
-            if (remainingTimeMillis <= 0) return
-
-            timerManager.start(remainingTimeMillis)
-        }
-
-        // 현재 스텝을 종료하고 다음 스텝으로 전환하거나, 모든 스텝이 끝났을 경우 타이머를 종료합니다.
-        private fun moveToNextStep() {
-            val nextIndex = (_currentStepIndex.value ?: -1) + 1
-            if (nextIndex < (_steps.value?.size ?: 0)) {
-                // 상태 값들을 먼저 모두 갱신
-                val nextStep = _steps.value!![nextIndex]
-                totalStepTime = nextStep.time * 1000L
-                _remainingTime.value = totalStepTime
-
-                // 다음 스텝 전환 시 알림 관련 상태를 초기화
-                isFinishAlarmTriggeredForCurrentStep = false
-
-                // 마지막에 LiveData를 변경하여 UI에 알림
-                _currentStepIndex.value = nextIndex
-
-                // isTimerRunning 상태에 따라 다음 타이머를 자동으로 시작할지 결정
-                if (_isTimerRunning.value == true) {
-                    startCurrentStepTimer()
-                }
-            } else {
-                if (_isRepeatEnabled.value == true) {
-                    restartTimer()
-                } else {
-                    // 반복이 비활성화되어 있다면, 최종 종료 상태로 전환
-                    _isTimerFinished.value = true
-                    _isTimerRunning.value = false
-                }
-            }
-        }
-
-        // 타이머를 일시정지합니다.
         fun pauseTimer() {
-            timerManager.pause()
-            _isTimerRunning.value = false
+            service.value?.pauseTimer()
         }
 
-        // 선택된 스텝으로 이동합니다.
-        fun jumpToStep(index: Int) {
-            // 유효하지 않은 인덱스에 대한 방어 코드
-            if (index < 0 || index >= (_steps.value?.size ?: 0)) return
-
-            // 현재 실행 중인 타이머가 있다면 정지
-            timerManager.cancel()
-
-            // 스텝 변경 시 알림 관련 상태를 모두 초기화
-            _shouldPlayFinishAlarm.value = false
-            isFinishAlarmTriggeredForCurrentStep = false
-
-            _isTimerRunning.value = false
-            _isTimerFinished.value = false
-
-            // 선택된 스텝의 정보로 상태를 갱신
-            val targetStep = _steps.value!![index]
-            totalStepTime = targetStep.time * 1000L
-            _remainingTime.value = totalStepTime
-            _currentStepIndex.value = index
-
-            // 타이머를 자동으로 시작
-            startTimer()
+        fun resetTimer(isUserAction: Boolean) {
+            service.value?.resetTimer(isUserAction)
         }
 
-        // 사용자가 '종료' 버튼을 누르거나, 타이머가 끝났을 때 모든 상태를 초기화합니다.
-        fun resetTimer(isForceFinished: Boolean) {
-            timerManager.cancel()
-            _isTimerRunning.value = false
-
-            // 알림 재생 관련 상태 초기화
-            // 강제 종료됐을 때만 알림음 종료를 위해 _shouldPlayFinishAlarm 설정
-            if (isForceFinished) _shouldPlayFinishAlarm.value = false
-            isFinishAlarmTriggeredForCurrentStep = false
-
-            // 전체 시간 및 첫 스텝 시간 계산
-            totalTime = _steps.value?.sumOf { it.time * 1000L } ?: 0L
-            val firstStep = _steps.value?.firstOrNull()
-            totalStepTime = firstStep?.time?.times(1000L) ?: 0L
-            _remainingTime.value = totalStepTime
-            _currentStepIndex.value = 0
-        }
-
-        fun onStepFinishedAlarmPlayed() {
-            _shouldPlayFinishAlarm.value = false
+        fun jumpToStep(position: Int) {
+            service.value?.jumpToStep(position)
         }
 
         fun toggleRepeat() {
-            _isRepeatEnabled.value = _isRepeatEnabled.value != true
-        }
-
-        fun restartTimer() {
-            resetTimer(true) // 타이머 상태를 초기 상태로 되돌립니다.
-            startTimer() // 타이머를 다시 시작합니다.
+            service.value?.toggleRepeat()
         }
 
         override fun onCleared() {
+            timerServiceManager.unbindService()
             super.onCleared()
-            timerManager.cancel()
-        }
-
-        companion object {
-            private const val DUMMY_TIMER_ID = -1L
         }
     }

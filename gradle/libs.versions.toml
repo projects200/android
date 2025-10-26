@@ -8,8 +8,8 @@ ksp = "1.9.23-1.0.19"
 compileSdk = "35"
 minSdk = "26"
 targetSdk = "35"
-versionCode = "15"
-versionName = "0.5.2"
+versionCode = "16"
+versionName = "0.5.3"
 firebaseBom = "32.7.0"
 googleServicesPlugin = "4.4.2"
 firebasePerfPlugin = "1.4.2"
@@ -28,6 +28,7 @@ androidxNavigation = "2.7.7"
 androidxRoom = "2.6.1"
 androidxDatastore = "1.0.0"
 androidxArchCoreTesting = "2.2.0" # 테스트용
+androidxMedia = "1.7.0"
 lottie = "6.6.6"
 circleImageView = "3.1.0"
 
@@ -103,14 +104,16 @@ androidx-activity-ktx = { group = "androidx.activity", name = "activity-ktx", ve
 androidx-fragment-ktx = { group = "androidx.fragment", name = "fragment-ktx", version.ref = "androidxFragment" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "androidxConstraintLayout" }
 androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview", version.ref = "androidxRecyclerview" }
+androidx-media = { group = "androidx.media", name = "media", version.ref = "androidxMedia" }
 google-android-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
 
 # AndroidX Lifecycle (ViewModel, LiveData, Runtime)
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "androidxLifecycle" }
-androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "androidxLifecycle" } # LiveData 사용 시
+androidx-lifecycle-livedata-ktx = { group = "androidx.lifecycle", name = "lifecycle-livedata-ktx", version.ref = "androidxLifecycle" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "androidxLifecycle" }
-androidx-lifecycle-common = { group = "androidx.lifecycle", name = "lifecycle-common-java8", version.ref = "androidxLifecycle" } # common_ui 등에서 필요시
+androidx-lifecycle-service = { group = "androidx.lifecycle", name = "lifecycle-service", version.ref = "androidxLifecycle" }
+androidx-lifecycle-common = { group = "androidx.lifecycle", name = "lifecycle-common-java8", version.ref = "androidxLifecycle" }
 
 # AndroidX Navigation
 androidx-navigation-fragment-ktx = { group = "androidx.navigation", name = "navigation-fragment-ktx", version.ref = "androidxNavigation" }

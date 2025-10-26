@@ -167,6 +167,7 @@ class ProfileEditFragment :
                         ),
                     )
                 }
+                null -> return@observe
             }
         }
 

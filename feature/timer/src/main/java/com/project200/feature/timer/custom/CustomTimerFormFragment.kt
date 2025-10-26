@@ -13,6 +13,9 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.feature.timer.TimePickerDialog
+import com.project200.feature.timer.custom.adapter.AddedStepRVAdapter
+import com.project200.feature.timer.custom.adapter.OnStepItemClickListener
+import com.project200.feature.timer.custom.adapter.StepItemMoveCallback
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerFormBinding
@@ -92,8 +95,8 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
                         viewModel.updateNewStepName(name)
                     }
 
-                    override fun onNewStepTimeClick(currentTime: Int) {
-                        showTimePickerDialog(null, currentTime)
+                    override fun onNewStepTimeClick(time: Int) {
+                        showTimePickerDialog(null, time)
                     }
 
                     override fun onAddStepClick() {
@@ -134,6 +137,7 @@ class CustomTimerFormFragment : BindingFragment<FragmentCustomTimerFormBinding>(
                     ToastMessageType.EDIT_ERROR -> R.string.custom_timer_error_edit_failed
                     ToastMessageType.GET_ERROR -> R.string.error_failed_to_load_list
                     ToastMessageType.UNKNOWN_ERROR -> R.string.unknown_error
+                    null -> return@observe
                 }
             Toast.makeText(requireContext(), messageResId, Toast.LENGTH_SHORT).show()
         }
