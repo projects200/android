@@ -30,6 +30,7 @@ import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
 import com.project200.presentation.utils.MenuStyler
 import com.project200.presentation.utils.UiUtils.dpToPx
+import com.project200.presentation.view.BlockDialog
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -329,7 +330,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         PopupMenu(contextWrapper, view).apply {
             menuInflater.inflate(R.menu.chatting_room_item_menu, this.menu)
 
-            menu.findItem(R.id.action_exit)?.let {
+            menu.findItem(R.id.action_block)?.let {
                 MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
             }
 
@@ -337,6 +338,9 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 when (menuItem.itemId) {
                     R.id.action_exit -> {
                         viewModel.exitChatRoom()
+                    }
+                    R.id.action_block -> {
+                        showBlockDialog()
                     }
                 }
                 true
@@ -361,6 +365,15 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         val sendButtonRect = Rect()
         binding.sendBtn.getGlobalVisibleRect(sendButtonRect)
         return !sendButtonRect.contains(x, y)
+    }
+
+    private fun showBlockDialog() {
+        val blockDialog = BlockDialog(
+            onBlockBtnClicked = {
+                viewModel.blockMember()
+            },
+        )
+        blockDialog.show(parentFragmentManager, this::class.java.simpleName)
     }
 
     override fun onDestroyView() {

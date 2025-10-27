@@ -132,4 +132,10 @@ class MatchingProfileViewModel
                 _createChatRoomResult.emit(createChatRoomUseCase(memberId))
             }
         }
+
+        fun blockMember() {
+            viewModelScope.launch {
+
+            }
+        }
     }

@@ -206,6 +206,12 @@ class ChattingRoomViewModel
             }
         }
 
+        fun blockMember() {
+            viewModelScope.launch {
+
+            }
+        }
+
         companion object {
             const val DEFAULT_ID = -1L
             const val LOAD_SIZE = 30 // 초기 로드 메시지 개수
