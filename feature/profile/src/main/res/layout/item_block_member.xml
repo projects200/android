@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_setting_item_border"
+    android:orientation="horizontal"
+    android:padding="@dimen/base_horizontal_margin">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_img_iv"
+        android:layout_width="50dp"
+        android:layout_height="50dp" />
+
+    <TextView
+        android:id="@+id/nickname_tv"
+        style="@style/content_bold"
+        android:layout_width="0dp"
+        android:layout_marginStart="15dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_weight="1" />
+
+    <androidx.appcompat.widget.AppCompatButton
+        android:id="@+id/unblock_btn"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:background="@drawable/bg_solid_corner"
+        android:backgroundTint="@color/gray200"
+        android:paddingHorizontal="13dp"
+        android:paddingVertical="10dp"
+        android:stateListAnimator="@null"
+        android:text="@string/unblock"
+        android:textColor="@color/white300"
+        android:textSize="14sp" />
+</LinearLayout>

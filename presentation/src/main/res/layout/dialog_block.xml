@@ -39,6 +39,7 @@
             android:gravity="center"
             android:padding="10dp"
             android:text="@string/cancel"
+            android:stateListAnimator="@null"
             android:textColor="@color/white300" />
 
         <View
@@ -52,6 +53,7 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
+            android:stateListAnimator="@null"
             android:background="@drawable/bg_solid_corner"
             android:backgroundTint="@color/error_red"
             android:gravity="center"
