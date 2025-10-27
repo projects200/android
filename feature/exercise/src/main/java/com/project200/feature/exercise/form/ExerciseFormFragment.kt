@@ -1,15 +1,11 @@
 package com.project200.feature.exercise.form
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
@@ -84,10 +80,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
         }
 
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _: Boolean ->
-            launchGallery()
-        }
 
     override fun getViewBinding(view: View): FragmentExerciseFormBinding {
         return FragmentExerciseFormBinding.bind(view)
@@ -111,7 +103,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     if (currentImageCount >= MAX_IMAGE) {
                         Toast.makeText(requireContext(), getString(R.string.exercise_record_max_image), Toast.LENGTH_SHORT).show()
                     } else {
-                        checkPermissionAndLaunchGallery()
+                        launchGallery()
                     }
                 },
                 onDeleteItemClick = { item ->
@@ -141,27 +133,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 location = binding.recordLocationEt.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
-        }
-    }
-
-    private fun checkPermissionAndLaunchGallery() {
-        val permission =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                Manifest.permission.READ_MEDIA_IMAGES
-            } else {
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            }
-
-        when {
-            checkSelfPermission(requireContext(), permission) == PackageManager.PERMISSION_GRANTED -> {
-                launchGallery()
-            }
-            shouldShowRequestPermissionRationale(permission) -> {
-                requestPermissionLauncher.launch(permission)
-            }
-            else -> {
-                requestPermissionLauncher.launch(permission)
-            }
         }
     }
 
