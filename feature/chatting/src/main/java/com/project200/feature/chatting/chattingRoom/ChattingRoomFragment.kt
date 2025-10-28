@@ -35,6 +35,8 @@ import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -194,22 +196,34 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 }
 
                 launch {
-                    viewModel.opponentState.collect { isActive ->
-                        if (isActive) {
-                            binding.chattingMessageEt.text.clear()
+                    viewModel.blockedState.combine(viewModel.opponentState) { isBlocked, isOpponentActive ->
+                        val (isEnabled, messageResId) = when {
+                            isBlocked -> false to R.string.chatting_opponent_blocked
+                            !isOpponentActive -> false to R.string.chatting_opponent_exit
+                            else -> true to null
+                        }
+
+                        binding.chattingMessageEt.isEnabled = isEnabled
+                        updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
+
+                        if (isEnabled) {
+                            if (binding.chattingMessageEt.currentTextColor != getColor(requireContext(), com.project200.undabang.presentation.R.color.black)) {
+                                binding.chattingMessageEt.text.clear()
+                            }
                             binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black)
                             )
                         } else {
-                            binding.chattingMessageEt.setText(getString(R.string.chatting_opponent_exit))
-                            binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
-                            )
+                            messageResId?.let {
+                                binding.chattingMessageEt.setText(getString(it))
+                                binding.chattingMessageEt.setTextColor(
+                                    getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200)
+                                )
+                            }
                         }
-                        binding.chattingMessageEt.isEnabled = isActive
-                        updateSendButtonState(isActive)
-                    }
+                    }.collect()
                 }
+
 
                 launch {
                     viewModel.toast.collect { message ->
