@@ -80,7 +80,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
         }
 
-
     override fun getViewBinding(view: View): FragmentExerciseFormBinding {
         return FragmentExerciseFormBinding.bind(view)
     }
