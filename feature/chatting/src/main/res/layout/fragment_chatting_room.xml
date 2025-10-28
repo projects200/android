@@ -34,7 +34,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:paddingStart="@dimen/base_horizontal_margin"
-        android:paddingVertical="10dp"
         android:minHeight="44dp"
         android:maxHeight="150dp"
         android:background="@color/white300"
@@ -51,13 +50,14 @@
             android:layout_marginEnd="10dp"
             android:hint="@string/chatting_message_hint"
             android:textColorHint="@color/gray200"
+            android:layout_gravity="center"
             android:background="@android:color/transparent"/>
         <ImageView
             android:id="@+id/send_btn"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:src="@drawable/ic_message_send"
-            android:layout_marginHorizontal="10dp"
+            android:src="@drawable/ic_message_send_unable"
+            android:padding="10dp"
             android:layout_gravity="bottom"
             android:focusable="false"
             android:focusableInTouchMode="false"/>
