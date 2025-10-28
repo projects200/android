@@ -24,6 +24,11 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
         return FragmentExercisePlaceBinding.bind(view)
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.getExercisePlaces()
+    }
+
     override fun setupViews() {
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_place))

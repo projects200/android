@@ -40,6 +40,8 @@ class MatchingMapFragment :
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
 
+    private var isMapInitialized: Boolean = false
+
     // 위치 권한 요청을 위한 ActivityResultLauncher 정의
     private val locationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -54,6 +56,7 @@ class MatchingMapFragment :
     }
 
     override fun setupViews() {
+        isMapInitialized = false
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
 
         initMapView()
@@ -151,6 +154,9 @@ class MatchingMapFragment :
     private fun setupMapRelatedObservers() {
         // 초기 지도 위치 관찰
         viewModel.initialMapPosition.observe(viewLifecycleOwner) { savedPosition ->
+            // 지도의 초기 위치 설정이 아직 완료되지 않았을 때만 카메라를 이동시킵니다.
+            if (isMapInitialized) return@observe
+
             if (isLocationPermissionGranted()) { // 권한이 있는 경우
                 if (savedPosition != null) {
                     moveCamera(
@@ -177,6 +183,8 @@ class MatchingMapFragment :
                 // 사용자에게 권한을 요청
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
+
+            isMapInitialized = true
         }
 
         // --- 변경: 개별 LiveData 구독 대신, 결합된 StateFlow를 구독 ---

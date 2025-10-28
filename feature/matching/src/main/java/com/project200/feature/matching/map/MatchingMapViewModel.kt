@@ -84,7 +84,6 @@ class MatchingMapViewModel
          */
         fun fetchMatchingMembers() {
             viewModelScope.launch {
-                // --- 변경: StateFlow의 value를 업데이트 ---
                 matchingMembers.value = getMatchingMembersUseCase()
             }
         }
@@ -109,7 +108,9 @@ class MatchingMapViewModel
             zoomLevel: Int,
         ) {
             viewModelScope.launch {
-                saveLastMapPositionUseCase(MapPosition(latitude, longitude, zoomLevel))
+                val currentPosition = MapPosition(latitude, longitude, zoomLevel)
+                saveLastMapPositionUseCase(currentPosition)
+                _initialMapPosition.value = currentPosition
             }
         }
 

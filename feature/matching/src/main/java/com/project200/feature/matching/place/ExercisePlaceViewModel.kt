@@ -26,11 +26,7 @@ class ExercisePlaceViewModel
         private val _errorToast = MutableLiveData<ExercisePlaceErrorType>()
         val errorToast: LiveData<ExercisePlaceErrorType> = _errorToast
 
-        init {
-            getExercisePlaces()
-        }
-
-        private fun getExercisePlaces() {
+        fun getExercisePlaces() {
             viewModelScope.launch {
                 when (val result = getExercisePlaceUseCase()) {
                     is BaseResult.Success -> {
