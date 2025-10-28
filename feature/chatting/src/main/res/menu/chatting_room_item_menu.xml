@@ -5,8 +5,4 @@
         android:icon="@drawable/ic_exit"
         android:iconTint="@color/black"
         android:title="@string/chatting_room_exit" />
-    <item
-        android:id="@+id/action_block"
-        android:icon="@drawable/ic_block"
-        android:title="@string/block" />
 </menu>
