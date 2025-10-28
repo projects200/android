@@ -59,3 +59,13 @@ data class GetOpenChatUrlDTO(
     val openChatroomId: Long = -1L,
     val openChatroomUrl: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetBlockedMemberDTO(
+    val memberBlockId: Long,
+    val memberId: String,
+    val nickname: String,
+    val profileImageUrl: String,
+    val thumbnailImageUrl: String,
+    val blockedAt: String,
+)

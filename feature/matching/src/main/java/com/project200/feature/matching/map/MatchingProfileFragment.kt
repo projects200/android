@@ -108,10 +108,10 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.toast.collect {
+                    viewModel.toast.collect { message ->
                         Toast.makeText(
                             requireContext(),
-                            getString(R.string.error_failed_to_load),
+                            message,
                             Toast.LENGTH_SHORT,
                         ).show()
                     }
@@ -128,6 +128,11 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                             }
                         }
+                    }
+                }
+                launch {
+                    viewModel.blockResult.collect {
+                        findNavController().navigateUp()
                     }
                 }
             }
