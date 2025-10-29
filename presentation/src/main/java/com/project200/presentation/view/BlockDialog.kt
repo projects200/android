@@ -29,11 +29,11 @@ class BlockDialog(
         }
 
         binding.cancelButton.setOnClickListener {
-            onBlockBtnClicked()
             dismiss()
         }
 
         binding.blockBtn.setOnClickListener {
+            onBlockBtnClicked()
             dismiss()
         }
     }
