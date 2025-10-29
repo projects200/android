@@ -34,12 +34,13 @@
         android:textColor="@color/gray100"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
+
     <ImageView
         android:id="@+id/menu_iv"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        android:src="@drawable/ic_menu"
-        android:layout_margin="@dimen/base_horizontal_margin"
         android:layout_width="20dp"
-        android:layout_height="20dp"/>
+        android:layout_height="20dp"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        android:src="@drawable/ic_menu"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/place_name_tv" />
 </androidx.constraintlayout.widget.ConstraintLayout>
