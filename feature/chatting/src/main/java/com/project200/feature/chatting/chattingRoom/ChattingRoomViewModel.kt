@@ -98,7 +98,7 @@ class ChattingRoomViewModel
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
                         if (_blockedState.value != result.data.opponentBlocked) {
-                            _blockedState.emit(result.data.opponentBlocked)
+                            _blockedState.emit(result.data.opponentBlocked == true)
                         } else if (_opponentState.value != result.data.opponentActive) {
                             _opponentState.emit(result.data.opponentActive)
                         }
