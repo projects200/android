@@ -19,6 +19,9 @@
             <argument
                 android:name="nickname"
                 app:argType="string"/>
+            <argument
+                android:name="memberId"
+                app:argType="string" />
         </action>
     </fragment>
     <fragment
@@ -26,12 +29,15 @@
         android:name="com.project200.feature.chatting.chattingRoom.ChattingRoomFragment"
         android:label="chattingRoom"
         tools:layout="@layout/fragment_chatting_room" >
-        <deepLink app:uri="app://chatting/room/{roomId}/{nickname}" />
+        <deepLink app:uri="app://chatting/room/{roomId}/{nickname}/{memberId}" />
         <argument
             android:name="roomId"
             app:argType="long"/>
         <argument
             android:name="nickname"
             app:argType="string"/>
+        <argument
+            android:name="memberId"
+            app:argType="string" />
     </fragment>
 </navigation>

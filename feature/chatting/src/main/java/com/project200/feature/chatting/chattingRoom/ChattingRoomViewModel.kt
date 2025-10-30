@@ -44,13 +44,15 @@ class ChattingRoomViewModel
         val toast: SharedFlow<String> = _toast
 
         private var chatRoomId: Long = DEFAULT_ID
+        private var opponentMemberId: String = ""
         private var prevChatId: Long? = null // 이전 메시지 조회를 위한 가장 오래된 메시지 ID
         private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
-        fun setChatRoomId(id: Long) {
-            chatRoomId = id
-            loadInitialMessages(id)
+        fun setId(chatRoomId: Long, opponentId: String) {
+            this.chatRoomId = chatRoomId
+            this.opponentMemberId = opponentId
+            loadInitialMessages(chatRoomId)
         }
 
         private fun updateAndEmitMessages(updatedList: List<ChattingMessage>) {

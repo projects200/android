@@ -12,6 +12,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.content.ContextCompat.getDrawable
+import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -30,7 +31,6 @@ import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
 import com.project200.presentation.utils.MenuStyler
 import com.project200.presentation.utils.UiUtils.dpToPx
-import com.project200.presentation.view.BlockDialog
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -67,7 +67,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupViews() {
         setupRecyclerView()
         setupListeners()
-        viewModel.setChatRoomId(args.roomId)
+        viewModel.setId(args.roomId, args.memberId)
         updateSendButtonState(false)
         keyboardHelper = KeyboardVisibilityHelper(binding.root, binding.chattingMessageRv)
         keyboardHelper.start()
@@ -126,7 +126,11 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatRVAdapter()
+        chatAdapter = ChatRVAdapter(onProfileClicked = {
+            findNavController().navigate(
+                "app://matching/map/${args.memberId}/${true}".toUri(),
+            )
+        })
         val layoutManager =
             LinearLayoutManager(requireContext()).apply {
                 stackFromEnd = true // 기본적으로 하단 정렬
@@ -189,7 +193,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 launch {
                     // Fragment가 STARTED 상태가 되면 폴링 시작
                     // STOPPED 상태가 되면 자동으로 코루틴 취소
-                    while (isActive) {
+                    while (isActive && !viewModel.blockedState.value) {
                         viewModel.getNewMessages()
                         delay(POLLING_PERIOD)
                     }

@@ -10,6 +10,7 @@ import com.project200.domain.model.ChattingRoom
 
 fun GetChattingRoomsDTO.toModel(): ChattingRoom {
     return ChattingRoom(
+        opponentMemberId = this.otherMemberId,
         id = this.chatRoomId,
         nickname = this.otherMemberNickname,
         profileImageUrl = this.otherMemberProfileImageUrl,

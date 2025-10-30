@@ -30,6 +30,7 @@ import com.project200.undabang.feature.matching.databinding.CalendarDayLayoutBin
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingProfileBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
@@ -54,6 +55,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                 showPopupMenu(anchorView)
             }
         }
+        binding.chatBtn.isVisible = !args.fromDeepLink
         initClickListener()
         viewModel.setMemberId(args.memberId)
         setupCalendar()
@@ -121,7 +123,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                         when (result) {
                             is BaseResult.Success -> {
                                 findNavController().navigate(
-                                    "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}".toUri(),
+                                    "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}/${args.memberId}".toUri(),
                                 )
                             }
                             is BaseResult.Error -> {
