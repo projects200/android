@@ -34,6 +34,9 @@ class ChattingRoomViewModel
         private val _opponentState = MutableStateFlow<Boolean>(false)
         val opponentState: StateFlow<Boolean> = _opponentState
 
+        private val _blockedState = MutableStateFlow<Boolean>(false)
+        val blockedState: StateFlow<Boolean> = _blockedState
+
         private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
         val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
 
@@ -94,7 +97,9 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        if (_opponentState.value != result.data.opponentActive) {
+                        if (_blockedState.value != result.data.opponentBlocked) {
+                            _blockedState.emit(result.data.opponentBlocked)
+                        } else if (_opponentState.value != result.data.opponentActive) {
                             _opponentState.emit(result.data.opponentActive)
                         }
                     }

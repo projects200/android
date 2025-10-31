@@ -2,6 +2,7 @@
 <resources>
     <string name="chatting_message_hint">메시지 입력</string>
     <string name="chatting_opponent_exit">상대방이 채팅방을 나갔습니다</string>
+    <string name="chatting_opponent_blocked">차단한 회원과는 대화할 수 없습니다</string>
     <string name="no_chat_room">아직 채팅방이 없어요.</string>
     <string name="chatting_room_exit">나가기</string>
 </resources>

@@ -29,12 +29,14 @@ data class GetChattingMessagesDTO(
     val content: List<ChatMessageDTO>,
     val hasNext: Boolean,
     val opponentActive: Boolean,
+    val opponentBlocked: Boolean,
 )
 
 @JsonClass(generateAdapter = true)
 data class GetNewChattingMessagesDTO(
     val newChats: List<ChatMessageDTO>,
     val opponentActive: Boolean,
+    val opponentBlocked: Boolean,
 )
 
 @JsonClass(generateAdapter = true)

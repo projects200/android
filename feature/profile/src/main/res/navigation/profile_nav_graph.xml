@@ -39,6 +39,9 @@
         android:label="setting"
         tools:layout="@layout/fragment_setting" >
         <action
+            android:id="@+id/action_settingFragment_to_blockMembersFragment"
+            app:destination="@id/blockMembersFragment" />
+        <action
             android:id="@+id/action_settingFragment_to_notificationFragment"
             app:destination="@id/notificationFragment" />
     </fragment>
@@ -79,4 +82,10 @@
             app:argType="long"
             android:defaultValue="-1L" />
     </fragment>
+
+    <fragment
+        android:id="@+id/blockMembersFragment"
+        android:name="com.project200.undabang.profile.setting.BlockMembersFragment"
+        android:label="blockMembers"
+        tools:layout="@layout/fragment_block_members" />
 </navigation>

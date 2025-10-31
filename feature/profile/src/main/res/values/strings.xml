@@ -4,6 +4,7 @@
     <string name="customer_service">고객센터</string>
     <string name="logout">로그아웃</string>
     <string name="withdraw">회원탈퇴</string>
+    <string name="block_members">차단된 계정</string>
     <string name="terms">이용약관</string>
     <string name="privacy">개인정보 처리방침</string>
     <string name="version_info">버전정보</string>
@@ -98,4 +99,7 @@
     <string name="noti_active">알림이 활성화되었습니다.</string>
     <string name="noti_permission_announce">알림을 받으려면 앱 설정에서 권한을 허용해주세요.</string>
     <string name="noti_deactive">알림이 활성화되었습니다.</string>
+    
+    <string name="unblock">차단 해제</string>
+    <string name="block_members_empty">아직 차단된 계정이 없어요</string>
 </resources>
