@@ -19,7 +19,6 @@ class BlockMembersViewModel @Inject constructor(
     private val getBlockedMembersUseCase: GetBlockedMembersUseCase,
     private val unblockMemberUseCase: UnblockMemberUseCase,
 ) : ViewModel() {
-
     private val _blockedMembers = MutableLiveData<List<BlockedMember>>()
     val blockedMembers: LiveData<List<BlockedMember>> = _blockedMembers
 

@@ -201,33 +201,38 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
                 launch {
                     viewModel.blockedState.combine(viewModel.opponentState) { isBlocked, isOpponentActive ->
-                        val (isEnabled, messageResId) = when {
-                            isBlocked -> false to R.string.chatting_opponent_blocked
-                            !isOpponentActive -> false to R.string.chatting_opponent_exit
-                            else -> true to null
-                        }
+                        val (isEnabled, messageResId) =
+                            when {
+                                isBlocked -> false to R.string.chatting_opponent_blocked
+                                !isOpponentActive -> false to R.string.chatting_opponent_exit
+                                else -> true to null
+                            }
 
                         binding.chattingMessageEt.isEnabled = isEnabled
                         updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
 
                         if (isEnabled) {
-                            if (binding.chattingMessageEt.currentTextColor != getColor(requireContext(), com.project200.undabang.presentation.R.color.black)) {
+                            if (binding.chattingMessageEt.currentTextColor !=
+                                getColor(
+                                    requireContext(),
+                                    com.project200.undabang.presentation.R.color.black,
+                                )
+                            ) {
                                 binding.chattingMessageEt.text.clear()
                             }
                             binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black)
+                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
                             )
                         } else {
                             messageResId?.let {
                                 binding.chattingMessageEt.setText(getString(it))
                                 binding.chattingMessageEt.setTextColor(
-                                    getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200)
+                                    getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
                                 )
                             }
                         }
                     }.collect()
                 }
-
 
                 launch {
                     viewModel.toast.collect { message ->

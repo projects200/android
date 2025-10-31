@@ -15,7 +15,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class BlockMembersFragment: BindingFragment<FragmentBlockMembersBinding>(R.layout.fragment_block_members) {
+class BlockMembersFragment : BindingFragment<FragmentBlockMembersBinding>(R.layout.fragment_block_members) {
     private val viewModel: BlockMembersViewModel by viewModels()
     private lateinit var blockMemberAdapter: BlockMemberRVAdapter
 
@@ -32,9 +32,10 @@ class BlockMembersFragment: BindingFragment<FragmentBlockMembersBinding>(R.layou
     }
 
     private fun setupRecyclerView() {
-        blockMemberAdapter = BlockMemberRVAdapter { member ->
-            viewModel.unblockMember(member)
-        }
+        blockMemberAdapter =
+            BlockMemberRVAdapter { member ->
+                viewModel.unblockMember(member)
+            }
 
         binding.blockMembersRv.apply {
             adapter = blockMemberAdapter
