@@ -5,6 +5,7 @@ import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
+import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetChattingMessagesDTO
 import com.project200.data.dto.GetChattingRoomsDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
@@ -144,6 +145,25 @@ interface ApiService {
         @Path("openChatId") openChatId: Long,
         @Body url: String,
     ): BaseResponse<Any?>
+
+    // 회원 차단
+    @POST("api/v1/members/{memberId}/block")
+    @AccessTokenApi
+    suspend fun blockMember(
+        @Path("memberId") memberId: String,
+    ): BaseResponse<Any?>
+
+    // 회원 차단 해제
+    @DELETE("api/v1/members/{memberId}/block")
+    @AccessTokenApi
+    suspend fun unblockMember(
+        @Path("memberId") memberId: String,
+    ): BaseResponse<Any?>
+
+    // 차단한 회원 목록 조회
+    @GET("api/v1/members/blocks")
+    @AccessTokenApi
+    suspend fun getBlockedMembers(): BaseResponse<List<GetBlockedMemberDTO>>
 
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회

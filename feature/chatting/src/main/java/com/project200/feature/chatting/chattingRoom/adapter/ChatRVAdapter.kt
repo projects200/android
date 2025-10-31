@@ -10,7 +10,7 @@ import com.project200.undabang.feature.chatting.databinding.ItemMyMessageBinding
 import com.project200.undabang.feature.chatting.databinding.ItemOpponentMessageBinding
 import com.project200.undabang.feature.chatting.databinding.ItemSystemMessageBinding
 
-class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(DiffCallback) {
+class ChatRVAdapter(private val onProfileClicked: () -> Unit) : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(DiffCallback) {
     override fun getItemViewType(position: Int): Int {
         val message = getItem(position)
         return when {
@@ -31,7 +31,7 @@ class ChatRVAdapter : ListAdapter<ChattingMessage, RecyclerView.ViewHolder>(Diff
             }
             VIEW_TYPE_OTHER_MESSAGE -> {
                 val binding = ItemOpponentMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
-                OpponentMessageViewHolder(binding)
+                OpponentMessageViewHolder(binding, onProfileClicked)
             }
             else -> { // VIEW_TYPE_SYSTEM_MESSAGE
                 val binding = ItemSystemMessageBinding.inflate(LayoutInflater.from(parent.context), parent, false)
