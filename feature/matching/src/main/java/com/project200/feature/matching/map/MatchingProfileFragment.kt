@@ -251,7 +251,6 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
 
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
-
                     R.id.action_block -> {
                         showBlockDialog()
                     }
@@ -262,12 +261,14 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
             MenuStyler.showIcons(this)
         }.show()
     }
+
     private fun showBlockDialog() {
-        val blockDialog = BlockDialog(
-            onBlockBtnClicked = {
-                viewModel.blockMember()
-            },
-        )
+        val blockDialog =
+            BlockDialog(
+                onBlockBtnClicked = {
+                    viewModel.blockMember()
+                },
+            )
         blockDialog.show(parentFragmentManager, "BlockDialog")
     }
 

@@ -135,7 +135,6 @@ class MatchingProfileViewModel
 
         fun blockMember() {
             viewModelScope.launch {
-
             }
         }
     }

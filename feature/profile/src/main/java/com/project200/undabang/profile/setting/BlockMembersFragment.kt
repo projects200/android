@@ -10,7 +10,7 @@ import com.project200.undabang.feature.profile.databinding.FragmentBlockMembersB
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class BlockMembersFragment: BindingFragment<FragmentBlockMembersBinding>(R.layout.fragment_block_members) {
+class BlockMembersFragment : BindingFragment<FragmentBlockMembersBinding>(R.layout.fragment_block_members) {
     private val viewModel: BlockMembersViewModel by viewModels()
     private lateinit var blockMemberAdapter: BlockMemberRVAdapter
 
@@ -27,9 +27,10 @@ class BlockMembersFragment: BindingFragment<FragmentBlockMembersBinding>(R.layou
     }
 
     private fun setupRecyclerView() {
-        blockMemberAdapter = BlockMemberRVAdapter { member ->
-            viewModel.unblockMember(member)
-        }
+        blockMemberAdapter =
+            BlockMemberRVAdapter { member ->
+                viewModel.unblockMember(member)
+            }
 
         binding.blockMembersRv.apply {
             adapter = blockMemberAdapter

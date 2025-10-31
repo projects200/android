@@ -11,31 +11,36 @@ import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.ItemBlockMemberBinding
 
 class BlockMemberRVAdapter(
-    private val onUnblockClicked: (BlockedMember) -> Unit
+    private val onUnblockClicked: (BlockedMember) -> Unit,
 ) : ListAdapter<BlockedMember, BlockMemberRVAdapter.BlockMemberViewHolder>(BlockMemberDiffCallback()) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BlockMemberViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): BlockMemberViewHolder {
         val binding = ItemBlockMemberBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return BlockMemberViewHolder(binding, onUnblockClicked)
     }
 
-    override fun onBindViewHolder(holder: BlockMemberViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: BlockMemberViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
     class BlockMemberViewHolder(
         private val binding: ItemBlockMemberBinding,
-        private val onUnblockClicked: (BlockedMember) -> Unit
+        private val onUnblockClicked: (BlockedMember) -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
-
         fun bind(item: BlockedMember) {
             binding.nicknameTv.text = item.nickname
 
-            val imgRes = if (item.thumbnailImageUrl.isNotEmpty()) {
-                item.thumbnailImageUrl
-            } else {
-                item.profileImageUrl
-            }
+            val imgRes =
+                if (item.thumbnailImageUrl.isNotEmpty()) {
+                    item.thumbnailImageUrl
+                } else {
+                    item.profileImageUrl
+                }
 
             Glide.with(binding.profileImgIv)
                 .load(imgRes)
@@ -49,13 +54,20 @@ class BlockMemberRVAdapter(
             }
         }
     }
+
     companion object {
         class BlockMemberDiffCallback : DiffUtil.ItemCallback<BlockedMember>() {
-            override fun areItemsTheSame(oldItem: BlockedMember, newItem: BlockedMember): Boolean {
+            override fun areItemsTheSame(
+                oldItem: BlockedMember,
+                newItem: BlockedMember,
+            ): Boolean {
                 return oldItem.memberBlockId == newItem.memberBlockId
             }
 
-            override fun areContentsTheSame(oldItem: BlockedMember, newItem: BlockedMember): Boolean {
+            override fun areContentsTheSame(
+                oldItem: BlockedMember,
+                newItem: BlockedMember,
+            ): Boolean {
                 return oldItem == newItem
             }
         }
