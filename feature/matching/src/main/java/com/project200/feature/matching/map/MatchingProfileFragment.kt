@@ -269,7 +269,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                     viewModel.blockMember()
                 },
             )
-        blockDialog.show(parentFragmentManager, "BlockDialog")
+        blockDialog.show(parentFragmentManager, blockDialog::class.java.simpleName)
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) : ViewContainer(binding.root)
