@@ -94,11 +94,13 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        _chatState.emit(when {
-                            chattingModel.blockActive -> ChatInputState.OpponentBlocked
-                            !chattingModel.opponentActive -> ChatInputState.OpponentLeft
-                            else -> ChatInputState.Active
-                        })
+                        _chatState.emit(
+                            when {
+                                chattingModel.blockActive -> ChatInputState.OpponentBlocked
+                                !chattingModel.opponentActive -> ChatInputState.OpponentLeft
+                                else -> ChatInputState.Active
+                            },
+                        )
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -134,11 +136,12 @@ class ChattingRoomViewModel
                             if (currentState is ChatInputState.OpponentBlocked) return@launch
 
                             // 채팅방 나가기 상태 반영
-                            val newChatState = if (result.data.opponentActive) {
-                                ChatInputState.Active
-                            } else {
-                                ChatInputState.OpponentLeft
-                            }
+                            val newChatState =
+                                if (result.data.opponentActive) {
+                                    ChatInputState.Active
+                                } else {
+                                    ChatInputState.OpponentLeft
+                                }
 
                             if (currentState != newChatState) {
                                 _chatState.value = newChatState
