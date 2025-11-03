@@ -28,7 +28,6 @@ import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
-import com.project200.feature.matching.map.cluster.MemberClusterItem
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
@@ -220,7 +219,7 @@ class MatchingMapFragment :
         val clusterItems = mutableListOf<MapClusterItem>()
         members.forEach { member ->
             member.locations.forEach { location ->
-                clusterItems.add(MemberClusterItem(member, location))
+                clusterItems.add(MapClusterItem(member, location))
             }
         }
 
