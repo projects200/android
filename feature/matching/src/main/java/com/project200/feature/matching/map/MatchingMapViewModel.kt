@@ -76,6 +76,7 @@ class MatchingMapViewModel
 
         init {
             checkExercisePlace()
+            loadInitialMapPosition()
         }
 
         /**
@@ -90,9 +91,8 @@ class MatchingMapViewModel
         /**
          * 마지막 위치를 불러와 LiveData를 업데이트합니다.
          */
-        fun loadInitialMapPosition() {
+        private fun loadInitialMapPosition() {
             viewModelScope.launch {
-                // UseCase를 함수처럼 호출
                 val lastPosition = getLastMapPositionUseCase()
                 _initialMapPosition.value = lastPosition
             }

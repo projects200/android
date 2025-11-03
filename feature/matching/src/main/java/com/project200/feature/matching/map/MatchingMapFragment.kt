@@ -94,7 +94,6 @@ class MatchingMapFragment :
                         )
 
                     setupMapRelatedObservers()
-                    viewModel.fetchMatchingMembers()
                 }
             },
         )
@@ -279,7 +278,7 @@ class MatchingMapFragment :
 
     override fun onResume() {
         super.onResume()
-        viewModel.loadInitialMapPosition()
+        viewModel.fetchMatchingMembers()
         binding.mapView.resume()
     }
 
