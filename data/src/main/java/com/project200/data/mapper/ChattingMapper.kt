@@ -39,7 +39,7 @@ fun GetChattingMessagesDTO.toModel(): ChattingModel {
     return ChattingModel(
         hasNext = this.hasNext,
         opponentActive = this.opponentActive,
-        opponentBlocked = this.opponentBlocked,
+        blockActive = this.blockActive,
         messages = this.content.map { it.toModel() },
     )
 }

@@ -10,7 +10,6 @@ import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat.getColor
 import androidx.core.content.ContextCompat.getDrawable
 import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
@@ -36,7 +35,6 @@ import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoom
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -200,38 +198,30 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 }
 
                 launch {
-                    viewModel.blockedState.combine(viewModel.opponentState) { isBlocked, isOpponentActive ->
-                        val (isEnabled, messageResId) =
-                            when {
-                                isBlocked -> false to R.string.chatting_opponent_blocked
-                                !isOpponentActive -> false to R.string.chatting_opponent_exit
-                                else -> true to null
-                            }
+                    viewModel.chatState.collect { state ->
+                        val isEnabled: Boolean
+                        val messageResId: Int?
 
-                        binding.chattingMessageEt.isEnabled = isEnabled
-                        updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
-
-                        if (isEnabled) {
-                            if (binding.chattingMessageEt.currentTextColor !=
-                                getColor(
-                                    requireContext(),
-                                    com.project200.undabang.presentation.R.color.black,
-                                )
-                            ) {
-                                binding.chattingMessageEt.text.clear()
+                        when (state) {
+                            is ChatInputState.Active -> {
+                                isEnabled = true
+                                messageResId = R.string.chatting_message_hint
                             }
-                            binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
-                            )
-                        } else {
-                            messageResId?.let {
-                                binding.chattingMessageEt.setText(getString(it))
-                                binding.chattingMessageEt.setTextColor(
-                                    getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
-                                )
+                            is ChatInputState.OpponentBlocked -> {
+                                isEnabled = false
+                                messageResId = R.string.chatting_opponent_blocked
+                            }
+                            is ChatInputState.OpponentLeft -> {
+                                isEnabled = false
+                                messageResId = R.string.chatting_opponent_exit
                             }
                         }
-                    }.collect()
+
+                        // 결정된 상태에 따라 UI를 업데이트
+                        binding.chattingMessageEt.isEnabled = isEnabled
+                        updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
+                        binding.chattingMessageEt.hint = getString(messageResId)
+                    }
                 }
 
                 launch {

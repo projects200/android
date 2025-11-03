@@ -31,11 +31,8 @@ class ChattingRoomViewModel
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
         val messages = _messages.asStateFlow()
 
-        private val _opponentState = MutableStateFlow<Boolean>(false)
-        val opponentState: StateFlow<Boolean> = _opponentState
-
-        private val _blockedState = MutableStateFlow<Boolean>(false)
-        val blockedState: StateFlow<Boolean> = _blockedState
+        private val _chatState = MutableStateFlow<ChatInputState>(ChatInputState.Active)
+        val chatState: StateFlow<ChatInputState> = _chatState.asStateFlow()
 
         private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
         val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
@@ -99,11 +96,13 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        if (_blockedState.value != result.data.opponentBlocked) {
-                            _blockedState.emit(result.data.opponentBlocked == true)
-                        } else if (_opponentState.value != result.data.opponentActive) {
-                            _opponentState.emit(result.data.opponentActive)
-                        }
+                        _chatState.emit(
+                            when {
+                                chattingModel.blockActive -> ChatInputState.OpponentBlocked
+                                !chattingModel.opponentActive -> ChatInputState.OpponentLeft
+                                else -> ChatInputState.Active
+                            },
+                        )
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -133,8 +132,21 @@ class ChattingRoomViewModel
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
 
-                            if (_opponentState.value != result.data.opponentActive) {
-                                _opponentState.emit(result.data.opponentActive)
+                            val currentState = _chatState.value
+
+                            // 현재 상태가 차단이면 상태 유지
+                            if (currentState is ChatInputState.OpponentBlocked) return@launch
+
+                            // 채팅방 나가기 상태 반영
+                            val newChatState =
+                                if (result.data.opponentActive) {
+                                    ChatInputState.Active
+                                } else {
+                                    ChatInputState.OpponentLeft
+                                }
+
+                            if (currentState != newChatState) {
+                                _chatState.value = newChatState
                             }
                         }
                     }
