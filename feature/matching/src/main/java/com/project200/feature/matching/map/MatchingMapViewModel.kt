@@ -75,7 +75,6 @@ class MatchingMapViewModel
         private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
-            loadInitialMapPosition()
             checkExercisePlace()
         }
 
@@ -91,7 +90,7 @@ class MatchingMapViewModel
         /**
          * 마지막 위치를 불러와 LiveData를 업데이트합니다.
          */
-        private fun loadInitialMapPosition() {
+        fun loadInitialMapPosition() {
             viewModelScope.launch {
                 // UseCase를 함수처럼 호출
                 val lastPosition = getLastMapPositionUseCase()

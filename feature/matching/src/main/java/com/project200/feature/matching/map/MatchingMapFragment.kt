@@ -7,7 +7,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.content.ContextCompat.getColor
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -19,13 +18,8 @@ import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
-import com.kakao.vectormap.camera.CameraUpdateFactory
+import com.kakao.vectormap.camera.CameraPosition
 import com.kakao.vectormap.label.Label
-import com.kakao.vectormap.label.LabelOptions
-import com.kakao.vectormap.label.LabelStyle
-import com.kakao.vectormap.label.LabelStyles
-import com.kakao.vectormap.label.LabelTextBuilder
-import com.kakao.vectormap.label.LabelTextStyle
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LATITUDE
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
@@ -33,8 +27,6 @@ import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
-import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.createClusterBitmap
-import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.getClusterSizePx
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.map.cluster.MemberClusterItem
 import com.project200.presentation.base.BindingFragment
@@ -48,7 +40,10 @@ import timber.log.Timber
 @AndroidEntryPoint
 class MatchingMapFragment :
     BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
-    private var kakaoMap: KakaoMap? = null
+
+    // MapViewManager로 지도 관련 로직 위임
+    private var mapViewManager: MapViewManager? = null
+
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
 
@@ -56,8 +51,6 @@ class MatchingMapFragment :
 
     // 클러스터링 계산을 위한 헬퍼 클래스
     private lateinit var clusterCalculator: ClusterCalculator<MapClusterItem>
-    // 현재 지도에 그려진 라벨(마커)들을 추적하기 위한 리스트
-    private val currentLabels = mutableListOf<Label>()
 
     // 위치 권한 요청을 위한 ActivityResultLauncher 정의
     private val locationPermissionLauncher =
@@ -92,17 +85,15 @@ class MatchingMapFragment :
             },
             object : KakaoMapReadyCallback() {
                 override fun onMapReady(map: KakaoMap) {
-                    kakaoMap = map
+                    // MapViewManager를 생성하여 지도 로직을 위임
+                    mapViewManager = MapViewManager(
+                        context = requireContext(),
+                        kakaoMap = map,
+                        onCameraIdle = { cameraPosition -> handleCamera(cameraPosition) },
+                        onLabelClick = { label -> handleLabelClick(label) },
+                    )
 
-                    // 지도가 준비된 후 리스너 설정 및 데이터 관찰 시작
-                    setMapListeners()
                     setupMapRelatedObservers()
-
-                    // 두 손가락으로 지도를 회전시키는 제스처 비활성화
-                    kakaoMap?.setGestureEnable(com.kakao.vectormap.GestureType.Rotate, false)
-                    // 두 손가락으로 지도를 기울이는 제스처(틸트) 비활성화
-                    kakaoMap?.setGestureEnable(com.kakao.vectormap.GestureType.Tilt, false)
-
                     viewModel.fetchMatchingMembers()
                 }
             },
@@ -122,43 +113,33 @@ class MatchingMapFragment :
     }
 
     /**
-     * 지도 이동 및 라벨 클릭 리스너를 설정합니다.
+     * MapViewManager로부터 카메라 이동 완료 이벤트를 받아 처리합니다.
      */
-    private fun setMapListeners() {
-        // 지도 이동이 끝나면 클러스터를 다시 계산하고 마커를 새로 그립니다.
-        kakaoMap?.setOnCameraMoveEndListener { _, cameraPosition, _ ->
-            viewModel.saveLastLocation(
-                cameraPosition.position.latitude,
-                cameraPosition.position.longitude,
-                cameraPosition.zoomLevel,
-            )
+    private fun handleCamera(cameraPosition: CameraPosition) {
+        // 마지막 위치 저장
+        viewModel.saveLastLocation(
+            cameraPosition.position.latitude,
+            cameraPosition.position.longitude,
+            cameraPosition.zoomLevel,
+        )
 
-            // 현재 지도에 표시할 내 장소 데이터와 회원 데이터를 가져옵니다.
-            val currentMyPlaces = viewModel.combinedMapData.value.second
-            val currentMemberPlaces = viewModel.combinedMapData.value.first
+        // 카메라 위치가 바뀌면 클러스터도 변경됨 -> 마커 redraw
+        mapViewManager?.redrawMarkers(myPlaces = viewModel.combinedMapData.value.second, clusterCalculator)
+    }
 
-            // 데이터가 로드되지 않은 초기 상태에서 불필요한 재계산을 방지합니다.
-            if (currentMemberPlaces.isEmpty() && currentMyPlaces.isEmpty()) {
-                return@setOnCameraMoveEndListener
+    /**
+     * MapViewManager로부터 라벨 클릭 이벤트를 받아 처리합니다.
+     */
+    private fun handleLabelClick(label: Label) {
+        when (label.tag) {
+            is Cluster<*> -> { // 클러스터 마커 클릭 시
+                // TODO: 클러스터 아이템에 포함되어 있는 장소 리스트 표시
             }
-
-            // 두 데이터를 모두 사용하여 마커를 다시 그립니다.
-            redrawAllMarkers(currentMyPlaces, clusterCalculator.getClusters(cameraPosition))
-        }
-
-        // 라벨(마커) 클릭 리스너
-        kakaoMap?.setOnLabelClickListener { _, _, label ->
-            when (label.tag) {
-                is Cluster<*> -> { // 클러스터 마커 클릭 시
-                    // TODO: 클러스터 아이템에 포함되어 있는 장소 리스트 표시
-                }
-                is ExercisePlace -> { // 내 장소 아이템 클릭 시
-                    findNavController().navigate(
-                        MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
-                    )
-                }
+            is ExercisePlace -> { // 내 장소 아이템 클릭 시
+                findNavController().navigate(
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+                )
             }
-            true
         }
     }
 
@@ -190,7 +171,7 @@ class MatchingMapFragment :
 
             if (isLocationPermissionGranted()) { // 권한이 있는 경우
                 if (savedPosition != null) {
-                    moveCamera(
+                    mapViewManager?.moveCamera(
                         LatLng.from(savedPosition.latitude, savedPosition.longitude),
                         savedPosition.zoomLevel,
                     )
@@ -207,11 +188,11 @@ class MatchingMapFragment :
                         longitude = SEOUL_CITY_HALL_LONGITUDE,
                         zoomLevel = ZOOM_LEVEL,
                     )
-                moveCamera(
+                
+                mapViewManager?.moveCamera(
                     LatLng.from(defaultPosition.latitude, defaultPosition.longitude),
                     defaultPosition.zoomLevel,
                 )
-                // 사용자에게 권한을 요청
                 locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
             }
 
@@ -222,15 +203,11 @@ class MatchingMapFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.combinedMapData.collect { (members, places) ->
-                    // 원본 데이터를 클러스터 계산기에 업데이트
+                    // 클러스터 계산기에 최신 회원 데이터 업데이트
                     updateClusterData(members)
 
-                    val clusters = kakaoMap?.cameraPosition?.let {
-                        clusterCalculator.getClusters(it)
-                    } ?: emptySet()
-
-                    // 지도에 마커를 새로 그리기
-                    redrawAllMarkers(places, clusters)
+                    // 데이터가 변경되었으므로 마커 redraw
+                    mapViewManager?.redrawMarkers(places, clusterCalculator)
                 }
             }
         }
@@ -249,63 +226,6 @@ class MatchingMapFragment :
 
         clusterCalculator.clearItems()
         clusterCalculator.addItems(clusterItems)
-    }
-
-    /**
-     * 계산된 클러스터 정보를 바탕으로 지도 위의 마커를 새로 그립니다.
-     */
-    private fun redrawAllMarkers(myPlaces: List<ExercisePlace>, clusters: Set<Cluster<MapClusterItem>>) {
-        val labelManager = kakaoMap?.labelManager ?: return
-
-        currentLabels.forEach { it.remove() }
-        currentLabels.clear()
-
-        myPlaces.forEach { place ->
-            val options =
-                LabelOptions.from(LatLng.from(place.latitude, place.longitude))
-                    .setStyles(R.drawable.ic_place_marker)
-                    .setTag(place)
-            labelManager.layer?.addLabel(options)
-        }
-
-        // 텍스트 스타일을 한 번만 생성
-        val textStyle = LabelTextStyle.from(
-            resources.getDimensionPixelSize(R.dimen.cluster_text_size),
-            getColor(requireContext(), com.project200.undabang.presentation.R.color.white300)
-        ).apply {
-            setFont(com.project200.undabang.presentation.R.font.pretendard_bold)
-        }
-
-        clusters.forEach { cluster ->
-            addClusterLabel(cluster, textStyle)
-        }
-    }
-
-    private fun addClusterLabel(cluster: Cluster<MapClusterItem>, textStyle: LabelTextStyle) {
-        val labelManager = kakaoMap?.labelManager ?: return
-        val position = LatLng.from(cluster.position.latitude, cluster.position.longitude)
-        // 아이템 개수에 따라 동적으로 마커를 생성
-        // 원형 비트맵 생성
-        val backgroundBitmap = createClusterBitmap(
-            sizePx = getClusterSizePx(requireContext(), cluster.size),
-            markerColor = getColor(requireContext(), R.color.marker_color),
-            strokeColor = getColor(requireContext(), R.color.marker_stroke_color)
-        )
-
-        // 배경 아이콘 Label 생성
-        val backgroundOptions = LabelOptions.from(position)
-            .setStyles(LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f))
-            .setRank(0)
-            .setTag(cluster)
-        labelManager.layer?.addLabel(backgroundOptions)?.let { currentLabels.add(it) }
-
-        // 텍스트 아이콘 Label 생성
-        val textOptions = LabelOptions.from(position)
-            .setStyles(LabelStyles.from(LabelStyle.from(textStyle)))
-            .setTexts(LabelTextBuilder().addTextLine(cluster.size.toString(), 0))
-            .setRank(1)
-            .setTag(cluster)
-        labelManager.layer?.addLabel(textOptions)?.let { currentLabels.add(it) }
     }
 
     private fun showPlaceGuideDialog() {
@@ -335,28 +255,19 @@ class MatchingMapFragment :
     @SuppressLint("MissingPermission") // 권한 체크는 isLocationPermissionGranted()로 이미 수행됨
     private fun moveToCurrentLocation() {
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            val latLng: LatLng
             if (location != null) {
-                moveCamera(LatLng.from(location.latitude, location.longitude), ZOOM_LEVEL)
+                latLng = LatLng.from(location.latitude, location.longitude)
             } else {
-                // 현재 위치를 가져오지 못한 경우 기본 위치로 이동
-                moveCamera(
-                    LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE),
-                    ZOOM_LEVEL,
-                )
+                latLng = LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE)
                 Toast.makeText(
                     requireContext(),
                     R.string.error_cannot_find_current_location,
                     Toast.LENGTH_SHORT,
                 ).show()
             }
+            mapViewManager?.moveCamera(latLng, ZOOM_LEVEL)
         }
-    }
-
-    private fun moveCamera(
-        latLng: LatLng,
-        zoomLevel: Int,
-    ) {
-        kakaoMap?.moveCamera(CameraUpdateFactory.newCenterPosition(latLng, zoomLevel))
     }
 
     private fun isLocationPermissionGranted(): Boolean {
@@ -368,6 +279,7 @@ class MatchingMapFragment :
 
     override fun onResume() {
         super.onResume()
+        viewModel.loadInitialMapPosition()
         binding.mapView.resume()
     }
 
