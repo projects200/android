@@ -61,12 +61,12 @@ interface ApiService {
     // 로그인
     @POST("api/v1/login")
     @AccessTokenWithFcmApi
-    suspend fun postLogin(): BaseResponse<Any?>
+    suspend fun postLogin(): BaseResponse<Unit?>
 
     // 로그아웃
     @POST("api/v1/logout")
     @AccessTokenWithFcmApi
-    suspend fun postLogout(): BaseResponse<Any?>
+    suspend fun postLogout(): BaseResponse<Unit?>
 
     // 회원 여부 확인
     @GET("auth/v1/registration-status")
@@ -97,7 +97,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun editProfile(
         @Body profile: PutProfileRequest,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 프로필 사진 생성
     @Multipart
@@ -105,7 +105,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postProfileImage(
         @Part profilePicture: MultipartBody.Part,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 프로필 사진 리스트 조회
     @GET("api/v1/profile-pictures")
@@ -117,14 +117,14 @@ interface ApiService {
     @AccessTokenApi
     suspend fun changeThumbnailImage(
         @Path("pictureId") pictureId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 프로필 사진 삭제
     @DELETE("api/v1/profile-pictures/{pictureId}")
     @AccessTokenApi
     suspend fun deleteProfileImage(
         @Path("pictureId") pictureId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 내 오픈채팅방 URL 조회
     @GET("api/v1/open-chats")
@@ -136,7 +136,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postOpenChatUrl(
         @Body url: String,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 내 오픈채팅방 URL 수정
     @PATCH("api/v1/open-chats/{openChatId}")
@@ -144,21 +144,21 @@ interface ApiService {
     suspend fun patchOpenChatUrl(
         @Path("openChatId") openChatId: Long,
         @Body url: String,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 회원 차단
     @POST("api/v1/members/{memberId}/block")
     @AccessTokenApi
     suspend fun blockMember(
         @Path("memberId") memberId: String,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 회원 차단 해제
     @DELETE("api/v1/members/{memberId}/block")
     @AccessTokenApi
     suspend fun unblockMember(
         @Path("memberId") memberId: String,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 차단한 회원 목록 조회
     @GET("api/v1/members/blocks")
@@ -218,14 +218,14 @@ interface ApiService {
     suspend fun deleteExerciseImages(
         @Path("exerciseId") exerciseId: Long,
         @Query("pictureIds") pictureIds: List<Long>,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 운동 기록 삭제
     @DELETE("api/v1/exercises/{exerciseId}")
     @AccessTokenApi
     suspend fun deleteExerciseRecord(
         @Path("exerciseId") exerciseId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 점수 조회
     @GET("api/v1/members/score")
@@ -255,7 +255,7 @@ interface ApiService {
     suspend fun patchSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
         @Body time: SimpleTimerRequest,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 심플 타이머 추가
     @POST("api/v1/simple-timers")
@@ -269,7 +269,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 커스텀 타이머 리스트 조회
     @GET("api/v1/custom-timers")
@@ -294,7 +294,7 @@ interface ApiService {
     @DELETE("api/v1/custom-timers/{customTimerId}")
     suspend fun deleteCustomTimer(
         @Path("customTimerId") customTimerId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 커스텀 타이머 이름 수정
     @PATCH("api/v1/custom-timers/{customTimerId}")
@@ -350,14 +350,14 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteExercisePlace(
         @Path("locationId") locationId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 운동 장소 등록
     @POST("api/v1/exercise-locations")
     @AccessTokenApi
     suspend fun postExercisePlace(
         @Body placeInfo: PostExercisePlaceDTO,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 운동 장소 수정
     @PATCH("api/v1/exercise-locations/{locationId}")
@@ -365,7 +365,7 @@ interface ApiService {
     suspend fun putExercisePlace(
         @Path("locationId") locationId: Long,
         @Body placeName: EditExercisePlaceDTO,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     /** 채팅 */
     // 채팅방 생성
@@ -380,7 +380,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteChatRoom(
         @Path("chatroomId") chatRoomId: Long,
-    ): BaseResponse<Any?>
+    ): BaseResponse<Unit?>
 
     // 내 채팅방 목록 조회
     @GET("api/v1/chat-rooms")

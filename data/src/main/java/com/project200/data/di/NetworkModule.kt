@@ -6,6 +6,7 @@ import com.project200.data.utils.LocalDateAdapter
 import com.project200.data.utils.LocalDateTimeAdapter
 import com.project200.data.utils.TokenAuthenticator
 import com.project200.data.utils.TokenInterceptor
+import com.project200.data.utils.UnitJsonAdapter
 import com.project200.undabang.data.BuildConfig
 import com.project200.undabang.oauth.AuthStateManager
 import com.squareup.moshi.Moshi
@@ -51,6 +52,7 @@ object NetworkModule {
     fun provideMoshi(): Moshi {
         return Moshi.Builder()
             .add(KotlinJsonAdapterFactory())
+            .add(Unit::class.java, UnitJsonAdapter())
             .add(LocalDateAdapter())
             .add(LocalDateTimeAdapter())
             .build()
