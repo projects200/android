@@ -124,11 +124,12 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatRVAdapter(onProfileClicked = {
-            findNavController().navigate(
-                "app://matching/map/${args.memberId}/${true}".toUri(),
-            )
-        })
+        chatAdapter =
+            ChatRVAdapter(onProfileClicked = {
+                findNavController().navigate(
+                    "app://matching/map/${args.memberId}/${true}".toUri(),
+                )
+            })
         val layoutManager =
             LinearLayoutManager(requireContext()).apply {
                 stackFromEnd = true // 기본적으로 하단 정렬
@@ -191,7 +192,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 launch {
                     // Fragment가 STARTED 상태가 되면 폴링 시작
                     // STOPPED 상태가 되면 자동으로 코루틴 취소
-                    while (isActive && !viewModel.blockedState.value) {
+                    while (isActive && viewModel.chatState.value != ChatInputState.OpponentBlocked) {
                         viewModel.getNewMessages()
                         delay(POLLING_PERIOD)
                     }

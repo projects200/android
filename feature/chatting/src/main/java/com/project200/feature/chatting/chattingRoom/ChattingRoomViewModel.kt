@@ -46,7 +46,10 @@ class ChattingRoomViewModel
         private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
-        fun setId(chatRoomId: Long, opponentId: String) {
+        fun setId(
+            chatRoomId: Long,
+            opponentId: String,
+        ) {
             this.chatRoomId = chatRoomId
             this.opponentMemberId = opponentId
             loadInitialMessages(chatRoomId)
@@ -131,18 +134,13 @@ class ChattingRoomViewModel
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
-
                             val currentState = _chatState.value
 
-                            // 현재 상태가 차단이면 상태 유지
-                            if (currentState is ChatInputState.OpponentBlocked) return@launch
-
-                            // 채팅방 나가기 상태 반영
                             val newChatState =
-                                if (result.data.opponentActive) {
-                                    ChatInputState.Active
-                                } else {
-                                    ChatInputState.OpponentLeft
+                                when {
+                                    result.data.blockActive -> ChatInputState.OpponentBlocked
+                                    result.data.opponentActive -> ChatInputState.OpponentLeft
+                                    else -> ChatInputState.Active
                                 }
 
                             if (currentState != newChatState) {

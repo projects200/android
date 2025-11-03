@@ -20,7 +20,10 @@ class UnitJsonAdapter : JsonAdapter<Unit>() {
         return Unit
     }
 
-    override fun toJson(writer: JsonWriter, value: Unit?) {
+    override fun toJson(
+        writer: JsonWriter,
+        value: Unit?,
+    ) {
         writer.nullValue()
     }
 }

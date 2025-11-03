@@ -15,51 +15,53 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class BlockMembersViewModel @Inject constructor(
-    private val getBlockedMembersUseCase: GetBlockedMembersUseCase,
-    private val unblockMemberUseCase: UnblockMemberUseCase,
-) : ViewModel() {
-    private val _blockedMembers = MutableLiveData<List<BlockedMember>>()
-    val blockedMembers: LiveData<List<BlockedMember>> = _blockedMembers
+class BlockMembersViewModel
+    @Inject
+    constructor(
+        private val getBlockedMembersUseCase: GetBlockedMembersUseCase,
+        private val unblockMemberUseCase: UnblockMemberUseCase,
+    ) : ViewModel() {
+        private val _blockedMembers = MutableLiveData<List<BlockedMember>>()
+        val blockedMembers: LiveData<List<BlockedMember>> = _blockedMembers
 
-    private val _errorEvent = MutableSharedFlow<String?>()
-    val errorEvent: SharedFlow<String?> = _errorEvent
+        private val _errorEvent = MutableSharedFlow<String?>()
+        val errorEvent: SharedFlow<String?> = _errorEvent
 
-    init {
-        fetchBlockedMembers()
-    }
+        init {
+            fetchBlockedMembers()
+        }
 
-    /**
-     * 차단된 사용자 목록을 가져옵니다.
-     */
-    fun fetchBlockedMembers() {
-        viewModelScope.launch {
-            when (val result = getBlockedMembersUseCase()) {
-                is BaseResult.Success -> {
-                    _blockedMembers.value = result.data
+        /**
+         * 차단된 사용자 목록을 가져옵니다.
+         */
+        fun fetchBlockedMembers() {
+            viewModelScope.launch {
+                when (val result = getBlockedMembersUseCase()) {
+                    is BaseResult.Success -> {
+                        _blockedMembers.value = result.data
+                    }
+                    is BaseResult.Error -> {
+                        _errorEvent.emit(result.message)
+                    }
                 }
-                is BaseResult.Error -> {
-                    _errorEvent.emit(result.message)
+            }
+        }
+
+        /**
+         * 특정 사용자의 차단을 해제합니다.
+         * 성공했을 경우에만 목록을 갱신하여 UI에서 제거된 것처럼 보이게 합니다.
+         * @param member 차단 해제할 사용자 객체
+         */
+        fun unblockMember(member: BlockedMember) {
+            viewModelScope.launch {
+                when (val result = unblockMemberUseCase(member.memberId)) {
+                    is BaseResult.Success -> {
+                        fetchBlockedMembers()
+                    }
+                    is BaseResult.Error -> {
+                        _errorEvent.emit(result.message)
+                    }
                 }
             }
         }
     }
-
-    /**
-     * 특정 사용자의 차단을 해제합니다.
-     * 성공했을 경우에만 목록을 갱신하여 UI에서 제거된 것처럼 보이게 합니다.
-     * @param member 차단 해제할 사용자 객체
-     */
-    fun unblockMember(member: BlockedMember) {
-        viewModelScope.launch {
-            when (val result = unblockMemberUseCase(member.memberId)) {
-                is BaseResult.Success -> {
-                    fetchBlockedMembers()
-                }
-                is BaseResult.Error -> {
-                    _errorEvent.emit(result.message)
-                }
-            }
-        }
-    }
-}

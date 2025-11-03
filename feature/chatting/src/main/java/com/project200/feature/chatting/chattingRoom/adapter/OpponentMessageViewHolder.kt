@@ -10,7 +10,7 @@ import com.project200.undabang.feature.chatting.databinding.ItemOpponentMessageB
 
 class OpponentMessageViewHolder(
     private val binding: ItemOpponentMessageBinding,
-    private val onProfileClicked: () -> Unit
+    private val onProfileClicked: () -> Unit,
 ) : RecyclerView.ViewHolder(binding.root) {
     fun bind(current: ChattingMessage) {
         binding.messageTv.text = current.content

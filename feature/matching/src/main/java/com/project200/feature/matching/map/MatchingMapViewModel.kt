@@ -84,7 +84,6 @@ class MatchingMapViewModel
          */
         fun fetchMatchingMembers() {
             viewModelScope.launch {
-                // --- 변경: StateFlow의 value를 업데이트 ---
                 matchingMembers.value = getMatchingMembersUseCase()
             }
         }
@@ -94,7 +93,6 @@ class MatchingMapViewModel
          */
         private fun loadInitialMapPosition() {
             viewModelScope.launch {
-                // UseCase를 함수처럼 호출
                 val lastPosition = getLastMapPositionUseCase()
                 _initialMapPosition.value = lastPosition
             }
@@ -123,7 +121,6 @@ class MatchingMapViewModel
 
             viewModelScope.launch {
                 val result = getExercisePlaceUseCase()
-                // --- 변경: StateFlow의 value를 업데이트 ---
                 exercisePlaces.value = result
 
                 when (result) {

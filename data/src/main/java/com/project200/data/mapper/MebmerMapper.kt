@@ -77,6 +77,6 @@ fun GetBlockedMemberDTO.toModel(): BlockedMember {
         memberId = this.memberId,
         nickname = this.nickname,
         profileImageUrl = this.profileImageUrl,
-        thumbnailImageUrl = this.thumbnailImageUrl
+        thumbnailImageUrl = this.thumbnailImageUrl,
     )
 }

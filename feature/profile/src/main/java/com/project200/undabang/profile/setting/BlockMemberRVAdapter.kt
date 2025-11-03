@@ -35,11 +35,12 @@ class BlockMemberRVAdapter(
         fun bind(item: BlockedMember) {
             binding.nicknameTv.text = item.nickname
 
-            val imgRes = if (!item.thumbnailImageUrl.isNullOrEmpty()) {
-                item.thumbnailImageUrl
-            } else {
-                item.profileImageUrl
-            }
+            val imgRes =
+                if (!item.thumbnailImageUrl.isNullOrEmpty()) {
+                    item.thumbnailImageUrl
+                } else {
+                    item.profileImageUrl
+                }
 
             Glide.with(binding.profileImgIv)
                 .load(imgRes)

@@ -31,8 +31,8 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
                     ChattingListFragmentDirections.actionChattingFragmentToChattingRoomFragment(
                         roomId,
                         nickname,
-                        opponentMemberId
-                    )
+                        opponentMemberId,
+                    ),
                 )
             }
         binding.chattingRoomRv.adapter = chattingListAdapter
