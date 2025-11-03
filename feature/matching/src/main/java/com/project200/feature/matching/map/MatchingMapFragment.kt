@@ -39,7 +39,6 @@ import timber.log.Timber
 @AndroidEntryPoint
 class MatchingMapFragment :
     BindingFragment<FragmentMatchingMapBinding>(R.layout.fragment_matching_map) {
-
     // MapViewManager로 지도 관련 로직 위임
     private var mapViewManager: MapViewManager? = null
 
@@ -78,6 +77,7 @@ class MatchingMapFragment :
         binding.mapView.start(
             object : MapLifeCycleCallback() {
                 override fun onMapDestroy() {}
+
                 override fun onMapError(error: Exception) {
                     Timber.d("$error")
                 }
@@ -85,12 +85,13 @@ class MatchingMapFragment :
             object : KakaoMapReadyCallback() {
                 override fun onMapReady(map: KakaoMap) {
                     // MapViewManager를 생성하여 지도 로직을 위임
-                    mapViewManager = MapViewManager(
-                        context = requireContext(),
-                        kakaoMap = map,
-                        onCameraIdle = { cameraPosition -> handleCamera(cameraPosition) },
-                        onLabelClick = { label -> handleLabelClick(label) },
-                    )
+                    mapViewManager =
+                        MapViewManager(
+                            context = requireContext(),
+                            kakaoMap = map,
+                            onCameraIdle = { cameraPosition -> handleCamera(cameraPosition) },
+                            onLabelClick = { label -> handleLabelClick(label) },
+                        )
 
                     setupMapRelatedObservers()
                     viewModel.fetchMatchingMembers()
@@ -187,7 +188,7 @@ class MatchingMapFragment :
                         longitude = SEOUL_CITY_HALL_LONGITUDE,
                         zoomLevel = ZOOM_LEVEL,
                     )
-                
+
                 mapViewManager?.moveCamera(
                     LatLng.from(defaultPosition.latitude, defaultPosition.longitude),
                     defaultPosition.zoomLevel,

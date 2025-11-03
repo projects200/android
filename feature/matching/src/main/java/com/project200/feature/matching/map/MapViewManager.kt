@@ -13,7 +13,6 @@ import com.kakao.vectormap.label.LabelStyles
 import com.kakao.vectormap.label.LabelTextBuilder
 import com.kakao.vectormap.label.LabelTextStyle
 import com.project200.domain.model.ExercisePlace
-import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.createClusterBitmap
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.getClusterSizePx
@@ -39,12 +38,13 @@ class MapViewManager(
     private val labelManager = kakaoMap.labelManager ?: throw IllegalStateException("LabelManager is null")
 
     // 텍스트 스타일은 한 번만 생성하여 재사용
-    private val textStyle = LabelTextStyle.from(
-        context.resources.getDimensionPixelSize(R.dimen.cluster_text_size),
-        ContextCompat.getColor(context, com.project200.undabang.presentation.R.color.white300),
-    ).apply {
-        setFont(com.project200.undabang.presentation.R.font.pretendard_bold)
-    }
+    private val textStyle =
+        LabelTextStyle.from(
+            context.resources.getDimensionPixelSize(R.dimen.cluster_text_size),
+            ContextCompat.getColor(context, com.project200.undabang.presentation.R.color.white300),
+        ).apply {
+            setFont(com.project200.undabang.presentation.R.font.pretendard_bold)
+        }
 
     init {
         setupMap()
@@ -118,25 +118,28 @@ class MapViewManager(
     private fun addClusterLabel(cluster: Cluster<MapClusterItem>) {
         val position = LatLng.from(cluster.position.latitude, cluster.position.longitude)
 
-        val backgroundBitmap = createClusterBitmap(
-            sizePx = getClusterSizePx(context, cluster.size),
-            markerColor = ContextCompat.getColor(context, R.color.marker_color),
-            strokeColor = ContextCompat.getColor(context, R.color.marker_stroke_color),
-        )
+        val backgroundBitmap =
+            createClusterBitmap(
+                sizePx = getClusterSizePx(context, cluster.size),
+                markerColor = ContextCompat.getColor(context, R.color.marker_color),
+                strokeColor = ContextCompat.getColor(context, R.color.marker_stroke_color),
+            )
 
         // 배경 아이콘 Label
-        val backgroundOptions = LabelOptions.from(position)
-            .setStyles(LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f))
-            .setRank(0)
-            .setTag(cluster)
+        val backgroundOptions =
+            LabelOptions.from(position)
+                .setStyles(LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f))
+                .setRank(0)
+                .setTag(cluster)
         labelManager.layer?.addLabel(backgroundOptions)?.let { currentLabels.add(it) }
 
         // 텍스트 아이콘 Label
-        val textOptions = LabelOptions.from(position)
-            .setStyles(LabelStyles.from(LabelStyle.from(textStyle)))
-            .setTexts(LabelTextBuilder().addTextLine(cluster.size.toString(), 0))
-            .setRank(1)
-            .setTag(cluster)
+        val textOptions =
+            LabelOptions.from(position)
+                .setStyles(LabelStyles.from(LabelStyle.from(textStyle)))
+                .setTexts(LabelTextBuilder().addTextLine(cluster.size.toString(), 0))
+                .setRank(1)
+                .setTag(cluster)
         labelManager.layer?.addLabel(textOptions)?.let { currentLabels.add(it) }
     }
 }
