@@ -15,6 +15,7 @@ data class PostChatRoomRequest(
 
 @JsonClass(generateAdapter = true)
 data class GetChattingRoomsDTO(
+    val otherMemberId: String,
     val chatRoomId: Long,
     val otherMemberNickname: String,
     val otherMemberProfileImageUrl: String?,
@@ -36,6 +37,7 @@ data class GetChattingMessagesDTO(
 data class GetNewChattingMessagesDTO(
     val newChats: List<ChatMessageDTO>,
     val opponentActive: Boolean,
+    val blockActive: Boolean,
 )
 
 @JsonClass(generateAdapter = true)

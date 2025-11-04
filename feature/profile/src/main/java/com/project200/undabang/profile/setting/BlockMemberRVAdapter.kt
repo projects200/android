@@ -36,7 +36,7 @@ class BlockMemberRVAdapter(
             binding.nicknameTv.text = item.nickname
 
             val imgRes =
-                if (item.thumbnailImageUrl.isNotEmpty()) {
+                if (!item.thumbnailImageUrl.isNullOrEmpty()) {
                     item.thumbnailImageUrl
                 } else {
                     item.profileImageUrl

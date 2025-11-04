@@ -1,9 +1,11 @@
 package com.project200.data.mapper
 
+import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
+import com.project200.domain.model.BlockedMember
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImage
@@ -66,5 +68,15 @@ fun GetOpenChatUrlDTO.toModel(): OpenUrl {
     return OpenUrl(
         id = this.openChatroomId,
         url = this.openChatroomUrl,
+    )
+}
+
+fun GetBlockedMemberDTO.toModel(): BlockedMember {
+    return BlockedMember(
+        memberBlockId = this.memberBlockId,
+        memberId = this.memberId,
+        nickname = this.nickname,
+        profileImageUrl = this.profileImageUrl,
+        thumbnailImageUrl = this.thumbnailImageUrl,
     )
 }

@@ -3,6 +3,7 @@ package com.project200.domain.model
 import java.time.LocalDateTime
 
 data class ChattingRoom(
+    val opponentMemberId: String,
     val id: Long,
     val nickname: String,
     val profileImageUrl: String?,
@@ -29,6 +30,6 @@ data class ChattingMessage(
 data class ChattingModel(
     val hasNext: Boolean = false,
     val opponentActive: Boolean,
-    val blockActive: Boolean = false,
+    val blockActive: Boolean,
     val messages: List<ChattingMessage>
 )

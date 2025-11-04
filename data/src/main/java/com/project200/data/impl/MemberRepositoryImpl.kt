@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -13,6 +14,7 @@ import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.BlockedMember
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
@@ -127,6 +129,32 @@ class MemberRepositoryImpl
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.patchOpenChatUrl(id, url) },
                 mapper = { Unit },
+            )
+        }
+
+        override suspend fun blockMember(memberId: String): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.blockMember(memberId) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun unblockMember(memberId: String): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.unblockMember(memberId) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun getBlockedMembers(): BaseResult<List<BlockedMember>> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getBlockedMembers() },
+                mapper = { dtoList: List<GetBlockedMemberDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+                },
             )
         }
 

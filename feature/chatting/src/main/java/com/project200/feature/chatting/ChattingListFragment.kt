@@ -26,8 +26,14 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
 
     override fun setupViews() {
         chattingListAdapter =
-            ChattingListRVAdapter { roomId, nickname ->
-                findNavController().navigate(ChattingListFragmentDirections.actionChattingFragmentToChattingRoomFragment(roomId, nickname))
+            ChattingListRVAdapter { roomId, nickname, opponentMemberId ->
+                findNavController().navigate(
+                    ChattingListFragmentDirections.actionChattingFragmentToChattingRoomFragment(
+                        roomId,
+                        nickname,
+                        opponentMemberId,
+                    ),
+                )
             }
         binding.chattingRoomRv.adapter = chattingListAdapter
     }
