@@ -222,7 +222,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                         binding.chattingMessageEt.isEnabled = isEnabled
                         updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
                         binding.chattingMessageEt.hint = getString(messageResId)
-                        if(!isEnabled) {
+                        if (!isEnabled) {
                             binding.chattingMessageEt.clearFocus()
                             binding.chattingMessageEt.text.clear()
                         }
