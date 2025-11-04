@@ -53,7 +53,7 @@ class MembersBottomSheetDialog(
             layoutManager = LinearLayoutManager(context)
             adapter = memberAdapter
         }
-        memberAdapter.submitList(items)
+        memberAdapter.updateList(items)
 
         setupHeight()
     }

@@ -4,8 +4,6 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getString
-import androidx.recyclerview.widget.DiffUtil
-import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.feature.matching.map.cluster.MapClusterItem
@@ -15,7 +13,10 @@ import com.project200.undabang.feature.matching.databinding.ItemMemberBinding
 
 class MemberRVAdapter(
     private val onMemberClick: (MapClusterItem) -> Unit,
-) : ListAdapter<MapClusterItem, MemberRVAdapter.MemberViewHolder>(MemberDiffCallback) {
+) : RecyclerView.Adapter<MemberRVAdapter.MemberViewHolder>() {
+
+    private var itemList: List<MapClusterItem> = emptyList()
+
     override fun onCreateViewHolder(
         parent: ViewGroup,
         viewType: Int,
@@ -24,11 +25,21 @@ class MemberRVAdapter(
         return MemberViewHolder(binding)
     }
 
+    override fun getItemCount(): Int = itemList.size
+
     override fun onBindViewHolder(
         holder: MemberViewHolder,
         position: Int,
     ) {
-        holder.bind(getItem(position))
+        holder.bind(itemList[position])
+    }
+
+    /**
+     * 어댑터의 데이터를 갱신하고 UI를 새로고침하는 함수
+     */
+    fun updateList(items: List<MapClusterItem>) {
+        this.itemList = items
+        notifyDataSetChanged() // 리스트 전체를 갱신
     }
 
     inner class MemberViewHolder(private val binding: ItemMemberBinding) :
@@ -69,23 +80,5 @@ class MemberRVAdapter(
             }
 
         return context.getString(R.string.gender_birth_format, genderStr, birthDate)
-    }
-
-    companion object MemberDiffCallback : DiffUtil.ItemCallback<MapClusterItem>() {
-        override fun areItemsTheSame(
-            oldItem: MapClusterItem,
-            newItem: MapClusterItem,
-        ): Boolean {
-            return oldItem.member.memberId == newItem.member.memberId &&
-                oldItem.location.latitude == newItem.location.latitude &&
-                oldItem.location.longitude == newItem.location.longitude
-        }
-
-        override fun areContentsTheSame(
-            oldItem: MapClusterItem,
-            newItem: MapClusterItem,
-        ): Boolean {
-            return oldItem == newItem
-        }
     }
 }
