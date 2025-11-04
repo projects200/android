@@ -344,10 +344,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         PopupMenu(contextWrapper, view).apply {
             menuInflater.inflate(R.menu.chatting_room_item_menu, this.menu)
 
-            menu.findItem(R.id.action_exit)?.let {
-                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
-            }
-
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {
                     R.id.action_exit -> {
