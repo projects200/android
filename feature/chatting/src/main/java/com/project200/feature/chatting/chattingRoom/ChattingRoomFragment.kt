@@ -10,8 +10,8 @@ import android.widget.FrameLayout
 import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
-import androidx.core.content.ContextCompat.getColor
 import androidx.core.content.ContextCompat.getDrawable
+import androidx.core.net.toUri
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -34,6 +34,7 @@ import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -64,7 +65,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupViews() {
         setupRecyclerView()
         setupListeners()
-        viewModel.setChatRoomId(args.roomId)
+        viewModel.setId(args.roomId, args.memberId)
         updateSendButtonState(false)
         keyboardHelper = KeyboardVisibilityHelper(binding.root, binding.chattingMessageRv)
         keyboardHelper.start()
@@ -123,7 +124,12 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     }
 
     private fun setupRecyclerView() {
-        chatAdapter = ChatRVAdapter()
+        chatAdapter =
+            ChatRVAdapter(onProfileClicked = {
+                findNavController().navigate(
+                    "app://matching/map/${args.memberId}/${true}".toUri(),
+                )
+            })
         val layoutManager =
             LinearLayoutManager(requireContext()).apply {
                 stackFromEnd = true // 기본적으로 하단 정렬
@@ -186,27 +192,40 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                 launch {
                     // Fragment가 STARTED 상태가 되면 폴링 시작
                     // STOPPED 상태가 되면 자동으로 코루틴 취소
-                    while (isActive) {
+                    while (isActive && viewModel.chatState.value != ChatInputState.OpponentBlocked) {
                         viewModel.getNewMessages()
                         delay(POLLING_PERIOD)
                     }
                 }
 
                 launch {
-                    viewModel.opponentState.collect { isActive ->
-                        if (isActive) {
-                            binding.chattingMessageEt.text.clear()
-                            binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.black),
-                            )
-                        } else {
-                            binding.chattingMessageEt.setText(getString(R.string.chatting_opponent_exit))
-                            binding.chattingMessageEt.setTextColor(
-                                getColor(requireContext(), com.project200.undabang.presentation.R.color.gray200),
-                            )
+                    viewModel.chatState.collect { state ->
+                        val isEnabled: Boolean
+                        val messageResId: Int?
+
+                        when (state) {
+                            is ChatInputState.Active -> {
+                                isEnabled = true
+                                messageResId = R.string.chatting_message_hint
+                            }
+                            is ChatInputState.OpponentBlocked -> {
+                                isEnabled = false
+                                messageResId = R.string.chatting_opponent_blocked
+                            }
+                            is ChatInputState.OpponentLeft -> {
+                                isEnabled = false
+                                messageResId = R.string.chatting_opponent_exit
+                            }
                         }
-                        binding.chattingMessageEt.isEnabled = isActive
-                        updateSendButtonState(isActive)
+
+                        // 결정된 상태에 따라 UI를 업데이트
+                        binding.chattingMessageEt.isEnabled = isEnabled
+                        updateSendButtonState(isEnabled && binding.chattingMessageEt.text.isNotBlank())
+                        binding.chattingMessageEt.hint = getString(messageResId)
+                        if (!isEnabled) {
+                            binding.chattingMessageEt.clearFocus()
+                            binding.chattingMessageEt.text.clear()
+                        }
                     }
                 }
 
@@ -328,10 +347,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
 
         PopupMenu(contextWrapper, view).apply {
             menuInflater.inflate(R.menu.chatting_room_item_menu, this.menu)
-
-            menu.findItem(R.id.action_exit)?.let {
-                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
-            }
 
             setOnMenuItemClickListener { menuItem ->
                 when (menuItem.itemId) {

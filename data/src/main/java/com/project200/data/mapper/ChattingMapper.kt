@@ -10,6 +10,7 @@ import com.project200.domain.model.ChattingRoom
 
 fun GetChattingRoomsDTO.toModel(): ChattingRoom {
     return ChattingRoom(
+        opponentMemberId = this.otherMemberId,
         id = this.chatRoomId,
         nickname = this.otherMemberNickname,
         profileImageUrl = this.otherMemberProfileImageUrl,
@@ -38,6 +39,7 @@ fun GetChattingMessagesDTO.toModel(): ChattingModel {
     return ChattingModel(
         hasNext = this.hasNext,
         opponentActive = this.opponentActive,
+        blockActive = this.blockActive,
         messages = this.content.map { it.toModel() },
     )
 }
@@ -46,6 +48,7 @@ fun GetNewChattingMessagesDTO.toModel(): ChattingModel {
     return ChattingModel(
         hasNext = false,
         opponentActive = this.opponentActive,
+        blockActive = this.blockActive,
         messages = this.newChats.map { it.toModel() },
     )
 }

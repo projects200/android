@@ -34,6 +34,11 @@
         android:name="com.project200.feature.matching.map.MatchingProfileFragment"
         android:label="matchingProfile"
         tools:layout="@layout/fragment_matching_profile">
+        <deepLink app:uri="app://matching/map/{memberId}/{fromDeepLink}" />
+        <argument
+            android:name="fromDeepLink"
+            app:argType="boolean"
+            android:defaultValue="false" />
         <argument
             android:name="memberId"
             app:argType="string" />

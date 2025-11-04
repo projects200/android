@@ -31,8 +31,8 @@ class ChattingRoomViewModel
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
         val messages = _messages.asStateFlow()
 
-        private val _opponentState = MutableStateFlow<Boolean>(false)
-        val opponentState: StateFlow<Boolean> = _opponentState
+        private val _chatState = MutableStateFlow<ChatInputState>(ChatInputState.Active)
+        val chatState: StateFlow<ChatInputState> = _chatState.asStateFlow()
 
         private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
         val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
@@ -41,13 +41,18 @@ class ChattingRoomViewModel
         val toast: SharedFlow<String> = _toast
 
         private var chatRoomId: Long = DEFAULT_ID
+        private var opponentMemberId: String = ""
         private var prevChatId: Long? = null // 이전 메시지 조회를 위한 가장 오래된 메시지 ID
         private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
-        fun setChatRoomId(id: Long) {
-            chatRoomId = id
-            loadInitialMessages(id)
+        fun setId(
+            chatRoomId: Long,
+            opponentId: String,
+        ) {
+            this.chatRoomId = chatRoomId
+            this.opponentMemberId = opponentId
+            loadInitialMessages(chatRoomId)
         }
 
         private fun updateAndEmitMessages(updatedList: List<ChattingMessage>) {
@@ -94,9 +99,13 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        if (_opponentState.value != result.data.opponentActive) {
-                            _opponentState.emit(result.data.opponentActive)
-                        }
+                        _chatState.emit(
+                            when {
+                                chattingModel.blockActive -> ChatInputState.OpponentBlocked
+                                !chattingModel.opponentActive -> ChatInputState.OpponentLeft
+                                else -> ChatInputState.Active
+                            },
+                        )
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -125,10 +134,16 @@ class ChattingRoomViewModel
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
-
-                            if (_opponentState.value != result.data.opponentActive) {
-                                _opponentState.emit(result.data.opponentActive)
+                        }
+                        val currentState = _chatState.value
+                        val newChatState =
+                            when {
+                                result.data.blockActive -> ChatInputState.OpponentBlocked
+                                !result.data.opponentActive -> ChatInputState.OpponentLeft
+                                else -> ChatInputState.Active
                             }
+                        if (currentState != newChatState) {
+                            _chatState.value = newChatState
                         }
                     }
 

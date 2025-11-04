@@ -302,6 +302,7 @@
         android:textColor="@color/white300"
         android:text="@string/chat_request"
         android:gravity="center"
+        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         tools:layout_editor_absoluteX="20dp" />
 

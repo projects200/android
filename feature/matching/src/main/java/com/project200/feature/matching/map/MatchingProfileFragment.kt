@@ -1,6 +1,8 @@
 package com.project200.feature.matching.map
 
+import android.view.ContextThemeWrapper
 import android.view.View
+import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.net.toUri
@@ -21,6 +23,8 @@ import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.domain.model.BaseResult
 import com.project200.feature.matching.utils.GenderType
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.MenuStyler
+import com.project200.presentation.view.BlockDialog
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingProfileBinding
@@ -46,7 +50,11 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         binding.baseToolbar.apply {
             setTitle(getString(R.string.blank))
             showBackButton(true) { findNavController().navigateUp() }
+            setSubButton(com.project200.undabang.presentation.R.drawable.ic_menu) { anchorView ->
+                showPopupMenu(anchorView)
+            }
         }
+        binding.chatBtn.isVisible = !args.fromDeepLink
         initClickListener()
         viewModel.setMemberId(args.memberId)
         setupCalendar()
@@ -101,10 +109,10 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.toast.collect {
+                    viewModel.toast.collect { message ->
                         Toast.makeText(
                             requireContext(),
-                            getString(R.string.error_failed_to_load),
+                            message,
                             Toast.LENGTH_SHORT,
                         ).show()
                     }
@@ -114,13 +122,18 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                         when (result) {
                             is BaseResult.Success -> {
                                 findNavController().navigate(
-                                    "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}".toUri(),
+                                    "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}/${args.memberId}".toUri(),
                                 )
                             }
                             is BaseResult.Error -> {
                                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                             }
                         }
+                    }
+                }
+                launch {
+                    viewModel.blockResult.collect {
+                        findNavController().navigateUp()
                     }
                 }
             }
@@ -230,6 +243,39 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
             }
         binding.genderBirthTv.text =
             getString(R.string.gender_birth_format, genderStr, birthDate)
+    }
+
+    private fun showPopupMenu(view: View) {
+        val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
+
+        PopupMenu(contextWrapper, view).apply {
+            menuInflater.inflate(R.menu.matching_profile_item_menu, this.menu)
+
+            menu.findItem(R.id.action_block)?.let {
+                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
+            }
+
+            setOnMenuItemClickListener { menuItem ->
+                when (menuItem.itemId) {
+                    R.id.action_block -> {
+                        showBlockDialog()
+                    }
+                }
+                true
+            }
+
+            MenuStyler.showIcons(this)
+        }.show()
+    }
+
+    private fun showBlockDialog() {
+        val blockDialog =
+            BlockDialog(
+                onBlockBtnClicked = {
+                    viewModel.blockMember()
+                },
+            )
+        blockDialog.show(parentFragmentManager, blockDialog::class.java.simpleName)
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) : ViewContainer(binding.root)

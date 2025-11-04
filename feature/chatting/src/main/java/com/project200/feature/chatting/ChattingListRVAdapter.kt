@@ -6,11 +6,13 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.project200.domain.model.ChattingRoom
 import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
+import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
 
-class ChattingListRVAdapter(private val onItemClicked: (Long, String) -> Unit) :
+class ChattingListRVAdapter(private val onItemClicked: (roomId: Long, nickname: String, opponentMemberId: String) -> Unit) :
     ListAdapter<ChattingRoom, ChattingListRVAdapter.ChattingRoomViewHolder>(ChattingRoomDiffCallback()) {
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -32,10 +34,18 @@ class ChattingListRVAdapter(private val onItemClicked: (Long, String) -> Unit) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(
             chattingRoom: ChattingRoom,
-            onItemClicked: (Long, String) -> Unit,
+            onItemClicked: (roomId: Long, nickname: String, opponentMemberId: String) -> Unit,
         ) {
             binding.nicknameTv.text = chattingRoom.nickname
             binding.lastMessageTv.text = chattingRoom.lastMessage
+
+            val imgRes = if (chattingRoom.thumbnailImageUrl != null) chattingRoom.thumbnailImageUrl else chattingRoom.profileImageUrl
+
+            Glide.with(binding.profileImgIv)
+                .load(imgRes)
+                .placeholder(R.drawable.ic_profile_default)
+                .error(R.drawable.ic_profile_default)
+                .into(binding.profileImgIv)
 
             // lastChattedAt을 조건에 따라 포맷팅
             chattingRoom.lastChattedAt?.let {
@@ -50,7 +60,7 @@ class ChattingListRVAdapter(private val onItemClicked: (Long, String) -> Unit) :
             }
 
             itemView.setOnClickListener {
-                onItemClicked(chattingRoom.id, chattingRoom.nickname)
+                onItemClicked(chattingRoom.id, chattingRoom.nickname, chattingRoom.opponentMemberId)
             }
         }
     }

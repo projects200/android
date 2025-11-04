@@ -51,6 +51,7 @@
             android:hint="@string/chatting_message_hint"
             android:textColorHint="@color/gray200"
             android:layout_gravity="center"
+            android:maxLength="500"
             android:background="@android:color/transparent"/>
         <ImageView
             android:id="@+id/send_btn"

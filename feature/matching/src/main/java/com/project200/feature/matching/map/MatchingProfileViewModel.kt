@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.usecase.BlockMemberUseCase
 import com.project200.domain.usecase.CreateChatRoomUseCase
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
 import com.project200.domain.usecase.GetMatchingProfileUseCase
@@ -25,6 +26,7 @@ class MatchingProfileViewModel
         private val getMatchingProfileUseCase: GetMatchingProfileUseCase,
         private val getMemberExerciseUseCase: GetMatchingMemberExerciseUseCase,
         private val createChatRoomUseCase: CreateChatRoomUseCase,
+        private val blockMemberUseCase: BlockMemberUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private var memberId: String = ""
@@ -40,11 +42,14 @@ class MatchingProfileViewModel
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
-        private val _toast = MutableSharedFlow<Boolean>()
-        val toast: SharedFlow<Boolean> = _toast
+        private val _toast = MutableSharedFlow<String>()
+        val toast: SharedFlow<String> = _toast
 
         private val _createChatRoomResult = MutableSharedFlow<BaseResult<Long>>()
         val createChatRoomResult: SharedFlow<BaseResult<Long>> = _createChatRoomResult
+
+        private val _blockResult = MutableSharedFlow<BaseResult<Unit>>()
+        val blockResult: SharedFlow<BaseResult<Unit>> = _blockResult
 
         fun setMemberId(id: String) {
             memberId = id
@@ -71,7 +76,7 @@ class MatchingProfileViewModel
                     }
 
                     is BaseResult.Error -> {
-                        _toast.emit(true)
+                        _toast.emit(result.message.toString())
                     }
                 }
             }
@@ -103,7 +108,7 @@ class MatchingProfileViewModel
                     }
 
                     is BaseResult.Error -> {
-                        _toast.emit(true)
+                        _toast.emit(result.message.toString())
                     }
                 }
             }
@@ -130,6 +135,19 @@ class MatchingProfileViewModel
         fun createChatRoom() {
             viewModelScope.launch {
                 _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+            }
+        }
+
+        fun blockMember() {
+            viewModelScope.launch {
+                when (val result = blockMemberUseCase(memberId)) {
+                    is BaseResult.Success -> {
+                        _blockResult.emit(result)
+                    }
+                    is BaseResult.Error -> {
+                        _toast.emit(result.message.toString())
+                    }
+                }
             }
         }
     }
