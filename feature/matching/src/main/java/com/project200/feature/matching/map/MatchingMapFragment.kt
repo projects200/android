@@ -23,7 +23,6 @@ import com.kakao.vectormap.label.Label
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LATITUDE
 import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
-import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
@@ -33,7 +32,6 @@ import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import ted.gun0912.clustering.clustering.Cluster
 import timber.log.Timber
 
 @AndroidEntryPoint
@@ -131,16 +129,20 @@ class MatchingMapFragment :
      * MapViewManager로부터 라벨 클릭 이벤트를 받아 처리합니다.
      */
     private fun handleLabelClick(label: Label) {
-        when (label.tag) {
-            is Cluster<*> -> { // 클러스터 마커 클릭 시
-                // TODO: 클러스터 아이템에 포함되어 있는 장소 리스트 표시
-            }
-            is ExercisePlace -> { // 내 장소 아이템 클릭 시
-                findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
-                )
-            }
+        val cameraPosition = mapViewManager?.getCurrentCameraPosition() ?: return
+
+        // 클릭한 라벨이 클러스터인지 확인
+        clusterCalculator.getClusters(cameraPosition).find { cluster ->
+            cluster.position.latitude == label.position.latitude &&
+                cluster.position.longitude == label.position.longitude
+        }?.let { foundCluster ->
+            // 클러스터에 있는 운동 장소 리스트 표시
+            showMembersBottomSheet(foundCluster.items.toList())
+            return
         }
+
+        // 클러스터를 찾지 못한 경우 == 내 장소 마커를 클릭한 경우
+        findNavController().navigate(MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment())
     }
 
     override fun setupObservers() {
@@ -239,6 +241,16 @@ class MatchingMapFragment :
             )
         dialog.isCancelable = false // 바깥 영역 터치 시 다이얼로그가 닫히지 않도록 설정
         dialog.show(parentFragmentManager, this::class.java.simpleName)
+    }
+
+    private fun showMembersBottomSheet(items: List<MapClusterItem>) {
+        val bottomSheet =
+            MembersBottomSheetDialog(items) { item ->
+                findNavController().navigate(
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(item.member.memberId),
+                )
+            }
+        bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)
     }
 
     private fun checkPermissionAndMove() {
