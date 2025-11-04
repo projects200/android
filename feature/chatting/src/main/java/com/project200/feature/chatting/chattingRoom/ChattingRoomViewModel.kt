@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -134,18 +135,16 @@ class ChattingRoomViewModel
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
-                            val currentState = _chatState.value
-
-                            val newChatState =
-                                when {
-                                    result.data.blockActive -> ChatInputState.OpponentBlocked
-                                    result.data.opponentActive -> ChatInputState.OpponentLeft
-                                    else -> ChatInputState.Active
-                                }
-
-                            if (currentState != newChatState) {
-                                _chatState.value = newChatState
+                        }
+                        val currentState = _chatState.value
+                        val newChatState =
+                            when {
+                                result.data.blockActive -> ChatInputState.OpponentBlocked
+                                !result.data.opponentActive -> ChatInputState.OpponentLeft
+                                else -> ChatInputState.Active
                             }
+                        if (currentState != newChatState) {
+                            _chatState.value = newChatState
                         }
                     }
 
