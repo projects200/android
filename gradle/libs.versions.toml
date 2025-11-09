@@ -81,6 +81,9 @@ kakaoMap = "2.12.17"
 # Google Location Services
 playServicesLocation = "21.3.0"
 
+# TED Clustring
+tedClustering = "1.0.2"
+
 [libraries]
 
 # Gradle 플러그인 아티팩트 정의
@@ -193,6 +196,9 @@ kakao-map = { group = "com.kakao.maps.open", name = "android", version.ref = "ka
 
 # Google Location Services
 play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+
+# TED Clustring
+ted-clustering = { group = "io.github.ParkSangGwon", name = "tedclustering", version.ref = "tedClustering" }
 
 [plugins]
 # Android Gradle Plugins
