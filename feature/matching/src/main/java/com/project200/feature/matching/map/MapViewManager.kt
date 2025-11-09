@@ -115,6 +115,10 @@ class MapViewManager(
         }
     }
 
+    fun getCurrentCameraPosition(): CameraPosition? {
+        return kakaoMap.cameraPosition
+    }
+
     private fun addClusterLabel(cluster: Cluster<MapClusterItem>) {
         val position = LatLng.from(cluster.position.latitude, cluster.position.longitude)
 
