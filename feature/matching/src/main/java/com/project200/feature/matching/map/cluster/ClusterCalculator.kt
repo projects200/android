@@ -7,7 +7,6 @@ import ted.gun0912.clustering.clustering.algo.NonHierarchicalDistanceBasedAlgori
 import ted.gun0912.clustering.clustering.algo.ScreenBasedAlgorithmAdapter
 import ted.gun0912.clustering.geometry.TedCameraPosition
 import ted.gun0912.clustering.geometry.TedLatLng
-import java.util.concurrent.locks.ReentrantReadWriteLock
 
 /**
  * tedclustering 라이브러리의 클러스터링 알고리즘만 사용하는 계산기 클래스
@@ -36,15 +35,15 @@ class ClusterCalculator<T : TedClusterItem> {
      * @return 계산된 Cluster 집합
      */
     fun getClusters(cameraPosition: CameraPosition): Set<Cluster<T>> {
-            // 카카오맵의 CameraPosition을 라이브러리의 TedCameraPosition으로 변환
-            val tedCameraPosition =
-                TedCameraPosition(
-                    TedLatLng(cameraPosition.position.latitude, cameraPosition.position.longitude),
-                    cameraPosition.zoomLevel.toDouble(),
-                    tilt = cameraPosition.tiltAngle.toDouble(),
-                    bearing = cameraPosition.rotationAngle.toDouble(),
-                )
-            algorithm.onCameraChange(tedCameraPosition)
-            return algorithm.getClusters(cameraPosition.zoomLevel.toDouble())
+        // 카카오맵의 CameraPosition을 라이브러리의 TedCameraPosition으로 변환
+        val tedCameraPosition =
+            TedCameraPosition(
+                TedLatLng(cameraPosition.position.latitude, cameraPosition.position.longitude),
+                cameraPosition.zoomLevel.toDouble(),
+                tilt = cameraPosition.tiltAngle.toDouble(),
+                bearing = cameraPosition.rotationAngle.toDouble(),
+            )
+        algorithm.onCameraChange(tedCameraPosition)
+        return algorithm.getClusters(cameraPosition.zoomLevel.toDouble())
     }
 }
