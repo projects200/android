@@ -58,4 +58,7 @@ dependencies {
 
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)
+
+    // 클러스터링
+    implementation(libs.ted.clustering)
 }

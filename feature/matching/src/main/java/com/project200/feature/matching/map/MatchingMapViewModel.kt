@@ -75,8 +75,8 @@ class MatchingMapViewModel
         private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
-            loadInitialMapPosition()
             checkExercisePlace()
+            loadInitialMapPosition()
         }
 
         /**
