@@ -1,5 +1,3 @@
-// 파일 경로: feature/matching/map/cluster/ClusterCalculator.kt
-
 package com.project200.feature.matching.map.cluster
 
 import com.kakao.vectormap.camera.CameraPosition
@@ -17,30 +15,19 @@ import java.util.concurrent.locks.ReentrantReadWriteLock
 class ClusterCalculator<T : TedClusterItem> {
     // 라이브러리의 핵심 알고리즘 객체
     private val algorithm = ScreenBasedAlgorithmAdapter<T>(NonHierarchicalDistanceBasedAlgorithm())
-    private val lock = ReentrantReadWriteLock()
 
     /**
      * 클러스터링할 아이템들을 추가합니다.
      */
     fun addItems(items: Collection<T>) {
-        lock.writeLock().lock()
-        try {
-            algorithm.addItems(items)
-        } finally {
-            lock.writeLock().unlock()
-        }
+        algorithm.addItems(items)
     }
 
     /**
      * 모든 아이템을 제거합니다.
      */
     fun clearItems() {
-        lock.writeLock().lock()
-        try {
-            algorithm.clearItems()
-        } finally {
-            lock.writeLock().unlock()
-        }
+        algorithm.clearItems()
     }
 
     /**
@@ -49,8 +36,6 @@ class ClusterCalculator<T : TedClusterItem> {
      * @return 계산된 Cluster 집합
      */
     fun getClusters(cameraPosition: CameraPosition): Set<Cluster<T>> {
-        lock.readLock().lock()
-        try {
             // 카카오맵의 CameraPosition을 라이브러리의 TedCameraPosition으로 변환
             val tedCameraPosition =
                 TedCameraPosition(
@@ -61,8 +46,5 @@ class ClusterCalculator<T : TedClusterItem> {
                 )
             algorithm.onCameraChange(tedCameraPosition)
             return algorithm.getClusters(cameraPosition.zoomLevel.toDouble())
-        } finally {
-            lock.readLock().unlock()
-        }
     }
 }
