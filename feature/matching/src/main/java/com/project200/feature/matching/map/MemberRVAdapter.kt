@@ -14,7 +14,6 @@ import com.project200.undabang.feature.matching.databinding.ItemMemberBinding
 class MemberRVAdapter(
     private val onMemberClick: (MapClusterItem) -> Unit,
 ) : RecyclerView.Adapter<MemberRVAdapter.MemberViewHolder>() {
-
     private var itemList: List<MapClusterItem> = emptyList()
 
     override fun onCreateViewHolder(
