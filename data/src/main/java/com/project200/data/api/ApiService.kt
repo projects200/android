@@ -19,6 +19,7 @@ import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetNewChattingMessagesDTO
+import com.project200.data.dto.GetNotificationStateDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -411,4 +412,12 @@ interface ApiService {
         @Path("chatroomId") chatRoomId: Long,
         @Body content: PostChatMessageRequest,
     ): BaseResponse<PostMessageResponse>
+
+    /** 알림 */
+    // 알림 상태 조회
+    @GET("api/v1/notification-settings/device?fcmToken={fcmToken}")
+    @AccessTokenApi
+    suspend fun getNotiState(
+        @Path ("fcmToken") fcmToken: String,
+    ): BaseResponse<GetNotificationStateDTO>
 }

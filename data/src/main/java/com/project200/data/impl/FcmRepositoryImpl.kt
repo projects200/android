@@ -9,6 +9,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.FcmRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class FcmRepositoryImpl
@@ -19,9 +20,11 @@ class FcmRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : FcmRepository {
         // FCM 토큰을 SharedPreferences에서 가져오는 함수
-        private fun getFcmTokenFromPrefs(): String? {
-            val sharedPrefs = context.getSharedPreferences("undabangPrefs", Context.MODE_PRIVATE)
-            return sharedPrefs.getString("fcmToken", null)
+        override suspend fun getFcmTokenFromPrefs(): String? {
+            return withContext(ioDispatcher) {
+                val sharedPrefs = context.getSharedPreferences("undabangPrefs", Context.MODE_PRIVATE)
+                sharedPrefs.getString("fcmToken", null)
+            }
         }
 
         override suspend fun sendFcmToken(): BaseResult<Unit> {

@@ -2,8 +2,10 @@ package com.project200.undabang.profile.setting
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.BaseResult
+import com.project200.domain.model.NotificationType
+import com.project200.domain.usecase.GetNotificationStateUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -12,25 +14,36 @@ import javax.inject.Inject
 @HiltViewModel
 class NotificationViewModel
     @Inject
-    constructor() : ViewModel() {
-        private val _isNotiActive = MutableStateFlow(false) // 초기값은 false로 설정
-        val isNotiActive: StateFlow<Boolean> = _isNotiActive
+    constructor(
+        private val getNotiStateUseCase: GetNotificationStateUseCase
+    ) : ViewModel() {
+        private val _isExerciseOn = MutableStateFlow(false)
+        val isExerciseOn: StateFlow<Boolean> = _isExerciseOn
 
-        private val _isSwitchEnabled = MutableStateFlow(true)
-        val isSwitchEnabled: StateFlow<Boolean> = _isSwitchEnabled
+        private val _isChatOn = MutableStateFlow(false)
+        val isChatOn: StateFlow<Boolean> = _isChatOn
 
-        fun setNotificationState(isActive: Boolean) {
-            _isNotiActive.value = isActive
+        fun initNotificationState(hasPermission: Boolean) {
+            if (hasPermission) {
+                // 권한이 있으면 서버에서 상태를 가져옵니다.
+                getNotificationState()
+            } else {
+                // 권한이 없으면 모든 스위치를 끕니다.
+                _isExerciseOn.value = false
+                _isChatOn.value = false
+            }
         }
 
-        fun onSwitchToggled() {
+        private fun getNotificationState() {
             viewModelScope.launch {
-                if (_isSwitchEnabled.value) {
-                    _isSwitchEnabled.value = false
-                    // UI가 즉시 바뀌도록 상태 변경
-                    _isNotiActive.value = !_isNotiActive.value
-                    delay(1000L) // 중복 클릭 방지를 위한 딜레이
-                    _isSwitchEnabled.value = true
+                when (val result = getNotiStateUseCase()) {
+                    is BaseResult.Success -> {
+                        _isExerciseOn.value = result.data.exerciseEncouragement
+                        _isChatOn.value = result.data.chatAlarm
+                    }
+                    is BaseResult.Error -> {
+                        //TODO: 에러 처리
+                    }
                 }
             }
         }
