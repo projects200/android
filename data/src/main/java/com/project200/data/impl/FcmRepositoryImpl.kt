@@ -1,7 +1,10 @@
 package com.project200.data.impl
 
 import android.content.Context
+import android.content.SharedPreferences
+import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import com.project200.common.di.IoDispatcher
+import com.project200.common.utils.EncryptedPrefs
 import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
 import com.project200.data.utils.apiCallBuilder
@@ -16,14 +19,13 @@ class FcmRepositoryImpl
     @Inject
     constructor(
         private val apiService: ApiService,
-        @ApplicationContext private val context: Context,
+        @EncryptedPrefs private var sharedPreferences: SharedPreferences,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : FcmRepository {
         // FCM 토큰을 SharedPreferences에서 가져오는 함수
         override suspend fun getFcmTokenFromPrefs(): String? {
             return withContext(ioDispatcher) {
-                val sharedPrefs = context.getSharedPreferences("undabangPrefs", Context.MODE_PRIVATE)
-                sharedPrefs.getString("fcmToken", null)
+                sharedPreferences.getString(KEY_FCM_TOKEN, null)
             }
         }
 
