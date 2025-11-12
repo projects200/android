@@ -8,7 +8,7 @@ import javax.inject.Inject
 class GetNotificationStateUseCase @Inject constructor(
     private val notificationRepository: NotificationRepository
 ) {
-    suspend operator fun invoke(): BaseResult<NotificationState> {
+    suspend operator fun invoke(): BaseResult<List<NotificationState>> {
         return notificationRepository.getNotiState()
     }
 }

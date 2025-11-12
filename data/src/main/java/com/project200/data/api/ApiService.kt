@@ -19,7 +19,7 @@ import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetNewChattingMessagesDTO
-import com.project200.data.dto.GetNotificationStateDTO
+import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -27,7 +27,6 @@ import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
-import com.project200.data.dto.PatchNotificationStateRequest
 import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostChatMessageRequest
 import com.project200.data.dto.PostChatRoomRequest
@@ -417,17 +416,17 @@ interface ApiService {
 
     /** 알림 */
     // 알림 상태 조회
-    @GET("api/v1/notification-settings/device?fcmToken={fcmToken}")
+    @GET("api/v1/notification-settings/device")
     @AccessTokenApi
     suspend fun getNotiState(
-        @Query ("fcmToken") fcmToken: String,
-    ): BaseResponse<GetNotificationStateDTO>
+        @Header("X-Fcm-Token") fcmToken: String,
+    ): BaseResponse<List<NotificationStateDTO>>
 
     // 알림 상태 수정
     @PATCH("api/v1/notification-settings/device")
     @AccessTokenApi
     suspend fun patchNotiState(
         @Header("X-Fcm-Token") fcmToken: String,
-        @Body notiRequest: PatchNotificationStateRequest,
+        @Body notiRequest: List<NotificationStateDTO>,
     ): BaseResponse<Unit?>
 }

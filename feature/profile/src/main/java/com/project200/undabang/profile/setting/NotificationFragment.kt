@@ -28,8 +28,9 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
     // 알림 권한 요청을 위한 ActivityResultLauncher
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            viewModel.onPermissionStateChecked(isGranted)
+            viewModel.updateNotiStateByPermission(isGranted)
             if(!isGranted) {
+                Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
                 binding.exerciseNotiSwitch.isChecked = false
                 binding.chattingNotiSwitch.isChecked = false
             }
@@ -42,6 +43,7 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
     override fun onResume() {
         super.onResume()
         // 화면에 다시 돌아왔을 때 현재 알림 권한 상태를 체크하여 UI를 업데이트
+        Timber.tag("NotificationFragment").d("onResume - Checking notification permission")
         checkNotificationPermission()
     }
 
@@ -62,14 +64,19 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.isExerciseOn.collect { isChecked ->
-                        binding.exerciseNotiSwitch.isChecked = isChecked
-                    }
-                }
+                    viewModel.notificationStates.collect { states ->
+                        Timber.tag("NotificationFragment").d("기존 설정: ${binding.exerciseNotiSwitch.isChecked} ${binding.chattingNotiSwitch.isChecked}\n새 설정: $states")
+                        // 운동 알림 스위치 상태 설정
+                        val isExerciseOn = states.find { it.type == NotificationType.WORKOUT_REMINDER }?.enabled ?: false
+                        if (binding.exerciseNotiSwitch.isChecked != isExerciseOn) {
+                            binding.exerciseNotiSwitch.isChecked = isExerciseOn
+                        }
 
-                launch {
-                    viewModel.isChatOn.collect { isChecked ->
-                        binding.chattingNotiSwitch.isChecked = isChecked
+                        // 채팅 알림 스위치 상태 설정
+                        val isChatOn = states.find { it.type == NotificationType.CHAT_MESSAGE }?.enabled ?: false
+                        if (binding.chattingNotiSwitch.isChecked != isChatOn) {
+                            binding.chattingNotiSwitch.isChecked = isChatOn
+                        }
                     }
                 }
 
@@ -93,7 +100,12 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
             true
         }
         // 확인된 권한 상태를 ViewModel에 전달하여 초기 로직을 수행하도록 합니다.
-        viewModel.onPermissionStateChecked(isGranted)
+        viewModel.updateNotiStateByPermission(isGranted)
+        if(!isGranted) {
+            Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
+            binding.exerciseNotiSwitch.isChecked = false
+            binding.chattingNotiSwitch.isChecked = false
+        }
     }
 
     // 알림 권한 요청
@@ -109,8 +121,6 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
                     Timber.tag("NotificationFragment").d("Notification permission already granted.")
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // 권한이 명시적으로 거부된 경우, 사용자에게 설명 후 설정으로 유도
-                    Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
                     openAppSettings()
                 }
                 else -> {

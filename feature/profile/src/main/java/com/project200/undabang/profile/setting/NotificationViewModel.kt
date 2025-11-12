@@ -3,6 +3,7 @@ package com.project200.undabang.profile.setting
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.NotificationState
 import com.project200.domain.model.NotificationType
 import com.project200.domain.usecase.GetNotificationStateUseCase
 import com.project200.domain.usecase.UpdateNotificationStateUseCase
@@ -20,11 +21,9 @@ class NotificationViewModel
         private val getNotiStateUseCase: GetNotificationStateUseCase,
         private val updateNotiSettingUseCase: UpdateNotificationStateUseCase,
     ) : ViewModel() {
-        private val _isExerciseOn = MutableStateFlow(false)
-        val isExerciseOn: StateFlow<Boolean> = _isExerciseOn
 
-        private val _isChatOn = MutableStateFlow(false)
-        val isChatOn: StateFlow<Boolean> = _isChatOn
+        private val _notificationStates = MutableStateFlow<List<NotificationState>>(emptyList())
+        val notificationStates: StateFlow<List<NotificationState>> = _notificationStates
 
         private val _permissionRequestTrigger = MutableStateFlow(false)
         val permissionRequestTrigger: StateFlow<Boolean> = _permissionRequestTrigger
@@ -37,27 +36,38 @@ class NotificationViewModel
 
         private var isInitialized = false
 
-        fun onPermissionStateChecked(isGranted: Boolean) {
+        fun initNotiState(isGranted: Boolean) {
+            if (isGranted) {
+                getNotificationState()
+            } else {
+                _notificationStates.value = listOf(
+                    NotificationState(NotificationType.WORKOUT_REMINDER, false),
+                    NotificationState(NotificationType.CHAT_MESSAGE, false)
+                )
+            }
+            isInitialized = true
+        }
+
+        fun updateNotiStateByPermission(isGranted: Boolean) {
+            if(!isInitialized) {
+                initNotiState(isGranted)
+                return
+            }
+
             val wasGranted = this.hasDevicePermission
             this.hasDevicePermission = isGranted
 
-            // 권한 허용으로 변경된 경우
-            if (!wasGranted && isGranted) {
+            // 권한 거부
+            if (!isGranted) {
+                // 모든 알림 설정을 false로 조정
+                Timber.tag("NotificationViewModel").e("권한 거부로 모든 알림 설정 비활성화")
+                _notificationStates.value = _notificationStates.value.map { it.copy(enabled = false) }
+            } else if (!wasGranted) { // 권한 거부에서 허용으로 변경된 경우
+                Timber.tag("NotificationViewModel").e("권한 허용으로 변경")
                 pendingSettingType?.let {
                     updateSetting(it, true)
                     pendingSettingType = null
                 }
-            }
-
-            // 한 번만 실행
-            if (!isInitialized) {
-                if (isGranted) {
-                    getNotificationState()
-                } else {
-                    _isExerciseOn.value = false
-                    _isChatOn.value = false
-                }
-                isInitialized = true
             }
         }
 
@@ -66,8 +76,7 @@ class NotificationViewModel
             viewModelScope.launch {
                 when (val result = getNotiStateUseCase()) {
                     is BaseResult.Success -> {
-                        _isExerciseOn.value = result.data.exerciseEncouragement
-                        _isChatOn.value = result.data.chatAlarm
+                        _notificationStates.value = result.data
                     }
                     is BaseResult.Error -> {
                         //TODO: 에러 처리
@@ -82,37 +91,32 @@ class NotificationViewModel
                 // 권한 허용 후에 적용할 설정을 저장
                 pendingSettingType = type
                 _permissionRequestTrigger.value = true
-
-                // 스위치 원상복구
-                _isExerciseOn.value = false
-                _isChatOn.value = false
-
                 return
             }
             updateSetting(type, isEnabled)
         }
 
-        private fun updateSetting(type: NotificationType, enabled: Boolean) {
-            viewModelScope.launch {
-                // UI를 먼저 변경
-                when(type) {
-                    NotificationType.WORKOUT_REMINDER -> { _isExerciseOn.value = enabled }
-                    NotificationType.CHAT_MESSAGE -> { _isChatOn.value = enabled }
-                }
+    private fun updateSetting(type: NotificationType, enabled: Boolean) {
+        Timber.tag("NotificationViewModel").e("알림 설정 변경 요청: ${type}, enabled: ${enabled}")
+        viewModelScope.launch {
+            // UI를 먼저 변경
+            val originalStates = _notificationStates.value
+            val newStates = originalStates.map {
+                // 전달받은 type에 해당하는 아이템의 enabled 값만 변경
+                if (it.type == type) it.copy(enabled = enabled) else it
+            }
+            _notificationStates.value = newStates
 
-                when (updateNotiSettingUseCase(type, enabled)) {
-                    is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
-                    is BaseResult.Error -> {
-                        Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: ${type}, enabled: ${enabled}")
-                        // 실패 시 스위치 원상복구
-                        when(type) {
-                            NotificationType.WORKOUT_REMINDER -> _isExerciseOn.value = !enabled
-                            NotificationType.CHAT_MESSAGE -> _isChatOn.value = !enabled
-                        }
-                    }
+            when (updateNotiSettingUseCase(newStates)) {
+                is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
+                is BaseResult.Error -> {
+                    Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: ${type}, enabled: ${enabled}")
+                    // 실패 시 스위치 원상복구
+                    _notificationStates.value = originalStates
                 }
             }
         }
+    }
 
         fun onPermissionRequestHandled() {
             _permissionRequestTrigger.value = false

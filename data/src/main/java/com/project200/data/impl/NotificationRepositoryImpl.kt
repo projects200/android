@@ -2,7 +2,8 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
-import com.project200.data.dto.PatchNotificationStateRequest
+import com.project200.data.dto.NotificationStateDTO
+import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
@@ -18,29 +19,30 @@ class NotificationRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     private val fcmRepository: FcmRepository
 ): NotificationRepository {
-    override suspend fun getNotiState(): BaseResult<NotificationState> {
+    override suspend fun getNotiState(): BaseResult<List<NotificationState>> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = {
                 val fcmTokenResult = fcmRepository.getFcmTokenFromPrefs() ?: throw NoSuchElementException("FCM token is missing.")
                 apiService.getNotiState(fcmTokenResult) },
-            mapper = { dto ->
-                dto?.toModel() ?: throw NoSuchElementException("Notification state data is missing.")
+            mapper = { dtoList ->
+                dtoList?.map { it.toModel() } ?: throw NoSuchElementException("Notification state data is missing.")
             },
         )
     }
 
-    override suspend fun updateNotiState(type: NotificationType, enabled: Boolean): BaseResult<Unit> {
-        return apiCallBuilder(
+    override suspend fun updateNotiState(notiState: List<NotificationState>): BaseResult<Unit> {
+/*        return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = {
                 val fcmTokenResult = fcmRepository.getFcmTokenFromPrefs() ?: throw NoSuchElementException("FCM token is missing.")
                 apiService.patchNotiState(
                     fcmToken = fcmTokenResult,
-                    notiRequest = PatchNotificationStateRequest(type = type.name, enabled = enabled)
+                    notiRequest = notiState.map { it.toDTO() }
                 )
             },
             mapper = { Unit },
-        )
+        )*/
+        return BaseResult.Success(Unit) /* 성공으로 더미 반환 */
     }
 }
