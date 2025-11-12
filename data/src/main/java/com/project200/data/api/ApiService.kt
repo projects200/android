@@ -27,6 +27,7 @@ import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
+import com.project200.data.dto.PatchNotificationStateRequest
 import com.project200.data.dto.PolicyGroupDTO
 import com.project200.data.dto.PostChatMessageRequest
 import com.project200.data.dto.PostChatRoomRequest
@@ -48,6 +49,7 @@ import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -418,6 +420,14 @@ interface ApiService {
     @GET("api/v1/notification-settings/device?fcmToken={fcmToken}")
     @AccessTokenApi
     suspend fun getNotiState(
-        @Path ("fcmToken") fcmToken: String,
+        @Query ("fcmToken") fcmToken: String,
     ): BaseResponse<GetNotificationStateDTO>
+
+    // 알림 상태 수정
+    @PATCH("api/v1/notification-settings/device")
+    @AccessTokenApi
+    suspend fun patchNotiState(
+        @Header("X-Fcm-Token") fcmToken: String,
+        @Body notiRequest: PatchNotificationStateRequest,
+    ): BaseResponse<Unit?>
 }
