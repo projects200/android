@@ -1,6 +1,5 @@
 package com.project200.data.impl
 
-import android.content.Context
 import android.content.SharedPreferences
 import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import com.project200.common.di.IoDispatcher
@@ -10,7 +9,6 @@ import com.project200.data.dto.BaseResponse
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.FcmRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import javax.inject.Inject

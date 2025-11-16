@@ -19,12 +19,12 @@ import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetNewChattingMessagesDTO
-import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO

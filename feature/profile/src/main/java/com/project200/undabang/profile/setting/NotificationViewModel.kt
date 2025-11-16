@@ -21,7 +21,6 @@ class NotificationViewModel
         private val getNotiStateUseCase: GetNotificationStateUseCase,
         private val updateNotiSettingUseCase: UpdateNotificationStateUseCase,
     ) : ViewModel() {
-
         private val _notificationStates = MutableStateFlow<List<NotificationState>>(emptyList())
         val notificationStates: StateFlow<List<NotificationState>> = _notificationStates
 
@@ -40,16 +39,17 @@ class NotificationViewModel
             if (isGranted) {
                 getNotificationState()
             } else {
-                _notificationStates.value = listOf(
-                    NotificationState(NotificationType.WORKOUT_REMINDER, false),
-                    NotificationState(NotificationType.CHAT_MESSAGE, false)
-                )
+                _notificationStates.value =
+                    listOf(
+                        NotificationState(NotificationType.WORKOUT_REMINDER, false),
+                        NotificationState(NotificationType.CHAT_MESSAGE, false),
+                    )
             }
             isInitialized = true
         }
 
         fun updateNotiStateByPermission(isGranted: Boolean) {
-            if(!isInitialized) {
+            if (!isInitialized) {
                 initNotiState(isGranted)
                 return
             }
@@ -71,7 +71,6 @@ class NotificationViewModel
             }
         }
 
-
         private fun getNotificationState() {
             viewModelScope.launch {
                 when (val result = getNotiStateUseCase()) {
@@ -79,13 +78,16 @@ class NotificationViewModel
                         _notificationStates.value = result.data
                     }
                     is BaseResult.Error -> {
-                        //TODO: 에러 처리
+                        // TODO: 에러 처리
                     }
                 }
             }
         }
 
-        fun onSwitchToggled(type: NotificationType, isEnabled: Boolean) {
+        fun onSwitchToggled(
+            type: NotificationType,
+            isEnabled: Boolean,
+        ) {
             // 권한이 없는 경우
             if (isEnabled && !hasDevicePermission) {
                 // 권한 허용 후에 적용할 설정을 저장
@@ -96,27 +98,31 @@ class NotificationViewModel
             updateSetting(type, isEnabled)
         }
 
-    private fun updateSetting(type: NotificationType, enabled: Boolean) {
-        Timber.tag("NotificationViewModel").e("알림 설정 변경 요청: ${type}, enabled: ${enabled}")
-        viewModelScope.launch {
-            // UI를 먼저 변경
-            val originalStates = _notificationStates.value
-            val newStates = originalStates.map {
-                // 전달받은 type에 해당하는 아이템의 enabled 값만 변경
-                if (it.type == type) it.copy(enabled = enabled) else it
-            }
-            _notificationStates.value = newStates
+        private fun updateSetting(
+            type: NotificationType,
+            enabled: Boolean,
+        ) {
+            Timber.tag("NotificationViewModel").e("알림 설정 변경 요청: $type, enabled: $enabled")
+            viewModelScope.launch {
+                // UI를 먼저 변경
+                val originalStates = _notificationStates.value
+                val newStates =
+                    originalStates.map {
+                        // 전달받은 type에 해당하는 아이템의 enabled 값만 변경
+                        if (it.type == type) it.copy(enabled = enabled) else it
+                    }
+                _notificationStates.value = newStates
 
-            when (updateNotiSettingUseCase(newStates)) {
-                is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
-                is BaseResult.Error -> {
-                    Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: ${type}, enabled: ${enabled}")
-                    // 실패 시 스위치 원상복구
-                    _notificationStates.value = originalStates
+                when (updateNotiSettingUseCase(newStates)) {
+                    is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
+                    is BaseResult.Error -> {
+                        Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: $type, enabled: $enabled")
+                        // 실패 시 스위치 원상복구
+                        _notificationStates.value = originalStates
+                    }
                 }
             }
         }
-    }
 
         fun onPermissionRequestHandled() {
             _permissionRequestTrigger.value = false
