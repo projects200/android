@@ -17,27 +17,22 @@ import javax.inject.Inject
 class ExerciseDetailViewModel
     @Inject
     constructor(
-        savedStateHandle: SavedStateHandle,
         private val exerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
         private val deleteExerciseRecordUseCase: DeleteExerciseRecordUseCase,
     ) : ViewModel() {
-        val recordId: Long =
-            savedStateHandle.get<Long>("recordId")
-                ?: throw IllegalStateException("recordId is required for ExerciseDetailViewModel")
-
         private val _exerciseRecord = MutableLiveData<BaseResult<ExerciseRecord>>()
         val exerciseRecord: LiveData<BaseResult<ExerciseRecord>> = _exerciseRecord
 
         private val _deleteResult = MutableLiveData<BaseResult<Unit>>()
         val deleteResult: LiveData<BaseResult<Unit>> = _deleteResult
 
-        fun getExerciseRecord() {
+        fun getExerciseRecord(recordId: Long) {
             viewModelScope.launch {
                 _exerciseRecord.value = exerciseRecordDetailUseCase(recordId)
             }
         }
 
-        fun deleteExerciseRecord() {
+        fun deleteExerciseRecord(recordId: Long) {
             viewModelScope.launch {
                 _deleteResult.value = deleteExerciseRecordUseCase(recordId)
             }

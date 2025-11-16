@@ -5,6 +5,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
@@ -18,6 +19,7 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
     private val viewModel: ExerciseDetailViewModel by viewModels()
+    private val args: ExerciseDetailFragmentArgs by navArgs()
 
     override fun getViewBinding(view: View): FragmentExerciseDetailBinding {
         return FragmentExerciseDetailBinding.bind(view)
@@ -33,7 +35,7 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
 
     override fun onResume() {
         super.onResume()
-        viewModel.getExerciseRecord()
+        viewModel.getExerciseRecord(args.recordId)
     }
 
     override fun setupObservers() {
@@ -117,7 +119,7 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
             onEditClicked = {
                 findNavController().navigate(
                     ExerciseDetailFragmentDirections
-                        .actionExerciseDetailFragmentToExerciseFormFragment(viewModel.recordId),
+                        .actionExerciseDetailFragmentToExerciseFormFragment(args.recordId),
                 )
             },
             onDeleteClicked = { showDeleteConfirmationDialog() },
@@ -129,7 +131,7 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
             title = getString(R.string.exercise_record_delete_alert),
             desc = null,
             onConfirmClicked = {
-                viewModel.deleteExerciseRecord()
+                viewModel.deleteExerciseRecord(args.recordId)
             },
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
     }

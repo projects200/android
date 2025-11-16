@@ -38,6 +38,7 @@ import java.util.Calendar
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
     private val viewModel: ExerciseFormViewModel by viewModels()
+    private val args: ExerciseFormFragmentArgs by navArgs()
     private lateinit var imageAdapter: ExerciseImageAdapter
 
     private val pickMultipleMediaLauncher =
@@ -89,7 +90,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
-        viewModel.loadInitialRecord()
+        viewModel.loadInitialRecord(args.recordId)
         setupKeyboardAdjustments()
     }
 
@@ -127,6 +128,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
         binding.recordCompleteBtn.setOnClickListener {
             viewModel.submitRecord(
+                recordId = args.recordId,
                 title = binding.recordTitleEt.text.toString().trim(),
                 type = binding.recordTypeEt.text.toString().trim(),
                 location = binding.recordLocationEt.text.toString().trim(),

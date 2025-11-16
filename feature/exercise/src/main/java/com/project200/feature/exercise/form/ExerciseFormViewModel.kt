@@ -37,15 +37,12 @@ sealed class ScoreGuidanceState {
 class ExerciseFormViewModel
     @Inject
     constructor(
-        savedStateHandle: SavedStateHandle,
         private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
         private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
         private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
         private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
     ) : ViewModel() {
-        val recordId: Long? = savedStateHandle.get<Long>("recordId")
-
         private val _startTime = MutableLiveData<LocalDateTime?>()
         val startTime: LiveData<LocalDateTime?> = _startTime
 
@@ -84,8 +81,8 @@ class ExerciseFormViewModel
         val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
 
         /** 초기 데이터 설정 */
-        fun loadInitialRecord() {
-            if (recordId == -1L || recordId == null) {
+        fun loadInitialRecord(recordId: Long) {
+            if (recordId == -1L) {
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
@@ -193,6 +190,7 @@ class ExerciseFormViewModel
 
         /** 기록 생성 또는 수정 */
         fun submitRecord(
+            recordId: Long,
             title: String,
             type: String,
             location: String,
@@ -232,7 +230,7 @@ class ExerciseFormViewModel
                     ?.map { it.uri.toString() } ?: emptyList()
 
             if (isEditMode) {
-                editExerciseRecord(recordToSubmit, newImageUris)
+                editExerciseRecord(recordId, recordToSubmit, newImageUris)
             } else {
                 createExerciseRecord(recordToSubmit, newImageUris)
             }
@@ -285,13 +283,14 @@ class ExerciseFormViewModel
 
         /** 기록 수정 */
         private fun editExerciseRecord(
+            recordId: Long,
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
             viewModelScope.launch {
                 _editResult.value =
                     editExerciseRecordUseCase(
-                        recordId = recordId!!,
+                        recordId = recordId,
                         recordToUpdate = record,
                         isContentChanges = hasContentChanges(record),
                         imagesToDelete = removedPictureIds,
