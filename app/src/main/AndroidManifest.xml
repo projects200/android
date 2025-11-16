@@ -42,5 +42,7 @@
         <meta-data
             android:name="com.kakao.sdk.AppKey"
             android:value="${KAKAO_NATIVE_APP_KEY}" />
+
+        <nav-graph android:value="@navigation/bottom_nav_graph" />
     </application>
 </manifest>
