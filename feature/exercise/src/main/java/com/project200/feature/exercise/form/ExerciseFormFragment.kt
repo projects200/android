@@ -87,15 +87,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         return FragmentExerciseFormBinding.bind(view)
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        viewModel.loadInitialRecord(args.recordId)
-        setupKeyboardAdjustments()
-    }
-
     private fun setupRVAdapter(calculatedItemSize: Int) {
         imageAdapter =
             ExerciseImageAdapter(
@@ -121,10 +112,20 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     }
 
     override fun setupViews() {
-        binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
-
+        binding.baseToolbar.apply {
+            showBackButton(true) { findNavController().navigateUp() }
+            binding.baseToolbar.setTitle(
+                if (args.recordId == -1L) getString(R.string.record_exercise)
+                else getString(R.string.edit_exercise)
+            )
+        }
+        viewModel.loadInitialRecord(args.recordId)
+        setupKeyboardAdjustments()
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
+        initClickListeners()
+    }
 
+    private fun initClickListeners() {
         binding.startTimeBtn.setOnClickListener { showTimePickerDialog(true) }
         binding.endTimeBtn.setOnClickListener { showTimePickerDialog(false) }
 
@@ -139,6 +140,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
     }
 
+    /**
+     * 키보드에 따른 레이아웃 조정
+     * 키보드가 올라올 때 ScrollView의 패딩을 키보드 높이만큼 조정
+     * 키보드가 내려갈 때는 네비게이션 바 높이만큼 패딩 조정
+     */
     private fun setupKeyboardAdjustments() {
         ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
             Timber.tag("ExerciseFormFragment").d("setupKeyboardAdjustments called")
@@ -151,7 +157,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     imeHeight
                 } else {
                     // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
-                    // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
                     val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
                     val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
                     buttonHeight + buttonMarginBottom + navigationBarHeight
@@ -221,12 +226,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.initialDataLoaded.observe(viewLifecycleOwner) { record ->
-            if (record != null) {
-                setupInitialData(record)
-                binding.baseToolbar.setTitle(getString(R.string.edit_exercise))
-            } else {
-                binding.baseToolbar.setTitle(getString(R.string.record_exercise))
-            }
+            if (record != null) { setupInitialData(record) }
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
