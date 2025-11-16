@@ -15,6 +15,7 @@ import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
+import timber.log.Timber
 
 @AndroidEntryPoint
 class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {
@@ -26,16 +27,12 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
     }
 
     override fun setupViews() {
+        viewModel.getExerciseRecord(args.recordId)
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_detail))
             showBackButton(true) { findNavController().navigateUp() }
             setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        viewModel.getExerciseRecord(args.recordId)
     }
 
     override fun setupObservers() {
@@ -58,6 +55,15 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
                 is BaseResult.Error -> {
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                 }
+            }
+        }
+
+        // 이전 화면에서 새로고침 요청이 있을 경우에만 데이터를 새로고침합니다.
+        val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>(KEY_RECORD_UPDATED)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                viewModel.getExerciseRecord(args.recordId)
+                savedStateHandle.remove<Boolean>(KEY_RECORD_UPDATED)
             }
         }
     }
@@ -137,6 +143,6 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
     }
 
     companion object {
-        const val TAG = "ExerciseDetailFragment"
+        const val KEY_RECORD_UPDATED = "record_updated"
     }
 }

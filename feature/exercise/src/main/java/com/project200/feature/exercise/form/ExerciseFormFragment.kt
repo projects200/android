@@ -12,12 +12,14 @@ import androidx.core.view.isVisible
 import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
+import com.project200.feature.exercise.detail.ExerciseDetailFragment
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
@@ -252,14 +254,23 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.editResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is ExerciseEditResult.Success -> { // 기록 수정, 이미지 삭제/업로드 성공
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ContentFailure -> { // 내용 수정 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ImageFailure -> { // 이미지 삭제/업로드 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.Failure -> { // 내용 수정, 이미지 삭제/업로드 실패
