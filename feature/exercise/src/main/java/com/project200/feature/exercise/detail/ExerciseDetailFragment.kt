@@ -4,6 +4,9 @@ import android.view.View
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.project200.common.utils.CommonDateTimeFormatters
@@ -11,10 +14,15 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.Failure
+import com.project200.presentation.utils.UiState
+import com.project200.presentation.utils.mapCodeToFailure
+import com.project200.presentation.utils.mapFailureToString
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import timber.log.Timber
 
 @AndroidEntryPoint
@@ -36,13 +44,25 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
     }
 
     override fun setupObservers() {
-        viewModel.exerciseRecord.observe(viewLifecycleOwner) { result ->
-            when (result) {
-                is BaseResult.Success -> {
-                    bindExerciseRecordData(result.data)
-                }
-                is BaseResult.Error -> {
-                    Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.exerciseRecord.collect { state ->
+                    binding.shimmerLayout.visibility = if (state is UiState.Loading) View.VISIBLE else View.GONE
+                    binding.scrollView.visibility = if (state is UiState.Success) View.VISIBLE else View.GONE
+
+                    when (state) {
+                        is UiState.Loading -> {
+                            binding.shimmerLayout.startShimmer()
+                        }
+                        is UiState.Success -> {
+                            binding.shimmerLayout.stopShimmer()
+                            bindExerciseRecordData(state.data)
+                        }
+                        is UiState.Error -> {
+                            binding.shimmerLayout.stopShimmer()
+                            Toast.makeText(requireContext(), requireContext().mapFailureToString(state.failure), Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 }
             }
         }
