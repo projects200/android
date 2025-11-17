@@ -84,6 +84,14 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
                         }
                     }
                 }
+
+                launch {
+                    viewModel.toastMessage.collect { message ->
+                        message?.let {
+                            Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
             }
         }
     }

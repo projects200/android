@@ -39,7 +39,7 @@ class NotificationRepositoryImpl
                     val fcmTokenResult = fcmRepository.getFcmTokenFromPrefs() ?: throw NoSuchElementException("FCM token is missing.")
                     apiService.patchNotiState(
                         fcmToken = fcmTokenResult,
-                        notiRequest = notiState.map { it.toDTO() }
+                        notiRequest = notiState.map { it.toDTO() },
                     )
                 },
                 mapper = { Unit },

@@ -27,6 +27,9 @@ class NotificationViewModel
         private val _permissionRequestTrigger = MutableStateFlow(false)
         val permissionRequestTrigger: StateFlow<Boolean> = _permissionRequestTrigger
 
+        private val _toastMessage = MutableStateFlow<String?>(null)
+        val toastMessage: StateFlow<String?> = _toastMessage
+
         // 디바이스 권한 상태
         private var hasDevicePermission: Boolean = false
 
@@ -78,7 +81,7 @@ class NotificationViewModel
                         _notificationStates.value = result.data
                     }
                     is BaseResult.Error -> {
-                        // TODO: 에러 처리
+                        _toastMessage.value = result.message
                     }
                 }
             }
@@ -113,12 +116,13 @@ class NotificationViewModel
                     }
                 _notificationStates.value = newStates
 
-                when (updateNotiSettingUseCase(newStates)) {
+                when (val result = updateNotiSettingUseCase(newStates)) {
                     is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
                     is BaseResult.Error -> {
                         Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: $type, enabled: $enabled")
                         // 실패 시 스위치 원상복구
                         _notificationStates.value = originalStates
+                        _toastMessage.value = result.message
                     }
                 }
             }
