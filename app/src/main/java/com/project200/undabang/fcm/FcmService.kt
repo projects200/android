@@ -11,6 +11,7 @@ import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
+import com.project200.common.utils.ChatRoomStateRepository
 import com.project200.common.utils.EncryptedPrefs
 import com.project200.undabang.fcm.FcmConstant.CHAT_NOTI_CHANNEL_ID
 import com.project200.undabang.fcm.FcmConstant.CHAT_NOTI_CHANNEL_NAME
@@ -23,6 +24,9 @@ class FcmService : FirebaseMessagingService() {
     @Inject
     @EncryptedPrefs
     lateinit var sharedPreferences: SharedPreferences
+
+    @Inject
+    lateinit var chatRoomStateRepository: ChatRoomStateRepository
 
     /**
      * 새로운 FCM 토큰이 발급되거나 갱신될 때 호출됩니다.
@@ -61,6 +65,9 @@ class FcmService : FirebaseMessagingService() {
         val memberId = data["memberId"]
 
         if (chatRoomId == null || nickname == null || memberId == null) return
+
+        // 현재 활성화된 채팅방과 동일한 채팅방에서 온 알림이면 무시
+        if (chatRoomId.toLong() == chatRoomStateRepository.activeChatRoomId.value) return
 
         // 알림 식별을 위한 고유 ID
         val uniqueId = chatRoomId.hashCode()
