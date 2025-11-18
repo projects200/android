@@ -109,12 +109,13 @@ class ExerciseDetailViewModelTest {
             val actualResult = viewModel.exerciseRecord.value
             assertThat(actualResult).isInstanceOf(UiState.Error::class.java)
 
-            val actualMessage = (actualResult as UiState.Error).failure.let {
-                when (it) {
-                    is com.project200.presentation.utils.Failure.ServerError -> it.message
-                    else -> null
+            val actualMessage =
+                (actualResult as UiState.Error).failure.let {
+                    when (it) {
+                        is com.project200.presentation.utils.Failure.ServerError -> it.message
+                        else -> null
+                    }
                 }
-            }
             assertThat(actualMessage).isEqualTo("Server error")
         }
 
