@@ -62,7 +62,7 @@ class ExerciseDetailViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
+        viewModel = ExerciseDetailViewModel(mockGetExerciseUseCase, mockDeleteExerciseUseCase)
     }
 
     @After
@@ -78,14 +78,14 @@ class ExerciseDetailViewModelTest {
             coEvery { mockGetExerciseUseCase.invoke(recordId) } returns successResult
 
             // When
-            viewModel.getExerciseRecord()
+            viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
             coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) }
             val actualResult = viewModel.exerciseRecord.value
             assertThat(actualResult).isEqualTo(successResult)
-            assertThat((actualResult as BaseResult.Success).data.title).isEqualTo("아침 조깅")
+            assertThat((actualResult as BaseResult.Success<ExerciseRecord>).data.title).isEqualTo("아침 조깅")
         }
 
     @Test
@@ -96,7 +96,7 @@ class ExerciseDetailViewModelTest {
             coEvery { mockGetExerciseUseCase.invoke(recordId) } returns errorResult
 
             // When
-            viewModel.getExerciseRecord()
+            viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -114,7 +114,7 @@ class ExerciseDetailViewModelTest {
             coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns successResult
 
             // When
-            viewModel.deleteExerciseRecord()
+            viewModel.deleteExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -132,7 +132,7 @@ class ExerciseDetailViewModelTest {
             coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns errorResult
 
             // When
-            viewModel.deleteExerciseRecord()
+            viewModel.deleteExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
