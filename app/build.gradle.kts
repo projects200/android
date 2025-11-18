@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     id("convention.android.application")
     alias(libs.plugins.navigation.safeargs)
+    alias(libs.plugins.firebase.crashlytics)
 }
 
 val localProperties = Properties()
@@ -111,4 +112,6 @@ dependencies {
 
     // Kakao Map
     implementation(libs.kakao.map)
+
+    implementation(libs.firebase.crashlytics.ktx)
 }
