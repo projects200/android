@@ -2,14 +2,12 @@ package com.project200.feature.exercise.detail
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.usecase.DeleteExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
-import com.project200.presentation.utils.UiEvent
 import com.project200.presentation.utils.UiState
 import com.project200.presentation.utils.mapCodeToFailure
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -52,6 +50,7 @@ class ExerciseDetailViewModel
                 _deleteResult.value = deleteExerciseRecordUseCase(recordId)
             }
         }
+
         companion object {
             private const val LOADING_DELAY = 300L
         }

@@ -14,16 +14,13 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.utils.Failure
 import com.project200.presentation.utils.UiState
-import com.project200.presentation.utils.mapCodeToFailure
 import com.project200.presentation.utils.mapFailureToString
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseDetailBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
-import timber.log.Timber
 
 @AndroidEntryPoint
 class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.layout.fragment_exercise_detail) {

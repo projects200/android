@@ -1,7 +1,6 @@
 package com.project200.feature.exercise.form
 
 import android.net.Uri
-import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
@@ -115,8 +114,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.baseToolbar.apply {
             showBackButton(true) { findNavController().navigateUp() }
             binding.baseToolbar.setTitle(
-                if (args.recordId == -1L) getString(R.string.record_exercise)
-                else getString(R.string.edit_exercise)
+                if (args.recordId == -1L) {
+                    getString(R.string.record_exercise)
+                } else {
+                    getString(R.string.edit_exercise)
+                },
             )
         }
         viewModel.loadInitialRecord(args.recordId)
@@ -226,7 +228,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.initialDataLoaded.observe(viewLifecycleOwner) { record ->
-            if (record != null) { setupInitialData(record) }
+            if (record != null) setupInitialData(record)
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -255,21 +257,24 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             when (result) {
                 is ExerciseEditResult.Success -> { // 기록 수정, 이미지 삭제/업로드 성공
                     findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
                     )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ContentFailure -> { // 내용 수정 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                     findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
                     )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ImageFailure -> { // 이미지 삭제/업로드 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                     findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                        ExerciseDetailFragment.KEY_RECORD_UPDATED, true
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
                     )
                     findNavController().popBackStack()
                 }
