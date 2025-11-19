@@ -13,7 +13,11 @@ object DeepLinkManager {
      * @param memberId 상대방의 멤버 ID
      * @return 생성된 Uri 객체 (예: app://chatting/room/123/라이언/456)
      */
-    fun createChatRoomUri(chatRoomId: String, nickname: String, memberId: String): Uri {
+    fun createChatRoomUri(
+        chatRoomId: String,
+        nickname: String,
+        memberId: String,
+    ): Uri {
         return Uri.Builder()
             .scheme(SCHEME)
             .authority(AUTHORITY_CHATTING)
