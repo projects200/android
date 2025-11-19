@@ -17,7 +17,7 @@ class FcmRepositoryImpl
     @Inject
     constructor(
         private val apiService: ApiService,
-        @EncryptedPrefs private var sharedPreferences: SharedPreferences,
+        @EncryptedPrefs private val sharedPreferences: SharedPreferences,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : FcmRepository {
         // FCM 토큰을 SharedPreferences에서 가져오는 함수
