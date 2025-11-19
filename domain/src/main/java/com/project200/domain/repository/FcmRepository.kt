@@ -4,4 +4,5 @@ import com.project200.domain.model.BaseResult
 
 interface FcmRepository {
     suspend fun sendFcmToken(): BaseResult<Unit>
+    suspend fun getFcmTokenFromPrefs(): String?
 }
