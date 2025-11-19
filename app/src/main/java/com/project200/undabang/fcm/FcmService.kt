@@ -7,11 +7,11 @@ import android.content.Intent
 import android.content.SharedPreferences
 import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
-import androidx.core.net.toUri
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import com.project200.common.utils.EncryptedPrefs
+import com.project200.presentation.utils.DeepLinkManager
 import com.project200.undabang.fcm.FcmConstant.CHAT_NOTI_CHANNEL_ID
 import com.project200.undabang.fcm.FcmConstant.CHAT_NOTI_CHANNEL_NAME
 import dagger.hilt.android.AndroidEntryPoint
@@ -66,7 +66,7 @@ class FcmService : FirebaseMessagingService() {
         val uniqueId = chatRoomId.hashCode()
 
         // 채팅방으로 이동할 딥링크 URI 생성
-        val deepLinkUri = "app://chatting/room/$chatRoomId/$nickname/$memberId".toUri()
+        val deepLinkUri = DeepLinkManager.createChatRoomUri(chatRoomId, nickname, memberId)
 
         // 클릭 시 이동할 Activity 설정
         val intent =
