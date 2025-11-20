@@ -4,7 +4,6 @@ import android.view.View
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
-import androidx.recyclerview.widget.RecyclerView
 import kotlin.math.max
 
 object KeyboardAdjustHelper {
@@ -24,7 +23,7 @@ object KeyboardAdjustHelper {
                 left = systemBarInsets.left,
                 top = systemBarInsets.top,
                 right = systemBarInsets.right,
-                bottom = bottomPadding
+                bottom = bottomPadding,
             )
 
             WindowInsetsCompat.CONSUMED
