@@ -25,6 +25,7 @@ import com.project200.presentation.utils.ImageValidator
 import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
 import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
 import com.project200.presentation.utils.ImageValidator.OVERSIZE
+import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeInsets
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
@@ -111,6 +112,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     }
 
     override fun setupViews() {
+        binding.root.applyEdgeToEdgeInsets()
         binding.baseToolbar.apply {
             showBackButton(true) { findNavController().navigateUp() }
             binding.baseToolbar.setTitle(
@@ -122,7 +124,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             )
         }
         viewModel.loadInitialRecord(args.recordId)
-        setupKeyboardAdjustments()
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
         initClickListeners()
     }
@@ -139,33 +140,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 location = binding.recordLocationEt.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
-        }
-    }
-
-    /**
-     * 키보드에 따른 레이아웃 조정
-     * 키보드가 올라올 때 ScrollView의 패딩을 키보드 높이만큼 조정
-     * 키보드가 내려갈 때는 네비게이션 바 높이만큼 패딩 조정
-     */
-    private fun setupKeyboardAdjustments() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
-            Timber.tag("ExerciseFormFragment").d("setupKeyboardAdjustments called")
-            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-
-            // 키보드가 올라와 있으면 키보드 높이만큼, 아니면 네비게이션 바 높이만큼 패딩 적용
-            val paddingBottom =
-                if (imeHeight > 0) {
-                    imeHeight
-                } else {
-                    // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
-                    val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
-                    val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
-                    buttonHeight + buttonMarginBottom + navigationBarHeight
-                }
-
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, paddingBottom)
-            insets
         }
     }
 
