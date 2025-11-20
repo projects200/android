@@ -6,6 +6,7 @@ import android.os.Build
 import android.os.Bundle
 import android.view.MotionEvent
 import android.widget.Toast
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
@@ -50,6 +51,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        enableEdgeToEdge()
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
 

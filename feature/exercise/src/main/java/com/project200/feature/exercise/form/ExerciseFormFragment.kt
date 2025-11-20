@@ -1,29 +1,28 @@
 package com.project200.feature.exercise.form
 
 import android.net.Uri
-import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
+import com.project200.feature.exercise.detail.ExerciseDetailFragment
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
 import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
 import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
 import com.project200.presentation.utils.ImageValidator.OVERSIZE
+import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeInsets
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
@@ -38,6 +37,7 @@ import java.util.Calendar
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
     private val viewModel: ExerciseFormViewModel by viewModels()
+    private val args: ExerciseFormFragmentArgs by navArgs()
     private lateinit var imageAdapter: ExerciseImageAdapter
 
     private val pickMultipleMediaLauncher =
@@ -84,15 +84,6 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         return FragmentExerciseFormBinding.bind(view)
     }
 
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        viewModel.loadInitialRecord()
-        setupKeyboardAdjustments()
-    }
-
     private fun setupRVAdapter(calculatedItemSize: Int) {
         imageAdapter =
             ExerciseImageAdapter(
@@ -118,43 +109,34 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     }
 
     override fun setupViews() {
-        binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
-
+        binding.root.applyEdgeToEdgeInsets()
+        binding.baseToolbar.apply {
+            showBackButton(true) { findNavController().navigateUp() }
+            binding.baseToolbar.setTitle(
+                if (args.recordId == -1L) {
+                    getString(R.string.record_exercise)
+                } else {
+                    getString(R.string.edit_exercise)
+                },
+            )
+        }
+        viewModel.loadInitialRecord(args.recordId)
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
+        initClickListeners()
+    }
 
+    private fun initClickListeners() {
         binding.startTimeBtn.setOnClickListener { showTimePickerDialog(true) }
         binding.endTimeBtn.setOnClickListener { showTimePickerDialog(false) }
 
         binding.recordCompleteBtn.setOnClickListener {
             viewModel.submitRecord(
+                recordId = args.recordId,
                 title = binding.recordTitleEt.text.toString().trim(),
                 type = binding.recordTypeEt.text.toString().trim(),
                 location = binding.recordLocationEt.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
-        }
-    }
-
-    private fun setupKeyboardAdjustments() {
-        ViewCompat.setOnApplyWindowInsetsListener(binding.scrollView) { v, insets ->
-            Timber.tag("ExerciseFormFragment").d("setupKeyboardAdjustments called")
-            val imeHeight = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom
-            val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
-
-            // 키보드가 올라와 있으면 키보드 높이만큼, 아니면 네비게이션 바 높이만큼 패딩 적용
-            val paddingBottom =
-                if (imeHeight > 0) {
-                    imeHeight
-                } else {
-                    // record_complete_btn의 높이 (btn_height)와 layout_marginBottom (32dp)를 더한 값
-                    // 이 값은 dpToPx를 사용하여 픽셀로 변환해야 합니다.
-                    val buttonHeight = dpToPx(requireContext(), binding.recordCompleteBtn.height.toFloat())
-                    val buttonMarginBottom = dpToPx(requireContext(), binding.recordCompleteBtn.marginBottom.toFloat())
-                    buttonHeight + buttonMarginBottom + navigationBarHeight
-                }
-
-            v.setPadding(v.paddingLeft, v.paddingTop, v.paddingRight, paddingBottom)
-            insets
         }
     }
 
@@ -217,12 +199,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         viewModel.initialDataLoaded.observe(viewLifecycleOwner) { record ->
-            if (record != null) {
-                setupInitialData(record)
-                binding.baseToolbar.setTitle(getString(R.string.edit_exercise))
-            } else {
-                binding.baseToolbar.setTitle(getString(R.string.record_exercise))
-            }
+            if (record != null) setupInitialData(record)
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -250,14 +227,26 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         viewModel.editResult.observe(viewLifecycleOwner) { result ->
             when (result) {
                 is ExerciseEditResult.Success -> { // 기록 수정, 이미지 삭제/업로드 성공
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ContentFailure -> { // 내용 수정 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.ImageFailure -> { // 이미지 삭제/업로드 실패
                     Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(
+                        ExerciseDetailFragment.KEY_RECORD_UPDATED,
+                        true,
+                    )
                     findNavController().popBackStack()
                 }
                 is ExerciseEditResult.Failure -> { // 내용 수정, 이미지 삭제/업로드 실패

@@ -113,7 +113,6 @@ class ExerciseFormViewModelTest {
         savedStateHandle = SavedStateHandle().apply { set("recordId", -1L) }
         viewModel =
             ExerciseFormViewModel(
-                savedStateHandle = savedStateHandle,
                 getExerciseRecordDetailUseCase = mockGetDetailUseCase,
                 createExerciseRecordUseCase = mockCreateUseCase,
                 uploadExerciseRecordImagesUseCase = mockUploadUseCase,
@@ -126,7 +125,6 @@ class ExerciseFormViewModelTest {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel =
             ExerciseFormViewModel(
-                savedStateHandle,
                 mockGetDetailUseCase,
                 mockCreateUseCase,
                 mockUploadUseCase,
@@ -135,7 +133,7 @@ class ExerciseFormViewModelTest {
             )
         // 수정 모드 테스트를 위해 초기 데이터를 미리 로드합니다.
         coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-        viewModel.loadInitialRecord()
+        viewModel.loadInitialRecord(recordId)
         runTest { testDispatcher.scheduler.advanceUntilIdle() }
     }
 
@@ -149,7 +147,7 @@ class ExerciseFormViewModelTest {
         setupViewModelForCreateMode()
 
         // When: 초기 데이터 로드 실행
-        viewModel.loadInitialRecord()
+        viewModel.loadInitialRecord(recordId)
 
         // Then: 수정과 관련된 데이터는 null 또는 초기 상태여야 함
         assertThat(viewModel.initialDataLoaded.value).isNull()
@@ -205,7 +203,7 @@ class ExerciseFormViewModelTest {
 
         // Then: removedPictureIds는 비어있어야 하고, submit 시에도 빈 리스트로 전달되어야 함
         coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
-        viewModel.submitRecord("제목 변경", "타입", "장소", "상세") // hasChanges=true 만들기
+        viewModel.submitRecord(recordId, "제목 변경", "타입", "장소", "상세") // hasChanges=true 만들기
         runTest { testDispatcher.scheduler.advanceUntilIdle() }
 
         coVerify {
@@ -229,6 +227,7 @@ class ExerciseFormViewModelTest {
             // When: 다른 내용은 그대로 두고, 종료 시간만 변경하여 제출
             viewModel.setEndTime(sampleRecord.endedAt.plusHours(1))
             viewModel.submitRecord(
+                recordId = recordId,
                 title = sampleRecord.title,
                 type = sampleRecord.personalType,
                 location = sampleRecord.location,
@@ -251,6 +250,7 @@ class ExerciseFormViewModelTest {
             // When: 내용 변경 없이, 새 이미지만 추가하여 제출
             viewModel.addImage(listOf(mockk()))
             viewModel.submitRecord(
+                recordId = recordId,
                 title = sampleRecord.title,
                 type = sampleRecord.personalType,
                 location = sampleRecord.location,
@@ -295,7 +295,7 @@ class ExerciseFormViewModelTest {
             coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, earnedPoints)) // 3점 획득
 
             // When
-            viewModel.submitRecord("제목", "타입", "장소", "상세")
+            viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -327,7 +327,7 @@ class ExerciseFormViewModelTest {
 
             // When
             viewModel.addImage(listOf(mockUri))
-            viewModel.submitRecord("제목", "타입", "장소", "상세")
+            viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -357,7 +357,7 @@ class ExerciseFormViewModelTest {
             viewModel.addImage(listOf(mockUri))
 
             // When
-            viewModel.submitRecord("제목", "타입", "장소", "상세")
+            viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -391,7 +391,7 @@ class ExerciseFormViewModelTest {
             // Given: 수정 모드로 ViewModel을 설정하고, 초기 데이터를 로드
             setupViewModelForEditMode()
             coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-            viewModel.loadInitialRecord()
+            viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // And: editUseCase가 recordId와 함께 Success를 반환하도록 설정
@@ -399,7 +399,7 @@ class ExerciseFormViewModelTest {
 
             // When: 제목을 변경하여 기록 제출
             val updatedTitle = "Updated Title"
-            viewModel.submitRecord(updatedTitle, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
+            viewModel.submitRecord(recordId, updatedTitle, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: editUseCase가 콘텐츠 변경 사항과 함께 올바르게 호출되었는지 검증
@@ -416,11 +416,11 @@ class ExerciseFormViewModelTest {
             // Given: 수정 모드로 ViewModel을 설정하고, 초기 데이터를 로드
             setupViewModelForEditMode()
             coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-            viewModel.loadInitialRecord()
+            viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When: 변경 없이 동일한 내용으로 기록 제출
-            viewModel.submitRecord(sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
+            viewModel.submitRecord(recordId, sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: 변경 사항이 없으므로 useCase가 호출되지 않고, 토스트 메시지가 표시되는지 검증
@@ -436,7 +436,7 @@ class ExerciseFormViewModelTest {
             val recordWithPicture = sampleRecord.copy(pictures = listOf(picture))
             setupViewModelForEditMode()
             coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(recordWithPicture)
-            viewModel.loadInitialRecord()
+            viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // And: editUseCase가 성공을 반환하도록 설정
@@ -446,7 +446,7 @@ class ExerciseFormViewModelTest {
             val existingImageItem = viewModel.imageItems.value?.find { it is ExerciseImageListItem.ExistingImageItem }
             assertThat(existingImageItem).isNotNull()
             viewModel.removeImage(existingImageItem!!)
-            viewModel.submitRecord("new title", "type", "loc", "detail")
+            viewModel.submitRecord(recordId, "new title", "type", "loc", "detail")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: editUseCase가 호출될 때, 삭제된 이미지 ID 목록이 올바르게 전달되었는지 검증
@@ -459,7 +459,7 @@ class ExerciseFormViewModelTest {
             // Given: 수정 모드이고, 초기 데이터 로드 완료
             setupViewModelForEditMode()
             coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-            viewModel.loadInitialRecord()
+            viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // And: editUseCase가 Failure를 반환하도록 설정
@@ -467,7 +467,7 @@ class ExerciseFormViewModelTest {
             coEvery { mockEditUseCase(recordId, any(), true, emptyList(), emptyList()) } returns ExerciseEditResult.Failure(failureMessage)
 
             // When: 제목을 변경하여 기록 제출
-            viewModel.submitRecord("달라진 제목", "타입", "장소", "상세")
+            viewModel.submitRecord(recordId, "달라진 제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: LiveData에 Failure 결과가 반영되었는지 검증

@@ -32,6 +32,7 @@ androidxArchCoreTesting = "2.2.0" # 테스트용
 androidxMedia = "1.7.0"
 lottie = "6.6.6"
 circleImageView = "3.1.0"
+shimmer = "0.5.0" # 스켈레톤
 
 # Google (SDK 34 호환 버전)
 material = "1.11.0"
@@ -111,6 +112,7 @@ androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview"
 androidx-media = { group = "androidx.media", name = "media", version.ref = "androidxMedia" }
 google-android-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
+shimmer = { group = "com.facebook.shimmer", name = "shimmer", version.ref = "shimmer" }
 
 # AndroidX Lifecycle (ViewModel, LiveData, Runtime)
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "androidxLifecycle" }

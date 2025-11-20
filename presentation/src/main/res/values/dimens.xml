@@ -4,5 +4,5 @@
     <dimen name="tool_bar_height">65dp</dimen>
     <dimen name="base_horizontal_margin">20dp</dimen>
     <dimen name="exercise_image_height">240dp</dimen>
-    <dimen name="exercise_calendar_height">288dp</dimen>
+    <dimen name="exercise_calendar_height">308dp</dimen>
 </resources>

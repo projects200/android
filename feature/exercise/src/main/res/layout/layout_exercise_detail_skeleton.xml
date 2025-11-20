@@ -1,0 +1,40 @@
+<!-- layout_exercise_detail_skeleton.xml -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/exercise_image_height"
+        android:background="@color/gray300" />
+
+    <View
+        android:layout_width="120dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="20dp"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        android:background="@color/gray300" />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_solid_corner"
+        android:backgroundTint="@color/gray300"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginTop="8dp"/>
+
+    <View
+        android:layout_width="80dp"
+        android:layout_height="20dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        android:background="@color/gray300" />
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:background="@drawable/bg_solid_corner"
+        android:backgroundTint="@color/gray300"
+        android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+        android:layout_marginTop="8dp"/>
+
+</LinearLayout>
