@@ -1,27 +1,30 @@
 package com.project200.data.impl
 
-import android.content.Context
+import android.content.SharedPreferences
+import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
 import com.project200.common.di.IoDispatcher
+import com.project200.common.utils.EncryptedPrefs
 import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.FcmRepository
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class FcmRepositoryImpl
     @Inject
     constructor(
         private val apiService: ApiService,
-        @ApplicationContext private val context: Context,
+        @EncryptedPrefs private val sharedPreferences: SharedPreferences,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : FcmRepository {
         // FCM 토큰을 SharedPreferences에서 가져오는 함수
-        private fun getFcmTokenFromPrefs(): String? {
-            val sharedPrefs = context.getSharedPreferences("undabangPrefs", Context.MODE_PRIVATE)
-            return sharedPrefs.getString("fcmToken", null)
+        override suspend fun getFcmTokenFromPrefs(): String? {
+            return withContext(ioDispatcher) {
+                sharedPreferences.getString(KEY_FCM_TOKEN, null)
+            }
         }
 
         override suspend fun sendFcmToken(): BaseResult<Unit> {

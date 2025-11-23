@@ -24,6 +24,7 @@ import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PolicyGroupDTO
@@ -47,6 +48,7 @@ import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
 import retrofit2.http.POST
@@ -411,4 +413,20 @@ interface ApiService {
         @Path("chatroomId") chatRoomId: Long,
         @Body content: PostChatMessageRequest,
     ): BaseResponse<PostMessageResponse>
+
+    /** 알림 */
+    // 알림 상태 조회
+    @GET("api/v1/notification-settings/device")
+    @AccessTokenApi
+    suspend fun getNotiState(
+        @Header("X-Fcm-Token") fcmToken: String,
+    ): BaseResponse<List<NotificationStateDTO>>
+
+    // 알림 상태 수정
+    @PATCH("api/v1/notification-settings/device")
+    @AccessTokenApi
+    suspend fun patchNotiState(
+        @Header("X-Fcm-Token") fcmToken: String,
+        @Body notiRequest: List<NotificationStateDTO>,
+    ): BaseResponse<Unit?>
 }

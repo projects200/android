@@ -13,11 +13,13 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.project200.domain.model.NotificationType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentNotificationBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @AndroidEntryPoint
 class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layout.fragment_notification) {
@@ -26,14 +28,11 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
     // 알림 권한 요청을 위한 ActivityResultLauncher
     private val requestPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
-            if (isGranted) {
-                // 권한이 허용되면 스위치를 활성화
-                viewModel.setNotificationState(true)
-                Toast.makeText(requireContext(), getString(R.string.noti_active), Toast.LENGTH_SHORT).show()
-            } else {
-                // 권한이 거부되면 스위치를 비활성화
-                viewModel.setNotificationState(false)
-                Toast.makeText(requireContext(), getString(R.string.noti_deactive), Toast.LENGTH_SHORT).show()
+            viewModel.updateNotiStateByPermission(isGranted)
+            if (!isGranted) {
+                Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
+                binding.exerciseNotiSwitch.isChecked = false
+                binding.chattingNotiSwitch.isChecked = false
             }
         }
 
@@ -49,13 +48,12 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
 
     override fun setupViews() {
         binding.backBtnIv.setOnClickListener { requireActivity().onBackPressedDispatcher.onBackPressed() }
-        binding.notificationSwitch.setOnClickListener {
-            // 스위치가 켜지는 경우 (알림 활성화)
-            if (binding.notificationSwitch.isChecked) {
-                requestNotificationPermission()
-            } else { // 스위치가 꺼지는 경우 (알림 비활성화)
-                openAppSettings()
-            }
+        binding.exerciseNotiSwitch.setOnClickListener {
+            viewModel.onSwitchToggled(NotificationType.WORKOUT_REMINDER, binding.exerciseNotiSwitch.isChecked)
+        }
+
+        binding.chattingNotiSwitch.setOnClickListener {
+            viewModel.onSwitchToggled(NotificationType.CHAT_MESSAGE, binding.chattingNotiSwitch.isChecked)
         }
     }
 
@@ -63,27 +61,58 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.isNotiActive.collect { isActive ->
-                        binding.notificationSwitch.isChecked = isActive
+                    viewModel.notificationStates.collect { states ->
+                        // 운동 알림 스위치 상태 설정
+                        val isExerciseOn = states.find { it.type == NotificationType.WORKOUT_REMINDER }?.enabled ?: false
+                        if (binding.exerciseNotiSwitch.isChecked != isExerciseOn) {
+                            binding.exerciseNotiSwitch.isChecked = isExerciseOn
+                        }
+
+                        // 채팅 알림 스위치 상태 설정
+                        val isChatOn = states.find { it.type == NotificationType.CHAT_MESSAGE }?.enabled ?: false
+                        if (binding.chattingNotiSwitch.isChecked != isChatOn) {
+                            binding.chattingNotiSwitch.isChecked = isChatOn
+                        }
                     }
                 }
+
                 launch {
-                    viewModel.isSwitchEnabled.collect { isEnabled ->
-                        binding.notificationSwitch.isEnabled = isEnabled
+                    viewModel.permissionRequestTrigger.collect { needsRequest ->
+                        if (needsRequest) {
+                            requestNotificationPermission()
+                            viewModel.onPermissionRequestHandled()
+                        }
+                    }
+                }
+
+                launch {
+                    viewModel.toastMessage.collect { message ->
+                        message?.let {
+                            Toast.makeText(requireContext(), it, Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             }
         }
     }
 
-    // 현재 알림 권한 상태를 확인하고 ViewModel에 반영
+    // 현재 알림 권한 상태를 확인
     private fun checkNotificationPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            val permissionStatus = ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS)
-            viewModel.setNotificationState(permissionStatus == PackageManager.PERMISSION_GRANTED)
-        } else {
-            // Android 13 미만에서는 기본적으로 알림이 활성화된 것으로 간주
-            viewModel.setNotificationState(true)
+        val isGranted =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                ContextCompat.checkSelfPermission(
+                    requireContext(),
+                    Manifest.permission.POST_NOTIFICATIONS,
+                ) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        // 확인된 권한 상태를 ViewModel에 전달하여 초기 로직을 수행하도록 합니다.
+        viewModel.updateNotiStateByPermission(isGranted)
+        if (!isGranted) {
+            Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
+            binding.exerciseNotiSwitch.isChecked = false
+            binding.chattingNotiSwitch.isChecked = false
         }
     }
 
@@ -97,12 +126,9 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
                     Manifest.permission.POST_NOTIFICATIONS,
                 ) == PackageManager.PERMISSION_GRANTED -> {
                     // 이미 권한이 있는 경우
-                    viewModel.setNotificationState(true)
+                    Timber.tag("NotificationFragment").d("Notification permission already granted.")
                 }
                 shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
-                    // 권한이 명시적으로 거부된 경우, 사용자에게 설명 후 설정으로 유도
-                    Toast.makeText(requireContext(), getString(R.string.noti_permission_announce), Toast.LENGTH_LONG).show()
-                    viewModel.setNotificationState(false)
                     openAppSettings()
                 }
                 else -> {
@@ -112,7 +138,6 @@ class NotificationFragment : BindingFragment<FragmentNotificationBinding>(R.layo
             }
         } else {
             // Android 13 미만 버전에서는 별도의 런타임 권한이 필요 없음
-            viewModel.setNotificationState(true)
         }
     }
 
