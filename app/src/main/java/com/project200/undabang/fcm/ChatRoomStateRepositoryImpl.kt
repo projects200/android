@@ -7,12 +7,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class ChatRoomStateRepositoryImpl @Inject constructor() : ChatRoomStateRepository {
+class ChatRoomStateRepositoryImpl
+    @Inject
+    constructor() : ChatRoomStateRepository {
+        private val _activeChatRoomId = MutableStateFlow<Long?>(null)
+        override val activeChatRoomId = _activeChatRoomId.asStateFlow()
 
-    private val _activeChatRoomId = MutableStateFlow<Long?>(null)
-    override val activeChatRoomId = _activeChatRoomId.asStateFlow()
-
-    override fun setActiveChatRoomId(roomId: Long?) {
-        _activeChatRoomId.value = roomId
+        override fun setActiveChatRoomId(roomId: Long?) {
+            _activeChatRoomId.value = roomId
+        }
     }
-}

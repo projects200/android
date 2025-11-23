@@ -11,10 +11,7 @@ import javax.inject.Singleton
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class RepositoryModule {
-
     @Binds
     @Singleton
-    abstract fun bindChatRoomStateRepository(
-        impl: ChatRoomStateRepositoryImpl
-    ): ChatRoomStateRepository
+    abstract fun bindChatRoomStateRepository(impl: ChatRoomStateRepositoryImpl): ChatRoomStateRepository
 }
