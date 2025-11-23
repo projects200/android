@@ -24,7 +24,6 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
-import com.project200.feature.chatting.utils.KeyboardVisibilityHelper
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
@@ -34,7 +33,6 @@ import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -52,8 +50,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private var firstVisibleItemPositionBeforeLoad = 0
     private var firstVisibleItemOffsetBeforeLoad = 0
 
-    private lateinit var keyboardHelper: KeyboardVisibilityHelper
-
     private lateinit var gestureDetector: GestureDetector
 
     private var lastDisplayedDate: LocalDate? = null
@@ -67,8 +63,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         setupListeners()
         viewModel.setId(args.roomId, args.memberId)
         updateSendButtonState(false)
-        keyboardHelper = KeyboardVisibilityHelper(binding.root, binding.chattingMessageRv)
-        keyboardHelper.start()
     }
 
     private fun setupListeners() {
@@ -376,11 +370,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         val sendButtonRect = Rect()
         binding.sendBtn.getGlobalVisibleRect(sendButtonRect)
         return !sendButtonRect.contains(x, y)
-    }
-
-    override fun onDestroyView() {
-        keyboardHelper.stop()
-        super.onDestroyView()
     }
 
     companion object {
