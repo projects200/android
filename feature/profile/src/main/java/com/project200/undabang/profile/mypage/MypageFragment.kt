@@ -9,6 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
@@ -32,6 +33,7 @@ import java.time.ZoneId
 class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
+    lateinit var preferredExerciseAdapter: PreferredExerciseAdapter
 
     override fun getViewBinding(view: View): FragmentMypageBinding {
         return FragmentMypageBinding.bind(view)
@@ -104,6 +106,12 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
             // 캘린더 스크롤 이동
             binding.exerciseCalendar.scrollToMonth(month)
+        }
+
+        viewModel.preferredExercise.observe(viewLifecycleOwner) { exercises ->
+            preferredExerciseAdapter.setItems(exercises)
+            binding.preferredExerciseEmptyTv.isVisible = exercises.isEmpty()
+            binding.preferredExerciseRv.isVisible = exercises.isNotEmpty()
         }
 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
@@ -211,13 +219,10 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     }
 
     private fun setupPreferredExercise() {
-        val adapter = PreferredExerciseAdapter()
-        binding.preferredExerciseRv.adapter = adapter
-
-        viewModel.preferredExercise.observe(viewLifecycleOwner) { exercises ->
-            adapter.setItems(exercises)
-            binding.preferredExerciseEmptyTv.isVisible = exercises.isEmpty()
-            binding.preferredExerciseRv.isVisible = exercises.isNotEmpty()
+        preferredExerciseAdapter = PreferredExerciseAdapter()
+        binding.preferredExerciseRv.apply {
+            adapter = preferredExerciseAdapter
+            layoutManager = LinearLayoutManager(requireContext())
         }
     }
 

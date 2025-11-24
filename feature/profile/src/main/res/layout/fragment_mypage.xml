@@ -230,6 +230,7 @@
                     android:layout_height="wrap_content"
                     android:nestedScrollingEnabled="false"
                     android:overScrollMode="never"
+                    android:layout_marginTop="@dimen/base_horizontal_margin"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/preferred_exercise_tv" />
 
