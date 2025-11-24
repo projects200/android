@@ -16,6 +16,7 @@ import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.BlockedMember
 import com.project200.domain.model.OpenUrl
+import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
@@ -158,7 +159,18 @@ class MemberRepositoryImpl
             )
         }
 
-        companion object {
+    override suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>> {
+/*        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getPreferredExercises() },
+            mapper = {
+                Unit
+            },
+        )*/
+        return BaseResult.Success(emptyList())
+    }
+
+    companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }

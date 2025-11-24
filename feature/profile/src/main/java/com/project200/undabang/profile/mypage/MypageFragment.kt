@@ -40,6 +40,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     override fun setupViews() {
         initClickListener()
         setupCalendar()
+        setupPreferredExercise()
     }
 
     private fun initClickListener() {
@@ -66,6 +67,14 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
+        }
+
+        binding.preferredExerciseEditBtn.setOnClickListener {
+            //TODO: 운동 선호도 설정 화면으로 이동
+        }
+
+        binding.preferredExerciseEmptyTv.setOnClickListener {
+            //TODO: 운동 선호도 설정 화면으로 이동
         }
     }
 
@@ -198,6 +207,17 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                         }
                     }
                 }
+        }
+    }
+
+    private fun setupPreferredExercise() {
+        val adapter = PreferredExerciseAdapter()
+        binding.preferredExerciseRv.adapter = adapter
+
+        viewModel.preferredExercise.observe(viewLifecycleOwner) { exercises ->
+            adapter.setItems(exercises)
+            binding.preferredExerciseEmptyTv.isVisible = exercises.isEmpty()
+            binding.preferredExerciseRv.isVisible = exercises.isNotEmpty()
         }
     }
 
