@@ -33,7 +33,7 @@ import java.time.ZoneId
 class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
-    lateinit var preferredExerciseAdapter: PreferredExerciseAdapter
+    lateinit var preferredExerciseRVAdapter: PreferredExerciseRVAdapter
 
     override fun getViewBinding(view: View): FragmentMypageBinding {
         return FragmentMypageBinding.bind(view)
@@ -109,7 +109,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         }
 
         viewModel.preferredExercise.observe(viewLifecycleOwner) { exercises ->
-            preferredExerciseAdapter.setItems(exercises)
+            preferredExerciseRVAdapter.setItems(exercises)
             binding.preferredExerciseEmptyTv.isVisible = exercises.isEmpty()
             binding.preferredExerciseRv.isVisible = exercises.isNotEmpty()
         }
@@ -219,9 +219,9 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     }
 
     private fun setupPreferredExercise() {
-        preferredExerciseAdapter = PreferredExerciseAdapter()
+        preferredExerciseRVAdapter = PreferredExerciseRVAdapter()
         binding.preferredExerciseRv.apply {
-            adapter = preferredExerciseAdapter
+            adapter = preferredExerciseRVAdapter
             layoutManager = LinearLayoutManager(requireContext())
         }
     }
