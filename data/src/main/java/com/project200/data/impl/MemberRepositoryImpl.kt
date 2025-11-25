@@ -169,7 +169,8 @@ class MemberRepositoryImpl
                 Unit
             },
         )*/
-        return BaseResult.Success(List(6) { index ->
+        // 임시 더미 데이터 반환
+        return BaseResult.Success(List(3) { index ->
             PreferredExercise(
                 exerciseTypeId = index.toLong(),
                 preferredExerciseId = index.toLong(),
@@ -193,11 +194,12 @@ class MemberRepositoryImpl
                 dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
             },
         )*/
+        // 임시 더미 데이터 반환
         return BaseResult.Success(List(6) { index ->
             ExerciseType(
                 id = index.toLong(),
                 name = "운동종류 $index",
-                imageUrl = "https://example.com/exercise_type_image_$index.png",
+                imageUrl = "https://example.com/exercise_image_$index.png",
             )
         })
     }
