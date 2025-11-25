@@ -31,7 +31,7 @@ data class GetMatchingProfileDTO(
     val yearlyExerciseDays: Int,
     val exerciseCountInLast30Days: Int,
     val exerciseScore: Int,
-    val preferredExercises: List<PreferredExerciseDTO>,
+    val preferredExercises: List<GetPreferredExerciseDTO>,
 )
 
 @JsonClass(generateAdapter = true)

@@ -20,6 +20,8 @@ import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetNewChattingMessagesDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseDTO
+import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -169,10 +171,14 @@ interface ApiService {
 
     /** 선호 운동 */
     // 선호 운동 조회
-    // TODO: 실제 api 명세 나오면 수정 필요
     @GET("api/v1/preferred-exercises")
     @AccessTokenApi
-    suspend fun getPreferredExercises(): BaseResponse<List<Unit>>
+    suspend fun getPreferredExercises(): BaseResponse<List<GetPreferredExerciseDTO>>
+
+    // 선호 운동 종류 조회
+    @GET("open/v1/exercise-types")
+    @AccessTokenApi
+    suspend fun getPreferredExerciseTypes(): BaseResponse<List<GetPreferredExerciseTypeDTO>>
 
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
