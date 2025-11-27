@@ -20,7 +20,7 @@
         app:layout_constraintTop_toTopOf="@id/base_toolbar"
         app:layout_constraintEnd_toEndOf="@id/base_toolbar"
         app:layout_constraintBottom_toBottomOf="@id/base_toolbar"
-        android:text="@string/complete"
+        android:text="@string/next"
         style="@style/content_bold"/>
     <FrameLayout
         android:id="@+id/preferred_exercise_container"

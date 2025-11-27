@@ -23,24 +23,47 @@ class PreferredExerciseFragment :
     }
 
     override fun setupViews() {
-        binding.baseToolbar.apply {
-            setTitle(getString(R.string.preferred_exercise))
-            showBackButton(true, onClick = { findNavController().popBackStack() })
-        }
+        binding.baseToolbar.setTitle(getString(R.string.preferred_exercise))
+        initClickListener()
         viewModel.initNickname(args.nickname)
         if (childFragmentManager.findFragmentById(R.id.preferred_exercise_container) == null) {
             replaceFragment(PreferredExerciseTypeFragment())
         }
-        initClickListener()
+
+        childFragmentManager.addOnBackStackChangedListener {
+            updateCompleteButtonState()
+        }
     }
 
     private fun initClickListener() {
+        binding.baseToolbar.showBackButton(true, onClick = {
+            if (childFragmentManager.backStackEntryCount > 0) {
+                childFragmentManager.popBackStack()
+            } else {
+                findNavController().popBackStack()
+            }
+        })
+
         binding.completeBtn.setOnClickListener {
             when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
                 is PreferredExerciseTypeFragment -> {
-                    // TODO: 현재 프래그먼트가 종류 선택이면 상세 설정으로 이동
+                    replaceFragment(PreferredExerciseDetailFragment(), addToBackStack = true)
                 }
-                // TODO: 상세 설정이면 완료 api 호출
+                is PreferredExerciseDetailFragment -> {
+                    // TODO: 선호 운동 설정 완료
+                    findNavController().popBackStack()
+                }
+            }
+        }
+    }
+
+    private fun updateCompleteButtonState() {
+        when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
+            is PreferredExerciseTypeFragment -> {
+                binding.completeBtn.text = getString(com.project200.undabang.presentation.R.string.next)
+            }
+            is PreferredExerciseDetailFragment -> {
+                binding.completeBtn.text = getString(com.project200.undabang.presentation.R.string.complete)
             }
         }
     }

@@ -111,4 +111,5 @@
     <string name="preferred_exercise_type_max_error">최대 5개까지 선택 가능해요</string>
     <string name="preferred_exercise_detail_days_title">운동 주기</string>
     <string name="preferred_exercise_detail_days_skill_level">숙련도</string>
+    <string name="preferred_exercise_day_not_selected">요일 미선택</string>
 </resources>
