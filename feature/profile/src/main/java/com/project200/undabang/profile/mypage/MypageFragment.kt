@@ -72,11 +72,11 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         }
 
         binding.preferredExerciseEditBtn.setOnClickListener {
-            //TODO: 운동 선호도 설정 화면으로 이동
+            // TODO: 운동 선호도 설정 화면으로 이동
         }
 
         binding.preferredExerciseEmptyTv.setOnClickListener {
-            //TODO: 운동 선호도 설정 화면으로 이동
+            // TODO: 운동 선호도 설정 화면으로 이동
         }
     }
 

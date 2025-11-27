@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
@@ -141,4 +140,4 @@ class MypageViewModel
                 }
             }
         }
-}
+    }

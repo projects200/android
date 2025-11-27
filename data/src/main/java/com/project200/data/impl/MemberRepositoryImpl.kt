@@ -159,7 +159,7 @@ class MemberRepositoryImpl
             )
         }
 
-    override suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>> {
+        override suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>> {
 /*        return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getPreferredExercises() },
@@ -167,22 +167,25 @@ class MemberRepositoryImpl
                 Unit
             },
         )*/
-        return BaseResult.Success(List(6) { index ->
-            PreferredExercise(
-                preferredExerciseId = index,
-                name = "운동종류 $index",
-                skillLevel = when (index % 3) {
-                    0 -> "초급"
-                    1 -> "중급"
-                    else -> "고급"
+            return BaseResult.Success(
+                List(6) { index ->
+                    PreferredExercise(
+                        preferredExerciseId = index,
+                        name = "운동종류 $index",
+                        skillLevel =
+                            when (index % 3) {
+                                0 -> "초급"
+                                1 -> "중급"
+                                else -> "고급"
+                            },
+                        daysOfWeek = List(7) { dayIndex -> (dayIndex + index) % 2 == 0 },
+                        imageUrl = "https://example.com/exercise_image_$index.png",
+                    )
                 },
-                daysOfWeek = List(7) { dayIndex -> (dayIndex + index) % 2 == 0 },
-                imageUrl = "https://example.com/exercise_image_$index.png",
             )
-        })
-    }
+        }
 
-    companion object {
+        companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }
