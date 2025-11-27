@@ -11,8 +11,7 @@ import com.project200.undabang.profile.utils.PreferredExerciseDayFormatter.forma
 class PreferredExerciseRVAdapter(
     private var items: List<PreferredExercise> = emptyList()
 ) : RecyclerView.Adapter<PreferredExerciseRVAdapter.ViewHolder>() {
-
-    // 이 부분은 뷰바인딩을 사용할 때와 동일합니다.
+    
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val binding = ItemPreferredExerciseBinding.inflate(
             LayoutInflater.from(parent.context),
