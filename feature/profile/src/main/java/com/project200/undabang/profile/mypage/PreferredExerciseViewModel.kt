@@ -1,17 +1,24 @@
 package com.project200.undabang.profile.mypage
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PreferredExercise
+import com.project200.domain.usecase.CreatePreferredExerciseUseCase
+import com.project200.domain.usecase.DeletePreferredExerciseUseCase
+import com.project200.domain.usecase.EditPreferredExerciseUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
+import com.project200.undabang.profile.utils.CompletionState
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
 import com.project200.undabang.profile.utils.SkillLevel // 추가
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -19,6 +26,9 @@ import javax.inject.Inject
 class PreferredExerciseViewModel @Inject constructor(
     private val getPreferredExerciseUseCase: GetPreferredExerciseUseCase,
     private val getPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase,
+    private val createPreferredExerciseUseCase: CreatePreferredExerciseUseCase,
+    private val editPreferredExerciseUseCase: EditPreferredExerciseUseCase,
+    private val deletePreferredExerciseUseCase: DeletePreferredExerciseUseCase,
 ) : ViewModel() {
 
     var nickname: String = ""
@@ -27,6 +37,11 @@ class PreferredExerciseViewModel @Inject constructor(
     private val _exerciseTypes = MutableLiveData<List<PreferredExercise>>()
     // 선택한 운동 종류
     private val _preferredExercise = MutableLiveData<List<PreferredExercise>>()
+
+    private var initialPreferredExercises: List<PreferredExercise> = emptyList()
+
+    private val _completionState = MutableLiveData<CompletionState>(CompletionState.Idle)
+    val completionState: LiveData<CompletionState> = _completionState
 
     val exerciseUiModels = MediatorLiveData<List<PreferredExerciseUiModel>>()
 
@@ -60,6 +75,7 @@ class PreferredExerciseViewModel @Inject constructor(
 
             // 기존에 선택된 선호 운동 목록 설정
             if (preferredExerciseResult is BaseResult.Success) {
+                initialPreferredExercises = preferredExerciseResult.data
                 _preferredExercise.value = preferredExerciseResult.data
             } else {
                 // TODO: 선호 운동 목록 로드 실패 시 에러 처리
@@ -132,5 +148,94 @@ class PreferredExerciseViewModel @Inject constructor(
             currentSelected.add(exercise)
         }
         _preferredExercise.value = currentSelected
+    }
+
+    /**
+     * 선호 운동 설정 완료
+     */
+    fun completePreferredExerciseChanges() {
+        _completionState.value = CompletionState.Loading
+
+        val selectedUiModels = exerciseUiModels.value?.filter { it.isSelected } ?: emptyList()
+        val currentPreferredExercises = selectedUiModels.map { it.toModel() }
+
+        if (validateChanges(currentPreferredExercises)) return
+
+        // 변경사항을 Create, Edit, Delete로 분류
+        // 빠른 조회를 위해 맵으로 변환
+        val initialMap = initialPreferredExercises.associateBy { it.exerciseTypeId }
+        val currentMap = currentPreferredExercises.associateBy { it.exerciseTypeId }
+
+        val toDelete = initialPreferredExercises.filter { !currentMap.containsKey(it.exerciseTypeId) }
+        val toCreate = mutableListOf<PreferredExercise>()
+        val toEdit = mutableListOf<PreferredExercise>()
+
+        currentPreferredExercises.forEach { current ->
+            val initial = initialMap[current.exerciseTypeId]
+            if (initial == null) {
+                // 생성 목록
+                toCreate.add(current)
+            } else if (initial != current) {
+                // 수정 목록
+                toEdit.add(current)
+            }
+        }
+
+        viewModelScope.launch {
+            val tasks = mutableListOf<Deferred<BaseResult<Any>>>()
+
+            if (toDelete.isNotEmpty()) {
+                val deleteIds = toDelete.map { it.preferredExerciseId }
+                tasks.add(async { deletePreferredExerciseUseCase(deleteIds) })
+            }
+
+            if (toCreate.isNotEmpty()) {
+                tasks.add(async { createPreferredExerciseUseCase(toCreate) })
+            }
+
+            if (toEdit.isNotEmpty()) {
+                tasks.add(async { editPreferredExerciseUseCase(toEdit) })
+            }
+
+            val results = tasks.awaitAll()
+            if (results.all { it is BaseResult.Success }) {
+                _completionState.value = CompletionState.Success
+            } else {
+                val firstError = results.filterIsInstance<BaseResult.Error>().firstOrNull()
+                _completionState.value = CompletionState.Error(firstError?.message.toString())
+            }
+        }
+    }
+
+    /**
+     * 변경사항이 없는지 확인하는 함수
+     */
+    private fun validateChanges(currentExercises: List<PreferredExercise>): Boolean {
+        if (currentExercises.isEmpty()) {
+            _completionState.value = CompletionState.NoneSelected
+            return true
+        }
+        if (areListsEqual(initialPreferredExercises, currentExercises)) {
+            _completionState.value = CompletionState.NoChanges
+            return true
+        }
+        return false
+    }
+
+    fun consumeCompletionState() {
+        _completionState.value = CompletionState.Idle
+    }
+
+    /**
+     * 두 PreferredExercise 리스트의 내용이 완전히 동일한지 비교하는 함수
+     */
+    private fun areListsEqual(initial: List<PreferredExercise>, current: List<PreferredExercise>): Boolean {
+        if (initial.size != current.size) return false
+        val initialMap = initial.associateBy { it.exerciseTypeId }
+        return current.all { currentItem ->
+            initialMap[currentItem.exerciseTypeId]?.let { initialItem ->
+                initialItem == currentItem
+            } == true
+        }
     }
 }

@@ -21,6 +21,17 @@ data class PreferredExerciseUiModel(
 
         return "$daysText ・ $skillText"
     }
+
+    fun toModel(): PreferredExercise {
+        return PreferredExercise(
+            preferredExerciseId = this.exercise.preferredExerciseId,
+            exerciseTypeId = this.exercise.exerciseTypeId,
+            name = this.exercise.name,
+            skillLevel = this.skillLevel?.name ?: "",
+            daysOfWeek = this.selectedDays,
+            imageUrl = this.exercise.imageUrl
+        )
+    }
 }
 
 enum class SkillLevel(val displayName: String) {
@@ -30,4 +41,13 @@ enum class SkillLevel(val displayName: String) {
     ADVANCED("고급"),
     EXPERT("숙련"),
     PROFESSIONAL("선출")
+}
+
+sealed class CompletionState {
+    object Idle : CompletionState()
+    object Loading : CompletionState()
+    object Success : CompletionState()
+    object NoChanges : CompletionState()
+    object NoneSelected : CompletionState()
+    data class Error(val message: String) : CompletionState()
 }

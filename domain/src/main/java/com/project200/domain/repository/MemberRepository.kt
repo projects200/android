@@ -25,4 +25,7 @@ interface MemberRepository {
     suspend fun getBlockedMembers(): BaseResult<List<BlockedMember>>
     suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>>
     suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>>
+    suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit>
+    suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit>
+    suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit>
 }

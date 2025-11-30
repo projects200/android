@@ -11,6 +11,7 @@ import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PutProfileRequest
+import com.project200.data.mapper.toDto
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
@@ -202,6 +203,30 @@ class MemberRepositoryImpl
                 imageUrl = "https://example.com/exercise_image_$index.png",
             )
         })
+    }
+
+    override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toDto() }) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toDto() }) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deletePreferredExercises(preferredExerciseIds) },
+            mapper = { Unit },
+        )
     }
 
     companion object {
