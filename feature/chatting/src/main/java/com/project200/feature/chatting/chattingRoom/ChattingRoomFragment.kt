@@ -22,6 +22,7 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import com.project200.common.utils.ChatRoomStateRepository
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
 import com.project200.presentation.base.BindingFragment
@@ -36,12 +37,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layout.fragment_chatting_room), KeyboardControlInterface {
     private val viewModel: ChattingRoomViewModel by viewModels()
     private lateinit var chatAdapter: ChatRVAdapter
     private val args: ChattingRoomFragmentArgs by navArgs()
+
+    @Inject
+    lateinit var chatRoomStateRepository: ChatRoomStateRepository
 
     // 이전 메시지 로드 상태를 추적하는 플래그
     private var isPaging = false
@@ -370,6 +375,20 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         val sendButtonRect = Rect()
         binding.sendBtn.getGlobalVisibleRect(sendButtonRect)
         return !sendButtonRect.contains(x, y)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // 현재 채팅방을 활성 채팅방으로 설정
+        chatRoomStateRepository.setActiveChatRoomId(args.roomId)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 채팅방을 나갈 때 활성 채팅방 ID를 null로 설정
+        if (chatRoomStateRepository.activeChatRoomId.value == args.roomId) {
+            chatRoomStateRepository.setActiveChatRoomId(null)
+        }
     }
 
     companion object {

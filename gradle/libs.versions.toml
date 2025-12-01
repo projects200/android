@@ -13,6 +13,7 @@ versionName = "0.5.5"
 firebaseBom = "32.7.0"
 googleServicesPlugin = "4.4.2"
 firebasePerfPlugin = "1.4.2"
+firebaseCrashlyticsPlugin = "3.0.6"
 
 # AndroidX Core & UI (SDK 34 호환 버전)
 androidxCore = "1.13.1"
@@ -174,6 +175,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
 firebase-performance = { group = "com.google.firebase", name = "firebase-perf-ktx" }
 firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx", version.ref = "firebaseConfigKtx" }
+firebase-crashlytics-ktx = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 
 # Cognito
@@ -223,6 +225,7 @@ navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref 
 # Firebase 플러그인
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
 firebase-performance = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
 
 # Jacoco Plugin
 jacoco = { id = "org.gradle.jacoco", version.ref = "jacoco" }
