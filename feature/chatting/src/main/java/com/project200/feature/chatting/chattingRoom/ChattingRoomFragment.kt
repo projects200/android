@@ -1,6 +1,7 @@
 package com.project200.feature.chatting.chattingRoom
 
 import android.graphics.Rect
+import android.os.Bundle
 import android.view.ContextThemeWrapper
 import android.view.GestureDetector
 import android.view.Gravity
@@ -22,6 +23,7 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.project200.common.utils.ChatRoomStateRepository
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
@@ -44,6 +46,9 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private val viewModel: ChattingRoomViewModel by viewModels()
     private lateinit var chatAdapter: ChatRVAdapter
     private val args: ChattingRoomFragmentArgs by navArgs()
+
+    @Inject
+    lateinit var firebaseAnalytics: FirebaseAnalytics
 
     @Inject
     lateinit var chatRoomStateRepository: ChatRoomStateRepository
@@ -85,6 +90,12 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         binding.sendBtn.setOnClickListener {
             val messageText = binding.chattingMessageEt.text.toString()
             if (messageText.isNotBlank()) {
+                // Firebase Analytics 이벤트 로깅
+                val bundle = Bundle().apply {
+                    putLong("timestamp", System.currentTimeMillis())
+                }
+                firebaseAnalytics.logEvent("chat_send_message", bundle)
+
                 viewModel.sendMessage(messageText)
                 binding.chattingMessageEt.text.clear() // EditText 초기화
             }
