@@ -91,9 +91,10 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
             val messageText = binding.chattingMessageEt.text.toString()
             if (messageText.isNotBlank()) {
                 // Firebase Analytics 이벤트 로깅
-                val bundle = Bundle().apply {
-                    putLong("timestamp", System.currentTimeMillis())
-                }
+                val bundle =
+                    Bundle().apply {
+                        putLong("timestamp", System.currentTimeMillis())
+                    }
                 firebaseAnalytics.logEvent("chat_send_message", bundle)
 
                 viewModel.sendMessage(messageText)
