@@ -159,7 +159,7 @@ class PreferredExerciseViewModel @Inject constructor(
         val selectedUiModels = exerciseUiModels.value?.filter { it.isSelected } ?: emptyList()
         val currentPreferredExercises = selectedUiModels.map { it.toModel() }
 
-        if (validateChanges(currentPreferredExercises)) return
+        if (validateComplete(selectedUiModels)) return
 
         // 변경사항을 Create, Edit, Delete로 분류
         // 빠른 조회를 위해 맵으로 변환
@@ -210,11 +210,22 @@ class PreferredExerciseViewModel @Inject constructor(
     /**
      * 변경사항이 없는지 확인하는 함수
      */
-    private fun validateChanges(currentExercises: List<PreferredExercise>): Boolean {
-        if (currentExercises.isEmpty()) {
+    private fun validateComplete(selectedUiModels: List<PreferredExerciseUiModel>): Boolean {
+        // 선택된 운동이 하나도 없는 경우
+        if (selectedUiModels.isEmpty()) {
             _completionState.value = CompletionState.NoneSelected
             return true
         }
+        // 선택된 운동 중 요일이나 숙련도가 누락된 경우
+        val hasIncompleteSelection = selectedUiModels.any { uiModel ->
+            !uiModel.selectedDays.contains(true) || uiModel.skillLevel == null
+        }
+        if (hasIncompleteSelection) {
+            _completionState.value = CompletionState.IncompleteSelection
+            return true
+        }
+        // 실제 내용 변경이 없는 경우
+        val currentExercises = selectedUiModels.map { it.toModel() }
         if (areListsEqual(initialPreferredExercises, currentExercises)) {
             _completionState.value = CompletionState.NoChanges
             return true
@@ -235,7 +246,7 @@ class PreferredExerciseViewModel @Inject constructor(
         return current.all { currentItem ->
             initialMap[currentItem.exerciseTypeId]?.let { initialItem ->
                 initialItem == currentItem
-            } == true
+            } ?: false
         }
     }
 }

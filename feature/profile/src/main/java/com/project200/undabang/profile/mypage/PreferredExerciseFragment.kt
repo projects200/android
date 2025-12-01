@@ -58,6 +58,11 @@ class PreferredExerciseFragment :
                     binding.completeBtn.isEnabled = true
                     viewModel.consumeCompletionState()
                 }
+                is CompletionState.IncompleteSelection -> {
+                    Toast.makeText(requireContext(), R.string.preferred_exercise_incomplete_seleted, Toast.LENGTH_SHORT).show()
+                    binding.completeBtn.isEnabled = true
+                    viewModel.consumeCompletionState()
+                }
                 is CompletionState.Error -> {
                     Toast.makeText(requireContext(), state.message, Toast.LENGTH_SHORT).show()
                     binding.completeBtn.isEnabled = true

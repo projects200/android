@@ -113,6 +113,7 @@
     <string name="preferred_exercise_detail_days_skill_level">숙련도</string>
     <string name="preferred_exercise_day_not_selected">요일 미선택</string>
     <string name="preferred_exercise_none_selected">최소 하나의 운동을 선택해주세요</string>
+    <string name="preferred_exercise_incomplete_seleted">요일과 숙련도를 모두 선택해주세요</string>
     <string name="preferred_exercise_no_changed">변경사항이 없습니다</string>
     <string name="preferred_exercise_success">선호 운동이 저장되었습니다</string>
 </resources>

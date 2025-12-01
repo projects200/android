@@ -49,5 +49,6 @@ sealed class CompletionState {
     object Success : CompletionState()
     object NoChanges : CompletionState()
     object NoneSelected : CompletionState()
+    object IncompleteSelection : CompletionState()
     data class Error(val message: String) : CompletionState()
 }
