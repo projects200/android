@@ -36,6 +36,10 @@ dependencies {
     // CircleImageView
     implementation(libs.circleimageview)
 
+    // Google Analytics
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+
     // Glide
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
