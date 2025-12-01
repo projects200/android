@@ -2,6 +2,7 @@ package com.project200.undabang.profile.utils
 
 object PreferredExerciseDayFormatter {
     private val DAY_NAMES = listOf("월", "화", "수", "목", "금", "토", "일")
+
     /**
      * 월요일부터 일요일까지의 선택 여부를 담은 Boolean 리스트를
      * 지정된 규칙에 따라 문자열로 포맷합니다.
@@ -19,7 +20,7 @@ object PreferredExerciseDayFormatter {
         }
 
         val weekdays = days.subList(0, 5) // 월요일부터 금요일까지
-        val weekend = days.subList(5, 7)  // 토요일, 일요일
+        val weekend = days.subList(5, 7) // 토요일, 일요일
 
         val isAllWeekdaysSelected = weekdays.all { it }
         val isAllWeekendSelected = weekend.all { it }
