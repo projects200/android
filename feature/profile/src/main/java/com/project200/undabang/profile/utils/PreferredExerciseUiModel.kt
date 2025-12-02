@@ -6,25 +6,15 @@ import androidx.core.content.ContextCompat.getString
 import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.PreferredExercise
 import com.project200.undabang.feature.profile.R
-import dagger.hilt.android.qualifiers.ApplicationContext
-import javax.inject.Inject
 
 data class PreferredExerciseUiModel(
     val exercise: PreferredExercise,
     var isSelected: Boolean,
     var selectedDays: MutableList<Boolean> = MutableList(7) { false }, // 월~일 선택 상태
     var skillLevel: SkillLevel? = null // 숙련도
-
 ) {
-    @Inject
-    lateinit var dayFormatter: PreferredExerciseDayFormatter
-
-    @Inject
-    @ApplicationContext
-    lateinit var context: Context
-
-    fun getExerciseInfo(): String {
-        val formattedDays = dayFormatter.formatDaysOfWeek(selectedDays)
+    fun getExerciseInfo(context: Context, formatter: PreferredExerciseDayFormatter): String {
+        val formattedDays = formatter.formatDaysOfWeek(selectedDays)
 
         val daysText = if (formattedDays.isNotEmpty()) {
             formattedDays
