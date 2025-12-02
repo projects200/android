@@ -4,12 +4,13 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.PreferredExercise
 import com.project200.undabang.feature.profile.databinding.ItemPreferredExerciseBinding
-import com.project200.undabang.profile.utils.PreferredExerciseDayFormatter.formatDaysOfWeek
 
 class PreferredExerciseRVAdapter(
     private var items: List<PreferredExercise> = emptyList(),
+    private val formatter: PreferredExerciseDayFormatter,
 ) : RecyclerView.Adapter<PreferredExerciseRVAdapter.ViewHolder>() {
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -43,7 +44,7 @@ class PreferredExerciseRVAdapter(
         fun bind(exercise: PreferredExercise) {
             binding.exerciseNameTv.text = exercise.name
             binding.skillTv.text = exercise.skillLevel
-            binding.exerciseDaysTv.text = formatDaysOfWeek(exercise.daysOfWeek)
+            binding.exerciseDaysTv.text = formatter.formatDaysOfWeek(exercise.daysOfWeek)
             Glide.with(binding.exerciseIv.context)
                 .load(exercise.imageUrl)
                 .into(binding.exerciseIv)
