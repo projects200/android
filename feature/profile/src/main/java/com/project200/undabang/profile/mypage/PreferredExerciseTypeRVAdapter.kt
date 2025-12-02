@@ -39,7 +39,7 @@ class PreferredExerciseTypeRVAdapter(
 
             binding.exerciseTypeLl.setOnClickListener {
                 // 이미 5개가 선택되어 있다면 개수 제한 콜백 호출
-                if (!uiModel.isSelected && currentList.count { it.isSelected } >= 5) {
+                if (!uiModel.isSelected && currentList.count { it.isSelected } >= MAX_SELECTION) {
                     onLimitReached()
                 } else {
                     onItemClicked(uiModel.exercise)
@@ -67,12 +67,13 @@ class PreferredExerciseTypeRVAdapter(
     companion object {
         private val DiffCallback = object : DiffUtil.ItemCallback<PreferredExerciseUiModel>() {
             override fun areItemsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
-                return oldItem.exercise.preferredExerciseId == newItem.exercise.preferredExerciseId
+                return oldItem.exercise.exerciseTypeId == newItem.exercise.exerciseTypeId
             }
 
             override fun areContentsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
                 return oldItem == newItem
             }
         }
+        private const val MAX_SELECTION = 5
     }
 }

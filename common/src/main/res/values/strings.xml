@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 요일 -->
+    <string name="day_mon">월</string>
+    <string name="day_tue">화</string>
+    <string name="day_wed">수</string>
+    <string name="day_thu">목</string>
+    <string name="day_fri">금</string>
+    <string name="day_sat">토</string>
+    <string name="day_sun">일</string>
+
+    <!-- 그룹 표기 -->
+    <string name="day_everyday">매일</string>
+    <string name="day_weekdays">평일</string>
+    <string name="day_weekend">주말</string>
+</resources>

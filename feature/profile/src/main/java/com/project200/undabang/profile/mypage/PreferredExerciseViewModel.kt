@@ -123,14 +123,11 @@ class PreferredExerciseViewModel @Inject constructor(
      * 운동 종류 선택/해제
      */
     fun updateSelectedExercise(exercise: PreferredExercise) {
-        val currentSelected = _preferredExercise.value?.toMutableList() ?: mutableListOf()
-        val isSelected = currentSelected.any { it.exerciseTypeId == exercise.exerciseTypeId }
-
-        if (isSelected) {
-            currentSelected.removeAll { it.exerciseTypeId == exercise.exerciseTypeId }
-        } else {
-            currentSelected.add(exercise)
+        val list = _preferredExercise.value?.toMutableList() ?: mutableListOf()
+        if (!list.removeAll { it.exerciseTypeId == exercise.exerciseTypeId }) {
+            list.add(exercise)
         }
-        _preferredExercise.value = currentSelected
+
+        _preferredExercise.value = list
     }
 }
