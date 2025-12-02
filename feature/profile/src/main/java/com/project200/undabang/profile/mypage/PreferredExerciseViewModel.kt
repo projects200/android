@@ -1,8 +1,10 @@
 package com.project200.undabang.profile.mypage
 
+import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PreferredExercise
@@ -29,6 +31,10 @@ class PreferredExerciseViewModel @Inject constructor(
     private val _preferredExercise = MutableLiveData<List<PreferredExercise>>()
 
     val exerciseUiModels = MediatorLiveData<List<PreferredExerciseUiModel>>()
+
+    val selectedExerciseUiModels: LiveData<List<PreferredExerciseUiModel>> = exerciseUiModels.map { list ->
+        list.filter { it.isSelected }
+    }
 
     init {
         exerciseUiModels.addSource(_exerciseTypes) { updateUiModels() }

@@ -34,9 +34,8 @@ class PreferredExerciseDetailFragment : BindingFragment<FragmentPreferredExercis
     }
 
     override fun setupObservers() {
-        viewModel.exerciseUiModels.observe(viewLifecycleOwner) { uiModels ->
-            val selectedExercises = uiModels.filter { it.isSelected }
-            detailAdapter.submitList(selectedExercises)
+        viewModel.selectedExerciseUiModels.observe(viewLifecycleOwner) { uiModels ->
+            detailAdapter.submitList(uiModels)
         }
     }
 }
