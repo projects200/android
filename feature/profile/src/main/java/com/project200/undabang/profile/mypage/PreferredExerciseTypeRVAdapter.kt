@@ -67,7 +67,7 @@ class PreferredExerciseTypeRVAdapter(
     companion object {
         private val DiffCallback = object : DiffUtil.ItemCallback<PreferredExerciseUiModel>() {
             override fun areItemsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
-                return oldItem.exercise.preferredExerciseId == newItem.exercise.preferredExerciseId
+                return oldItem.exercise.exerciseTypeId == newItem.exercise.exerciseTypeId
             }
 
             override fun areContentsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
