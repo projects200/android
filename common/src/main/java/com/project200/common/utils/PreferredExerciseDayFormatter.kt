@@ -28,7 +28,7 @@ class PreferredExerciseDayFormatter
             val weekend = days.subList(5, 7) // 토요일, 일요일
 
             // 평일이 모두 포함될 경우 "평일"로 표기
-            if (weekend.all { it }) {
+            if (weekdays.all { it }) {
                 resultParts.add(context.getString(R.string.day_weekdays))
             } else {
                 // 각각 해당하는 평일 날짜를 추가
