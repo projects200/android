@@ -8,11 +8,13 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.undabang.feature.profile.databinding.ItemPreferredExerciseDetailBinding
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
 import com.project200.undabang.profile.utils.SkillLevel
 
 class PreferredExerciseDetailRVAdapter(
-    private val viewModel: PreferredExerciseViewModel
+    private val viewModel: PreferredExerciseViewModel,
+    private val formatter: PreferredExerciseDayFormatter,
 ) : ListAdapter<PreferredExerciseUiModel, PreferredExerciseDetailRVAdapter.DetailViewHolder>(ExerciseDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DetailViewHolder {
@@ -58,7 +60,7 @@ class PreferredExerciseDetailRVAdapter(
         }
 
         private fun updateUi(uiModel: PreferredExerciseUiModel) {
-            binding.exerciseInfoTv.text = uiModel.getExerciseInfo()
+            binding.exerciseInfoTv.text = uiModel.getExerciseInfo(binding.root.context, formatter)
 
             // 요일 버튼 상태 업데이트
             dayButtons.forEachIndexed { index, button ->

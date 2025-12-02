@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PreferredExercise
@@ -44,6 +45,10 @@ class PreferredExerciseViewModel @Inject constructor(
     val completionState: LiveData<CompletionState> = _completionState
 
     val exerciseUiModels = MediatorLiveData<List<PreferredExerciseUiModel>>()
+
+    val selectedExerciseUiModels: LiveData<List<PreferredExerciseUiModel>> = exerciseUiModels.map { list ->
+        list.filter { it.isSelected }
+    }
 
     init {
         exerciseUiModels.addSource(_exerciseTypes) { updateUiModels() }
@@ -139,15 +144,12 @@ class PreferredExerciseViewModel @Inject constructor(
      * 운동 종류 선택/해제
      */
     fun updateSelectedExercise(exercise: PreferredExercise) {
-        val currentSelected = _preferredExercise.value?.toMutableList() ?: mutableListOf()
-        val isSelected = currentSelected.any { it.exerciseTypeId == exercise.exerciseTypeId }
-
-        if (isSelected) {
-            currentSelected.removeAll { it.exerciseTypeId == exercise.exerciseTypeId }
-        } else {
-            currentSelected.add(exercise)
+        val list = _preferredExercise.value?.toMutableList() ?: mutableListOf()
+        if (!list.removeAll { it.exerciseTypeId == exercise.exerciseTypeId }) {
+            list.add(exercise)
         }
-        _preferredExercise.value = currentSelected
+
+        _preferredExercise.value = list
     }
 
     /**

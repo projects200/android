@@ -96,13 +96,10 @@ class PreferredExerciseFragment :
     }
 
     private fun updateCompleteButtonState() {
-        when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
-            is PreferredExerciseTypeFragment -> {
-                binding.completeBtn.text = getString(com.project200.undabang.presentation.R.string.next)
-            }
-            is PreferredExerciseDetailFragment -> {
-                binding.completeBtn.text = getString(com.project200.undabang.presentation.R.string.complete)
-            }
+        binding.completeBtn.text = when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
+            is PreferredExerciseTypeFragment -> getString(com.project200.undabang.presentation.R.string.next)
+            is PreferredExerciseDetailFragment -> getString(com.project200.undabang.presentation.R.string.complete)
+            else -> getString(com.project200.undabang.presentation.R.string.complete)
         }
     }
 
