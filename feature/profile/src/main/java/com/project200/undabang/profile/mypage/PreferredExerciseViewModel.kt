@@ -244,11 +244,6 @@ class PreferredExerciseViewModel @Inject constructor(
      */
     private fun areListsEqual(initial: List<PreferredExercise>, current: List<PreferredExercise>): Boolean {
         if (initial.size != current.size) return false
-        val initialMap = initial.associateBy { it.exerciseTypeId }
-        return current.all { currentItem ->
-            initialMap[currentItem.exerciseTypeId]?.let { initialItem ->
-                initialItem == currentItem
-            } ?: false
-        }
+        return initial.toSet() == current.toSet()
     }
 }
