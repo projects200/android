@@ -39,7 +39,7 @@ class PreferredExerciseTypeRVAdapter(
 
             binding.exerciseTypeLl.setOnClickListener {
                 // 이미 5개가 선택되어 있다면 개수 제한 콜백 호출
-                if (!uiModel.isSelected && currentList.count { it.isSelected } >= 5) {
+                if (!uiModel.isSelected && currentList.count { it.isSelected } >= MAX_SELECTION) {
                     onLimitReached()
                 } else {
                     onItemClicked(uiModel.exercise)
@@ -74,5 +74,6 @@ class PreferredExerciseTypeRVAdapter(
                 return oldItem == newItem
             }
         }
+        private const val MAX_SELECTION = 5
     }
 }
