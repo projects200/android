@@ -17,6 +17,7 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.CalendarDayLayoutBinding
@@ -28,12 +29,16 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
     lateinit var preferredExerciseRVAdapter: PreferredExerciseRVAdapter
+
+    @Inject
+    lateinit var dayFormatter: PreferredExerciseDayFormatter
 
     override fun getViewBinding(view: View): FragmentMypageBinding {
         return FragmentMypageBinding.bind(view)
@@ -223,7 +228,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     }
 
     private fun setupPreferredExercise() {
-        preferredExerciseRVAdapter = PreferredExerciseRVAdapter()
+        preferredExerciseRVAdapter = PreferredExerciseRVAdapter(formatter = dayFormatter)
         binding.preferredExerciseRv.apply {
             adapter = preferredExerciseRVAdapter
             layoutManager = LinearLayoutManager(requireContext())
