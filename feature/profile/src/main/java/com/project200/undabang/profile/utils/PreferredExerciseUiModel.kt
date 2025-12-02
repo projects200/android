@@ -49,11 +49,19 @@ sealed class CompletionState {
     data class Error(val message: String) : CompletionState()
 }
 
-enum class SkillLevel(@StringRes val resId: Int) {
+enum class SkillLevel(
+    @StringRes val resId: Int,
+) {
     NOVICE(R.string.skill_novice),
     BEGINNER(R.string.skill_beginner),
     INTERMEDIATE(R.string.skill_intermediate),
     ADVANCED(R.string.skill_advanced),
     EXPERT(R.string.skill_expert),
-    PROFESSIONAL(R.string.skill_professional)
+    PROFESSIONAL(R.string.skill_professional);
+
+    companion object {
+        fun from(key: String?): SkillLevel? {
+            return entries.find { it.name == key }
+        }
+    }
 }

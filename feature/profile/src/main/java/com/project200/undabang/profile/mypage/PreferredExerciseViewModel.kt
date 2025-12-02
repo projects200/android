@@ -99,6 +99,7 @@ class PreferredExerciseViewModel @Inject constructor(
         val uiList = allTypes.map { exercise ->
             // 기존에 생성된 UI 모델이 있다면 상세 정보를 유지, 없다면 새로 생성
             val existingUiModel = exerciseUiModels.value?.find { it.exercise.exerciseTypeId == exercise.exerciseTypeId }
+            val serverData = selected.find { it.exerciseTypeId == exercise.exerciseTypeId }
             PreferredExerciseUiModel(
                 exercise = exercise,
                 isSelected = selectedTypeIds.contains(exercise.exerciseTypeId)
@@ -106,6 +107,9 @@ class PreferredExerciseViewModel @Inject constructor(
                 if (existingUiModel != null) {
                     this.selectedDays = existingUiModel.selectedDays
                     this.skillLevel = existingUiModel.skillLevel
+                } else if (serverData != null) {
+                    this.selectedDays = serverData.daysOfWeek.toMutableList()
+                    this.skillLevel = SkillLevel.from(serverData.skillLevel)
                 }
             }
         }
