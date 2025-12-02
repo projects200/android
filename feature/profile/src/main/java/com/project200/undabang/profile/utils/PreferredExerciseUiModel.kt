@@ -39,15 +39,6 @@ data class PreferredExerciseUiModel(
     }
 }
 
-enum class SkillLevel(val displayName: String) {
-    NOVICE("입문"),
-    BEGINNER("초급"),
-    INTERMEDIATE("중급"),
-    ADVANCED("고급"),
-    EXPERT("숙련"),
-    PROFESSIONAL("선출")
-}
-
 sealed class CompletionState {
     object Idle : CompletionState()
     object Loading : CompletionState()
@@ -56,4 +47,13 @@ sealed class CompletionState {
     object NoneSelected : CompletionState()
     object IncompleteSelection : CompletionState()
     data class Error(val message: String) : CompletionState()
+}
+
+enum class SkillLevel(@StringRes val resId: Int) {
+    NOVICE(R.string.skill_novice),
+    BEGINNER(R.string.skill_beginner),
+    INTERMEDIATE(R.string.skill_intermediate),
+    ADVANCED(R.string.skill_advanced),
+    EXPERT(R.string.skill_expert),
+    PROFESSIONAL(R.string.skill_professional)
 }
