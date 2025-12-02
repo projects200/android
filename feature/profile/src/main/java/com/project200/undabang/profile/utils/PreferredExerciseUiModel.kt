@@ -1,33 +1,48 @@
 package com.project200.undabang.profile.utils
 
+import android.content.Context
+import androidx.annotation.StringRes
+import androidx.core.content.ContextCompat.getString
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.PreferredExercise
+import com.project200.undabang.feature.profile.R
+import dagger.hilt.android.qualifiers.ApplicationContext
+import javax.inject.Inject
 
 data class PreferredExerciseUiModel(
     val exercise: PreferredExercise,
     var isSelected: Boolean,
     var selectedDays: MutableList<Boolean> = MutableList(7) { false }, // 월~일 선택 상태
     var skillLevel: SkillLevel? = null // 숙련도
+
 ) {
+    @Inject
+    lateinit var dayFormatter: PreferredExerciseDayFormatter
+
+    @Inject
+    @ApplicationContext
+    lateinit var context: Context
+
     fun getExerciseInfo(): String {
-        val formattedDays = PreferredExerciseDayFormatter.formatDaysOfWeek(selectedDays)
+        val formattedDays = dayFormatter.formatDaysOfWeek(selectedDays)
 
         val daysText = if (formattedDays.isNotEmpty()) {
             formattedDays
         } else {
-            "요일 미선택"
+            getString(context, R.string.preferred_exercise_day_not_selected)
         }
 
-        val skillText = skillLevel?.displayName ?: "숙련도 미선택"
+        val skillText = getString(context, skillLevel?.resId ?: R.string.preferred_exercise_skill_not_selected)
 
         return "$daysText ・ $skillText"
     }
 }
 
-enum class SkillLevel(val displayName: String) {
-    NOVICE("입문"),
-    BEGINNER("초급"),
-    INTERMEDIATE("중급"),
-    ADVANCED("고급"),
-    EXPERT("숙련"),
-    PROFESSIONAL("선출")
+enum class SkillLevel(@StringRes val resId: Int) {
+    NOVICE(R.string.skill_novice),
+    BEGINNER(R.string.skill_beginner),
+    INTERMEDIATE(R.string.skill_intermediate),
+    ADVANCED(R.string.skill_advanced),
+    EXPERT(R.string.skill_expert),
+    PROFESSIONAL(R.string.skill_professional)
 }
