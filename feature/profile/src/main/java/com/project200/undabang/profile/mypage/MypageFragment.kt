@@ -103,6 +103,10 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
                 scoreTv.text = profile.exerciseScore.toString()
+
+                preferredExerciseRVAdapter.setItems(profile.preferredExercises)
+                binding.preferredExerciseEmptyTv.isVisible = profile.preferredExercises.isEmpty()
+                binding.preferredExerciseRv.isVisible = profile.preferredExercises.isNotEmpty()
             }
         }
 
@@ -115,12 +119,6 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
             // 캘린더 스크롤 이동
             binding.exerciseCalendar.scrollToMonth(month)
-        }
-
-        viewModel.preferredExercise.observe(viewLifecycleOwner) { exercises ->
-            preferredExerciseRVAdapter.setItems(exercises)
-            binding.preferredExerciseEmptyTv.isVisible = exercises.isEmpty()
-            binding.preferredExerciseRv.isVisible = exercises.isNotEmpty()
         }
 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
