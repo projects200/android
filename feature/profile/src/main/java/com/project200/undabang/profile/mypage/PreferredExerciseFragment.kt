@@ -2,6 +2,7 @@ package com.project200.undabang.profile.mypage
 
 import android.view.View
 import android.widget.Toast
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -39,6 +40,7 @@ class PreferredExerciseFragment :
 
     override fun setupObservers() {
         viewModel.completionState.observe(viewLifecycleOwner) { state ->
+            binding.loadingLayout.isVisible = (state is CompletionState.Loading)
             when (state) {
                 is CompletionState.Loading -> {
                     binding.completeBtn.isEnabled = false
