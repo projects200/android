@@ -9,6 +9,7 @@ import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.usecase.DeleteExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.feature.exercise.detail.ExerciseDetailViewModel
+import com.project200.presentation.utils.UiState
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -62,7 +63,7 @@ class ExerciseDetailViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(savedStateHandle, mockGetExerciseUseCase, mockDeleteExerciseUseCase)
+        viewModel = ExerciseDetailViewModel(mockGetExerciseUseCase, mockDeleteExerciseUseCase)
     }
 
     @After
@@ -78,32 +79,44 @@ class ExerciseDetailViewModelTest {
             coEvery { mockGetExerciseUseCase.invoke(recordId) } returns successResult
 
             // When
-            viewModel.getExerciseRecord()
+            viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
             coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) }
             val actualResult = viewModel.exerciseRecord.value
-            assertThat(actualResult).isEqualTo(successResult)
-            assertThat((actualResult as BaseResult.Success).data.title).isEqualTo("아침 조깅")
+
+            assertThat(actualResult).isInstanceOf(UiState.Success::class.java)
+
+            val actualData = (actualResult as UiState.Success).data
+            assertThat(actualData).isEqualTo(sampleRecord)
+            assertThat(actualData.title).isEqualTo("아침 조깅")
         }
 
     @Test
-    fun `getExerciseRecord 호출 시 UseCase가 에러를 반환하면 LiveData에 에러 상태 반영`() =
+    fun `getExerciseRecord 호출 시 UseCase가 에러를 반환하면 UiState Error로 LiveData에 에러 상태 반영`() =
         runTest(testDispatcher) {
             // Given
-            val errorResult = BaseResult.Error("500", "Network error")
+            val errorResult = BaseResult.Error("500", "Server error")
             coEvery { mockGetExerciseUseCase.invoke(recordId) } returns errorResult
 
             // When
-            viewModel.getExerciseRecord()
+            viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
             coVerify(exactly = 1) { mockGetExerciseUseCase.invoke(recordId) }
             val actualResult = viewModel.exerciseRecord.value
-            assertThat(actualResult).isEqualTo(errorResult)
-            assertThat((actualResult as BaseResult.Error).message).isEqualTo("Network error")
+            assertThat(actualResult).isInstanceOf(UiState.Error::class.java)
+
+            val actualMessage =
+                (actualResult as UiState.Error).failure.let {
+                    when (it) {
+                        is com.project200.presentation.utils.Failure.ServerError -> it.message
+                        else -> null
+                    }
+                }
+            assertThat(actualMessage).isEqualTo("Server error")
         }
 
     @Test
@@ -114,7 +127,7 @@ class ExerciseDetailViewModelTest {
             coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns successResult
 
             // When
-            viewModel.deleteExerciseRecord()
+            viewModel.deleteExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -132,7 +145,7 @@ class ExerciseDetailViewModelTest {
             coEvery { mockDeleteExerciseUseCase.invoke(recordId) } returns errorResult
 
             // When
-            viewModel.deleteExerciseRecord()
+            viewModel.deleteExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
