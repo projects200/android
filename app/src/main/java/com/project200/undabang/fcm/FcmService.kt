@@ -60,11 +60,12 @@ class FcmService : FirebaseMessagingService() {
     }
 
     private fun sendNotification(data: Map<String, String>) {
-        val chatRoomId = data["chatRoomId"]
+        val chatRoomId = data["chatroomId"]
         val nickname = data["nickname"]
         val memberId = data["memberId"]
+        val content = data["content"]
 
-        if (chatRoomId == null || nickname == null || memberId == null) return
+        if (chatRoomId == null || nickname == null || memberId == null || content == null) return
 
         // 현재 활성화된 채팅방과 동일한 채팅방에서 온 알림이면 무시
         if (chatRoomId.toLong() == chatRoomStateRepository.activeChatRoomId.value) return
