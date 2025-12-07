@@ -3,6 +3,7 @@ package com.project200.data.impl
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetIsNicknameDuplicated
+import com.project200.data.dto.PostLoginRequest
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.utils.apiCallBuilder
@@ -38,7 +39,7 @@ class AuthRepositoryImpl
         override suspend fun login(): BaseResult<Unit> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postLogin() },
+                apiCall = { apiService.postLogin(PostLoginRequest("ANDROID", "APP")) },
                 mapper = { Unit },
             )
         }

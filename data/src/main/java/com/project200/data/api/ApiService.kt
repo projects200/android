@@ -35,6 +35,7 @@ import com.project200.data.dto.PostCustomTimerRequest
 import com.project200.data.dto.PostExercisePlaceDTO
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
+import com.project200.data.dto.PostLoginRequest
 import com.project200.data.dto.PostMessageResponse
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
@@ -63,7 +64,9 @@ interface ApiService {
     // 로그인
     @POST("api/v1/login")
     @AccessTokenWithFcmApi
-    suspend fun postLogin(): BaseResponse<Unit?>
+    suspend fun postLogin(
+        @Body accessInfo: PostLoginRequest,
+    ): BaseResponse<Unit?>
 
     // 로그아웃
     @POST("api/v1/logout")
