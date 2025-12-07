@@ -119,4 +119,8 @@
     <string name="skill_advanced">고급</string>
     <string name="skill_expert">숙련</string>
     <string name="skill_professional">선출</string>
+    <string name="preferred_exercise_none_selected">최소 하나의 운동을 선택해주세요</string>
+    <string name="preferred_exercise_incomplete_seleted">요일과 숙련도를 모두 선택해주세요</string>
+    <string name="preferred_exercise_no_changed">변경사항이 없습니다</string>
+    <string name="preferred_exercise_success">선호 운동이 저장되었습니다</string>
 </resources>

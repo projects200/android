@@ -50,6 +50,17 @@ fun GetPreferredExerciseDTO.toModel(): PreferredExercise {
     )
 }
 
+fun PreferredExercise.toDto(): GetPreferredExerciseDTO {
+    return GetPreferredExerciseDTO(
+        preferredExerciseId = this.preferredExerciseId,
+        exerciseTypeId = this.exerciseTypeId,
+        name = this.name,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+        imageUrl = this.imageUrl,
+    )
+}
+
 fun GetPreferredExerciseTypeDTO.toModel(): ExerciseType {
     return ExerciseType(
         id =  this.exerciseTypeId,

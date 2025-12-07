@@ -26,13 +26,42 @@ data class PreferredExerciseUiModel(
 
         return "$daysText ・ $skillText"
     }
+
+    fun toModel(): PreferredExercise {
+        return PreferredExercise(
+            preferredExerciseId = this.exercise.preferredExerciseId,
+            exerciseTypeId = this.exercise.exerciseTypeId,
+            name = this.exercise.name,
+            skillLevel = this.skillLevel?.name ?: "",
+            daysOfWeek = this.selectedDays,
+            imageUrl = this.exercise.imageUrl
+        )
+    }
 }
 
-enum class SkillLevel(@StringRes val resId: Int) {
+sealed class CompletionState {
+    object Idle : CompletionState()
+    object Loading : CompletionState()
+    object Success : CompletionState()
+    object NoChanges : CompletionState()
+    object NoneSelected : CompletionState()
+    object IncompleteSelection : CompletionState()
+    data class Error(val message: String) : CompletionState()
+}
+
+enum class SkillLevel(
+    @StringRes val resId: Int,
+) {
     NOVICE(R.string.skill_novice),
     BEGINNER(R.string.skill_beginner),
     INTERMEDIATE(R.string.skill_intermediate),
     ADVANCED(R.string.skill_advanced),
     EXPERT(R.string.skill_expert),
-    PROFESSIONAL(R.string.skill_professional)
+    PROFESSIONAL(R.string.skill_professional);
+
+    companion object {
+        fun from(key: String?): SkillLevel? {
+            return entries.find { it.name == key }
+        }
+    }
 }

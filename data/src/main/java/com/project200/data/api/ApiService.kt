@@ -180,6 +180,30 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getPreferredExerciseTypes(): BaseResponse<List<GetPreferredExerciseTypeDTO>>
 
+    // 선호 운동 생성
+    // TODO: 실제 API 명세가 나오면 수정 필요
+    @POST("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun postPreferredExercises(
+        @Body preferredExercises: List<GetPreferredExerciseDTO>,
+    ): BaseResponse<Unit?>
+
+    // 선호 운동 수정
+    // TODO: 실제 API 명세가 나오면 수정 필요
+    @PATCH("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun patchPreferredExercises(
+        @Body preferredExercises: List<GetPreferredExerciseDTO>,
+    ): BaseResponse<Unit?>
+
+    // 선호 운동 삭제
+    // TODO: 실제 API 명세가 나오면 수정 필요
+    @DELETE("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun deletePreferredExercises(
+        @Query("preferredExerciseIds") preferredExerciseIds: List<Long>,
+    ): BaseResponse<Unit?>
+
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")
