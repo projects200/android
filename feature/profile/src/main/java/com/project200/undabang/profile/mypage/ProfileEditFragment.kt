@@ -16,6 +16,7 @@ import com.project200.common.constants.RuleConstants
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
+import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeInsets
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentProfileEditBinding
 import com.project200.undabang.profile.utils.NicknameValidationState
@@ -67,6 +68,7 @@ class ProfileEditFragment :
     }
 
     override fun setupViews() {
+        binding.root.applyEdgeToEdgeInsets()
         binding.baseToolbar.apply {
             setTitle(getString(R.string.profile_edit))
             showBackButton(true) { findNavController().navigateUp() }
