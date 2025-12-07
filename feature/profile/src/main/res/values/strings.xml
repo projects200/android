@@ -109,4 +109,14 @@
     <string name="preferred_exercise_type_title">%s님, 선호하시는 운동을 선택해 주세요.</string>
     <string name="preferred_exercise_type_max_cnt">*선호운동은 최대 5개까지 선택 가능해요.</string>
     <string name="preferred_exercise_type_max_error">최대 5개까지 선택 가능해요</string>
+    <string name="preferred_exercise_detail_days_title">운동 주기</string>
+    <string name="preferred_exercise_detail_days_skill_level">숙련도</string>
+    <string name="preferred_exercise_day_not_selected">요일 미선택</string>
+    <string name="preferred_exercise_skill_not_selected">숙련도 미선택</string>
+    <string name="skill_novice">입문</string>
+    <string name="skill_beginner">초급</string>
+    <string name="skill_intermediate">중급</string>
+    <string name="skill_advanced">고급</string>
+    <string name="skill_expert">숙련</string>
+    <string name="skill_professional">선출</string>
 </resources>
