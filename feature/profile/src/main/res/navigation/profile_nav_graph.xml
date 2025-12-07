@@ -31,6 +31,13 @@
                 app:argType="long"
                 android:defaultValue="-1L" />
         </action>
+        <action
+            android:id="@+id/action_mypageFragment_to_preferredExerciseFragment"
+            app:destination="@id/preferredExerciseFragment">
+            <argument
+                android:name="nickname"
+                app:argType="string" />
+        </action>
     </fragment>
 
     <fragment
@@ -88,4 +95,14 @@
         android:name="com.project200.undabang.profile.setting.BlockMembersFragment"
         android:label="blockMembers"
         tools:layout="@layout/fragment_block_members" />
+
+    <fragment
+        android:id="@+id/preferredExerciseFragment"
+        android:name="com.project200.undabang.profile.mypage.PreferredExerciseFragment"
+        android:label="preferredExercise"
+        tools:layout="@layout/fragment_preferred_exercise" >
+        <argument
+            android:name="nickname"
+            app:argType="string" />
+    </fragment>
 </navigation>

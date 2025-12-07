@@ -2,6 +2,7 @@ package com.project200.domain.repository
 
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.BlockedMember
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImageList
@@ -23,4 +24,5 @@ interface MemberRepository {
     suspend fun unblockMember(memberId: String): BaseResult<Unit>
     suspend fun getBlockedMembers(): BaseResult<List<BlockedMember>>
     suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>>
+    suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>>
 }

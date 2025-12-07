@@ -6,6 +6,7 @@ import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -15,6 +16,7 @@ import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.BlockedMember
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImageList
@@ -167,17 +169,18 @@ class MemberRepositoryImpl
                 Unit
             },
         )*/
+        // 임시 더미 데이터 반환
             return BaseResult.Success(
-                List(6) { index ->
+                List(3) { index ->
                     PreferredExercise(
-                        preferredExerciseId = index,
+                        exerciseTypeId = index.toLong(),
+                        preferredExerciseId = index.toLong(),
                         name = "운동종류 $index",
-                        skillLevel =
-                            when (index % 3) {
-                                0 -> "초급"
-                                1 -> "중급"
-                                else -> "고급"
-                            },
+                        skillLevel = when (index % 3) {
+                            0 -> "초급"
+                            1 -> "중급"
+                            else -> "고급"
+                        },
                         daysOfWeek = List(7) { dayIndex -> (dayIndex + index) % 2 == 0 },
                         imageUrl = "https://example.com/exercise_image_$index.png",
                     )
@@ -185,7 +188,25 @@ class MemberRepositoryImpl
             )
         }
 
-        companion object {
+    override suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>> {
+/*        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.getPreferredExerciseTypes() },
+            mapper = { dtoList: List<GetPreferredExerciseTypeDTO>? ->
+                dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+            },
+        )*/
+        // 임시 더미 데이터 반환
+        return BaseResult.Success(List(6) { index ->
+            ExerciseType(
+                id = index.toLong(),
+                name = "운동종류 $index",
+                imageUrl = "https://example.com/exercise_image_$index.png",
+            )
+        })
+    }
+
+    companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }

@@ -43,15 +43,7 @@ fun GetMatchingProfileDTO.toModel(): MatchingMemberProfile {
         exerciseCountInLast30Days = this.exerciseCountInLast30Days,
         exerciseScore = this.exerciseScore,
         preferredExercises =
-            this.preferredExercises.map {
-                PreferredExercise(
-                    preferredExerciseId = it.preferredExerciseId,
-                    name = it.name,
-                    skillLevel = it.skillLevel,
-                    daysOfWeek = it.daysOfWeek,
-                    imageUrl = it.imageUrl,
-                )
-            },
+            this.preferredExercises.map { it.toModel() },
     )
 }
 

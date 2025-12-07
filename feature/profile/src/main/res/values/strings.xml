@@ -104,4 +104,9 @@
     
     <string name="unblock">차단 해제</string>
     <string name="block_members_empty">아직 차단된 계정이 없어요</string>
+
+    <!-- 선호 운동 설정 -->
+    <string name="preferred_exercise_type_title">%s님, 선호하시는 운동을 선택해 주세요.</string>
+    <string name="preferred_exercise_type_max_cnt">*선호운동은 최대 5개까지 선택 가능해요.</string>
+    <string name="preferred_exercise_type_max_error">최대 5개까지 선택 가능해요</string>
 </resources>
