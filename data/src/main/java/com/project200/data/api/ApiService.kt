@@ -167,6 +167,13 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getBlockedMembers(): BaseResponse<List<GetBlockedMemberDTO>>
 
+    /** 선호 운동 */
+    // 선호 운동 조회
+    // TODO: 실제 api 명세 나오면 수정 필요
+    @GET("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun getPreferredExercises(): BaseResponse<List<Unit>>
+
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회
     @GET("api/v1/exercises/count")

@@ -6,9 +6,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.OpenUrl
+import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
+import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.domain.usecase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,6 +25,7 @@ class MypageViewModel
     constructor(
         private val getExerciseCountInMonthUseCase: GetExerciseCountInMonthUseCase,
         private val getUserProfileUseCase: GetUserProfileUseCase,
+        private val getPreferredExerciseUseCase: GetPreferredExerciseUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private val _profile = MutableLiveData<UserProfile>()
@@ -37,8 +39,8 @@ class MypageViewModel
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
 
-        private val _openUrl = MutableLiveData<OpenUrl>()
-        val openUrl: LiveData<OpenUrl> = _openUrl
+        private val _preferredExercise = MutableLiveData<List<PreferredExercise>>()
+        val preferredExercise: LiveData<List<PreferredExercise>> = _preferredExercise
 
         private val _toast = MutableSharedFlow<Boolean>()
         val toast: SharedFlow<Boolean> = _toast
@@ -47,6 +49,7 @@ class MypageViewModel
             getProfile()
             val initialMonth = clockProvider.yearMonthNow()
             onMonthChanged(initialMonth)
+            getPreferredExercises()
         }
 
         fun onMonthChanged(newMonth: YearMonth) {
@@ -119,5 +122,22 @@ class MypageViewModel
             }
 
             _selectedMonth.value = newMonth
+        }
+
+        /**
+         * 선호 운동 조회
+         */
+        fun getPreferredExercises() {
+            viewModelScope.launch {
+                when (val result = getPreferredExerciseUseCase()) {
+                    is BaseResult.Success -> {
+                        _preferredExercise.value = result.data
+                    }
+
+                    is BaseResult.Error -> {
+                        _toast.emit(true)
+                    }
+                }
+            }
         }
     }
