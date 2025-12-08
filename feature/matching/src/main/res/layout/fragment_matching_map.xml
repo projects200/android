@@ -32,7 +32,8 @@
             android:clipToPadding="false"
             android:orientation="horizontal"
             app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-            android:paddingHorizontal="@dimen/base_horizontal_margin"/>
+            android:paddingStart="@dimen/base_horizontal_margin"
+            android:paddingEnd="10dp"/>
     </LinearLayout>
     <com.kakao.vectormap.MapView
         android:id="@+id/map_view"
