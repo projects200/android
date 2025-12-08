@@ -25,10 +25,10 @@ import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
-import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
+import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
 import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
@@ -54,7 +54,7 @@ class MatchingMapFragment :
             },
             onClearClick = {
                 viewModel.clearFilters()
-            }
+            },
         )
     }
 
@@ -281,17 +281,19 @@ class MatchingMapFragment :
 
     private fun showFilterBottomSheet(type: MatchingFilterType) {
         // 필터 옵션들을 UI 모델로 매핑
-        val options = FilterUiMapper.mapToUiModels(
-            type = type,
-            currentState = viewModel.filterState.value
-        )
+        val options =
+            FilterUiMapper.mapToUiModels(
+                type = type,
+                currentState = viewModel.filterState.value,
+            )
 
-        val bottomSheet = FilterBottomSheetDialog(
-            filterType = type,
-            onOptionSelected = { selectedDomainData ->
-                viewModel.onFilterOptionSelected(type, selectedDomainData)
-            }
-        )
+        val bottomSheet =
+            FilterBottomSheetDialog(
+                filterType = type,
+                onOptionSelected = { selectedDomainData ->
+                    viewModel.onFilterOptionSelected(type, selectedDomainData)
+                },
+            )
         bottomSheet.show(childFragmentManager, FilterBottomSheetDialog::class.java.simpleName)
     }
 

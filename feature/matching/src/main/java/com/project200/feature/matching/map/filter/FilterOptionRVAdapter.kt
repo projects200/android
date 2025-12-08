@@ -12,15 +12,20 @@ import com.project200.undabang.feature.matching.databinding.ItemFilterOptionBind
 import com.project200.undabang.presentation.R
 
 class FilterOptionRVAdapter(
-    private val onClick: (Any) -> Unit
+    private val onClick: (Any) -> Unit,
 ) : ListAdapter<FilterOptionUiModel, FilterOptionRVAdapter.ViewHolder>(DiffCallback) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ViewHolder {
         val binding = ItemFilterOptionBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return ViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
@@ -33,15 +38,23 @@ class FilterOptionRVAdapter(
             binding.filterOptionLl.setOnClickListener { onClick(item.originalData) }
         }
     }
-    companion object {
-        private val DiffCallback = object : DiffUtil.ItemCallback<FilterOptionUiModel>() {
-            override fun areItemsTheSame(oldItem: FilterOptionUiModel, newItem: FilterOptionUiModel): Boolean {
-                return oldItem.labelResId == newItem.labelResId
-            }
 
-            override fun areContentsTheSame(oldItem: FilterOptionUiModel, newItem: FilterOptionUiModel): Boolean {
-                return oldItem == newItem
+    companion object {
+        private val DiffCallback =
+            object : DiffUtil.ItemCallback<FilterOptionUiModel>() {
+                override fun areItemsTheSame(
+                    oldItem: FilterOptionUiModel,
+                    newItem: FilterOptionUiModel,
+                ): Boolean {
+                    return oldItem.labelResId == newItem.labelResId
+                }
+
+                override fun areContentsTheSame(
+                    oldItem: FilterOptionUiModel,
+                    newItem: FilterOptionUiModel,
+                ): Boolean {
+                    return oldItem == newItem
+                }
             }
-        }
     }
 }

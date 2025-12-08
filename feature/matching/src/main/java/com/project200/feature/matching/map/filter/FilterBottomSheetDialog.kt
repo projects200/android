@@ -10,7 +10,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.project200.feature.matching.map.MatchingMapViewModel
-import com.project200.feature.matching.map.filter.FilterOptionRVAdapter
 import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.undabang.feature.matching.databinding.DialogFilterBottomSheetBinding
@@ -19,13 +18,12 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class FilterBottomSheetDialog (
+class FilterBottomSheetDialog(
     private val filterType: MatchingFilterType,
-    private val onOptionSelected: (Any) -> Unit
+    private val onOptionSelected: (Any) -> Unit,
 ) : BottomSheetDialogFragment() {
-
     private var _binding: DialogFilterBottomSheetBinding? = null
-    private val binding get() = _binding!!
+    val binding get() = _binding!!
 
     private val viewModel: MatchingMapViewModel by viewModels({ requireParentFragment() })
 
@@ -41,12 +39,19 @@ class FilterBottomSheetDialog (
         setStyle(STYLE_NORMAL, R.style.CustomBottomSheetDialogTheme)
     }
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
         _binding = DialogFilterBottomSheetBinding.inflate(inflater, container, false)
         return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         binding.filterOptionsRv.adapter = adapter
 

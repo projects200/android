@@ -4,24 +4,17 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
-import com.project200.domain.model.ExerciseScore
-import com.project200.domain.model.Gender
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
-import com.project200.domain.model.Score
-import com.project200.domain.model.SkillLevel
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.SaveLastMapPositionUseCase
-import com.project200.feature.matching.utils.FilterOptionUiModel
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
-import com.project200.presentation.utils.labelResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -62,7 +55,6 @@ class MatchingMapViewModel
         // 현재 선택된 필터 타입
         private val _currentFilterType = MutableSharedFlow<MatchingFilterType>()
         val currentFilterType: SharedFlow<MatchingFilterType> = _currentFilterType
-
 
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
@@ -163,46 +155,55 @@ class MatchingMapViewModel
             }
         }
 
-    // 필터 버튼 클릭 시 호출
-    fun onFilterTypeClicked(type: MatchingFilterType) {
-        viewModelScope.launch {
-            _currentFilterType.emit(type)
-        }
-    }
-
-    /**
-     * 필터 초기화
-     */
-    fun clearFilters() {
-        _filterState.value = FilterState()
-        fetchMatchingMembers()
-    }
-
-    /**
-     * 필터 옵션 선택 시 호출
-     */
-    fun onFilterOptionSelected(type: MatchingFilterType, option: Any) {
-        _filterState.update { current ->
-            when (type) {
-                MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
-                MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
-                MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
-                MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
-                MatchingFilterType.DAY -> {
-                    val day = option as DayOfWeek
-                    current.copy(days = if (day in current.days) {
-                        current.days - day // 이미 있으면 제거
-                    } else {
-                        current.days + day // 없으면 추가
-                    })
-                }
+        // 필터 버튼 클릭 시 호출
+        fun onFilterTypeClicked(type: MatchingFilterType) {
+            viewModelScope.launch {
+                _currentFilterType.emit(type)
             }
         }
-        fetchMatchingMembers()
-    }
 
-    private fun <T> toggle(current: T?, selected: Any): T? {
-        val selectedCasted = selected as T
-        return if (current == selectedCasted) null else selectedCasted
-    }
+        /**
+         * 필터 초기화
+         */
+        fun clearFilters() {
+            _filterState.value = FilterState()
+            fetchMatchingMembers()
+        }
+
+        /**
+         * 필터 옵션 선택 시 호출
+         */
+        fun onFilterOptionSelected(
+            type: MatchingFilterType,
+            option: Any,
+        ) {
+            _filterState.update { current ->
+                when (type) {
+                    MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
+                    MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
+                    MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
+                    MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
+                    MatchingFilterType.DAY -> {
+                        val day = option as DayOfWeek
+                        current.copy(
+                            days =
+                                if (day in current.days) {
+                                    current.days - day // 이미 있으면 제거
+                                } else {
+                                    current.days + day // 없으면 추가
+                                },
+                        )
+                    }
+                }
+            }
+            fetchMatchingMembers()
+        }
+
+        private fun <T> toggle(
+            current: T?,
+            selected: Any,
+        ): T? {
+            val selectedCasted = selected as T
+            return if (current == selectedCasted) null else selectedCasted
+        }
     }

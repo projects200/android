@@ -13,9 +13,8 @@ import com.project200.undabang.feature.matching.databinding.ItemFilterClearBindi
 
 class MatchingFilterRVAdapter(
     private val onFilterClick: (MatchingFilterType) -> Unit,
-    private val onClearClick: () -> Unit
+    private val onClearClick: () -> Unit,
 ) : ListAdapter<FilterListItem, RecyclerView.ViewHolder>(DiffCallback) {
-
     // 현재 필터 상태를 저장 (어떤 필터가 활성화되었는지 확인용)
     private var currentFilterState: FilterState = FilterState()
 
@@ -26,7 +25,10 @@ class MatchingFilterRVAdapter(
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): RecyclerView.ViewHolder {
         return if (viewType == TYPE_CLEAR) {
             val binding = ItemFilterClearBinding.inflate(LayoutInflater.from(parent.context), parent, false)
             ClearViewHolder(binding, onClearClick)
@@ -36,7 +38,10 @@ class MatchingFilterRVAdapter(
         }
     }
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+    ) {
         when (val item = getItem(position)) {
             is FilterListItem.ClearButton -> (holder as ClearViewHolder).bind()
             is FilterListItem.FilterItem -> (holder as FilterViewHolder).bind(item.type, currentFilterState)
@@ -62,14 +67,21 @@ class MatchingFilterRVAdapter(
         private const val TYPE_CLEAR = 0
         private const val TYPE_FILTER = 1
 
-        private val DiffCallback = object : DiffUtil.ItemCallback<FilterListItem>() {
-            override fun areItemsTheSame(oldItem: FilterListItem, newItem: FilterListItem): Boolean {
-                return oldItem == newItem
-            }
-            override fun areContentsTheSame(oldItem: FilterListItem, newItem: FilterListItem): Boolean {
-                return oldItem == newItem
-            }
-        }
-    }
+        private val DiffCallback =
+            object : DiffUtil.ItemCallback<FilterListItem>() {
+                override fun areItemsTheSame(
+                    oldItem: FilterListItem,
+                    newItem: FilterListItem,
+                ): Boolean {
+                    return oldItem == newItem
+                }
 
+                override fun areContentsTheSame(
+                    oldItem: FilterListItem,
+                    newItem: FilterListItem,
+                ): Boolean {
+                    return oldItem == newItem
+                }
+            }
+    }
 }
