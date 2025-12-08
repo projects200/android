@@ -4,22 +4,33 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.ExerciseScore
+import com.project200.domain.model.Gender
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
+import com.project200.domain.model.SkillLevel
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.SaveLastMapPositionUseCase
+import com.project200.feature.matching.utils.FilterOptionUiModel
+import com.project200.feature.matching.utils.FilterState
+import com.project200.feature.matching.utils.MatchingFilterType
+import com.project200.presentation.utils.labelResId
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,6 +53,15 @@ class MatchingMapViewModel
 
         private val _errorEvents = MutableSharedFlow<String>()
         val errorEvents: SharedFlow<String> = _errorEvents
+
+        // 필터 상태
+        private val _filterState = MutableStateFlow(FilterState())
+        val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
+
+        // 현재 선택된 필터 타입
+        private val _currentFilterType = MutableSharedFlow<MatchingFilterType>()
+        val currentFilterType: SharedFlow<MatchingFilterType> = _currentFilterType
+
 
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
@@ -84,6 +104,8 @@ class MatchingMapViewModel
          */
         fun fetchMatchingMembers() {
             viewModelScope.launch {
+                val filters = _filterState.value
+                // useCase 호출 시 filters.gender, filters.ageGroup 등을 전달
                 matchingMembers.value = getMatchingMembersUseCase()
             }
         }
@@ -139,6 +161,29 @@ class MatchingMapViewModel
                 }
             }
         }
+
+    // 필터 버튼 클릭 시 호출
+    fun onFilterTypeClicked(type: MatchingFilterType) {
+        viewModelScope.launch {
+            _currentFilterType.emit(type)
+        }
+    }
+
+    /**
+     * 필터 옵션 선택 시 호출
+     */
+    fun onFilterOptionSelected(type: MatchingFilterType, option: Any) {
+        _filterState.update { current ->
+            when (type) {
+                MatchingFilterType.GENDER -> current.copy(gender = option as? Gender)
+                MatchingFilterType.AGE -> current.copy(ageGroup = option as? AgeGroup)
+                MatchingFilterType.SKILL -> current.copy(skillLevel = option as? SkillLevel)
+                MatchingFilterType.SCORE -> current.copy(exerciseScore = option as? ExerciseScore)
+                MatchingFilterType.DAY -> { current.copy(days = option as? DayOfWeek) }
+            }
+        }
+        fetchMatchingMembers()
+    }
 
         companion object {
             const val NO_URL = "404"
