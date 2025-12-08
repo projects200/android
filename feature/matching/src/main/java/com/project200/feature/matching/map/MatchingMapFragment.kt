@@ -169,12 +169,6 @@ class MatchingMapFragment :
                     }
                 }
                 launch {
-                    viewModel.filterState.collect { state ->
-                        filterAdapter.submitFilterState(state)
-                    }
-                }
-
-                launch {
                     viewModel.currentFilterType.collect { type ->
                         showFilterBottomSheet(type)
                     }
@@ -282,12 +276,12 @@ class MatchingMapFragment :
         )
 
         val bottomSheet = FilterBottomSheetDialog(
-            options = options,
+            filterType = type,
             onOptionSelected = { selectedDomainData ->
                 viewModel.onFilterOptionSelected(type, selectedDomainData)
             }
         )
-        bottomSheet.show(parentFragmentManager, FilterBottomSheetDialog::class.java.simpleName)
+        bottomSheet.show(childFragmentManager, FilterBottomSheetDialog::class.java.simpleName)
     }
 
     private fun checkPermissionAndMove() {

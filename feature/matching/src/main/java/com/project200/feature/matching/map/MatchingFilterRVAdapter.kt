@@ -8,6 +8,7 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
+import com.project200.presentation.utils.labelResId
 import com.project200.undabang.feature.matching.databinding.ItemFilterBinding
 
 class MatchingFilterRVAdapter(
@@ -37,7 +38,14 @@ class MatchingFilterRVAdapter(
     inner class ViewHolder(private val binding: ItemFilterBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: MatchingFilterType) {
             val context = binding.root.context
-            binding.filterTitleTv.text = context.getString(item.labelResId)
+            val labelResId = if (item.isMultiSelect) {
+                // 다중 선택은 필터 이름 표시
+                item.labelResId
+            } else {
+                // 단일 선택은 선택된 값이 있으면 그 값의 이름을, 없으면 필터 이름을 표시
+                getSelectedOptionLabelResId(item) ?: item.labelResId
+            }
+            binding.filterTitleTv.text = context.getString(labelResId)
 
             // 현재 필터 타입이 활성화되었는지 확인
             if (isFilterSelected(item)) {
@@ -57,9 +65,20 @@ class MatchingFilterRVAdapter(
             return when (type) {
                 MatchingFilterType.GENDER -> currentFilterState.gender != null
                 MatchingFilterType.AGE -> currentFilterState.ageGroup != null
-                MatchingFilterType.DAY -> currentFilterState.days != null
+                MatchingFilterType.DAY -> currentFilterState.days.isNotEmpty()
                 MatchingFilterType.SKILL -> currentFilterState.skillLevel != null
                 MatchingFilterType.SCORE -> currentFilterState.exerciseScore != null
+            }
+        }
+
+        // 선택된 옵션의 라벨 리소스 ID를 반환
+        private fun getSelectedOptionLabelResId(type: MatchingFilterType): Int? {
+            return when (type) {
+                MatchingFilterType.GENDER -> currentFilterState.gender?.labelResId
+                MatchingFilterType.AGE -> currentFilterState.ageGroup?.labelResId
+                MatchingFilterType.SKILL -> currentFilterState.skillLevel?.labelResId
+                MatchingFilterType.SCORE -> currentFilterState.exerciseScore?.labelResId
+                else -> null
             }
         }
     }

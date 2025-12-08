@@ -7,10 +7,13 @@ import com.project200.domain.model.Gender
 import com.project200.domain.model.SkillLevel
 import com.project200.undabang.feature.matching.R
 
-enum class MatchingFilterType(val labelResId: Int) {
+enum class MatchingFilterType(
+    val labelResId: Int,
+    val isMultiSelect: Boolean = false
+) {
     GENDER(R.string.filter_gender),       // 성별
     AGE(R.string.filter_age),             // 나이
-    DAY(R.string.filter_day),             // 요일
+    DAY(R.string.filter_day, true),       // 요일
     SKILL(R.string.filter_skill),         // 숙련도
     SCORE(R.string.filter_score)          // 점수
 }
@@ -18,7 +21,7 @@ enum class MatchingFilterType(val labelResId: Int) {
 data class FilterState(
     val gender: Gender? = null,
     val ageGroup: AgeGroup? = null,
-    val days: DayOfWeek? = null,
+    val days: Set<DayOfWeek> = emptySet(),
     val skillLevel: SkillLevel? = null,
     val exerciseScore: ExerciseScore? = null
 )

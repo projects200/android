@@ -28,7 +28,7 @@ object FilterUiMapper {
             MatchingFilterType.DAY -> DayOfWeek.entries.map { day ->
                 FilterOptionUiModel(
                     labelResId = day.labelResId,
-                    isSelected = currentState.days == day,
+                    isSelected = currentState.days.contains(day),
                     originalData = day
                 )
             }

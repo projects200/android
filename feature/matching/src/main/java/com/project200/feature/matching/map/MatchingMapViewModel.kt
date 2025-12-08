@@ -12,6 +12,7 @@ import com.project200.domain.model.ExerciseScore
 import com.project200.domain.model.Gender
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
+import com.project200.domain.model.Score
 import com.project200.domain.model.SkillLevel
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
@@ -175,17 +176,25 @@ class MatchingMapViewModel
     fun onFilterOptionSelected(type: MatchingFilterType, option: Any) {
         _filterState.update { current ->
             when (type) {
-                MatchingFilterType.GENDER -> current.copy(gender = option as? Gender)
-                MatchingFilterType.AGE -> current.copy(ageGroup = option as? AgeGroup)
-                MatchingFilterType.SKILL -> current.copy(skillLevel = option as? SkillLevel)
-                MatchingFilterType.SCORE -> current.copy(exerciseScore = option as? ExerciseScore)
-                MatchingFilterType.DAY -> { current.copy(days = option as? DayOfWeek) }
+                MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
+                MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
+                MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
+                MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
+                MatchingFilterType.DAY -> {
+                    val day = option as DayOfWeek
+                    current.copy(days = if (day in current.days) {
+                        current.days - day // 이미 있으면 제거
+                    } else {
+                        current.days + day // 없으면 추가
+                    })
+                }
             }
         }
         fetchMatchingMembers()
     }
 
-        companion object {
-            const val NO_URL = "404"
-        }
+    private fun <T> toggle(current: T?, selected: Any): T? {
+        val selectedCasted = selected as T
+        return if (current == selectedCasted) null else selectedCasted
+    }
     }
