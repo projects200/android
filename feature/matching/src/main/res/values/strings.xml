@@ -86,6 +86,8 @@
     <string name="error_fail_to_register_place">운동장소 등록에 실패했습니다.</string>
     
     <string name="chat_request">1:1 채팅하기</string>
+    
+    <string name="filter_clear">초기화</string>
 
     <string name="filter_gender">성별</string>
     <string name="filter_age">나이</string>

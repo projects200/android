@@ -1,4 +1,4 @@
-package com.project200.feature.matching.map.cluster
+package com.project200.feature.matching.map.filter
 
 import android.view.LayoutInflater
 import android.view.ViewGroup

@@ -171,6 +171,14 @@ class MatchingMapViewModel
     }
 
     /**
+     * 필터 초기화
+     */
+    fun clearFilters() {
+        _filterState.value = FilterState()
+        fetchMatchingMembers()
+    }
+
+    /**
      * 필터 옵션 선택 시 호출
      */
     fun onFilterOptionSelected(type: MatchingFilterType, option: Any) {

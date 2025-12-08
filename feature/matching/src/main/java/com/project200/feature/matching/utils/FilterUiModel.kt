@@ -7,6 +7,11 @@ import com.project200.domain.model.Gender
 import com.project200.domain.model.SkillLevel
 import com.project200.undabang.feature.matching.R
 
+sealed class FilterListItem {
+    data object ClearButton : FilterListItem() // 초기화 버튼
+    data class FilterItem(val type: MatchingFilterType) : FilterListItem() // 필터 버튼
+}
+
 enum class MatchingFilterType(
     val labelResId: Int,
     val isMultiSelect: Boolean = false

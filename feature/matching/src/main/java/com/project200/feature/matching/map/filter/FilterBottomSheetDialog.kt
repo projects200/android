@@ -1,4 +1,4 @@
-package com.project200.feature.matching.map
+package com.project200.feature.matching.map.filter
 
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -9,8 +9,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.project200.feature.matching.map.cluster.FilterOptionRVAdapter
-import com.project200.feature.matching.utils.FilterOptionUiModel
+import com.project200.feature.matching.map.MatchingMapViewModel
+import com.project200.feature.matching.map.filter.FilterOptionRVAdapter
 import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.undabang.feature.matching.databinding.DialogFilterBottomSheetBinding

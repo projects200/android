@@ -25,9 +25,10 @@ import com.project200.common.constants.RuleConstants.SEOUL_CITY_HALL_LONGITUDE
 import com.project200.common.constants.RuleConstants.ZOOM_LEVEL
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
-import com.project200.feature.matching.map.MatchingFilterRVAdapter
+import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
+import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
 import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
@@ -47,9 +48,14 @@ class MatchingMapFragment :
     private val viewModel: MatchingMapViewModel by viewModels()
 
     private val filterAdapter by lazy {
-        MatchingFilterRVAdapter { type ->
-            viewModel.onFilterTypeClicked(type)
-        }
+        MatchingFilterRVAdapter(
+            onFilterClick = { type ->
+                viewModel.onFilterTypeClicked(type)
+            },
+            onClearClick = {
+                viewModel.clearFilters()
+            }
+        )
     }
 
     private var isMapInitialized: Boolean = false
@@ -79,7 +85,7 @@ class MatchingMapFragment :
         initMapView()
         initListeners()
         binding.matchingFilterRv.adapter = filterAdapter
-        filterAdapter.submitList(MatchingFilterType.entries)
+        filterAdapter.submitFilterList(MatchingFilterType.entries)
     }
 
     private fun initMapView() {
