@@ -169,6 +169,11 @@ class MatchingMapFragment :
                     }
                 }
                 launch {
+                    viewModel.filterState.collect { state ->
+                        filterAdapter.submitFilterState(state)
+                    }
+                }
+                launch {
                     viewModel.currentFilterType.collect { type ->
                         showFilterBottomSheet(type)
                     }
