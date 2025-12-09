@@ -79,7 +79,7 @@ class AuthStateManager
                 prefs.edit {
                     putString(cognitoConfig.authStatePrefKey, currentAuthState.jsonSerializeString())
                 }
-                Timber.tag(TAG).i("AuthState saved (encrypted) to ${cognitoConfig.authPrefsName}.")
+                Timber.tag(TAG).i("AuthState saved (encrypted) to ${cognitoConfig.authPrefsName}. AccessTokenExpirationTime: ${currentAuthState.accessTokenExpirationTime}.")
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed to serialize/save auth state to ${cognitoConfig.authPrefsName}")
             }
@@ -90,7 +90,7 @@ class AuthStateManager
                 val storedAuthStateString = prefs.getString(cognitoConfig.authStatePrefKey, null)
                 if (storedAuthStateString != null) {
                     currentAuthState = AuthState.jsonDeserialize(storedAuthStateString)
-                    Timber.tag(TAG).i("AuthState restored (decrypted) from ${cognitoConfig.authPrefsName}.")
+                    Timber.tag(TAG).i("AuthState restored (decrypted) from ${cognitoConfig.authPrefsName}. AccessTokenExpirationTime: ${currentAuthState.accessTokenExpirationTime}.")
                 } else {
                     currentAuthState = AuthState()
                     Timber.tag(TAG).i("No AuthState found in ${cognitoConfig.authPrefsName}, initialized a new one.")
