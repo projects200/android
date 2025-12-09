@@ -5,7 +5,6 @@ import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExerciseScore
 import com.project200.domain.model.Gender
 import com.project200.domain.model.SkillLevel
-import com.project200.feature.matching.map.MatchingMapViewModel
 import com.project200.presentation.utils.labelResId
 
 object FilterUiMapper {
@@ -38,18 +37,20 @@ object FilterUiMapper {
                     FilterOptionUiModel(
                         labelResId = com.project200.undabang.presentation.R.string.filter_all,
                         isSelected = currentState.days.isEmpty(),
-                        originalData = null
-                    )
+                        originalData = null,
+                    ),
                 )
 
                 // 요일 옵션
-                list.addAll(DayOfWeek.entries.map { day ->
-                    FilterOptionUiModel(
-                        labelResId = day.labelResId,
-                        isSelected = currentState.days.contains(day),
-                        originalData = day
-                    )
-                })
+                list.addAll(
+                    DayOfWeek.entries.map { day ->
+                        FilterOptionUiModel(
+                            labelResId = day.labelResId,
+                            isSelected = currentState.days.contains(day),
+                            originalData = day,
+                        )
+                    },
+                )
 
                 list
             }

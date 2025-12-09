@@ -184,14 +184,15 @@ class MatchingMapViewModel
                     MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
                     MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
                     MatchingFilterType.DAY -> {
-                        val newDays = if (option == null) {
-                            // 전체 선택 시 모두 비움 (Empty == 전체)
-                            emptySet()
-                        } else {
-                            val day = option as DayOfWeek
-                            // 요일 토글
-                            if (day in current.days) current.days - day else current.days + day
-                        }
+                        val newDays =
+                            if (option == null) {
+                                // 전체 선택 시 모두 비움 (Empty == 전체)
+                                emptySet()
+                            } else {
+                                val day = option as DayOfWeek
+                                // 요일 토글
+                                if (day in current.days) current.days - day else current.days + day
+                            }
                         current.copy(days = newDays)
                     }
                 }
