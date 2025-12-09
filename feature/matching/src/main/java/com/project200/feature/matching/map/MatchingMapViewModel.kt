@@ -175,7 +175,7 @@ class MatchingMapViewModel
          */
         fun onFilterOptionSelected(
             type: MatchingFilterType,
-            option: Any,
+            option: Any?,
         ) {
             _filterState.update { current ->
                 when (type) {
@@ -184,15 +184,15 @@ class MatchingMapViewModel
                     MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
                     MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
                     MatchingFilterType.DAY -> {
-                        val day = option as DayOfWeek
-                        current.copy(
-                            days =
-                                if (day in current.days) {
-                                    current.days - day // 이미 있으면 제거
-                                } else {
-                                    current.days + day // 없으면 추가
-                                },
-                        )
+                        val newDays = if (option == null) {
+                            // 전체 선택 시 모두 비움 (Empty == 전체)
+                            emptySet()
+                        } else {
+                            val day = option as DayOfWeek
+                            // 요일 토글
+                            if (day in current.days) current.days - day else current.days + day
+                        }
+                        current.copy(days = newDays)
                     }
                 }
             }
@@ -201,7 +201,7 @@ class MatchingMapViewModel
 
         private fun <T> toggle(
             current: T?,
-            selected: Any,
+            selected: Any?,
         ): T? {
             val selectedCasted = selected as T
             return if (current == selectedCasted) null else selectedCasted

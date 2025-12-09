@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 @AndroidEntryPoint
 class FilterBottomSheetDialog(
     private val filterType: MatchingFilterType,
-    private val onOptionSelected: (Any) -> Unit,
+    private val onOptionSelected: (Any?) -> Unit,
 ) : BottomSheetDialogFragment() {
     private var _binding: DialogFilterBottomSheetBinding? = null
     val binding get() = _binding!!

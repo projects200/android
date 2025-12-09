@@ -12,7 +12,7 @@ import com.project200.undabang.feature.matching.databinding.ItemFilterOptionBind
 import com.project200.undabang.presentation.R
 
 class FilterOptionRVAdapter(
-    private val onClick: (Any) -> Unit,
+    private val onClick: (Any?) -> Unit,
 ) : ListAdapter<FilterOptionUiModel, FilterOptionRVAdapter.ViewHolder>(DiffCallback) {
     override fun onCreateViewHolder(
         parent: ViewGroup,

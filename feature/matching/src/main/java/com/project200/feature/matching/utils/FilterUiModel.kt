@@ -35,5 +35,5 @@ data class FilterState(
 data class FilterOptionUiModel(
     val labelResId: Int,
     val isSelected: Boolean,
-    val originalData: Any, // 선택된 Enum 객체 (Gender, AgeGroup 등)
+    val originalData: Any?, // 선택된 Enum 객체 (Gender, AgeGroup 등)
 )

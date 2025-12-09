@@ -18,6 +18,8 @@
     <string name="update_btn">업데이트</string>    <string name="gender_male">남성</string>
     <string name="gender_female">여성</string>
 
+    <string name="filter_all">전체</string>
+
     <string name="age_10">10대</string>
     <string name="age_20">20대</string>
     <string name="age_30">30대</string>
