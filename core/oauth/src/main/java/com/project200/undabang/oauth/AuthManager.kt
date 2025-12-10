@@ -260,7 +260,9 @@ class AuthManager
                         Timber.tag(TAG_DEBUG).e(ex, "Token refresh failed: ${ex?.errorDescription}")
                         // invalid_grant 에러(리프레시 토큰 만료/무효)는 복구 불가능한 에러로 간주
                         if (ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR && ex.error == "invalid_grant") {
-                            Timber.tag(TAG_DEBUG).w("Refresh token is invalid (invalid_grant). Clearing local AuthState and forcing logout.")
+                            Timber.tag(
+                                TAG_DEBUG,
+                            ).w("Refresh token is invalid (invalid_grant). Clearing local AuthState and forcing logout.")
                             authStateManager.clearAuthState() // 리프레시 토큰이 무효하므로 로컬 상태 삭제
                             _forceLogoutFlow.tryEmit(Unit) // 강제 로그아웃 트리거
                         }
