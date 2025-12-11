@@ -202,11 +202,10 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:gravity="center"
-                android:paddingTop="50dp"
-
+                android:paddingTop="100dp"
                 android:textColor="@color/gray200"
                 style="@style/content_regular"
-                android:text="@string/exercise_create_get_score"/>
+                android:text="@string/exercise_empty"/>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 

@@ -10,6 +10,8 @@
     <string name="version_info">버전정보</string>
     <string name="notification_setting">알림 설정</string>
     <string name="notification">알림</string>
+    <string name="exercise_notification">운동 독려 알림</string>
+    <string name="chatting_notification">채팅 알림</string>
 
     <string name="alert_logout">정말 로그아웃 하시겠어요?</string>
     <string name="logout_error">로그아웃 중 오류가 발생했습니다</string>
@@ -98,7 +100,7 @@
     <!-- 알림 -->
     <string name="noti_active">알림이 활성화되었습니다.</string>
     <string name="noti_permission_announce">알림을 받으려면 앱 설정에서 권한을 허용해주세요.</string>
-    <string name="noti_deactive">알림이 활성화되었습니다.</string>
+    <string name="noti_deactive">알림이 비활성화되었습니다.</string>
     
     <string name="unblock">차단 해제</string>
     <string name="block_members_empty">아직 차단된 계정이 없어요</string>

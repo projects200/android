@@ -8,11 +8,12 @@ ksp = "1.9.23-1.0.19"
 compileSdk = "35"
 minSdk = "26"
 targetSdk = "35"
-versionCode = "20"
-versionName = "0.5.5"
+versionCode = "21"
+versionName = "0.5.6"
 firebaseBom = "32.7.0"
 googleServicesPlugin = "4.4.2"
 firebasePerfPlugin = "1.4.2"
+firebaseCrashlyticsPlugin = "3.0.6"
 
 # AndroidX Core & UI (SDK 34 호환 버전)
 androidxCore = "1.13.1"
@@ -31,6 +32,7 @@ androidxArchCoreTesting = "2.2.0" # 테스트용
 androidxMedia = "1.7.0"
 lottie = "6.6.6"
 circleImageView = "3.1.0"
+shimmer = "0.5.0" # 스켈레톤
 
 # Google (SDK 34 호환 버전)
 material = "1.11.0"
@@ -110,6 +112,7 @@ androidx-recyclerview = { group = "androidx.recyclerview", name = "recyclerview"
 androidx-media = { group = "androidx.media", name = "media", version.ref = "androidxMedia" }
 google-android-material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 lottie = { module = "com.airbnb.android:lottie", version.ref = "lottie" }
+shimmer = { group = "com.facebook.shimmer", name = "shimmer", version.ref = "shimmer" }
 
 # AndroidX Lifecycle (ViewModel, LiveData, Runtime)
 androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "androidxLifecycle" }
@@ -172,6 +175,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-analytics = { group = "com.google.firebase", name = "firebase-analytics-ktx" }
 firebase-performance = { group = "com.google.firebase", name = "firebase-perf-ktx" }
 firebase-config-ktx = { group = "com.google.firebase", name = "firebase-config-ktx", version.ref = "firebaseConfigKtx" }
+firebase-crashlytics-ktx = { group = "com.google.firebase", name = "firebase-crashlytics-ktx" }
 firebase-messaging = { group = "com.google.firebase", name = "firebase-messaging-ktx" }
 
 # Cognito
@@ -221,6 +225,7 @@ navigation-safeargs = { id = "androidx.navigation.safeargs.kotlin", version.ref 
 # Firebase 플러그인
 google-services = { id = "com.google.gms.google-services", version.ref = "googleServicesPlugin" }
 firebase-performance = { id = "com.google.firebase.firebase-perf", version.ref = "firebasePerfPlugin" }
+firebase-crashlytics = { id = "com.google.firebase.crashlytics", version.ref = "firebaseCrashlyticsPlugin" }
 
 # Jacoco Plugin
 jacoco = { id = "org.gradle.jacoco", version.ref = "jacoco" }

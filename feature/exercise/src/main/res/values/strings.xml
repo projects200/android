@@ -23,7 +23,7 @@
     <string name="exercise_record_delete">삭제하기</string>
     <string name="exercise_record_edit">수정하기</string>
     <string name="exercise_create_get_score">운동 기록하고 점수 얻기</string>
-    <string name="exercise_empty">아직 등록된 기록이 없습니다.</string>
+    <string name="exercise_empty">이 날짜에 등록된 기록이 없습니다</string>
 
     <!-- 점수 -->
     <string name="exercise_count_format">%d회</string>

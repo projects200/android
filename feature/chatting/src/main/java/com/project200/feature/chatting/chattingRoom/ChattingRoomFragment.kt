@@ -1,6 +1,7 @@
 package com.project200.feature.chatting.chattingRoom
 
 import android.graphics.Rect
+import android.os.Bundle
 import android.view.ContextThemeWrapper
 import android.view.GestureDetector
 import android.view.Gravity
@@ -22,9 +23,10 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.snackbar.Snackbar
+import com.google.firebase.analytics.FirebaseAnalytics
+import com.project200.common.utils.ChatRoomStateRepository
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.feature.chatting.chattingRoom.adapter.ChatRVAdapter
-import com.project200.feature.chatting.utils.KeyboardVisibilityHelper
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
@@ -34,10 +36,10 @@ import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layout.fragment_chatting_room), KeyboardControlInterface {
@@ -45,14 +47,18 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     private lateinit var chatAdapter: ChatRVAdapter
     private val args: ChattingRoomFragmentArgs by navArgs()
 
+    @Inject
+    lateinit var firebaseAnalytics: FirebaseAnalytics
+
+    @Inject
+    lateinit var chatRoomStateRepository: ChatRoomStateRepository
+
     // 이전 메시지 로드 상태를 추적하는 플래그
     private var isPaging = false
 
     // 스크롤 위치 복원을 위해 저장할 변수
     private var firstVisibleItemPositionBeforeLoad = 0
     private var firstVisibleItemOffsetBeforeLoad = 0
-
-    private lateinit var keyboardHelper: KeyboardVisibilityHelper
 
     private lateinit var gestureDetector: GestureDetector
 
@@ -67,8 +73,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         setupListeners()
         viewModel.setId(args.roomId, args.memberId)
         updateSendButtonState(false)
-        keyboardHelper = KeyboardVisibilityHelper(binding.root, binding.chattingMessageRv)
-        keyboardHelper.start()
     }
 
     private fun setupListeners() {
@@ -86,6 +90,13 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         binding.sendBtn.setOnClickListener {
             val messageText = binding.chattingMessageEt.text.toString()
             if (messageText.isNotBlank()) {
+                // Firebase Analytics 이벤트 로깅
+                val bundle =
+                    Bundle().apply {
+                        putLong("timestamp", System.currentTimeMillis())
+                    }
+                firebaseAnalytics.logEvent("chat_send_message", bundle)
+
                 viewModel.sendMessage(messageText)
                 binding.chattingMessageEt.text.clear() // EditText 초기화
             }
@@ -378,9 +389,18 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         return !sendButtonRect.contains(x, y)
     }
 
-    override fun onDestroyView() {
-        keyboardHelper.stop()
-        super.onDestroyView()
+    override fun onResume() {
+        super.onResume()
+        // 현재 채팅방을 활성 채팅방으로 설정
+        chatRoomStateRepository.setActiveChatRoomId(args.roomId)
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 채팅방을 나갈 때 활성 채팅방 ID를 null로 설정
+        if (chatRoomStateRepository.activeChatRoomId.value == args.roomId) {
+            chatRoomStateRepository.setActiveChatRoomId(null)
+        }
     }
 
     companion object {
