@@ -39,6 +39,7 @@ class NotificationViewModel
         private var isInitialized = false
 
         fun initNotiState(isGranted: Boolean) {
+            this.hasDevicePermission = isGranted
             if (isGranted) {
                 getNotificationState()
             } else {

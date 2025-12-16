@@ -10,6 +10,12 @@ data class LoginRequest(
 )
 
 @JsonClass(generateAdapter = true)
+data class PostLoginRequest(
+    val platform: String,
+    val accessMode: String,
+)
+
+@JsonClass(generateAdapter = true)
 data class GetIsRegisteredData(
     val memberId: String,
     val isRegistered: Boolean,

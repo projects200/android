@@ -70,7 +70,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         checkNotificationPermission()
 
         setupObservers()
-        performRouting()
+        viewModel.checkForUpdate()
         observeAuthEvents()
     }
 
@@ -122,7 +122,6 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     }
 
     private fun setupViews() {
-        viewModel.checkForUpdate()
         binding.bottomNavigation.setupWithNavController(navController)
 
         val bottomNavHiddenFragments =
@@ -172,13 +171,20 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
             when (result) {
                 is UpdateCheckResult.UpdateAvailable -> {
                     showUpdateDialog(result.isForceUpdate)
+                    if (result.isForceUpdate) {
+                        isLoading = false
+                    } else {
+                        performRouting()
+                    }
                 }
                 is UpdateCheckResult.NoUpdateNeeded -> {
                     Timber.d("업데이트 불필요")
+                    performRouting()
                 }
                 else -> {
                     // 필요한 경우 다른 상태 처리
                     Timber.d("UpdateCheckResult: Unhandled state or null")
+                    performRouting()
                 }
             }
         }
