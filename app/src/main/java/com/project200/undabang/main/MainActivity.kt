@@ -170,8 +170,11 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
             when (result) {
                 is UpdateCheckResult.UpdateAvailable -> {
                     showUpdateDialog(result.isForceUpdate)
-                    if (result.isForceUpdate) isLoading = false
-                    else performRouting()
+                    if (result.isForceUpdate) {
+                        isLoading = false
+                    } else {
+                        performRouting()
+                    }
                 }
                 is UpdateCheckResult.NoUpdateNeeded -> {
                     Timber.d("업데이트 불필요")
