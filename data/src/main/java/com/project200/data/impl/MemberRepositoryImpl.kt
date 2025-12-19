@@ -6,6 +6,7 @@ import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseDTO
 import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
@@ -163,48 +164,23 @@ class MemberRepositoryImpl
         }
 
         override suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>> {
-/*        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getPreferredExercises() },
-            mapper = {
-                Unit
-            },
-        )*/
-        // 임시 더미 데이터 반환
-            return BaseResult.Success(
-                List(3) { index ->
-                    PreferredExercise(
-                        exerciseTypeId = index.toLong(),
-                        preferredExerciseId = index.toLong(),
-                        name = "운동종류 $index",
-                        skillLevel = when (index % 3) {
-                            0 -> "초급"
-                            1 -> "중급"
-                            else -> "고급"
-                        },
-                        daysOfWeek = List(7) { dayIndex -> (dayIndex + index) % 2 == 0 },
-                        imageUrl = "https://example.com/exercise_image_$index.png",
-                    )
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getPreferredExercises() },
+                mapper = { dtoList: List<GetPreferredExerciseDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
                 },
             )
         }
 
     override suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>> {
-/*        return apiCallBuilder(
+        return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.getPreferredExerciseTypes() },
             mapper = { dtoList: List<GetPreferredExerciseTypeDTO>? ->
                 dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
             },
-        )*/
-        // 임시 더미 데이터 반환
-        return BaseResult.Success(List(6) { index ->
-            ExerciseType(
-                id = index.toLong(),
-                name = "운동종류 $index",
-                imageUrl = "https://example.com/exercise_image_$index.png",
-            )
-        })
+        )
     }
 
     override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {

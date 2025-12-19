@@ -179,7 +179,7 @@ interface ApiService {
     suspend fun getPreferredExercises(): BaseResponse<List<GetPreferredExerciseDTO>>
 
     // 선호 운동 종류 조회
-    @GET("open/v1/exercise-types")
+    @GET("api/v1/exercise-types")
     @AccessTokenApi
     suspend fun getPreferredExerciseTypes(): BaseResponse<List<GetPreferredExerciseTypeDTO>>
 

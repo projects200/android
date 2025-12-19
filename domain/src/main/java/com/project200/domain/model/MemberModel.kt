@@ -26,13 +26,13 @@ data class PreferredExercise(
     val name: String,
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
-    val imageUrl: String
+    val imageUrl: String?
 )
 
 data class ExerciseType(
     val id: Long,
     val name: String,
-    val imageUrl: String
+    val imageUrl: String?
 ) {
     fun toEmptyPreferredExercise(): PreferredExercise {
         return PreferredExercise(

@@ -63,8 +63,8 @@ fun PreferredExercise.toDto(): GetPreferredExerciseDTO {
 
 fun GetPreferredExerciseTypeDTO.toModel(): ExerciseType {
     return ExerciseType(
-        id =  this.exerciseTypeId,
-        name = this.name,
+        id =  this.exerciseId,
+        name = this.exerciseName,
         imageUrl = this.imageUrl,
     )
 }

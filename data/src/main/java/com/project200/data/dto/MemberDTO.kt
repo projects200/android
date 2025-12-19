@@ -31,14 +31,14 @@ data class GetPreferredExerciseDTO(
     val name: String,
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
-    val imageUrl: String
+    val imageUrl: String?
 )
 
 @JsonClass(generateAdapter = true)
 data class GetPreferredExerciseTypeDTO(
-    val exerciseTypeId: Long,
-    val name: String,
-    val imageUrl: String
+    val exerciseId: Long,
+    val exerciseName: String,
+    val imageUrl: String?
 )
 
 @JsonClass(generateAdapter = true)
