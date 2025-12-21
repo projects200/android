@@ -2,6 +2,7 @@ package com.project200.data.utils
 
 import android.content.SharedPreferences
 import com.project200.common.constants.FcmConstants.KEY_FCM_TOKEN
+import com.project200.common.utils.EncryptedPrefs
 import timber.log.Timber
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -10,7 +11,7 @@ import javax.inject.Singleton
 class FcmTokenProvider
     @Inject
     constructor(
-        private val prefs: SharedPreferences,
+        @EncryptedPrefs private val prefs: SharedPreferences,
     ) {
         private var fcmToken: String? = null
 

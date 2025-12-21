@@ -23,12 +23,19 @@ class TokenAuthenticator
     @Inject
     constructor(
         private val authStateManager: AuthStateManager,
-        private val authManager: AuthManager, // 여기서는 직접 주입받아도 문제 없을 가능성이 높습니다.
+        private val authManager: AuthManager,
     ) : Authenticator {
         override fun authenticate(
             route: Route?,
             response: Response,
         ): Request? {
+            // 재시도한 요청(priorResponse가 있는)이 또 401 에러를 반환한 경우,
+            // 토큰 갱신이 성공했음에도 권한이 없다는 의미이므로 무한 루프를 막기 위해 인증을 중단합니다.
+            if (response.priorResponse != null) {
+                Timber.tag("TokenAuthenticator").e("토큰 갱신 후 재시도했으나 또 401 에러 발생. 인증 절차를 중단합니다.")
+                return null
+            }
+
             // AccessTokenAndFcmTokenApi일 경우 건너뛰기
             val invocation = response.request.tag(Invocation::class.java)
             if (invocation?.method()?.isAnnotationPresent(AccessTokenWithFcmApi::class.java) == true) {
@@ -61,6 +68,12 @@ class TokenAuthenticator
 
                 return when (refreshResult) {
                     is TokenRefreshResult.Success -> {
+                        // 갱신을 했는데도 이전과 동일한 토큰을 받았다면, 문제가 해결되지 않은 것이므로 루프를 중단합니다.
+                        if (originalAccessToken == refreshResult.tokenResponse.accessToken) {
+                            Timber.tag("TokenAuthenticator").e("토큰 갱신 후에도 토큰이 동일하여 루프 방지를 위해 인증을 중단합니다.")
+                            return null
+                        }
+
                         // 토큰 갱신 성공: 새 토큰으로 새 요청 생성
                         Timber.tag("TokenAuthenticator").i("토큰 갱신 성공, api 요청 재시도")
                         response.request.newBuilder()

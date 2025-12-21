@@ -59,6 +59,9 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
                     performLogout()
                 }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
             }
+            blockMembersLl.setOnClickListener {
+                findNavController().navigate(R.id.action_settingFragment_to_blockMembersFragment)
+            }
             withdrawLl.setOnClickListener { // 회원탈퇴 웹 페이지로 이동
                 appNavigator.navigateToWeb(requireContext(), getString(R.string.withdraw_url))
             }
@@ -67,6 +70,9 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
             }
             termsLl.setOnClickListener { showTermsDialog(TERMS) }
             privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
+            notificationLl.setOnClickListener {
+                findNavController().navigate(R.id.action_settingFragment_to_notificationFragment)
+            }
         }
 
     private fun performLogout() {

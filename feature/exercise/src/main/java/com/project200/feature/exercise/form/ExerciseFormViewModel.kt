@@ -3,7 +3,6 @@ package com.project200.feature.exercise.form
 import android.net.Uri
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
@@ -34,7 +33,6 @@ import javax.inject.Inject
 class ExerciseFormViewModel
     @Inject
     constructor(
-        savedStateHandle: SavedStateHandle,
         private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
         private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
         private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
@@ -42,8 +40,6 @@ class ExerciseFormViewModel
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
-        val recordId: Long? = savedStateHandle.get<Long>("recordId")
-
         private val _startTime = MutableLiveData<LocalDateTime?>()
         val startTime: LiveData<LocalDateTime?> = _startTime
 
@@ -83,8 +79,8 @@ class ExerciseFormViewModel
         val timeSelectionState: LiveData<TimeSelectionState> = _timeSelectionState
 
         /** 초기 데이터 설정 */
-        fun loadInitialRecord() {
-            if (recordId == -1L || recordId == null) {
+        fun loadInitialRecord(recordId: Long) {
+            if (recordId == -1L) {
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
@@ -266,6 +262,7 @@ class ExerciseFormViewModel
 
         /** 기록 생성 또는 수정 */
         fun submitRecord(
+            recordId: Long,
             title: String,
             type: String,
             location: String,
@@ -305,7 +302,7 @@ class ExerciseFormViewModel
                     ?.map { it.uri.toString() } ?: emptyList()
 
             if (isEditMode) {
-                editExerciseRecord(recordToSubmit, newImageUris)
+                editExerciseRecord(recordId, recordToSubmit, newImageUris)
             } else {
                 createExerciseRecord(recordToSubmit, newImageUris)
             }
@@ -358,13 +355,14 @@ class ExerciseFormViewModel
 
         /** 기록 수정 */
         private fun editExerciseRecord(
+            recordId: Long,
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
             viewModelScope.launch {
                 _editResult.value =
                     editExerciseRecordUseCase(
-                        recordId = recordId!!,
+                        recordId = recordId,
                         recordToUpdate = record,
                         isContentChanges = hasContentChanges(record),
                         imagesToDelete = removedPictureIds,

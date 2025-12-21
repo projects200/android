@@ -8,4 +8,5 @@ interface AuthRepository {
     suspend fun login(): BaseResult<Unit>
     suspend fun logout(): BaseResult<Unit>
     suspend fun signUp(gender: String, nickname: String, birth: LocalDate): BaseResult<Unit>
+    suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean>
 }

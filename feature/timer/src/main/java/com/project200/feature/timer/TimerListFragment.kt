@@ -76,7 +76,7 @@ class TimerListFragment : BindingFragment<FragmentTimerListBinding>(R.layout.fra
         // 토스트 메시지 이벤트 관찰
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.errorToast.collect { error ->
+                viewModel.errorToast.collect {
                     Toast.makeText(requireContext(), getString(R.string.error_failed_to_load_list), Toast.LENGTH_SHORT).show()
                 }
             }

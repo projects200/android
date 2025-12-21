@@ -9,3 +9,63 @@ data class GetScoreDTO(
     val policyMaxScore: Int,
     val policyMinScore: Int,
 )
+
+@JsonClass(generateAdapter = true)
+data class GetProfileDTO(
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
+    val nickname: String,
+    val gender: String,
+    val birthDate: String,
+    val bio: String?,
+    val yearlyExerciseDays: Int,
+    val exerciseCountInLast30Days: Int,
+    val exerciseScore: Int,
+    val preferredExercises: List<PreferredExerciseDTO>,
+)
+
+@JsonClass(generateAdapter = true)
+data class PreferredExerciseDTO(
+    val preferredExerciseId: Int,
+    val name: String,
+    val skillLevel: String,
+    val daysOfWeek: List<Boolean>,
+    val imageUrl: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class PutProfileRequest(
+    val nickname: String,
+    val gender: String,
+    val bio: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetProfileImageResponseDto(
+    val representativeProfileImage: ProfileImageDto?,
+    val profileImageCount: Int,
+    val profileImages: List<ProfileImageDto>,
+)
+
+data class ProfileImageDto(
+    val profileImageId: Long,
+    val profileImageUrl: String,
+    val profileImageName: String,
+    val profileImageExtension: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetOpenChatUrlDTO(
+    val openChatroomId: Long = -1L,
+    val openChatroomUrl: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetBlockedMemberDTO(
+    val memberBlockId: Long,
+    val memberId: String,
+    val nickname: String,
+    val profileImageUrl: String?,
+    val thumbnailImageUrl: String?,
+    val blockedAt: String,
+)

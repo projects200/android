@@ -47,7 +47,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginStart="10dp"
-            android:textColor="@color/error_led"
+            android:textColor="@color/error_red"
             app:layout_constraintTop_toTopOf="parent"
             android:text="@string/bottom_sheet_delete" />
     </LinearLayout>

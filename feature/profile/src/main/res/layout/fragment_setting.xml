@@ -1,39 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white300"
-    android:fitsSystemWindows="true">
-
-    <ImageView
-        android:id="@+id/back_btn_iv"
-        android:layout_width="wrap_content"
+    android:fitsSystemWindows="true"
+    android:orientation="vertical">
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_marginTop="18dp"
-        android:padding="8dp"
-        android:src="@drawable/ic_arrow_back"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:orientation="horizontal"
+        android:paddingStart="12dp"
+        android:paddingTop="18dp"
+        android:paddingBottom="32dp">
+        <ImageView
+            android:id="@+id/back_btn_iv"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:padding="8dp"
+            android:src="@drawable/ic_arrow_back"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <TextView
-        style="@style/content_bold"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        <TextView
+            style="@style/content_bold"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/setting"
+            app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
+            app:layout_constraintStart_toEndOf="@id/back_btn_iv"
+            app:layout_constraintTop_toTopOf="@id/back_btn_iv" />
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
-        android:text="@string/setting"
-        app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
-        app:layout_constraintStart_toEndOf="@id/back_btn_iv"
-        app:layout_constraintTop_toTopOf="@id/back_btn_iv" />
 
     <LinearLayout
         android:id="@+id/customer_service_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="32dp"
-        android:background="@drawable/bg_setting_item_border"
-        app:layout_constraintTop_toBottomOf="@id/back_btn_iv">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -56,8 +60,7 @@
         android:id="@+id/logout_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_setting_item_border"
-        app:layout_constraintTop_toBottomOf="@id/customer_service_ll">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -80,8 +83,7 @@
         android:id="@+id/withdraw_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_setting_item_border"
-        app:layout_constraintTop_toBottomOf="@id/logout_ll">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -101,11 +103,34 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/block_members_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_block"
+            app:tint="@color/black" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:text="@string/block_members" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/terms_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_setting_item_border"
-        app:layout_constraintTop_toBottomOf="@id/withdraw_ll">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -128,8 +153,7 @@
         android:id="@+id/privacy_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/bg_setting_item_border"
-        app:layout_constraintTop_toBottomOf="@id/terms_ll">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -149,10 +173,10 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/version_info_ll"
+        android:id="@+id/notification_ll"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:layout_constraintTop_toBottomOf="@id/privacy_ll">
+        android:background="@drawable/bg_setting_item_border">
 
         <ImageView
             android:layout_width="wrap_content"
@@ -160,7 +184,7 @@
             android:layout_gravity="center"
             android:layout_marginVertical="19dp"
             android:layout_marginStart="20dp"
-            android:src="@drawable/ic_document" />
+            android:src="@drawable/ic_notification" />
 
         <TextView
             style="@style/content_regular"
@@ -168,7 +192,29 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_marginStart="8dp"
+            android:text="@string/notification" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/version_info_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginVertical="19dp"
+            android:layout_marginStart="20dp"
+            android:src="@drawable/ic_version_info" />
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="0dp"
             android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
             android:text="@string/version_info" />
 
         <TextView
@@ -181,4 +227,4 @@
             android:text=""
             android:textColor="@color/gray200" />
     </LinearLayout>
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

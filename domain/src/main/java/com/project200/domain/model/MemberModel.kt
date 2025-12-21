@@ -8,12 +8,12 @@ data class Score(
 )
 
 data class UserProfile(
-    val profileThumbnailUrl: String,
-    val profileImageUrl: String,
+    val profileThumbnailUrl: String?,
+    val profileImageUrl: String?,
     val nickname: String,
     val gender: String,
     val birthDate: String,
-    val bio: String,
+    val bio: String?,
     val yearlyExerciseDays: Int,
     val exerciseCountInLast30Days: Int,
     val exerciseScore: Int,
@@ -26,4 +26,27 @@ data class PreferredExercise(
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
     val imageUrl: String
+)
+
+data class ProfileImageList(
+    val thumbnail: ProfileImage?,
+    val images: List<ProfileImage>
+)
+
+data class ProfileImage(
+    val id: Long,
+    val url: String
+)
+
+data class OpenUrl(
+    val id: Long,
+    val url: String
+)
+
+data class BlockedMember(
+    val memberBlockId: Long,
+    val memberId: String,
+    val nickname: String,
+    val profileImageUrl: String?,
+    val thumbnailImageUrl: String?
 )

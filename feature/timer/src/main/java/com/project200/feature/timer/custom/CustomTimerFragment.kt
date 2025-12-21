@@ -1,11 +1,7 @@
 package com.project200.feature.timer.custom
 
-import android.animation.ValueAnimator
 import android.content.res.ColorStateList
-import android.media.MediaPlayer
-import android.os.Bundle
 import android.view.View
-import android.view.animation.LinearInterpolator
 import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.core.content.ContextCompat.getColor
@@ -18,6 +14,8 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project200.domain.model.BaseResult
 import com.project200.feature.timer.TimerListFragment
+import com.project200.feature.timer.custom.adapter.StepItemDecoration
+import com.project200.feature.timer.custom.adapter.StepRVAdapter
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
@@ -31,22 +29,11 @@ import kotlinx.coroutines.launch
 class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout.fragment_custom_timer) {
     private val viewModel: CustomTimerViewModel by viewModels()
     private val args: CustomTimerFragmentArgs by navArgs()
-    private var progressAnimator: ValueAnimator? = null
-
-    private var stepFinishPlayer: MediaPlayer? = null // 스텝 종료
 
     private lateinit var stepRVAdapter: StepRVAdapter
 
     override fun getViewBinding(view: View): FragmentCustomTimerBinding {
         return FragmentCustomTimerBinding.bind(view)
-    }
-
-    override fun onViewCreated(
-        view: View,
-        savedInstanceState: Bundle?,
-    ) {
-        super.onViewCreated(view, savedInstanceState)
-        viewModel.setTimerId(args.customTimerId)
     }
 
     override fun onResume() {
@@ -55,6 +42,8 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
     }
 
     override fun setupViews() {
+        viewModel.setTimerId(args.customTimerId)
+
         binding.baseToolbar.apply {
             showBackButton(true) {
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(TimerListFragment.REFRESH_KEY, true)
@@ -73,9 +62,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
             },
         )
 
-        context?.let {
-            stepFinishPlayer = MediaPlayer.create(it, R.raw.sound_custom_timer)
-        }
         initClickListeners()
         initRecyclerView()
         binding.timerEndBtn.isClickable = viewModel.isTimerFinished.value == false
@@ -90,7 +76,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
             }
         }
         binding.timerEndBtn.setOnClickListener {
-            cancelAlarmSound()
             viewModel.resetTimer(true)
             updateUIForTimerEnd()
         }
@@ -102,12 +87,12 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
     private fun initRecyclerView() {
         stepRVAdapter =
             StepRVAdapter { position ->
-                cancelAlarmSound()
                 viewModel.jumpToStep(position)
+                binding.timerProgressbar.setProgress(1f, animated = false)
             }
         binding.customTimerStepRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
-            viewModel.steps.observe(viewLifecycleOwner) { steps ->
+            viewModel.steps.observe(viewLifecycleOwner) {
                 adapter = stepRVAdapter
             }
             addItemDecoration(StepItemDecoration(ITEM_MARGIN))
@@ -120,21 +105,26 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         }
 
         viewModel.isTimerRunning.observe(viewLifecycleOwner) { isRunning ->
-            updateRunningState(isRunning)
+            updateButtonState(isRunning)
         }
 
         viewModel.remainingTime.observe(viewLifecycleOwner) { remainingTime ->
             binding.timerTv.text = remainingTime.toFormattedTimeAsLong()
+
+            val total = viewModel.totalStepTime
+            if (total > 0) {
+                val currentProgress = remainingTime.toFloat() / total.toFloat()
+                binding.timerProgressbar.setProgress(currentProgress)
+            } else {
+                binding.timerProgressbar.setProgress(1f, animated = false)
+            }
         }
 
         viewModel.currentStepIndex.observe(viewLifecycleOwner) { index ->
-            if (view != null) { // Fragment View가 살아있는지 확인
+            if (view != null) {
                 updateRecyclerView(index)
                 smoothScrollToPosition(index)
-                // 타이머가 실행 중일 때만 애니메이션을 시작 (초기 로드나 리셋 시 불필요한 호출 방지)
-                if (viewModel.isTimerRunning.value == true) {
-                    startProgressBarAnimation()
-                }
+                binding.timerProgressbar.setProgress(1f, animated = false)
             }
         }
 
@@ -151,13 +141,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
             binding.timerRepeatBtn.setImageResource(
                 if (isEnabled) (R.drawable.ic_repeat) else R.drawable.ic_repeat_off,
             )
-        }
-        // 스텝 종료 알림음을 위한 Observer
-        viewModel.shouldPlayFinishAlarm.observe(viewLifecycleOwner) { shouldPlay ->
-            if (shouldPlay) {
-                playStepFinishAlarm()
-                viewModel.onStepFinishedAlarmPlayed()
-            }
         }
 
         // 툴바 타이틀 설정
@@ -181,7 +164,7 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         // 에러 이벤트 처리
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.errorEvent.collect { error ->
+                viewModel.errorEvent.collect {
                     Toast.makeText(requireContext(), getString(R.string.error_failed_to_load_list), Toast.LENGTH_SHORT).show()
                     findNavController().navigateUp()
                 }
@@ -189,41 +172,22 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
         }
     }
 
-    private fun updateRunningState(isRunning: Boolean) {
+    // 버튼 상태 업데이트
+    private fun updateButtonState(isRunning: Boolean) {
         if (isRunning) {
             binding.timerPlayBtn.backgroundTintList =
-                ColorStateList.valueOf(
-                    getColor(requireContext(), com.project200.undabang.presentation.R.color.error_led),
-                )
+                ColorStateList.valueOf(getColor(requireContext(), com.project200.undabang.presentation.R.color.error_red))
             binding.timerPlayBtn.text = getString(R.string.timer_stop)
-
-            // 재생 중인 알림음이 있다면 일시정지
-            stepFinishPlayer?.takeIf { !it.isPlaying && it.currentPosition > 0 }?.start()
-
-            startProgressBarAnimation()
         } else {
             binding.timerPlayBtn.backgroundTintList =
-                ColorStateList.valueOf(
-                    getColor(requireContext(), com.project200.undabang.presentation.R.color.main),
-                )
+                ColorStateList.valueOf(getColor(requireContext(), com.project200.undabang.presentation.R.color.main))
             binding.timerPlayBtn.text = getString(R.string.timer_start)
-
-            if (viewModel.isTimerFinished.value != true) {
-                stepFinishPlayer?.takeIf { it.isPlaying }?.pause()
-            }
-
-            progressAnimator?.pause()
         }
     }
 
     private fun updateUIForTimerEnd() {
-        binding.timerPlayBtn.backgroundTintList =
-            ColorStateList.valueOf(
-                getColor(requireContext(), com.project200.undabang.presentation.R.color.main),
-            )
-        binding.timerPlayBtn.text = getString(R.string.timer_start)
-        binding.timerProgressbar.progress = 1f // 종료 후엔 다시 100%로 설정
-        progressAnimator?.cancel()
+        updateButtonState(false)
+        binding.timerProgressbar.setProgress(1f, animated = false)
     }
 
     private fun updateRecyclerView(currentStepIndex: Int) {
@@ -234,51 +198,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
     private fun smoothScrollToPosition(position: Int) {
         val layoutManager = binding.customTimerStepRv.layoutManager as? LinearLayoutManager
         layoutManager?.smoothScrollToPosition(binding.customTimerStepRv, null, position)
-    }
-
-    private fun startProgressBarAnimation() {
-        progressAnimator?.cancel()
-
-        val totalStepTime = viewModel.totalStepTime
-        val remainingTime = viewModel.remainingTime.value ?: 0L
-
-        // 방어 코드: remainingTime이 totalStepTime보다 약간 클 수 있는 경우를 대비
-        val startProgress = (remainingTime.toFloat() / totalStepTime.toFloat()).coerceAtMost(1.0f)
-
-        if (totalStepTime > 0 && remainingTime > 0) {
-            progressAnimator =
-                ValueAnimator.ofFloat(startProgress, 0f).apply {
-                    duration = remainingTime
-                    interpolator = LinearInterpolator()
-                    addUpdateListener { animator ->
-                        if (view != null) {
-                            binding.timerProgressbar.progress = animator.animatedValue as Float
-                        }
-                    }
-                    start()
-                }
-        }
-    }
-
-    // 스텝 종료 알림음을 재생하는 함수
-    private fun playStepFinishAlarm() {
-        stepFinishPlayer?.apply {
-            if (isPlaying) {
-                pause()
-            }
-            seekTo(0)
-            start()
-        }
-    }
-
-    // 알림음을 완전히 중지하고 초기화하는 함수
-    private fun cancelAlarmSound() {
-        stepFinishPlayer?.apply {
-            if (isPlaying) {
-                pause()
-            }
-            seekTo(0)
-        }
     }
 
     private fun showMenu() {
@@ -302,14 +221,6 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
                 viewModel.deleteTimer()
             },
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        stepFinishPlayer?.release()
-        stepFinishPlayer = null
-        progressAnimator?.cancel()
-        progressAnimator = null
     }
 
     companion object {

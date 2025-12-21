@@ -6,6 +6,9 @@ pluginManagement {
         google()
         mavenCentral()
         gradlePluginPortal()
+        maven {
+            url = uri("https://devrepo.kakao.com/nexus/content/groups/public/")
+        }
     }
 }
 
@@ -15,6 +18,12 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        maven {
+            url = uri("https://devrepo.kakao.com/nexus/content/groups/public/")
+        }
+        maven {
+            url = uri("https://www.jitpack.io")
+        }
     }
     versionCatalogs {
     }
@@ -30,3 +39,5 @@ include(":core:oauth")
 include(":feature:profile")
 include(":feature:exercise")
 include(":feature:timer")
+include(":feature:matching")
+include(":feature:chatting")

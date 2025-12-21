@@ -2,11 +2,11 @@
 <resources>
     <color name="main">#4F7942</color>
     <color name="main_background">#EBF1E5</color>
-    <color name="error_led">#E53935</color>
+    <color name="error_red">#E53935</color>
     <color name="white300">#FFFFFFFF</color>
     <color name="white200">#FAFAFA</color>
     <color name="white100">#F4F4F4</color>
-    <color name="gray100">#424242</color>
+    <color name="gray100">#6E6E6E</color>
     <color name="gray200">#9E9E9E</color>
     <color name="gray300">#E0E0E0</color>
     <color name="black">#212121</color>

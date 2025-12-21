@@ -34,8 +34,8 @@ object ImageUtils {
         jpegQuality: Int = 80,
     ): Uri? {
         var inputStream: InputStream? = null
-        var rotatedBitmap: Bitmap? = null // 최종적으로 압축될 비트맵
-        var originalBitmap: Bitmap? = null // 최초 로드된 비트맵
+        var rotatedBitmap: Bitmap? // 최종적으로 압축될 비트맵
+        var originalBitmap: Bitmap? // 최초 로드된 비트맵
 
         try {
             // 이미지 경계만 읽어와서 샘플링 크기 계산 준비
@@ -88,7 +88,7 @@ object ImageUtils {
                 Timber.tag(TAG).d("Compressing as PNG")
             } else { // 기본적으로 JPEG 사용 (jpg, jpeg, 기타 이미지 타입 포함)
                 outputFormat = Bitmap.CompressFormat.JPEG
-                outputExtension = ".jpg"
+                outputExtension = ".jpeg"
                 Timber.tag(TAG).d("Compressing as JPEG")
             }
 

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/chatting_nav_graph"
+    app:startDestination="@id/chattingFragment">
+
+    <fragment
+        android:id="@+id/chattingFragment"
+        android:name="com.project200.feature.chatting.ChattingListFragment"
+        android:label="chatting"
+        tools:layout="@layout/fragment_chatting_list" >
+        <action
+            android:id="@+id/action_chattingFragment_to_chattingRoomFragment"
+            app:destination="@id/chattingRoomFragment">
+            <argument
+                android:name="roomId"
+                app:argType="long"/>
+            <argument
+                android:name="nickname"
+                app:argType="string"/>
+            <argument
+                android:name="memberId"
+                app:argType="string" />
+        </action>
+    </fragment>
+    <fragment
+        android:id="@+id/chattingRoomFragment"
+        android:name="com.project200.feature.chatting.chattingRoom.ChattingRoomFragment"
+        android:label="chattingRoom"
+        tools:layout="@layout/fragment_chatting_room" >
+        <deepLink app:uri="app://chatting/room/{roomId}/{nickname}/{memberId}" />
+        <argument
+            android:name="roomId"
+            app:argType="long"/>
+        <argument
+            android:name="nickname"
+            app:argType="string"/>
+        <argument
+            android:name="memberId"
+            app:argType="string" />
+    </fragment>
+</navigation>

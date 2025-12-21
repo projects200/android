@@ -2,10 +2,12 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/bottom_nav_graph"
-    app:startDestination="@id/exercise_nav_graph">
+    app:startDestination="@id/matching_nav_graph">
 
     <include app:graph="@navigation/exercise_nav_graph" />
-    <include app:graph="@navigation/profile_nav_graph" />
+    <include app:graph="@navigation/matching_nav_graph"/>
+    <include app:graph="@navigation/chatting_nav_graph"/>
     <include app:graph="@navigation/timer_nav_graph" />
+    <include app:graph="@navigation/profile_nav_graph" />
 
 </navigation>

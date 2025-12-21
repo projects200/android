@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white300"
+    android:fitsSystemWindows="true">
+
+    <ImageView
+        android:id="@+id/back_btn_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginTop="18dp"
+        android:padding="8dp"
+        android:src="@drawable/ic_arrow_back"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/textView"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/notification"
+        app:layout_constraintBottom_toBottomOf="@id/back_btn_iv"
+        app:layout_constraintStart_toEndOf="@id/back_btn_iv"
+        app:layout_constraintTop_toTopOf="@id/back_btn_iv" />
+
+    <LinearLayout
+        android:id="@+id/exercise_noti_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:padding="@dimen/base_horizontal_margin"
+        android:background="@drawable/bg_setting_item_border"
+        app:layout_constraintTop_toBottomOf="@+id/back_btn_iv">
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/exercise_notification" />
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/exercise_noti_switch"
+            android:layout_width="50dp"
+            android:layout_height="24dp"
+            android:background="@null"
+            android:layout_marginEnd="@dimen/base_horizontal_margin"
+            android:layout_gravity="center"
+            style="@style/notification_switch"/>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/chatting_noti_ll"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_setting_item_border"
+        android:padding="@dimen/base_horizontal_margin"
+        app:layout_constraintTop_toBottomOf="@+id/exercise_noti_ll">
+
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:text="@string/chatting_notification" />
+
+        <androidx.appcompat.widget.SwitchCompat
+            android:id="@+id/chatting_noti_switch"
+            style="@style/notification_switch"
+            android:layout_width="50dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:layout_marginEnd="@dimen/base_horizontal_margin"
+            android:background="@null" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

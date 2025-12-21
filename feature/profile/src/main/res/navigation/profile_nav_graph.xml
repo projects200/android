@@ -9,16 +9,83 @@
         android:id="@+id/mypageFragment"
         android:name="com.project200.undabang.profile.mypage.MypageFragment"
         android:label="mypage"
-        tools:layout="@layout/fragment_mypage" >
+        tools:layout="@layout/fragment_mypage">
         <action
             android:id="@+id/action_mypageFragment_to_settingFragment"
             app:destination="@id/settingFragment" />
+        <action
+            android:id="@+id/action_mypageFragment_to_profileEditFragment"
+            app:destination="@id/profileEditFragment"/>
+        <action
+            android:id="@+id/action_mypageFragment_to_profileImageDetailFragment"
+            app:destination="@id/profileImageDetailFragment"/>
+        <action
+            android:id="@+id/action_mypageFragment_to_urlFormFragment"
+            app:destination="@id/urlFormFragment">
+            <argument
+                android:name="url"
+                app:argType="string"
+                android:defaultValue="" />
+            <argument
+                android:name="id"
+                app:argType="long"
+                android:defaultValue="-1L" />
+        </action>
     </fragment>
 
     <fragment
         android:id="@+id/settingFragment"
         android:name="com.project200.undabang.profile.setting.SettingFragment"
         android:label="setting"
-        tools:layout="@layout/fragment_setting" />
+        tools:layout="@layout/fragment_setting" >
+        <action
+            android:id="@+id/action_settingFragment_to_blockMembersFragment"
+            app:destination="@id/blockMembersFragment" />
+        <action
+            android:id="@+id/action_settingFragment_to_notificationFragment"
+            app:destination="@id/notificationFragment" />
+    </fragment>
 
+    <fragment
+        android:id="@+id/notificationFragment"
+        android:name="com.project200.undabang.profile.setting.NotificationFragment"
+        android:label="notification"
+        tools:layout="@layout/fragment_notification" />
+
+    <fragment
+        android:id="@+id/profileEditFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileEditFragment"
+        android:label="profileEdit"
+        tools:layout="@layout/fragment_profile_edit">
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/profileImageDetailFragment"
+        android:name="com.project200.undabang.profile.mypage.ProfileImageDetailFragment"
+        android:label="profileImageDetail"
+        tools:layout="@layout/fragment_profile_image_detail">
+
+    </fragment>
+
+    <fragment
+        android:id="@+id/urlFormFragment"
+        android:name="com.project200.undabang.profile.mypage.UrlFormFragment"
+        android:label="urlForm"
+        tools:layout="@layout/fragment_url_form" >
+        <argument
+            android:name="url"
+            app:argType="string"
+            android:defaultValue="" />
+        <argument
+            android:name="id"
+            app:argType="long"
+            android:defaultValue="-1L" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/blockMembersFragment"
+        android:name="com.project200.undabang.profile.setting.BlockMembersFragment"
+        android:label="blockMembers"
+        tools:layout="@layout/fragment_block_members" />
 </navigation>

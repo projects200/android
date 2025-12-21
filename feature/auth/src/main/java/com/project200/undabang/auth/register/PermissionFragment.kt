@@ -34,13 +34,6 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
                                 Timber.w("위치 권한 거부됨")
                             }
                         }
-                        Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_EXTERNAL_STORAGE -> {
-                            if (isGranted) {
-                                Timber.i("갤러리/저장소 읽기 권한 허용됨 ($permission)")
-                            } else {
-                                Timber.w("갤러리/저장소 읽기 권한 거부됨 ($permission)")
-                            }
-                        }
                     }
                 }
             }
@@ -85,17 +78,6 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
         // 위치 권한
         if (!isPermissionGranted(Manifest.permission.ACCESS_FINE_LOCATION)) {
             requiredPermissions.add(Manifest.permission.ACCESS_FINE_LOCATION)
-        }
-
-        // 갤러리/저장소 권한
-        val storagePermission =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { // Android 13+
-                Manifest.permission.READ_MEDIA_IMAGES
-            } else { // Android 12 이하
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            }
-        if (!isPermissionGranted(storagePermission)) {
-            requiredPermissions.add(storagePermission)
         }
 
         // 위치 및 저장소 권한 요청

@@ -24,6 +24,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.lifecycle.livedata.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.service)
 
     // Navigation
     implementation(libs.androidx.navigation.fragment.ktx)
@@ -32,4 +33,6 @@ dependencies {
     testImplementation(libs.androidx.arch.core.testing)
     testImplementation(libs.turbine)
     androidTestImplementation(libs.androidx.navigation.testing)
+
+    implementation(libs.androidx.media)
 }

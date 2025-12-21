@@ -5,6 +5,14 @@
         android:icon="@drawable/ic_nav_record"
         android:title="@string/exercise_record" />
     <item
+        android:id="@id/matching_nav_graph"
+        android:icon="@drawable/ic_nav_matching"
+        android:title="@string/matching" />
+    <item
+        android:id="@id/chatting_nav_graph"
+        android:icon="@drawable/ic_chatting"
+        android:title="@string/chatting"/>
+    <item
         android:id="@id/timer_nav_graph"
         android:icon="@drawable/ic_nav_timer"
         android:title="@string/timer" />
