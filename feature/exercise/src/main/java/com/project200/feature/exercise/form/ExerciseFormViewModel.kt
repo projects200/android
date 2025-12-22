@@ -26,7 +26,6 @@ import java.time.LocalDateTime
 import java.time.LocalTime
 import javax.inject.Inject
 
-
 @HiltViewModel
 class ExerciseFormViewModel
     @Inject
@@ -124,112 +123,118 @@ class ExerciseFormViewModel
             _scoreGuidanceState.value = ScoreGuidanceState.Hidden
         }
 
-    fun setStartTime(dateTime: LocalDateTime) {
-        val now = clockProvider.localDateTimeNow()
-        var newStartTime = dateTime
+        fun setStartTime(dateTime: LocalDateTime) {
+            val now = clockProvider.localDateTimeNow()
+            var newStartTime = dateTime
 
-        // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
-        if (newStartTime.isAfter(now)) {
-            newStartTime = now
-            _toastMessage.value = R.string.exercise_error_start_time_future
+            // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
+            if (newStartTime.isAfter(now)) {
+                newStartTime = now
+                _toastMessage.value = R.string.exercise_error_start_time_future
+            }
+
+            _startTime.value = newStartTime
+
+            // 시작 시간이 종료 시간을 넘어서면, 종료 시간 조정
+            applyTimeCorrection(isStartChanged = true)
+
+            updateScoreGuidance()
         }
 
-        _startTime.value = newStartTime
+        fun setEndTime(dateTime: LocalDateTime) {
+            val now = clockProvider.localDateTimeNow()
+            var newEndTime = dateTime
 
-        // 시작 시간이 종료 시간을 넘어서면, 종료 시간 조정
-        applyTimeCorrection(isStartChanged = true)
+            // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
+            if (newEndTime.isAfter(now)) {
+                newEndTime = now
+                _toastMessage.value = R.string.exercise_error_end_time_future
+            }
 
-        updateScoreGuidance()
-    }
+            _endTime.value = newEndTime
 
-    fun setEndTime(dateTime: LocalDateTime) {
-        val now = clockProvider.localDateTimeNow()
-        var newEndTime = dateTime
-
-        // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
-        if (newEndTime.isAfter(now)) {
-            newEndTime = now
-            _toastMessage.value = R.string.exercise_error_end_time_future
+            // 종료 시간이 시작 시간을 넘어서지 않으면, 시작 시간 조정
+            applyTimeCorrection(isStartChanged = false)
         }
 
-        _endTime.value = newEndTime
+        /**
+         * 시간 역전 보정 함수
+         *
+         */
+        private fun applyTimeCorrection(isStartChanged: Boolean) {
+            val now = clockProvider.localDateTimeNow()
+            var start = _startTime.value ?: return
+            var end = _endTime.value ?: return
 
-        // 종료 시간이 시작 시간을 넘어서지 않으면, 시작 시간 조정
-        applyTimeCorrection(isStartChanged = false)
-    }
-
-    /**
-     * 시간 역전 보정 함수
-     *
-     */
-    private fun applyTimeCorrection(isStartChanged: Boolean) {
-        val now = clockProvider.localDateTimeNow()
-        var start = _startTime.value ?: return
-        var end = _endTime.value ?: return
-
-        if (isStartChanged) {
-            // 시작 시간이 종료 시간보다 같거나 늦어지면: 종료 = 시작 + 1시간
-            if (!start.isBefore(end)) {
-                end = start.plusHours(1)
-                // 보정된 종료 시간이 현재를 초과하면 현재 시간으로 강제 고정
-                if (end.isAfter(now)) {
-                    end = now
+            if (isStartChanged) {
+                // 시작 시간이 종료 시간보다 같거나 늦어지면: 종료 = 시작 + 1시간
+                if (!start.isBefore(end)) {
+                    end = start.plusHours(1)
+                    // 보정된 종료 시간이 현재를 초과하면 현재 시간으로 강제 고정
+                    if (end.isAfter(now)) {
+                        end = now
+                    }
+                }
+            } else {
+                // 종료 시간이 시작 시간보다 같거나 빨라지면: 시작 = 종료 - 1시간
+                if (!end.isAfter(start)) {
+                    start = end.minusHours(1)
                 }
             }
-        } else {
-            // 종료 시간이 시작 시간보다 같거나 빨라지면: 시작 = 종료 - 1시간
-            if (!end.isAfter(start)) {
-                start = end.minusHours(1)
+
+            _startTime.value = start
+            _endTime.value = end
+        }
+
+        // 시간 선택 버튼 클릭 이벤트 처리
+        fun onTimeSelectionClick(selection: TimeSelectionState) {
+            // 이미 선택된 버튼을 다시 누르면 선택 해제
+            if (_timeSelectionState.value == selection) {
+                _timeSelectionState.value = TimeSelectionState.NONE
+            } else {
+                _timeSelectionState.value = selection
             }
         }
 
-        _startTime.value = start
-        _endTime.value = end
-    }
-
-    // 시간 선택 버튼 클릭 이벤트 처리
-    fun onTimeSelectionClick(selection: TimeSelectionState) {
-        // 이미 선택된 버튼을 다시 누르면 선택 해제
-        if (_timeSelectionState.value == selection) {
-            _timeSelectionState.value = TimeSelectionState.NONE
-        } else {
-            _timeSelectionState.value = selection
+        // CalendarView에서 날짜가 선택되었을 때 호출
+        fun updateDate(
+            year: Int,
+            month: Int,
+            dayOfMonth: Int,
+        ) {
+            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+            when (_timeSelectionState.value) {
+                TimeSelectionState.START_DATE -> {
+                    val existingTime = _startTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                    setStartTime(LocalDateTime.of(selectedDate, existingTime))
+                }
+                TimeSelectionState.END_DATE -> {
+                    val existingTime = _endTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                    setEndTime(LocalDateTime.of(selectedDate, existingTime))
+                }
+                else -> return
+            }
         }
-    }
 
-    // CalendarView에서 날짜가 선택되었을 때 호출
-    fun updateDate(year: Int, month: Int, dayOfMonth: Int) {
-        val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-        when (_timeSelectionState.value) {
-            TimeSelectionState.START_DATE -> {
-                val existingTime = _startTime.value?.toLocalTime() ?: clockProvider.nowTime()
-                setStartTime(LocalDateTime.of(selectedDate, existingTime))
+        // 시간 선택 후 데이터를 업데이트
+        fun updateTime(
+            hour: Int,
+            minute: Int,
+        ) {
+            val selectedTime = LocalTime.of(hour, minute)
+            when (_timeSelectionState.value) {
+                TimeSelectionState.START_TIME -> {
+                    val existingDate = _startTime.value?.toLocalDate() ?: LocalDate.now()
+                    setStartTime(LocalDateTime.of(existingDate, selectedTime))
+                }
+                TimeSelectionState.END_TIME -> {
+                    val existingDate = _endTime.value?.toLocalDate() ?: LocalDate.now()
+                    setEndTime(LocalDateTime.of(existingDate, selectedTime))
+                }
+                else -> return
             }
-            TimeSelectionState.END_DATE -> {
-                val existingTime = _endTime.value?.toLocalTime() ?: clockProvider.nowTime()
-                setEndTime(LocalDateTime.of(selectedDate, existingTime))
-            }
-            else -> return
+            _timeSelectionState.value = TimeSelectionState.NONE // 시간 설정 후 선택기 닫기
         }
-    }
-
-    // 시간 선택 후 데이터를 업데이트
-    fun updateTime(hour: Int, minute: Int) {
-        val selectedTime = LocalTime.of(hour, minute)
-        when (_timeSelectionState.value) {
-            TimeSelectionState.START_TIME -> {
-                val existingDate = _startTime.value?.toLocalDate() ?: LocalDate.now()
-                setStartTime(LocalDateTime.of(existingDate, selectedTime))
-            }
-            TimeSelectionState.END_TIME -> {
-                val existingDate = _endTime.value?.toLocalDate() ?: LocalDate.now()
-                setEndTime(LocalDateTime.of(existingDate, selectedTime))
-            }
-            else -> return
-        }
-        _timeSelectionState.value = TimeSelectionState.NONE // 시간 설정 후 선택기 닫기
-    }
-
 
         fun addImage(uris: List<Uri>) {
             val currentList = _imageItems.value ?: mutableListOf()

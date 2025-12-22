@@ -33,7 +33,6 @@ import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
 import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
@@ -321,10 +320,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 binding.timeHourEt.setText(time?.hour?.toString()?.padStart(2, '0') ?: "")
                 binding.timeMinuteEt.setText(time?.minute?.toString()?.padStart(2, '0') ?: "")
             }
-            TimeSelectionState.NONE -> {  }
+            TimeSelectionState.NONE -> { }
         }
     }
-
 
     private fun handleSuccessfulCreate(earnedPoints: Int) {
         when {
