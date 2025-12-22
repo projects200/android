@@ -1,19 +1,12 @@
 package com.project200.feature.exercise.form
 
-import android.Manifest
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.core.content.ContextCompat.getDrawable
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
-import androidx.core.view.marginBottom
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -133,22 +126,22 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
         viewModel.loadInitialRecord(args.recordId)
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
-        initClickListeners()
+        initListeners()
     }
 
-    private fun initClickListeners() {
+    private fun initListeners() {
         // 시간/날짜 버튼 클릭 리스너 설정
         binding.startDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_DATE) }
         binding.startTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_TIME) }
         binding.endDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_DATE) }
         binding.endTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_TIME) }
 
-        // 캘린더 날짜 선택 리스너 설정
+        // 캘린더 날짜 선택
         binding.exerciseDateCalendar.setOnDateChangeListener { _, year, month, dayOfMonth ->
             viewModel.updateDate(year, month, dayOfMonth)
         }
 
-        // 시간 입력 '확인' 버튼 리스너
+        // 시간 입력 확인
         binding.timeConfirmBtn.setOnClickListener {
             val hour = binding.timeHourEt.text.toString().toIntOrNull()
             val minute = binding.timeMinuteEt.text.toString().toIntOrNull()
@@ -160,6 +153,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             viewModel.updateTime(hour, minute)
         }
 
+        // 기록 완료 버튼
         binding.recordCompleteBtn.setOnClickListener {
             viewModel.submitRecord(
                 recordId = args.recordId,

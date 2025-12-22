@@ -207,10 +207,11 @@
                     android:id="@+id/time_hour_et"
                     style="@style/content_regular"
                     android:textSize="40sp"
-                    android:inputType="time"
+                    android:inputType="number"
                     android:backgroundTint="@android:color/transparent"
                     android:gravity="center"
                     android:layout_weight="1"
+                    android:maxLength="2"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"/>
                 <TextView
@@ -225,7 +226,8 @@
                     android:id="@+id/time_minute_et"
                     style="@style/content_regular"
                     android:textSize="40sp"
-                    android:inputType="time"
+                    android:inputType="number"
+                    android:maxLength="2"
                     android:backgroundTint="@android:color/transparent"
                     android:gravity="center"
                     android:layout_weight="1"
