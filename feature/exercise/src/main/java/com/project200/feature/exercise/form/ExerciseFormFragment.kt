@@ -28,6 +28,7 @@ import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
 import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
 import com.project200.presentation.utils.ImageValidator.OVERSIZE
 import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeInsets
+import com.project200.presentation.utils.TimeEditTextLimiter.addRangeLimit
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
 import com.project200.undabang.feature.exercise.R
@@ -134,6 +135,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.startTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_TIME) }
         binding.endDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_DATE) }
         binding.endTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_TIME) }
+
+        binding.timeHourEt.addRangeLimit(24)
+        binding.timeMinuteEt.addRangeLimit(59)
 
         // 캘린더 날짜 선택
         binding.exerciseDateCalendar.setOnDateChangeListener { _, year, month, dayOfMonth ->
