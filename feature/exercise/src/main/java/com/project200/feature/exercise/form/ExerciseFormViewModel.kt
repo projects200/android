@@ -7,7 +7,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.common.utils.ClockProvider
-import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
@@ -19,13 +18,12 @@ import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
+import com.project200.undabang.feature.exercise.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
-import java.time.format.DateTimeFormatter
 import javax.inject.Inject
 
 
@@ -69,8 +67,8 @@ class ExerciseFormViewModel
         private val _editResult = MutableLiveData<ExerciseEditResult>()
         val editResult: LiveData<ExerciseEditResult> = _editResult
 
-        private val _toastMessage = MutableLiveData<String?>()
-        val toastMessage: LiveData<String?> = _toastMessage
+        private val _toastMessage = MutableLiveData<Int?>()
+        val toastMessage: LiveData<Int?> = _toastMessage
 
         private val _scoreGuidanceState = MutableLiveData<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
         val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
@@ -100,7 +98,7 @@ class ExerciseFormViewModel
                             setupEditMode(result.data)
                         }
                         is BaseResult.Error -> {
-                            _toastMessage.value = LOAD_FAIL
+                            _toastMessage.value = R.string.exercise_load_fail
                         }
                     }
                 }
@@ -133,7 +131,7 @@ class ExerciseFormViewModel
         // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
         if (newStartTime.isAfter(now)) {
             newStartTime = now
-            _toastMessage.value = "시작 시간은 현재 시간 이후로 설정할 수 없습니다."
+            _toastMessage.value = R.string.exercise_error_start_time_future
         }
 
         _startTime.value = newStartTime
@@ -151,7 +149,7 @@ class ExerciseFormViewModel
         // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
         if (newEndTime.isAfter(now)) {
             newEndTime = now
-            _toastMessage.value = "종료 시간은 현재 시간 이후로 설정할 수 없습니다."
+            _toastMessage.value = R.string.exercise_error_end_time_future
         }
 
         _endTime.value = newEndTime
@@ -289,7 +287,7 @@ class ExerciseFormViewModel
         ) {
             // 유효성 검사
             if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
-                _toastMessage.value = INVALID_INPUT
+                _toastMessage.value = R.string.exercise_invalid_input
                 return
             }
 
@@ -307,7 +305,7 @@ class ExerciseFormViewModel
 
             // 변경 사항 확인 (수정 모드일 때)
             if (isEditMode && !hasChanges(recordToSubmit)) {
-                _toastMessage.value = NO_CHANGE
+                _toastMessage.value = R.string.exercise_no_change
                 return
             }
 
@@ -340,8 +338,8 @@ class ExerciseFormViewModel
                     }
                     is BaseResult.Error -> {
                         // 기록 생성 실패
-                        _createResult.value = SubmissionResult.Failure(CREATE_FAIL, createResult.cause)
-                        _toastMessage.value = CREATE_FAIL
+                        _createResult.value = SubmissionResult.Failure(createResult.message.toString(), createResult.cause)
+                        _toastMessage.value = R.string.exercise_create_fail
                         _isLoading.value = false
                     }
                 }
@@ -362,7 +360,7 @@ class ExerciseFormViewModel
                     }
                     is BaseResult.Error -> {
                         // 이미지 업로드 실패 -> 부분 성공
-                        _createResult.value = SubmissionResult.PartialSuccess(recordId, UPLOAD_FAIL)
+                        _createResult.value = SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail)
                     }
                 }
             } else {
@@ -411,7 +409,6 @@ class ExerciseFormViewModel
                 when (val result = getExpectedScoreInfoUseCase()) { // UseCase 호출
                     is BaseResult.Success -> {
                         val expectedScoreInfo = result.data
-                        Timber.tag(TAG).d("Expected Score Info: $expectedScoreInfo")
 
                         // 최대 점수 도달 여부 확인
                         val currentUserScore = expectedScoreInfo.currentUserScore
@@ -419,7 +416,7 @@ class ExerciseFormViewModel
                         val pointsPerExercise = expectedScoreInfo.pointsPerExercise
 
                         if (currentUserScore >= maxScore) {
-                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(MAX_SCORE_REACHED)
+                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(R.string.exercise_max_score_reached)
                             return@launch
                         }
 
@@ -428,14 +425,14 @@ class ExerciseFormViewModel
                         val validEnd = expectedScoreInfo.validWindow.endDateTime
                         if (startTime.isBefore(validStart) || startTime.isAfter(validEnd)) {
                             _scoreGuidanceState.value =
-                                ScoreGuidanceState.Warning(UPLOAD_PERIOD_EXPIRED)
+                                ScoreGuidanceState.Warning(R.string.exercise_upload_period_expired)
                             return@launch
                         }
 
                         // 이미 점수 획득 여부 확인
                         val recordDate = startTime.toLocalDate()
                         if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
-                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
+                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(R.string.exercise_already_scored_today)
                             return@launch
                         }
 
@@ -446,26 +443,10 @@ class ExerciseFormViewModel
 
                     is BaseResult.Error -> {
                         // API 호출 실패 시 에러 메시지 표시 및 안내 숨김
-                        Timber.e("Failed to fetch expected score info: ${result.message}")
-                        _toastMessage.value = FETCH_SCORE_INFO_FAIL // 새로운 상수 추가
+                        _toastMessage.value = R.string.exercise_fetch_score_info_fail
                         _scoreGuidanceState.value = ScoreGuidanceState.Hidden
                     }
                 }
             }
-        }
-
-        companion object {
-            const val LOAD_FAIL = "기록을 불러오는데 실패했습니다"
-            const val NO_CHANGE = "변경 사항이 없습니다"
-            const val INVALID_INPUT = "필수 항목을 입력해주세요."
-            const val CREATE_FAIL = "기록 생성에 실패했습니다"
-            const val UPLOAD_FAIL = "이미지 업로드에 실패했습니다"
-            const val FETCH_SCORE_INFO_FAIL = "점수 정보를 불러오는데 실패했습니다."
-            const val TAG = "ExerciseViewModel"
-
-            // 점수 안내 관련 상수
-            const val ALREADY_SCORED_TODAY = "이 날은 이미 점수를 획득했어요"
-            const val UPLOAD_PERIOD_EXPIRED = "점수를 획득할 수 있는 기간이 지났어요"
-            const val MAX_SCORE_REACHED = "점수가 최대치에 도달했어요!"
         }
     }

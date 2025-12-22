@@ -254,9 +254,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
         }
 
-        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            if (!message.isNullOrEmpty()) {
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        viewModel.toastMessage.observe(viewLifecycleOwner) { messageId ->
+            messageId?.let {
+                Toast.makeText(requireContext(), getString(messageId), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -267,7 +267,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 }
                 is ScoreGuidanceState.Warning -> {
                     binding.scoreWarningTv.isVisible = true
-                    binding.scoreWarningTv.text = state.message
+                    binding.scoreWarningTv.text = getString(state.messageId)
                 }
                 is ScoreGuidanceState.PointsAvailable -> {
                     binding.scoreWarningTv.isVisible = false
@@ -329,15 +329,13 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     private fun handleSuccessfulCreate(earnedPoints: Int) {
         when {
             (earnedPoints > 0) -> {
-                Timber.tag("ExerciseFormFragment").d("PointsAvailable")
                 ScoreCongratulationDialog(earnedPoints).apply {
                     confirmClickListener = {
                         findNavController().popBackStack()
                     }
-                }.show(parentFragmentManager, "ScoreCongratulationDialog")
+                }.show(parentFragmentManager, ScoreCongratulationDialog::class.java.name)
             }
             else -> {
-                Timber.tag("ExerciseFormFragment").d("불가능")
                 findNavController().popBackStack()
             }
         }
