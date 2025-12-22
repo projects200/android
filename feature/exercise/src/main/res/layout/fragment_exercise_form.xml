@@ -194,14 +194,14 @@
                 android:layout_marginHorizontal="20dp"
                 android:background="@drawable/bg_time_selector"
                 android:paddingHorizontal="20dp"
-                android:visibility="gone"
+
                 android:layout_marginTop="@dimen/base_horizontal_margin"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
                 <ImageView
                     android:layout_width="35dp"
                     android:layout_height="35dp"
-                    android:layout_weight="1"
+                    android:layout_marginEnd="@dimen/base_horizontal_margin"
                     android:src="@drawable/ic_clock"/>
                 <EditText
                     android:id="@+id/time_hour_et"
@@ -212,15 +212,17 @@
                     android:gravity="center"
                     android:layout_weight="1"
                     android:maxLength="2"
-                    android:layout_width="wrap_content"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"/>
                 <TextView
                     style="@style/content_regular"
                     android:textSize="40sp"
                     android:text="@string/exercise_record_time_divider"
                     android:gravity="center"
-                    android:layout_weight="1"
-                    android:layout_width="wrap_content"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_weight="0.5"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"/>
                 <EditText
                     android:id="@+id/time_minute_et"
@@ -230,8 +232,9 @@
                     android:maxLength="2"
                     android:backgroundTint="@android:color/transparent"
                     android:gravity="center"
+                    android:layout_marginHorizontal="4dp"
                     android:layout_weight="1"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"/>
                 <androidx.appcompat.widget.AppCompatButton
                     android:id="@+id/time_confirm_btn"

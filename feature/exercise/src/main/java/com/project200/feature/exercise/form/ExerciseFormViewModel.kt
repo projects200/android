@@ -84,9 +84,12 @@ class ExerciseFormViewModel
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
-                val now = clockProvider.localDateTimeNow()
+
+                // 현재 시간 기준 정시로 초기화
+                val now = clockProvider.localDateTimeNow().withMinute(0).withSecond(0).withNano(0)
                 _startTime.value = now.minusHours(1)
                 _endTime.value = now
+
                 _imageItems.value = mutableListOf(ExerciseImageListItem.AddButtonItem)
                 _initialDataLoaded.value = null
             } else {
@@ -124,50 +127,66 @@ class ExerciseFormViewModel
         }
 
     fun setStartTime(dateTime: LocalDateTime) {
+        val now = clockProvider.localDateTimeNow()
         var newStartTime = dateTime
+
         // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
-        if (newStartTime.isAfter(LocalDateTime.now())) {
-            newStartTime = LocalDateTime.now()
+        if (newStartTime.isAfter(now)) {
+            newStartTime = now
             _toastMessage.value = "시작 시간은 현재 시간 이후로 설정할 수 없습니다."
         }
 
         _startTime.value = newStartTime
 
         // 시작 시간이 종료 시간을 넘어서면, 종료 시간 조정
-        _endTime.value?.let { currentEndTime ->
-            if (newStartTime.isAfter(currentEndTime)) {
-                var newEndTime = newStartTime.plusHours(1)
-                // 조정된 종료 시간이 현재 시간을 넘어서면, 현재 시간으로 설정
-                if (newEndTime.isAfter(LocalDateTime.now())) {
-                    newEndTime = LocalDateTime.now()
-                }
-                _endTime.value = newEndTime
-            }
-        }
+        applyTimeCorrection(isStartChanged = true)
 
         updateScoreGuidance()
     }
 
-    fun setEndTime(dateTime: LocalDateTime): Boolean {
+    fun setEndTime(dateTime: LocalDateTime) {
+        val now = clockProvider.localDateTimeNow()
         var newEndTime = dateTime
+
         // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
-        if (newEndTime.isAfter(LocalDateTime.now())) {
-            newEndTime = LocalDateTime.now()
+        if (newEndTime.isAfter(now)) {
+            newEndTime = now
             _toastMessage.value = "종료 시간은 현재 시간 이후로 설정할 수 없습니다."
         }
 
-        // 종료 시간이 시작 시간보다 앞서면, 시작 시간 조정
-        _startTime.value?.let { currentStartTime ->
-            if (newEndTime.isBefore(currentStartTime)) {
-                _startTime.value = newEndTime.minusHours(1)
+        _endTime.value = newEndTime
+
+        // 종료 시간이 시작 시간을 넘어서지 않으면, 시작 시간 조정
+        applyTimeCorrection(isStartChanged = false)
+    }
+
+    /**
+     * 시간 역전 보정 함수
+     *
+     */
+    private fun applyTimeCorrection(isStartChanged: Boolean) {
+        val now = clockProvider.localDateTimeNow()
+        var start = _startTime.value ?: return
+        var end = _endTime.value ?: return
+
+        if (isStartChanged) {
+            // 시작 시간이 종료 시간보다 같거나 늦어지면: 종료 = 시작 + 1시간
+            if (!start.isBefore(end)) {
+                end = start.plusHours(1)
+                // 보정된 종료 시간이 현재를 초과하면 현재 시간으로 강제 고정
+                if (end.isAfter(now)) {
+                    end = now
+                }
             }
-        } ?: run {
-            // 시작 시간이 없으면, 종료 시간 1시간 전으로 설정
-            _startTime.value = newEndTime.minusHours(1)
+        } else {
+            // 종료 시간이 시작 시간보다 같거나 빨라지면: 시작 = 종료 - 1시간
+            if (!end.isAfter(start)) {
+                start = end.minusHours(1)
+            }
         }
 
-        _endTime.value = newEndTime
-        return true
+        _startTime.value = start
+        _endTime.value = end
     }
 
     // 시간 선택 버튼 클릭 이벤트 처리
