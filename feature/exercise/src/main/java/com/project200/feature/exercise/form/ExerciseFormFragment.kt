@@ -136,7 +136,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         binding.endDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_DATE) }
         binding.endTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_TIME) }
 
-        binding.timeHourEt.addRangeLimit(24)
+        binding.timeHourEt.addRangeLimit(23)
         binding.timeMinuteEt.addRangeLimit(59)
 
         // 캘린더 날짜 선택
