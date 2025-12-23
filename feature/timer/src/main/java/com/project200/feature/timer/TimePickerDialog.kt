@@ -1,8 +1,6 @@
 package com.project200.feature.timer
 
 import android.graphics.Color
-import android.text.Editable
-import android.text.TextWatcher
 import android.view.View
 import android.view.WindowManager
 import android.widget.EditText
@@ -19,7 +17,6 @@ class TimePickerDialog(
     private val initialTime: Int? = null,
     private val onTimeSelected: (Int) -> Unit,
 ) : BaseDialogFragment<DialogTimePickerBinding>(R.layout.dialog_time_picker) {
-
     override fun getViewBinding(view: View): DialogTimePickerBinding {
         return DialogTimePickerBinding.bind(view)
     }
@@ -64,21 +61,22 @@ class TimePickerDialog(
 
     private fun setupFocusAndRangeListeners() {
         // 1. 포커스 상태에 따른 배경 및 포맷팅 처리
-        val focusChangeListener = View.OnFocusChangeListener { view, hasFocus ->
-            if (view is EditText) {
-                if (hasFocus) {
-                    // 포커스 얻었을 때: 배경 적용 및 텍스트 전체 선택
-                    view.setBackgroundResource(com.project200.undabang.presentation.R.drawable.bg_solid_corner)
-                    view.selectAll()
-                } else {
-                    // 포커스 잃었을 때: 배경 제거 및 00~59 보정 후 포맷팅
-                    view.setBackgroundResource(0)
-                    val input = view.text.toString().toIntOrNull() ?: 0
-                    val clamped = input.coerceIn(0, 59)
-                    view.setText(String.format(Locale.KOREA, "%02d", clamped))
+        val focusChangeListener =
+            View.OnFocusChangeListener { view, hasFocus ->
+                if (view is EditText) {
+                    if (hasFocus) {
+                        // 포커스 얻었을 때: 배경 적용 및 텍스트 전체 선택
+                        view.setBackgroundResource(com.project200.undabang.presentation.R.drawable.bg_solid_corner)
+                        view.selectAll()
+                    } else {
+                        // 포커스 잃었을 때: 배경 제거 및 00~59 보정 후 포맷팅
+                        view.setBackgroundResource(0)
+                        val input = view.text.toString().toIntOrNull() ?: 0
+                        val clamped = input.coerceIn(0, 59)
+                        view.setText(String.format(Locale.KOREA, "%02d", clamped))
+                    }
                 }
             }
-        }
 
         binding.minuteEt.onFocusChangeListener = focusChangeListener
         binding.secondEt.onFocusChangeListener = focusChangeListener
