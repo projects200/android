@@ -107,81 +107,157 @@
                     android:text="@string/exercise_record_time"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
-
                 <TextView
-                    android:id="@+id/start_time_btn"
-                    style="@style/subtext_14"
+                    android:id="@+id/score_warning_tv"
+                    style="@style/subtext_12"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:drawablePadding="4dp"
+                    android:text="@string/data_error"
+                    android:textColor="@color/gray200"
                     android:layout_marginTop="8dp"
-                    android:background="@drawable/bg_solid_corner"
+                    app:drawableStartCompat="@drawable/ic_warning"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@+id/record_time_title_tv" />
+
+                <TextView
+                    android:id="@+id/start_date_btn"
+                    style="@style/content_regular"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:paddingVertical="6dp"
+                    android:paddingHorizontal="14dp"
+                    android:background="@drawable/bg_time_indicator"
                     android:gravity="center"
-                    android:paddingVertical="11dp"
-                    android:text="@string/exercise_record_start_time"
+                    android:text="2025.09.12"
                     app:layout_constraintEnd_toStartOf="@id/divider_iv"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/record_time_title_tv" />
-
-                <ImageView
-                    android:id="@+id/start_time_iv"
+                    app:layout_constraintTop_toBottomOf="@id/score_warning_tv" />
+                <TextView
+                    android:id="@+id/start_time_btn"
+                    style="@style/content_regular"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:src="@drawable/ic_clock"
-                    app:layout_constraintBottom_toBottomOf="@id/start_time_btn"
-                    app:layout_constraintStart_toStartOf="@id/start_time_btn"
-                    app:layout_constraintTop_toTopOf="@id/start_time_btn" />
-
+                    android:layout_marginTop="6dp"
+                    android:paddingVertical="6dp"
+                    android:paddingHorizontal="14dp"
+                    android:gravity="center"
+                    android:text="12:15"
+                    app:layout_constraintEnd_toEndOf="@id/start_date_btn"
+                    app:layout_constraintStart_toStartOf="@id/start_date_btn"
+                    app:layout_constraintTop_toBottomOf="@id/start_date_btn" />
                 <ImageView
                     android:id="@+id/divider_iv"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_width="30dp"
+                    android:layout_height="30dp"
                     android:layout_marginHorizontal="20dp"
-                    android:src="@drawable/ic_time_divider"
+                    android:src="@drawable/ic_arrow_right"
                     app:layout_constraintBottom_toBottomOf="@id/start_time_btn"
                     app:layout_constraintEnd_toStartOf="@id/end_time_btn"
-                    app:layout_constraintStart_toEndOf="@id/start_time_btn"
-                    app:layout_constraintTop_toTopOf="@id/start_time_btn" />
+                    app:layout_constraintStart_toEndOf="@id/start_date_btn"
+                    app:layout_constraintTop_toTopOf="@id/start_date_btn" />
+
+                <TextView
+                    android:id="@+id/end_date_btn"
+                    style="@style/content_regular"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingVertical="6dp"
+                    android:paddingHorizontal="14dp"
+                    android:gravity="center"
+                    android:text="2025.09.12"
+                    app:layout_constraintBottom_toBottomOf="@id/start_date_btn"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toEndOf="@id/divider_iv"
+                    app:layout_constraintTop_toTopOf="@id/start_date_btn" />
 
                 <TextView
                     android:id="@+id/end_time_btn"
-                    style="@style/subtext_14"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_solid_corner"
-                    android:gravity="center"
-                    android:paddingVertical="11dp"
-                    android:text="@string/exercise_record_end_time"
-                    app:layout_constraintBottom_toBottomOf="@id/start_time_btn"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintStart_toEndOf="@id/divider_iv"
-                    app:layout_constraintTop_toTopOf="@id/start_time_btn" />
-
-                <ImageView
-                    android:id="@+id/end_time_iv"
+                    style="@style/content_regular"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:src="@drawable/ic_clock"
-                    app:layout_constraintBottom_toBottomOf="@id/end_time_btn"
-                    app:layout_constraintStart_toStartOf="@id/end_time_btn"
-                    app:layout_constraintTop_toTopOf="@id/end_time_btn" />
-                <TextView
-                    android:id="@+id/score_warning_tv"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    app:drawableStartCompat="@drawable/ic_warning"
-                    android:drawablePadding="4dp"
-                    android:text="@string/data_error"
-                    style="@style/subtext_12"
-                    android:textColor="@color/gray200"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toBottomOf="@id/start_time_btn"
-                    app:layout_constraintBottom_toBottomOf="parent"/>
+                    android:paddingVertical="6dp"
+                    android:paddingHorizontal="14dp"
+                    android:gravity="center"
+                    android:layout_marginTop="6dp"
+                    android:text="12:15"
+                    app:layout_constraintEnd_toEndOf="@id/end_date_btn"
+                    app:layout_constraintStart_toStartOf="@id/end_date_btn"
+                    app:layout_constraintTop_toBottomOf="@id/end_date_btn" />
             </androidx.constraintlayout.widget.ConstraintLayout>
+            <LinearLayout
+                android:id="@+id/time_selector_ll"
+                android:layout_width="match_parent"
+                android:layout_height="140dp"
+                android:layout_marginHorizontal="20dp"
+                android:background="@drawable/bg_time_selector"
+                android:paddingHorizontal="20dp"
 
+                android:layout_marginTop="@dimen/base_horizontal_margin"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+                <ImageView
+                    android:layout_width="35dp"
+                    android:layout_height="35dp"
+                    android:layout_marginEnd="@dimen/base_horizontal_margin"
+                    android:src="@drawable/ic_clock"/>
+                <EditText
+                    android:id="@+id/time_hour_et"
+                    style="@style/content_regular"
+                    android:textSize="40sp"
+                    android:inputType="number"
+                    android:backgroundTint="@android:color/transparent"
+                    android:gravity="center"
+                    android:layout_weight="1"
+                    android:maxLength="2"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"/>
+                <TextView
+                    style="@style/content_regular"
+                    android:textSize="40sp"
+                    android:text="@string/exercise_record_time_divider"
+                    android:gravity="center"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_weight="0.5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"/>
+                <EditText
+                    android:id="@+id/time_minute_et"
+                    style="@style/content_regular"
+                    android:textSize="40sp"
+                    android:inputType="number"
+                    android:maxLength="2"
+                    android:backgroundTint="@android:color/transparent"
+                    android:gravity="center"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_weight="1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"/>
+                <androidx.appcompat.widget.AppCompatButton
+                    android:id="@+id/time_confirm_btn"
+                    style="@style/content_bold"
+                    android:layout_width="62dp"
+                    android:layout_height="33dp"
+                    android:background="@drawable/bg_complete_btn"
+                    android:gravity="center"
+                    android:text="@string/confirm"
+                    android:textColor="@color/white300"
+                    android:layout_marginStart="@dimen/base_horizontal_margin"
+                    app:layout_constraintBottom_toBottomOf="@+id/base_toolbar"
+                    app:layout_constraintEnd_toEndOf="@+id/base_toolbar"
+                    app:layout_constraintTop_toTopOf="@+id/base_toolbar" />
+            </LinearLayout>
+            <CalendarView
+                android:id="@+id/exercise_date_calendar"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/base_horizontal_margin"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:background="@drawable/bg_time_selector"
+                app:cv_orientation="horizontal" />
             <TextView
                 android:id="@+id/record_location_title_tv"
                 style="@style/content_bold"
