@@ -2,32 +2,72 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:background="@drawable/dialog_radius"
     android:padding="@dimen/base_horizontal_margin">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:layout_margin="24dp">
-
-        <NumberPicker
-            android:id="@+id/minute_picker"
-            android:layout_width="0dp"
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:descendantFocusability="blocksDescendants"/>
+            style="@style/subtext_14"
+            android:text="@string/minute"
+            android:layout_marginBottom="6dp"
+            app:layout_constraintStart_toStartOf="@id/minute_et"
+            app:layout_constraintEnd_toEndOf="@id/minute_et"
+            app:layout_constraintBottom_toTopOf="@id/minute_et"/>
+        <EditText
+            android:id="@+id/minute_et"
+            android:background="@null"
+            android:layout_width="100dp"
+            android:layout_height="70dp"
+            style="@style/content_regular"
+            android:textSize="40sp"
+            android:maxLength="2"
+            android:gravity="center"
+            android:maxLines="1"
+            android:inputType="numberSigned"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
 
-        <NumberPicker
-            android:id="@+id/second_picker"
-            android:layout_width="0dp"
+        <TextView
+            style="@style/content_regular"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:layout_weight="1"
-            android:descendantFocusability="blocksDescendants"/>
-    </LinearLayout>
+            android:layout_gravity="center"
+            android:text="@string/time_divider"
+            android:textSize="40sp"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/second_et"
+            app:layout_constraintStart_toEndOf="@id/minute_et"
+            app:layout_constraintTop_toTopOf="@+id/minute_et" />
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            style="@style/subtext_14"
+            android:text="@string/second"
+            android:layout_marginBottom="6dp"
+            app:layout_constraintStart_toStartOf="@id/second_et"
+            app:layout_constraintEnd_toEndOf="@id/second_et"
+            app:layout_constraintBottom_toTopOf="@id/second_et"/>
+        <EditText
+            android:id="@+id/second_et"
+            android:background="@null"
+            android:layout_width="100dp"
+            android:layout_height="70dp"
+            style="@style/content_regular"
+            android:textSize="40sp"
+            android:inputType="numberSigned"
+            android:maxLength="2"
+            android:maxLines="1"
+            android:gravity="center"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"/>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <LinearLayout
         android:layout_width="match_parent"
