@@ -29,7 +29,6 @@ class ChattingRoomViewModel
     constructor(
         private val getChatMessagesUseCase: GetChatMessagesUseCase,
         private val getNewChatMessagesUseCase: GetNewChatMessagesUseCase,
-        private val sendChatMessageUseCase: SendChatMessageUseCase,
         private val exitChatRoomUseCase: ExitChatRoomUseCase,
         private val clockProvider: ClockProvider,
         private val connectChatRoomUseCase: ConnectChatRoomUseCase,
@@ -57,6 +56,7 @@ class ChattingRoomViewModel
 
         init {
             viewModelScope.launch {
+                // TODO: 내 memberId 저장
                 observeSocketMessagesUseCase().collect { chat ->
                     if (chat.chatType == SocketType.TALK.name) {
                         // 리스트에 추가
@@ -189,7 +189,7 @@ class ChattingRoomViewModel
             if (text.isBlank()) return
             if (chatRoomId == DEFAULT_ID) return
 
-            val messageToSend =
+/*            val messageToSend =
                 ChattingMessage(
                     chatId = DEFAULT_ID, // 임시 아이디
                     senderId = "my_user_id",
@@ -200,10 +200,10 @@ class ChattingRoomViewModel
                     chatType = "USER",
                     sentAt = clockProvider.localDateTimeNow(),
                     isMine = true,
-                )
+                )*/
 
             viewModelScope.launch {
-                when (val result = sendChatMessageUseCase(chatRoomId, text)) {
+/*                when (val result = sendSocketMessageUseCase(text)) {
                     is BaseResult.Success -> {
                         // 서버로부터 받은 chatId로 설정
                         val confirmedMessage =
@@ -215,7 +215,9 @@ class ChattingRoomViewModel
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
                     }
-                }
+                }*/
+                sendSocketMessageUseCase(text)
+                // TODO: 서버 응답에 따라 낙관적 UI 여부 결정
             }
         }
 
