@@ -65,17 +65,27 @@ data class PostChatMessageRequest(
     val content: String,
 )
 
-@JsonClass(generateAdapter = true)
-data class GetSocketPayloadDTO(
-    @Json(name = "webSocketType")
-    val type: SocketType,
-    @Json(name = "content")
-    val content: String? = null
-)
-
 // 티켓 발급 응답
 @JsonClass(generateAdapter = true)
 data class TicketResponse(
     @Json(name = "chatTicket")
     val chatTicket: String
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatMessageDTO(
+    val chatId: Long,
+    val senderId: String?,
+    val senderNickname: String?,
+    val senderProfileUrl: String?,
+    val senderThumbnailUrl: String?,
+    val chatContent: String,
+    val chatType: String,
+    val sentAt: LocalDateTime,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatRequest(
+    val type: String,
+    val content: String?
 )

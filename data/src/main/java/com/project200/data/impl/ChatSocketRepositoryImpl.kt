@@ -2,7 +2,10 @@ package com.project200.data.impl
 
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ChatApiService
-import com.project200.domain.model.SocketPayload
+import com.project200.data.dto.SocketChatMessageDTO
+import com.project200.data.dto.SocketChatRequest
+import com.project200.data.mapper.toModel
+import com.project200.domain.model.ChattingMessage
 import com.project200.domain.model.SocketType
 import com.project200.domain.repository.ChatSocketRepository
 import com.project200.undabang.data.BuildConfig
@@ -22,11 +25,11 @@ class ChatSocketRepositoryImpl @Inject constructor(
     private val moshi: Moshi,
     private val networkMonitor: NetworkMonitor
 ) : ChatSocketRepository {
-
-    private val messageAdapter = moshi.adapter(SocketPayload::class.java)
+    private val requestAdapter = moshi.adapter(SocketChatRequest::class.java)
+    private val responseAdapter = moshi.adapter(SocketChatMessageDTO::class.java)
 
     private var webSocket: WebSocket? = null
-    private val _incomingMessages = MutableSharedFlow<SocketPayload>()
+    private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
     override val incomingMessages = _incomingMessages.asSharedFlow()
 
     private var currentChatRoomId: Long = -1L
@@ -60,8 +63,8 @@ class ChatSocketRepositoryImpl @Inject constructor(
     }
 
     override fun sendMessage(content: String) {
-        val payload = SocketPayload(SocketType.TALK, content)
-        val json = messageAdapter.toJson(payload)
+        val payload = SocketChatRequest(SocketType.TALK.name, content)
+        val json = requestAdapter.toJson(payload)
         webSocket?.send(json)
     }
 
@@ -96,11 +99,12 @@ class ChatSocketRepositoryImpl @Inject constructor(
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             try {
-                val payload = messageAdapter.fromJson(text)
+                val dto = responseAdapter.fromJson(text) ?: return
 
-                if (payload != null && payload.type != SocketType.PONG) {
+                // PONG 메시지가 아니고 실제 채팅 메시지일 경우만 처리
+                if (dto.chatType != SocketType.PONG.name) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        _incomingMessages.emit(payload)
+                        _incomingMessages.emit(dto.toModel())
                     }
                 }
             } catch (e: Exception) {
@@ -141,11 +145,11 @@ class ChatSocketRepositoryImpl @Inject constructor(
         heartbeatJob = CoroutineScope(Dispatchers.IO).launch {
             while (isActive) {
                 delay(30000) // 30초마다 PING
-                val pingPayload = SocketPayload(
-                    SocketType.PING,
+                val pingPayload = SocketChatRequest(
+                    SocketType.PING.name,
                     content = null
                 )
-                webSocket?.send(messageAdapter.toJson(pingPayload))
+                webSocket?.send(requestAdapter.toJson(pingPayload))
             }
         }
     }

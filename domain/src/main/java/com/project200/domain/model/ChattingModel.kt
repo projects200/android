@@ -22,7 +22,7 @@ data class ChattingMessage(
     val content: String,
     val chatType: String,
     val sentAt: LocalDateTime,
-    val isMine: Boolean,
+    val isMine: Boolean = false,
     val showProfile: Boolean = false, // 프로필 표시 여부 (상대방 메시지용)
     val showTime: Boolean = false // 시간 표시 여부
 )
@@ -32,11 +32,6 @@ data class ChattingModel(
     val opponentActive: Boolean,
     val blockActive: Boolean,
     val messages: List<ChattingMessage>
-)
-
-data class SocketPayload(
-    val type: SocketType,
-    val content: String?
 )
 
 enum class SocketType {

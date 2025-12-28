@@ -57,26 +57,10 @@ class ChattingRoomViewModel
 
         init {
             viewModelScope.launch {
-                observeSocketMessagesUseCase().collect { payload ->
-                    // TALK 타입이고 내용이 있을 때 처리
-                    val content = payload.content ?: return@collect
-                    if (payload.type == SocketType.TALK) {
-                        // TODO: SocketPayload의 content가 JSON String이라면 파싱해서 ChattingMessage로 변환
-                        // 임시 ChattingMessage 객체
-                        val newMessage = ChattingMessage(
-                            chatId = -1, // 소켓 전용 ID 로직이 필요할 수 있음
-                            senderId = opponentMemberId, // 상대방이 보낸 것으로 간주
-                            nickname = "상대방", // 닉네임 정보가 없다면 API 재조회 필요할 수도 있음
-                            profileUrl = null,
-                            thumbnailImageUrl = null,
-                            content = content,
-                            chatType = "USER",
-                            sentAt = clockProvider.localDateTimeNow(),
-                            isMine = false
-                        )
-
+                observeSocketMessagesUseCase().collect { chat ->
+                    if (chat.chatType == SocketType.TALK.name) {
                         // 리스트에 추가
-                        addMessage(newMessage)
+                        addMessage(chat)
                     }
                 }
             }
