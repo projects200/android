@@ -27,6 +27,10 @@ import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
+import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
+import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
+import com.project200.feature.matching.utils.FilterUiMapper
+import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
@@ -42,6 +46,17 @@ class MatchingMapFragment :
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
+
+    private val filterAdapter by lazy {
+        MatchingFilterRVAdapter(
+            onFilterClick = { type ->
+                viewModel.onFilterTypeClicked(type)
+            },
+            onClearClick = {
+                viewModel.clearFilters()
+            },
+        )
+    }
 
     private var isMapInitialized: Boolean = false
 
@@ -69,6 +84,8 @@ class MatchingMapFragment :
 
         initMapView()
         initListeners()
+        binding.matchingFilterRv.adapter = filterAdapter
+        filterAdapter.submitFilterList(MatchingFilterType.entries)
     }
 
     private fun initMapView() {
@@ -155,6 +172,16 @@ class MatchingMapFragment :
                 launch {
                     viewModel.errorEvents.collect { message ->
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                launch {
+                    viewModel.filterState.collect { state ->
+                        filterAdapter.submitFilterState(state)
+                    }
+                }
+                launch {
+                    viewModel.currentFilterType.collect { type ->
+                        showFilterBottomSheet(type)
                     }
                 }
             }
@@ -250,6 +277,24 @@ class MatchingMapFragment :
                 )
             }
         bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)
+    }
+
+    private fun showFilterBottomSheet(type: MatchingFilterType) {
+        // 필터 옵션들을 UI 모델로 매핑
+        val options =
+            FilterUiMapper.mapToUiModels(
+                type = type,
+                currentState = viewModel.filterState.value,
+            )
+
+        val bottomSheet =
+            FilterBottomSheetDialog(
+                filterType = type,
+                onOptionSelected = { selectedDomainData ->
+                    viewModel.onFilterOptionSelected(type, selectedDomainData)
+                },
+            )
+        bottomSheet.show(childFragmentManager, FilterBottomSheetDialog::class.java.simpleName)
     }
 
     private fun checkPermissionAndMove() {

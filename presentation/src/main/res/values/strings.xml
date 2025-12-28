@@ -15,7 +15,37 @@
     <!-- 업데이트 -->
     <string name="update_title">업데이트 알림</string>
     <string name="update_desc">새로운 버전이 출시되었습니다.\n앱을 업데이트해주세요.</string>
-    <string name="update_btn">업데이트</string>
+    <string name="update_btn">업데이트</string>    <string name="gender_male">남성</string>
+    <string name="gender_female">여성</string>
+
+    <string name="filter_all">전체</string>
+
+    <string name="age_10">10대</string>
+    <string name="age_20">20대</string>
+    <string name="age_30">30대</string>
+    <string name="age_40">40대</string>
+    <string name="age_50">50대</string>
+    <string name="age_60">60대 이상</string>
+
+    <string name="score_over_20">20점 이상</string>
+    <string name="score_over_40">40점 이상</string>
+    <string name="score_over_60">60점 이상</string>
+    <string name="score_over_80">80점 이상</string>
+
+    <string name="mon">월</string>
+    <string name="tue">화</string>
+    <string name="wed">수</string>
+    <string name="thu">목</string>
+    <string name="fri">금</string>
+    <string name="sat">토</string>
+    <string name="sun">일</string>
+
+    <string name="novice">입문</string>
+    <string name="beginner">초급</string>
+    <string name="intermediate">중급</string>
+    <string name="advanced">고급</string>
+    <string name="expert">숙련</string>
+    <string name="professional">선출</string>
     <string name="update_later_btn">나중에</string>
 
     <!-- 이용약관, 개인정보처리방침 링크 -->
