@@ -33,3 +33,12 @@ data class ChattingModel(
     val blockActive: Boolean,
     val messages: List<ChattingMessage>
 )
+
+data class SocketPayload(
+    val type: SocketType,
+    val content: String?
+)
+
+enum class SocketType {
+    PING, TALK, ERROR, PONG
+}

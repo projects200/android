@@ -201,15 +201,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    // Fragment가 STARTED 상태가 되면 폴링 시작
-                    // STOPPED 상태가 되면 자동으로 코루틴 취소
-                    while (isActive && viewModel.chatState.value != ChatInputState.OpponentBlocked) {
-                        viewModel.getNewMessages()
-                        delay(POLLING_PERIOD)
-                    }
-                }
-
-                launch {
                     viewModel.chatState.collect { state ->
                         val isEnabled: Boolean
                         val messageResId: Int?
@@ -393,6 +384,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         super.onResume()
         // 현재 채팅방을 활성 채팅방으로 설정
         chatRoomStateRepository.setActiveChatRoomId(args.roomId)
+        viewModel.connectAndSync()
     }
 
     override fun onPause() {
@@ -401,6 +393,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         if (chatRoomStateRepository.activeChatRoomId.value == args.roomId) {
             chatRoomStateRepository.setActiveChatRoomId(null)
         }
+        viewModel.disconnect()
     }
 
     companion object {
