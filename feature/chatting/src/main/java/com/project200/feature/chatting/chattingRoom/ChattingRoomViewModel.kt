@@ -89,9 +89,7 @@ class ChattingRoomViewModel
         private fun addMessage(newMessage: ChattingMessage) {
             val currentList = _messages.value
             if (currentList.none { it.content == newMessage.content && it.sentAt == newMessage.sentAt }) {
-                // chatId가 있다면 chatId로 비교, 없다면 내용+시간으로 비교
                 updateAndEmitMessages(currentList + newMessage)
-                // TODO: 소켓으로 받은 메시지도 lastChatId 갱신
             }
         }
 
