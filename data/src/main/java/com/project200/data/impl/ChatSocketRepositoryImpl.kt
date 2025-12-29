@@ -4,6 +4,7 @@ import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ChatApiService
 import com.project200.data.dto.SocketChatMessage
 import com.project200.data.dto.SocketChatRequest
+import com.project200.data.local.PreferenceManager
 import com.project200.data.mapper.toModel
 import com.project200.domain.model.ChattingMessage
 import com.project200.domain.model.SocketType
@@ -36,6 +37,7 @@ class ChatSocketRepositoryImpl
         private val chatApi: ChatApiService,
         private val moshi: Moshi,
         private val networkMonitor: NetworkMonitor,
+        private val spManager: PreferenceManager,
     ) : ChatSocketRepository {
         private val requestAdapter = moshi.adapter(SocketChatRequest::class.java)
         private val responseAdapter = moshi.adapter(SocketChatMessage::class.java)
@@ -44,6 +46,7 @@ class ChatSocketRepositoryImpl
         private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
         override val incomingMessages = _incomingMessages.asSharedFlow()
 
+        private val memberId = spManager.getMemberId().toString()
         private var currentChatRoomId: Long = -1L
         private var isUserInChatRoom = false
         private var retryCount = 0
@@ -144,8 +147,13 @@ class ChatSocketRepositoryImpl
                         // PING/PONG은 별도 처리 없음
                         if (wrapper.type == SocketType.TALK && wrapper.data != null) {
                             CoroutineScope(Dispatchers.IO).launch {
-                                Timber.d("Received TALK message: $text")
-                                _incomingMessages.emit(wrapper.data.toModel())
+                                val message = wrapper.data.toModel()
+                                Timber.d("Received TALK message: $text \n $memberId")
+                                _incomingMessages.emit(
+                                    message.copy(
+                                        isMine = message.senderId == memberId
+                                    )
+                                )
                             }
                         } else if (wrapper.type == SocketType.PONG) {
                             Timber.d("Received PONG from server")
