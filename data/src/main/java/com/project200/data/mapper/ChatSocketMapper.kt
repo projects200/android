@@ -13,6 +13,6 @@ fun SocketChatMessageDTO.toModel(): ChattingMessage {
         content = this.chatContent,
         chatType = this.chatType,
         sentAt = this.sentAt,
-        isMine = false
+        isMine = false,
     )
 }

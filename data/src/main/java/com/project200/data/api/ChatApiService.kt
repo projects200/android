@@ -8,6 +8,6 @@ import retrofit2.http.Path
 interface ChatApiService {
     @POST("api/v1/chat-rooms/{chatroomId}/ticket")
     suspend fun getChatTicket(
-        @Path("chatroomId") chatroomId: Long
+        @Path("chatroomId") chatroomId: Long,
     ): BaseResponse<TicketResponse>
 }

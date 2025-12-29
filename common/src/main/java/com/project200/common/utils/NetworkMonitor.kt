@@ -14,32 +14,42 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class NetworkMonitor @Inject constructor(
-    @ApplicationContext context: Context
-) {
-    private val connectivityManager =
-        context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+class NetworkMonitor
+    @Inject
+    constructor(
+        @ApplicationContext context: Context,
+    ) {
+        private val connectivityManager =
+            context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
-    // 현재 인터넷 연결 여부 확인
-    @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
-    fun isCurrentlyConnected(): Boolean {
-        val activeNetwork = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-    }
-
-    // 네트워크 상태 변경 감지 Flow
-    val networkState = callbackFlow {
-        val callback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) { trySend(true) }
-            override fun onLost(network: Network) { trySend(false) }
+        // 현재 인터넷 연결 여부 확인
+        @RequiresPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+        fun isCurrentlyConnected(): Boolean {
+            val activeNetwork = connectivityManager.activeNetwork ?: return false
+            val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
+            return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
         }
 
-        val request = NetworkRequest.Builder()
-            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-            .build()
+        // 네트워크 상태 변경 감지 Flow
+        val networkState =
+            callbackFlow {
+                val callback =
+                    object : ConnectivityManager.NetworkCallback() {
+                        override fun onAvailable(network: Network) {
+                            trySend(true)
+                        }
 
-        connectivityManager.registerNetworkCallback(request, callback)
-        awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+                        override fun onLost(network: Network) {
+                            trySend(false)
+                        }
+                    }
+
+                val request =
+                    NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build()
+
+                connectivityManager.registerNetworkCallback(request, callback)
+                awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+            }
     }
-}

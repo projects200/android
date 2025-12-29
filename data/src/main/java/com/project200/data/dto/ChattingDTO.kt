@@ -69,14 +69,14 @@ data class PostChatMessageRequest(
 @JsonClass(generateAdapter = true)
 data class TicketResponse(
     @Json(name = "chatTicket")
-    val chatTicket: String
+    val chatTicket: String,
 )
 
 @JsonClass(generateAdapter = true)
 data class SocketChatMessage(
     @Json(name = "webSocketType")
     val type: SocketType,
-    val data: SocketChatMessageDTO? = null
+    val data: SocketChatMessageDTO? = null,
 )
 
 @JsonClass(generateAdapter = true)
@@ -95,5 +95,5 @@ data class SocketChatMessageDTO(
 data class SocketChatRequest(
     @Json(name = "webSocketType")
     val type: SocketType,
-    val content: String?
+    val content: String?,
 )

@@ -2,17 +2,14 @@ package com.project200.feature.chatting.chattingRoom
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
-import com.project200.domain.model.SocketType
 import com.project200.domain.usecase.ConnectChatRoomUseCase
 import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
-import com.project200.domain.usecase.SendChatMessageUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -213,12 +210,16 @@ class ChattingRoomViewModel
             }
         }
 
-        private fun updateChatState(blockActive: Boolean, opponentActive: Boolean) {
-            _chatState.value = when {
-                blockActive -> ChatInputState.OpponentBlocked
-                !opponentActive -> ChatInputState.OpponentLeft
-                else -> ChatInputState.Active
-            }
+        private fun updateChatState(
+            blockActive: Boolean,
+            opponentActive: Boolean,
+        ) {
+            _chatState.value =
+                when {
+                    blockActive -> ChatInputState.OpponentBlocked
+                    !opponentActive -> ChatInputState.OpponentLeft
+                    else -> ChatInputState.Active
+                }
         }
 
         fun exitChatRoom() {
