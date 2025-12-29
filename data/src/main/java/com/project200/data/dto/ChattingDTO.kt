@@ -73,6 +73,13 @@ data class TicketResponse(
 )
 
 @JsonClass(generateAdapter = true)
+data class SocketChatMessage(
+    @Json(name = "webSocketType")
+    val type: SocketType,
+    val data: SocketChatMessageDTO? = null
+)
+
+@JsonClass(generateAdapter = true)
 data class SocketChatMessageDTO(
     val chatId: Long,
     val senderId: String?,
@@ -86,6 +93,7 @@ data class SocketChatMessageDTO(
 
 @JsonClass(generateAdapter = true)
 data class SocketChatRequest(
-    val type: String,
+    @Json(name = "webSocketType")
+    val type: SocketType,
     val content: String?
 )

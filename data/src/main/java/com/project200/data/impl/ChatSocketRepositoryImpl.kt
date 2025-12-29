@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ChatApiService
+import com.project200.data.dto.SocketChatMessage
 import com.project200.data.dto.SocketChatMessageDTO
 import com.project200.data.dto.SocketChatRequest
 import com.project200.data.mapper.toModel
@@ -14,6 +15,8 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import okhttp3.*
+import timber.log.Timber
+import java.time.LocalDateTime
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.pow
@@ -26,7 +29,7 @@ class ChatSocketRepositoryImpl @Inject constructor(
     private val networkMonitor: NetworkMonitor
 ) : ChatSocketRepository {
     private val requestAdapter = moshi.adapter(SocketChatRequest::class.java)
-    private val responseAdapter = moshi.adapter(SocketChatMessageDTO::class.java)
+    private val responseAdapter = moshi.adapter(SocketChatMessage::class.java)
 
     private var webSocket: WebSocket? = null
     private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
@@ -63,9 +66,10 @@ class ChatSocketRepositoryImpl @Inject constructor(
     }
 
     override fun sendMessage(content: String) {
-        val payload = SocketChatRequest(SocketType.TALK.name, content)
+        val payload = SocketChatRequest(SocketType.TALK, content)
         val json = requestAdapter.toJson(payload)
         webSocket?.send(json)
+        Timber.d("Sent message: $json")
     }
 
     private fun connectSocketInternal(chatRoomId: Long) {
@@ -99,16 +103,17 @@ class ChatSocketRepositoryImpl @Inject constructor(
 
         override fun onMessage(webSocket: WebSocket, text: String) {
             try {
-                val dto = responseAdapter.fromJson(text) ?: return
-
-                // PONG 메시지가 아니고 실제 채팅 메시지일 경우만 처리
-                if (dto.chatType != SocketType.PONG.name) {
+                val wrapper = responseAdapter.fromJson(text) ?: return
+                if (wrapper.type == SocketType.TALK && wrapper.data != null) {
                     CoroutineScope(Dispatchers.IO).launch {
-                        _incomingMessages.emit(dto.toModel())
+                        Timber.d("Received TALK message: $text")
+                        _incomingMessages.emit(wrapper.data.toModel())
                     }
+                } else if (wrapper.type == SocketType.PONG) {
+                    Timber.d("Received PONG from server")
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Timber.e(e, "Socket Message Parsing Error. Text: $text")
             }
         }
 
@@ -146,7 +151,7 @@ class ChatSocketRepositoryImpl @Inject constructor(
             while (isActive) {
                 delay(30000) // 30초마다 PING
                 val pingPayload = SocketChatRequest(
-                    SocketType.PING.name,
+                    SocketType.PING,
                     content = null
                 )
                 webSocket?.send(requestAdapter.toJson(pingPayload))
