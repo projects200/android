@@ -61,12 +61,18 @@ class ChatSocketRepositoryImpl
             }
         }
 
+        /**
+         * 채팅방에 소켓 연결
+         */
         override fun connect(chatRoomId: Long) {
             currentChatRoomId = chatRoomId
             isUserInChatRoom = true
             connectSocketInternal(chatRoomId)
         }
 
+        /**
+         * 채팅방 소켓 연결 해제
+         */
         override fun disconnect() {
             isUserInChatRoom = false
             stopHeartbeat()
@@ -74,6 +80,9 @@ class ChatSocketRepositoryImpl
             webSocket = null
         }
 
+        /**
+         * 메시지 전송
+         */
         override fun sendMessage(content: String) {
             val payload = SocketChatRequest(SocketType.TALK, content)
             val json = requestAdapter.toJson(payload)
@@ -81,6 +90,9 @@ class ChatSocketRepositoryImpl
             Timber.d("Sent message: $json")
         }
 
+        /**
+         * 소켓 연결 처리
+         */
         private fun connectSocketInternal(chatRoomId: Long) {
             if (webSocket != null) return
 
@@ -108,6 +120,9 @@ class ChatSocketRepositoryImpl
             }
         }
 
+        /**
+         * 소켓 리스너
+         */
         private val socketListener =
             object : WebSocketListener() {
                 override fun onOpen(
@@ -118,12 +133,15 @@ class ChatSocketRepositoryImpl
                     startApplicationHeartbeat()
                 }
 
+                // 메시지 수신
                 override fun onMessage(
                     webSocket: WebSocket,
                     text: String,
                 ) {
                     try {
                         val wrapper = responseAdapter.fromJson(text) ?: return
+                        // TALK 타입 메시지 처리
+                        // PING/PONG은 별도 처리 없음
                         if (wrapper.type == SocketType.TALK && wrapper.data != null) {
                             CoroutineScope(Dispatchers.IO).launch {
                                 Timber.d("Received TALK message: $text")
@@ -173,6 +191,7 @@ class ChatSocketRepositoryImpl
             }
         }
 
+        // 애플리케이션 하트비트 시작
         private fun startApplicationHeartbeat() {
             stopHeartbeat()
             heartbeatJob =

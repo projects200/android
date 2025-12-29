@@ -90,10 +90,14 @@ class ChattingRoomViewModel
             }
         }
 
+        // 메시지 목록 업데이트 및 방출
         private fun updateAndEmitMessages(updatedList: List<ChattingMessage>) {
             _messages.value = processMessagesForGrouping(updatedList)
         }
 
+        /**
+         * 메시지 그룹화 처리
+         */
         private fun processMessagesForGrouping(messages: List<ChattingMessage>): List<ChattingMessage> {
             if (messages.isEmpty()) return emptyList()
 
@@ -160,6 +164,7 @@ class ChattingRoomViewModel
                                     !currentMessages.any { it.chatId == newMessage.chatId }
                                 }
                             if (uniqueNewMessages.isNotEmpty()) {
+                                // 마지막 메시지 ID 업데이트
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
@@ -210,6 +215,9 @@ class ChattingRoomViewModel
             }
         }
 
+        /**
+         * 채팅 상태 업데이트
+         */
         private fun updateChatState(
             blockActive: Boolean,
             opponentActive: Boolean,
