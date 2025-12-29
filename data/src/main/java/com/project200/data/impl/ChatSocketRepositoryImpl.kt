@@ -108,12 +108,11 @@ class ChatSocketRepositoryImpl
                             ?: throw Exception("Ticket issuance failed")
 
                     // 소켓 연결
-                    val wsUrl =
-                        if (BuildConfig.DEBUG) {
-                            "wss://dev-chat.undabang.store/ws/chat?chatTicket=$ticket"
-                        } else {
-                            "wss://chat.undabang.store/ws/chat?chatTicket=$ticket"
-                        }
+                    val wsUrl = if (BuildConfig.DEBUG) {
+                        "$BASE_URL_DEBUG$ticket"
+                    } else {
+                        "$BASE_URL_RELEASE$ticket"
+                    }
 
                     val request = Request.Builder().url(wsUrl).build()
                     webSocket = okHttpClient.newWebSocket(request, socketListener)
@@ -223,5 +222,7 @@ class ChatSocketRepositoryImpl
 
         companion object {
             private const val PING_INTERVAL_MS = 30_000L
+            private const val BASE_URL_DEBUG = "wss://dev-chat.undabang.store/ws/chat?chatTicket="
+            private const val BASE_URL_RELEASE = "wss://chat.undabang.store/ws/chat?chatTicket="
         }
     }
