@@ -123,11 +123,12 @@ class ChatSocketRepositoryImpl
                                 ?: throw Exception("Ticket issuance failed")
 
                         // 소켓 연결
-                        val wsUrl = if (BuildConfig.DEBUG) {
-                            "$BASE_URL_DEBUG$ticket"
-                        } else {
-                            "$BASE_URL_RELEASE$ticket"
-                        }
+                        val wsUrl =
+                            if (BuildConfig.DEBUG) {
+                                "$BASE_URL_DEBUG$ticket"
+                            } else {
+                                "$BASE_URL_RELEASE$ticket"
+                            }
 
                         val request = Request.Builder().url(wsUrl).build()
                         webSocket = okHttpClient.newWebSocket(request, socketListener)
@@ -203,16 +204,17 @@ class ChatSocketRepositoryImpl
 
             // 이전 재시도 작업 취소 후 재연결 시도
             retryJob?.cancel()
-            retryJob = repositoryScope.launch {
-                val currentRetry = retryCount.getAndIncrement()
-                val delayMs = (2.0.pow(currentRetry) * 1000).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
+            retryJob =
+                repositoryScope.launch {
+                    val currentRetry = retryCount.getAndIncrement()
+                    val delayMs = (2.0.pow(currentRetry) * 1000).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
 
-                delay(delayMs)
-                // 지연 시간 이후에도 여전히 방에 있는지 확인
-                if (isActive && isUserInChatRoom) {
-                    connectSocketInternal(currentChatRoomId)
+                    delay(delayMs)
+                    // 지연 시간 이후에도 여전히 방에 있는지 확인
+                    if (isActive && isUserInChatRoom) {
+                        connectSocketInternal(currentChatRoomId)
+                    }
                 }
-            }
         }
 
         // 애플리케이션 하트비트 시작
