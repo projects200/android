@@ -25,6 +25,7 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import timber.log.Timber
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.math.pow
@@ -49,7 +50,7 @@ class ChatSocketRepositoryImpl
         private val memberId = spManager.getMemberId().toString()
         private var currentChatRoomId: Long = -1L
         private var isUserInChatRoom = false
-        private var retryCount = 0
+        private var retryCount = AtomicInteger(0)
         private var heartbeatJob: Job? = null
 
         // 네트워크 복구 감지
@@ -57,7 +58,7 @@ class ChatSocketRepositoryImpl
             CoroutineScope(Dispatchers.IO).launch {
                 networkMonitor.networkState.collect { isConnected ->
                     if (isConnected && isUserInChatRoom) {
-                        retryCount = 0
+                        retryCount.set(0)
                         connectSocketInternal(currentChatRoomId)
                     }
                 }
@@ -131,7 +132,7 @@ class ChatSocketRepositoryImpl
                     webSocket: WebSocket,
                     response: Response,
                 ) {
-                    retryCount = 0
+                    retryCount.set(0)
                     startApplicationHeartbeat()
                 }
 
@@ -191,9 +192,8 @@ class ChatSocketRepositoryImpl
             if (!networkMonitor.isCurrentlyConnected()) return
 
             CoroutineScope(Dispatchers.IO).launch {
-                val delayMs = (2.0.pow(retryCount) * 1000).toLong().coerceAtMost(10000L)
+                val delayMs = (2.0.pow(retryCount.getAndIncrement()) * 1000).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
                 delay(delayMs)
-                retryCount++
                 connectSocketInternal(currentChatRoomId)
             }
         }
@@ -222,6 +222,7 @@ class ChatSocketRepositoryImpl
 
         companion object {
             private const val PING_INTERVAL_MS = 30_000L
+            private const val MAX_RETRY_DELAY_MS = 10_000L
             private const val BASE_URL_DEBUG = "wss://dev-chat.undabang.store/ws/chat?chatTicket="
             private const val BASE_URL_RELEASE = "wss://chat.undabang.store/ws/chat?chatTicket="
         }
