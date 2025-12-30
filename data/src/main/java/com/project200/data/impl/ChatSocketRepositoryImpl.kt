@@ -14,6 +14,7 @@ import com.squareup.moshi.Moshi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -43,7 +44,10 @@ class ChatSocketRepositoryImpl
         private val requestAdapter = moshi.adapter(SocketChatRequest::class.java)
         private val responseAdapter = moshi.adapter(SocketChatMessage::class.java)
 
+        private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
         private var webSocket: WebSocket? = null
+
         private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
         override val incomingMessages = _incomingMessages.asSharedFlow()
 
@@ -51,13 +55,15 @@ class ChatSocketRepositoryImpl
         private var currentChatRoomId: Long = -1L
         private var isUserInChatRoom = false
         private var retryCount = AtomicInteger(0)
+
         private var heartbeatJob: Job? = null
+        private var retryJob: Job? = null
 
         // 네트워크 복구 감지
         init {
             CoroutineScope(Dispatchers.IO).launch {
                 networkMonitor.networkState.collect { isConnected ->
-                    if (isConnected && isUserInChatRoom) {
+                    if (isActive && isConnected && isUserInChatRoom) {
                         retryCount.set(0)
                         connectSocketInternal(currentChatRoomId)
                     }
@@ -80,6 +86,8 @@ class ChatSocketRepositoryImpl
         override fun disconnect() {
             isUserInChatRoom = false
             stopHeartbeat()
+            retryJob?.cancel()
+            retryJob = null
             webSocket?.close(1000, "User Exit")
             webSocket = null
         }
@@ -98,9 +106,11 @@ class ChatSocketRepositoryImpl
          * 소켓 연결 처리
          */
         private fun connectSocketInternal(chatRoomId: Long) {
-            if (webSocket != null) return
-
-            CoroutineScope(Dispatchers.IO).launch {
+            repositoryScope.launch {
+                if(webSocket != null) { // 이미 연결된 경우
+                    Timber.d("WebSocket already connected.")
+                    return@launch
+                }
                 try {
                     // 티켓 발급
                     val response = chatApi.getChatTicket(chatRoomId)
@@ -141,25 +151,21 @@ class ChatSocketRepositoryImpl
                     webSocket: WebSocket,
                     text: String,
                 ) {
-                    try {
-                        val wrapper = responseAdapter.fromJson(text) ?: return
-                        // TALK 타입 메시지 처리
-                        // PING/PONG은 별도 처리 없음
-                        if (wrapper.type == SocketType.TALK && wrapper.data != null) {
-                            CoroutineScope(Dispatchers.IO).launch {
-                                val message = wrapper.data.toModel()
+                    repositoryScope.launch {
+                        try {
+                            val wrapper = responseAdapter.fromJson(text) ?: return@launch
+                            // TALK 타입 메시지 처리
+                            // PING/PONG은 별도 처리 없음
+                            if (wrapper.type == SocketType.TALK && wrapper.data != null) {
+                                val message = wrapper.data.toModel().copy(isMine = wrapper.data.senderId == memberId)
                                 Timber.d("Received TALK message: $text \n $memberId")
-                                _incomingMessages.emit(
-                                    message.copy(
-                                        isMine = message.senderId == memberId
-                                    )
-                                )
+                                _incomingMessages.emit(message)
+                            } else if (wrapper.type == SocketType.PONG) {
+                                Timber.d("Received PONG from server")
                             }
-                        } else if (wrapper.type == SocketType.PONG) {
-                            Timber.d("Received PONG from server")
+                        } catch (e: Exception) {
+                            Timber.e(e, "Socket Message Parsing Error. Text: $text")
                         }
-                    } catch (e: Exception) {
-                        Timber.e(e, "Socket Message Parsing Error. Text: $text")
                     }
                 }
 
@@ -188,13 +194,19 @@ class ChatSocketRepositoryImpl
 
         // 지수 백오프 재연결
         private fun handleConnectionFailure(t: Throwable) {
-            if (!isUserInChatRoom) return
-            if (!networkMonitor.isCurrentlyConnected()) return
+            if (!isUserInChatRoom || !networkMonitor.isCurrentlyConnected()) return
 
-            CoroutineScope(Dispatchers.IO).launch {
-                val delayMs = (2.0.pow(retryCount.getAndIncrement()) * 1000).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
+            // 이전 재시도 작업 취소 후 재연결 시도
+            retryJob?.cancel()
+            retryJob = repositoryScope.launch {
+                val currentRetry = retryCount.getAndIncrement()
+                val delayMs = (2.0.pow(currentRetry) * 1000).toLong().coerceAtMost(MAX_RETRY_DELAY_MS)
+
                 delay(delayMs)
-                connectSocketInternal(currentChatRoomId)
+                // 지연 시간 이후에도 여전히 방에 있는지 확인
+                if (isActive && isUserInChatRoom) {
+                    connectSocketInternal(currentChatRoomId)
+                }
             }
         }
 
