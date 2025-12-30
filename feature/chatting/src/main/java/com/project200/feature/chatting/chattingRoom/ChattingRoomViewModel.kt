@@ -52,7 +52,6 @@ class ChattingRoomViewModel
 
         init {
             viewModelScope.launch {
-                // TODO: 내 memberId 저장
                 observeSocketMessagesUseCase().collect { chat ->
                     // 리스트에 추가
                     addMessage(chat)

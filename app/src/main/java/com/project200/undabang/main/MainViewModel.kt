@@ -56,6 +56,7 @@ class MainViewModel
         fun login() {
             viewModelScope.launch {
                 val result = loginUseCase()
+                checkIsRegisteredUseCase()
                 _loginResult.value = result
             }
         }
