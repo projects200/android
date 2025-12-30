@@ -20,6 +20,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -45,6 +47,7 @@ class ChatSocketRepositoryImpl
         private val responseAdapter = moshi.adapter(SocketChatMessage::class.java)
 
         private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        private val connectionMutex = Mutex()
 
         private var webSocket: WebSocket? = null
 
@@ -107,28 +110,30 @@ class ChatSocketRepositoryImpl
          */
         private fun connectSocketInternal(chatRoomId: Long) {
             repositoryScope.launch {
-                if(webSocket != null) { // 이미 연결된 경우
-                    Timber.d("WebSocket already connected.")
-                    return@launch
-                }
-                try {
-                    // 티켓 발급
-                    val response = chatApi.getChatTicket(chatRoomId)
-                    val ticket =
-                        response.data?.chatTicket
-                            ?: throw Exception("Ticket issuance failed")
-
-                    // 소켓 연결
-                    val wsUrl = if (BuildConfig.DEBUG) {
-                        "$BASE_URL_DEBUG$ticket"
-                    } else {
-                        "$BASE_URL_RELEASE$ticket"
+                connectionMutex.withLock {
+                    if (webSocket != null) { // 이미 연결된 경우
+                        Timber.d("WebSocket already connected.")
+                        return@withLock
                     }
+                    try {
+                        // 티켓 발급
+                        val response = chatApi.getChatTicket(chatRoomId)
+                        val ticket =
+                            response.data?.chatTicket
+                                ?: throw Exception("Ticket issuance failed")
 
-                    val request = Request.Builder().url(wsUrl).build()
-                    webSocket = okHttpClient.newWebSocket(request, socketListener)
-                } catch (e: Exception) {
-                    handleConnectionFailure(e)
+                        // 소켓 연결
+                        val wsUrl = if (BuildConfig.DEBUG) {
+                            "$BASE_URL_DEBUG$ticket"
+                        } else {
+                            "$BASE_URL_RELEASE$ticket"
+                        }
+
+                        val request = Request.Builder().url(wsUrl).build()
+                        webSocket = okHttpClient.newWebSocket(request, socketListener)
+                    } catch (e: Exception) {
+                        handleConnectionFailure(e)
+                    }
                 }
             }
         }
