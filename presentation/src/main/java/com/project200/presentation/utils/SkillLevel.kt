@@ -11,7 +11,8 @@ enum class SkillLevel(
     INTERMEDIATE(R.string.skill_intermediate),
     ADVANCED(R.string.skill_advanced),
     SKILLED(R.string.skill_skilled),
-    PRO(R.string.skill_pro);
+    PRO(R.string.skill_pro),
+    ;
 
     companion object {
         fun from(key: String?): SkillLevel? {

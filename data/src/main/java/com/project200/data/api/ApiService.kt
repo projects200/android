@@ -49,7 +49,6 @@ import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
-import com.project200.domain.usecase.DeletePreferredExerciseUseCase
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE

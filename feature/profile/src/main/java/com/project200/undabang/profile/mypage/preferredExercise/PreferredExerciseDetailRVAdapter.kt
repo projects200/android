@@ -16,27 +16,33 @@ class PreferredExerciseDetailRVAdapter(
     private val viewModel: PreferredExerciseViewModel,
     private val formatter: PreferredExerciseDayFormatter,
 ) : ListAdapter<PreferredExerciseUiModel, PreferredExerciseDetailRVAdapter.DetailViewHolder>(ExerciseDiffCallback()) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): DetailViewHolder {
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): DetailViewHolder {
         val binding = ItemPreferredExerciseDetailBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return DetailViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: DetailViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: DetailViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
     inner class DetailViewHolder(private val binding: ItemPreferredExerciseDetailBinding) : RecyclerView.ViewHolder(binding.root) {
         private val dayButtons: List<TextView> =
             with(binding) { listOf(btnMon, btnTue, btnWed, btnThu, btnFri, btnSat, btnSun) }
-        private val skillButtons: Map<SkillLevel, TextView> = mapOf(
-            SkillLevel.BEGINNER to binding.btnBeginner,
-            SkillLevel.ROOKIE to binding.btnRookie,
-            SkillLevel.INTERMEDIATE to binding.btnIntermediate,
-            SkillLevel.ADVANCED to binding.btnAdvanced,
-            SkillLevel.SKILLED to binding.btnSkilled,
-            SkillLevel.PRO to binding.btnProfessional
-        )
+        private val skillButtons: Map<SkillLevel, TextView> =
+            mapOf(
+                SkillLevel.BEGINNER to binding.btnBeginner,
+                SkillLevel.ROOKIE to binding.btnRookie,
+                SkillLevel.INTERMEDIATE to binding.btnIntermediate,
+                SkillLevel.ADVANCED to binding.btnAdvanced,
+                SkillLevel.SKILLED to binding.btnSkilled,
+                SkillLevel.PRO to binding.btnProfessional,
+            )
 
         fun bind(uiModel: PreferredExerciseUiModel) {
             binding.exerciseTypeTv.text = uiModel.exercise.name
@@ -75,11 +81,17 @@ class PreferredExerciseDetailRVAdapter(
     }
 
     class ExerciseDiffCallback : DiffUtil.ItemCallback<PreferredExerciseUiModel>() {
-        override fun areItemsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
+        override fun areItemsTheSame(
+            oldItem: PreferredExerciseUiModel,
+            newItem: PreferredExerciseUiModel,
+        ): Boolean {
             return oldItem.exercise.exerciseTypeId == newItem.exercise.exerciseTypeId
         }
 
-        override fun areContentsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
+        override fun areContentsTheSame(
+            oldItem: PreferredExerciseUiModel,
+            newItem: PreferredExerciseUiModel,
+        ): Boolean {
             return oldItem == newItem
         }
     }

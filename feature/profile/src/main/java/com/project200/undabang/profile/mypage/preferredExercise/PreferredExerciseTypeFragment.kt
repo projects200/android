@@ -18,27 +18,30 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class PreferredExerciseTypeFragment :
     BindingFragment<FragmentPreferredExerciseTypeBinding>(R.layout.fragment_preferred_exercise_type) {
-
     private val viewModel: PreferredExerciseViewModel by viewModels({ requireParentFragment() })
 
-    private val kindsRvAdapter = PreferredExerciseTypeRVAdapter(
-        onItemClicked = { exercise ->
-            viewModel.updateSelectedExercise(exercise)
-        },
-        onLimitReached = {
-            Toast.makeText(
-                requireContext(),
-                getString(R.string.preferred_exercise_type_max_error),
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    )
+    private val kindsRvAdapter =
+        PreferredExerciseTypeRVAdapter(
+            onItemClicked = { exercise ->
+                viewModel.updateSelectedExercise(exercise)
+            },
+            onLimitReached = {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.preferred_exercise_type_max_error),
+                    Toast.LENGTH_SHORT,
+                ).show()
+            },
+        )
 
     override fun getViewBinding(view: View): FragmentPreferredExerciseTypeBinding {
         return FragmentPreferredExerciseTypeBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         setupViews()
         setupObservers()
@@ -56,11 +59,12 @@ class PreferredExerciseTypeFragment :
     }
 
     private fun setupRecyclerView() {
-        val flexboxLayoutManager = FlexboxLayoutManager(requireContext()).apply {
-            flexDirection = FlexDirection.ROW
-            flexWrap = FlexWrap.WRAP
-            justifyContent = JustifyContent.FLEX_START
-        }
+        val flexboxLayoutManager =
+            FlexboxLayoutManager(requireContext()).apply {
+                flexDirection = FlexDirection.ROW
+                flexWrap = FlexWrap.WRAP
+                justifyContent = JustifyContent.FLEX_START
+            }
 
         binding.exerciseTypeRv.apply {
             layoutManager = flexboxLayoutManager

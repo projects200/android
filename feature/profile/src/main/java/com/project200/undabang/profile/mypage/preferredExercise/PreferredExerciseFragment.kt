@@ -17,7 +17,6 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class PreferredExerciseFragment :
     BindingFragment<FragmentPreferredExerciseBinding>(R.layout.fragment_preferred_exercise) {
-
     private val viewModel: PreferredExerciseViewModel by viewModels()
 
     private val args: PreferredExerciseFragmentArgs by navArgs()
@@ -78,6 +77,7 @@ class PreferredExerciseFragment :
             }
         }
     }
+
     private fun initClickListener() {
         binding.baseToolbar.showBackButton(true, onClick = {
             if (childFragmentManager.backStackEntryCount > 0) {
@@ -100,11 +100,12 @@ class PreferredExerciseFragment :
     }
 
     private fun updateCompleteButtonState() {
-        binding.completeBtn.text = when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
-            is PreferredExerciseTypeFragment -> getString(com.project200.undabang.presentation.R.string.next)
-            is PreferredExerciseDetailFragment -> getString(com.project200.undabang.presentation.R.string.complete)
-            else -> getString(com.project200.undabang.presentation.R.string.complete)
-        }
+        binding.completeBtn.text =
+            when (childFragmentManager.findFragmentById(R.id.preferred_exercise_container)) {
+                is PreferredExerciseTypeFragment -> getString(com.project200.undabang.presentation.R.string.next)
+                is PreferredExerciseDetailFragment -> getString(com.project200.undabang.presentation.R.string.complete)
+                else -> getString(com.project200.undabang.presentation.R.string.complete)
+            }
     }
 
     /**
@@ -112,9 +113,13 @@ class PreferredExerciseFragment :
      * @param fragment 교체할 프래그먼트
      * @param addToBackStack 뒤로가기 스택에 추가할지 여부
      */
-    private fun replaceFragment(fragment: Fragment, addToBackStack: Boolean = false) {
-        val transaction = childFragmentManager.beginTransaction()
-            .replace(R.id.preferred_exercise_container, fragment)
+    private fun replaceFragment(
+        fragment: Fragment,
+        addToBackStack: Boolean = false,
+    ) {
+        val transaction =
+            childFragmentManager.beginTransaction()
+                .replace(R.id.preferred_exercise_container, fragment)
 
         if (addToBackStack) {
             transaction.addToBackStack(null)

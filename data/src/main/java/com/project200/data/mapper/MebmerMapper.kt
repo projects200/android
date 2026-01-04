@@ -84,12 +84,11 @@ fun PreferredExercise.toPostDto(): PostPreferredExerciseDTO {
 
 fun GetPreferredExerciseTypeDTO.toModel(): ExerciseType {
     return ExerciseType(
-        id =  this.exerciseId,
+        id = this.exerciseId,
         name = this.exerciseName,
         imageUrl = this.imageUrl,
     )
 }
-
 
 fun GetProfileImageResponseDto.toModel(): ProfileImageList {
     return ProfileImageList(

@@ -4,15 +4,17 @@ import android.view.View
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.SimpleItemAnimator
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentPreferredExerciseDetailBinding
-import com.project200.common.utils.PreferredExerciseDayFormatter
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class PreferredExerciseDetailFragment : BindingFragment<FragmentPreferredExerciseDetailBinding>(R.layout.fragment_preferred_exercise_detail) {
+class PreferredExerciseDetailFragment : BindingFragment<FragmentPreferredExerciseDetailBinding>(
+    R.layout.fragment_preferred_exercise_detail,
+) {
     private val viewModel: PreferredExerciseViewModel by viewModels({ requireParentFragment() })
     private lateinit var detailAdapter: PreferredExerciseDetailRVAdapter
 

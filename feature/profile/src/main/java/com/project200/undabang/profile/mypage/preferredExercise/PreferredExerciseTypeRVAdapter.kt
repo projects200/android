@@ -13,30 +13,33 @@ import com.project200.undabang.feature.profile.databinding.ItemExerciseTypeBindi
 import com.project200.undabang.presentation.R
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
 
-
 class PreferredExerciseTypeRVAdapter(
     private val onItemClicked: (PreferredExercise) -> Unit,
-    private val onLimitReached: () -> Unit
+    private val onLimitReached: () -> Unit,
 ) : ListAdapter<PreferredExerciseUiModel, PreferredExerciseTypeRVAdapter.ViewHolder>(DiffCallback) {
-
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val binding = ItemExerciseTypeBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): ViewHolder {
+        val binding =
+            ItemExerciseTypeBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false,
+            )
         return ViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: ViewHolder,
+        position: Int,
+    ) {
         holder.bind(getItem(position))
     }
 
     inner class ViewHolder(private val binding: ItemExerciseTypeBinding) :
         RecyclerView.ViewHolder(binding.root) {
-
         fun bind(uiModel: PreferredExerciseUiModel) {
-
             binding.exerciseTypeLl.setOnClickListener {
                 // 이미 5개가 선택되어 있다면 개수 제한 콜백 호출
                 if (!uiModel.isSelected && currentList.count { it.isSelected } >= MAX_SELECTION) {
@@ -52,28 +55,37 @@ class PreferredExerciseTypeRVAdapter(
 
             if (uiModel.isSelected) {
                 binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white300))
-                binding.root.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(binding.root.context, R.color.main)
-                )
+                binding.root.backgroundTintList =
+                    ColorStateList.valueOf(
+                        ContextCompat.getColor(binding.root.context, R.color.main),
+                    )
             } else {
                 binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, R.color.black))
-                binding.root.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(binding.root.context, R.color.gray300)
-                )
+                binding.root.backgroundTintList =
+                    ColorStateList.valueOf(
+                        ContextCompat.getColor(binding.root.context, R.color.gray300),
+                    )
             }
         }
     }
 
     companion object {
-        private val DiffCallback = object : DiffUtil.ItemCallback<PreferredExerciseUiModel>() {
-            override fun areItemsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
-                return oldItem.exercise.exerciseTypeId == newItem.exercise.exerciseTypeId
-            }
+        private val DiffCallback =
+            object : DiffUtil.ItemCallback<PreferredExerciseUiModel>() {
+                override fun areItemsTheSame(
+                    oldItem: PreferredExerciseUiModel,
+                    newItem: PreferredExerciseUiModel,
+                ): Boolean {
+                    return oldItem.exercise.exerciseTypeId == newItem.exercise.exerciseTypeId
+                }
 
-            override fun areContentsTheSame(oldItem: PreferredExerciseUiModel, newItem: PreferredExerciseUiModel): Boolean {
-                return oldItem == newItem
+                override fun areContentsTheSame(
+                    oldItem: PreferredExerciseUiModel,
+                    newItem: PreferredExerciseUiModel,
+                ): Boolean {
+                    return oldItem == newItem
+                }
             }
-        }
         private const val MAX_SELECTION = 5
     }
 }

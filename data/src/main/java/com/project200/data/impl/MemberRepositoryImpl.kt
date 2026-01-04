@@ -13,7 +13,6 @@ import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PutProfileRequest
-import com.project200.data.mapper.toDto
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.mapper.toPostDto
@@ -175,41 +174,41 @@ class MemberRepositoryImpl
             )
         }
 
-    override suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getPreferredExerciseTypes() },
-            mapper = { dtoList: List<GetPreferredExerciseTypeDTO>? ->
-                dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
-            },
-        )
-    }
+        override suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getPreferredExerciseTypes() },
+                mapper = { dtoList: List<GetPreferredExerciseTypeDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+                },
+            )
+        }
 
-    override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toPostDto() }) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toPostDto() }) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toPostDto() }) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toPostDto() }) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deletePreferredExercises(DeletePreferredExerciseDTO(preferredExerciseIds)) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deletePreferredExercises(DeletePreferredExerciseDTO(preferredExerciseIds)) },
+                mapper = { Unit },
+            )
+        }
 
-    companion object {
+        companion object {
             const val IMAGE_PART_ERROR = "IMAGE_PART_ERROR"
         }
     }
