@@ -2,10 +2,15 @@ package com.project200.data.mapper
 
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseDTO
+import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
+import com.project200.data.dto.GetProfilePreferredExerciseDTO
 import com.project200.data.dto.GetScoreDTO
+import com.project200.data.dto.PostPreferredExerciseDTO
 import com.project200.domain.model.BlockedMember
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.OpenUrl
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImage
@@ -32,16 +37,56 @@ fun GetProfileDTO.toModel(): UserProfile {
         yearlyExerciseDays = this.yearlyExerciseDays,
         exerciseCountInLast30Days = this.exerciseCountInLast30Days,
         exerciseScore = this.exerciseScore,
-        preferredExercises =
-            this.preferredExercises.map {
-                PreferredExercise(
-                    preferredExerciseId = it.preferredExerciseId,
-                    name = it.name,
-                    skillLevel = it.skillLevel,
-                    daysOfWeek = it.daysOfWeek,
-                    imageUrl = it.imageUrl,
-                )
-            },
+        preferredExercises = this.preferredExercises.map { it.toModel() },
+    )
+}
+
+fun GetPreferredExerciseDTO.toModel(): PreferredExercise {
+    return PreferredExercise(
+        preferredExerciseId = this.preferredExerciseId,
+        exerciseTypeId = this.exerciseTypeId,
+        name = this.exerciseName,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+        imageUrl = this.imageUrl,
+    )
+}
+
+fun GetProfilePreferredExerciseDTO.toModel(): PreferredExercise {
+    return PreferredExercise(
+        preferredExerciseId = this.preferredExerciseId,
+        name = this.name,
+        exerciseTypeId = -1L,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+        imageUrl = this.imageUrl,
+    )
+}
+
+fun PreferredExercise.toDto(): GetPreferredExerciseDTO {
+    return GetPreferredExerciseDTO(
+        preferredExerciseId = this.preferredExerciseId,
+        exerciseTypeId = this.exerciseTypeId,
+        exerciseName = this.name,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+        imageUrl = this.imageUrl,
+    )
+}
+
+fun PreferredExercise.toPostDto(): PostPreferredExerciseDTO {
+    return PostPreferredExerciseDTO(
+        exerciseTypeId = this.exerciseTypeId,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+    )
+}
+
+fun GetPreferredExerciseTypeDTO.toModel(): ExerciseType {
+    return ExerciseType(
+        id = this.exerciseId,
+        name = this.exerciseName,
+        imageUrl = this.imageUrl,
     )
 }
 

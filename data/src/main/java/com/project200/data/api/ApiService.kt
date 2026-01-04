@@ -2,6 +2,7 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerIdDTO
+import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -20,6 +21,8 @@ import com.project200.data.dto.GetMatchingMembersDto
 import com.project200.data.dto.GetMatchingProfileDTO
 import com.project200.data.dto.GetNewChattingMessagesDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseDTO
+import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
@@ -37,6 +40,7 @@ import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostLoginRequest
 import com.project200.data.dto.PostMessageResponse
+import com.project200.data.dto.PostPreferredExerciseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
@@ -49,6 +53,7 @@ import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
@@ -169,6 +174,38 @@ interface ApiService {
     @GET("api/v1/members/blocks")
     @AccessTokenApi
     suspend fun getBlockedMembers(): BaseResponse<List<GetBlockedMemberDTO>>
+
+    /** 선호 운동 */
+    // 선호 운동 조회
+    @GET("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun getPreferredExercises(): BaseResponse<List<GetPreferredExerciseDTO>>
+
+    // 선호 운동 종류 조회
+    @GET("api/v1/exercise-types")
+    @AccessTokenApi
+    suspend fun getPreferredExerciseTypes(): BaseResponse<List<GetPreferredExerciseTypeDTO>>
+
+    // 선호 운동 생성
+    @POST("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun postPreferredExercises(
+        @Body preferredExercises: List<PostPreferredExerciseDTO>,
+    ): BaseResponse<Unit?>
+
+    // 선호 운동 삭제
+    @HTTP(method = "DELETE", path = "api/v1/preferred-exercises", hasBody = true)
+    @AccessTokenApi
+    suspend fun deletePreferredExercises(
+        @Body preferredExerciseIds: DeletePreferredExerciseDTO,
+    ): BaseResponse<Unit?>
+
+    // 선호 운동 수정
+    @PATCH("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun patchPreferredExercises(
+        @Body preferredExercises: List<PostPreferredExerciseDTO>,
+    ): BaseResponse<Unit?>
 
     /** 운동 기록 */
     // 구간별 운동 기록 횟수 조회

@@ -200,43 +200,42 @@
             </androidx.constraintlayout.widget.ConstraintLayout>
 
             <androidx.constraintlayout.widget.ConstraintLayout
+                android:id="@+id/preferred_exercise_cl"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="5dp"
                 android:background="@color/white300"
-                android:paddingHorizontal="@dimen/base_horizontal_margin"
-                android:paddingBottom="4dp"
-                android:visibility="gone">
+                android:padding="@dimen/base_horizontal_margin">
 
                 <TextView
                     android:id="@+id/preferred_exercise_tv"
                     style="@style/content_bold"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="20dp"
                     android:text="@string/preferred_exercise"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toTopOf="parent" />
 
                 <ImageView
+                    android:id="@+id/preferred_exercise_edit_btn"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:paddingStart="4dp"
-                    android:paddingTop="4dp"
                     android:src="@drawable/ic_edit"
                     app:layout_constraintEnd_toEndOf="parent"
-                    app:layout_constraintTop_toTopOf="parent" />
+                    app:layout_constraintTop_toTopOf="parent"/>
 
                 <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/preferred_exercise_rv"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:nestedScrollingEnabled="false"
                     android:overScrollMode="never"
+                    android:layout_marginTop="@dimen/base_horizontal_margin"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintTop_toBottomOf="@id/preferred_exercise_tv" />
 
                 <TextView
+                    android:id="@+id/preferred_exercise_empty_tv"
                     style="@style/content_bold"
                     android:layout_width="match_parent"
                     android:layout_height="200dp"

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white300"
+    android:layout_marginHorizontal="@dimen/base_horizontal_margin">
+    <TextView
+        android:id="@+id/type_title_tv"
+        style="@style/content_bold"
+        android:layout_marginTop="44dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+    <TextView
+        style="@style/subtext_14"
+        android:text="@string/preferred_exercise_type_max_cnt"
+        android:textColor="@color/gray200"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/exercise_type_rv"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/base_horizontal_margin"/>
+</LinearLayout>

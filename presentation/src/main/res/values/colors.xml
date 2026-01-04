@@ -9,6 +9,7 @@
     <color name="gray100">#6E6E6E</color>
     <color name="gray200">#9E9E9E</color>
     <color name="gray300">#E0E0E0</color>
+    <color name="gray_trans">#33E0E0E0</color>
     <color name="black">#212121</color>
 
     <color name="score_high_level">#E53935</color>

@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
@@ -20,6 +21,7 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.BaseResult
 import com.project200.feature.matching.utils.GenderType
 import com.project200.presentation.base.BindingFragment
@@ -34,6 +36,7 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import javax.inject.Inject
 import kotlin.getValue
 
 @AndroidEntryPoint
@@ -41,6 +44,10 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
     private val viewModel: MatchingProfileViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
     private val args: MatchingProfileFragmentArgs by navArgs()
+    lateinit var preferredExerciseRVAdapter: PreferredExerciseRVAdapter
+
+    @Inject
+    lateinit var dayFormatter: PreferredExerciseDayFormatter
 
     override fun getViewBinding(view: View): FragmentMatchingProfileBinding {
         return FragmentMatchingProfileBinding.bind(view)
@@ -58,6 +65,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         initClickListener()
         viewModel.setMemberId(args.memberId)
         setupCalendar()
+        setupPreferredExercise()
     }
 
     private fun initClickListener() {
@@ -87,6 +95,9 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
                 scoreTv.text = profile.exerciseScore.toString()
+
+                preferredExerciseRVAdapter.setItems(profile.preferredExercises)
+                binding.preferredExerciseCl.isVisible = profile.preferredExercises.isNotEmpty()
             }
         }
 
@@ -215,6 +226,14 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                         }
                     }
                 }
+        }
+    }
+
+    private fun setupPreferredExercise() {
+        preferredExerciseRVAdapter = PreferredExerciseRVAdapter(formatter = dayFormatter)
+        binding.preferredExerciseRv.apply {
+            adapter = preferredExerciseRVAdapter
+            layoutManager = LinearLayoutManager(requireContext())
         }
     }
 

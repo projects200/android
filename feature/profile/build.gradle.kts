@@ -49,4 +49,7 @@ dependencies {
 
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)
+
+    // Flexbox
+    implementation(libs.flexbox)
 }

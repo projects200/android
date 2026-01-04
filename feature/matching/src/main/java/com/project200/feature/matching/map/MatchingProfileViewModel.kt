@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.model.PreferredExercise
 import com.project200.domain.usecase.BlockMemberUseCase
 import com.project200.domain.usecase.CreateChatRoomUseCase
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
@@ -47,6 +48,9 @@ class MatchingProfileViewModel
 
         private val _createChatRoomResult = MutableSharedFlow<BaseResult<Long>>()
         val createChatRoomResult: SharedFlow<BaseResult<Long>> = _createChatRoomResult
+
+        private val _preferredExercise = MutableLiveData<List<PreferredExercise>>()
+        val preferredExercise: LiveData<List<PreferredExercise>> = _preferredExercise
 
         private val _blockResult = MutableSharedFlow<BaseResult<Unit>>()
         val blockResult: SharedFlow<BaseResult<Unit>> = _blockResult

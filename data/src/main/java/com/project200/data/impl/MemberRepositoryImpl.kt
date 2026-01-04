@@ -4,18 +4,24 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
+import com.project200.data.dto.GetPreferredExerciseDTO
+import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.PutProfileRequest
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
+import com.project200.data.mapper.toPostDto
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.BlockedMember
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.OpenUrl
+import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.ProfileImageList
 import com.project200.domain.model.Score
 import com.project200.domain.model.UserProfile
@@ -155,6 +161,50 @@ class MemberRepositoryImpl
                 mapper = { dtoList: List<GetBlockedMemberDTO>? ->
                     dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
                 },
+            )
+        }
+
+        override suspend fun getPreferredExercises(): BaseResult<List<PreferredExercise>> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getPreferredExercises() },
+                mapper = { dtoList: List<GetPreferredExerciseDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+                },
+            )
+        }
+
+        override suspend fun getPreferredExerciseTypes(): BaseResult<List<ExerciseType>> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getPreferredExerciseTypes() },
+                mapper = { dtoList: List<GetPreferredExerciseTypeDTO>? ->
+                    dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
+                },
+            )
+        }
+
+        override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toPostDto() }) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toPostDto() }) },
+                mapper = { Unit },
+            )
+        }
+
+        override suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deletePreferredExercises(DeletePreferredExerciseDTO(preferredExerciseIds)) },
+                mapper = { Unit },
             )
         }
 

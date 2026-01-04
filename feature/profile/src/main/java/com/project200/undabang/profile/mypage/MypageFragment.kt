@@ -9,6 +9,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
@@ -16,10 +17,12 @@ import com.kizitonwose.calendar.core.daysOfWeek
 import com.kizitonwose.calendar.view.MonthDayBinder
 import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.profile.databinding.FragmentMypageBinding
+import com.project200.undabang.profile.mypage.preferredExercise.PreferredExerciseRVAdapter
 import com.project200.undabang.profile.utils.GenderType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -27,11 +30,16 @@ import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneId
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_mypage) {
     private val viewModel: MypageViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
+    lateinit var preferredExerciseRVAdapter: PreferredExerciseRVAdapter
+
+    @Inject
+    lateinit var dayFormatter: PreferredExerciseDayFormatter
 
     override fun getViewBinding(view: View): FragmentMypageBinding {
         return FragmentMypageBinding.bind(view)
@@ -40,6 +48,7 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
     override fun setupViews() {
         initClickListener()
         setupCalendar()
+        setupPreferredExercise()
     }
 
     private fun initClickListener() {
@@ -67,6 +76,18 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
         binding.nextMonthBtn.setOnClickListener {
             viewModel.onNextMonthClicked()
         }
+
+        binding.preferredExerciseEditBtn.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToPreferredExerciseFragment(viewModel.profile.value?.nickname ?: ""),
+            )
+        }
+
+        binding.preferredExerciseEmptyTv.setOnClickListener {
+            findNavController().navigate(
+                MypageFragmentDirections.actionMypageFragmentToPreferredExerciseFragment(viewModel.profile.value?.nickname ?: ""),
+            )
+        }
     }
 
     override fun setupObservers() {
@@ -83,6 +104,10 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                 currentYearExerciseDaysTv.text = profile.yearlyExerciseDays.toString()
                 recentExerciseCountsTv.text = profile.exerciseCountInLast30Days.toString()
                 scoreTv.text = profile.exerciseScore.toString()
+
+                preferredExerciseRVAdapter.setItems(profile.preferredExercises)
+                binding.preferredExerciseEmptyTv.isVisible = profile.preferredExercises.isEmpty()
+                binding.preferredExerciseRv.isVisible = profile.preferredExercises.isNotEmpty()
             }
         }
 
@@ -198,6 +223,14 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
                         }
                     }
                 }
+        }
+    }
+
+    private fun setupPreferredExercise() {
+        preferredExerciseRVAdapter = PreferredExerciseRVAdapter(formatter = dayFormatter)
+        binding.preferredExerciseRv.apply {
+            adapter = preferredExerciseRVAdapter
+            layoutManager = LinearLayoutManager(requireContext())
         }
     }
 

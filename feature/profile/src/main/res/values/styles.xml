@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+
     <style name="CalendarDayHeader">
         <item name="android:layout_width">0dp</item>
         <item name="android:layout_height">wrap_content</item>
@@ -11,10 +12,40 @@
         <item name="fontFamily">@font/pretendard_regular</item>
         <item name="android:lineSpacingMultiplier">1.2</item>
     </style>
+
     <style name="notification_switch">
         <item name="thumbTint">@color/white300</item>
         <item name="track">@drawable/style_toggle_track</item>
         <item name="android:thumb">@drawable/style_toggle_thumb</item>
         <item name="android:enabled">true</item>
+    </style>
+
+    <style name="DayButtonStyle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">40dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_margin">5dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">@font/pretendard_bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:background">@drawable/selector_exercise_detail_btn_bg</item>
+        <item name="android:textColor">@color/selector_exercise_detail_btn_text</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+    </style>
+
+    <style name="SkillButtonStyle">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:layout_columnWeight">1</item>
+        <item name="android:layout_gravity">fill_horizontal</item>
+        <item name="android:layout_margin">5dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:fontFamily">@font/pretendard_bold</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:background">@drawable/selector_exercise_detail_btn_bg</item>
+        <item name="android:textColor">@color/selector_exercise_detail_btn_text</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
     </style>
 </resources>
