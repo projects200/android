@@ -6,7 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.common.utils.CommonDateTimeFormatters.YY_MM_DD_HH_MM
+import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
@@ -16,21 +16,15 @@ import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
+import com.project200.feature.exercise.utils.ScoreGuidanceState
+import com.project200.feature.exercise.utils.TimeSelectionState
+import com.project200.undabang.feature.exercise.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
-import timber.log.Timber
+import java.time.LocalDate
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
+import java.time.LocalTime
 import javax.inject.Inject
-
-// 점수 관련 UI 상태를 위한 sealed class 정의
-sealed class ScoreGuidanceState {
-    data object Hidden : ScoreGuidanceState() // 기본 상태 (경고 숨김, 버튼 텍스트 "기록 완료")
-
-    data class Warning(val message: String) : ScoreGuidanceState() // 경고 메시지 표시, 버튼 텍스트 "기록 완료"
-
-    data class PointsAvailable(val points: Int) : ScoreGuidanceState() // 점수 획득 가능, 버튼 텍스트 "기록 완료하고 N점 획득!"
-}
 
 @HiltViewModel
 class ExerciseFormViewModel
@@ -41,6 +35,7 @@ class ExerciseFormViewModel
         private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
         private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
+        private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private val _startTime = MutableLiveData<LocalDateTime?>()
         val startTime: LiveData<LocalDateTime?> = _startTime
@@ -53,8 +48,6 @@ class ExerciseFormViewModel
                 mutableListOf(ExerciseImageListItem.AddButtonItem),
             )
         val imageItems: LiveData<MutableList<ExerciseImageListItem>> = _imageItems
-
-        val dateTimeFormatter: DateTimeFormatter = YY_MM_DD_HH_MM
 
         // 수정/생성 모드 관련
         private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
@@ -73,11 +66,14 @@ class ExerciseFormViewModel
         private val _editResult = MutableLiveData<ExerciseEditResult>()
         val editResult: LiveData<ExerciseEditResult> = _editResult
 
-        private val _toastMessage = MutableLiveData<String?>()
-        val toastMessage: LiveData<String?> = _toastMessage
+        private val _toastMessage = MutableLiveData<Int?>()
+        val toastMessage: LiveData<Int?> = _toastMessage
 
         private val _scoreGuidanceState = MutableLiveData<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
         val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
+
+        private val _timeSelectionState = MutableLiveData(TimeSelectionState.NONE)
+        val timeSelectionState: LiveData<TimeSelectionState> = _timeSelectionState
 
         /** 초기 데이터 설정 */
         fun loadInitialRecord(recordId: Long) {
@@ -85,8 +81,12 @@ class ExerciseFormViewModel
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
-                _startTime.value = null
-                _endTime.value = null
+
+                // 현재 시간 기준 정시로 초기화
+                val now = clockProvider.localDateTimeNow().withMinute(0).withSecond(0).withNano(0)
+                _startTime.value = now.minusHours(1)
+                _endTime.value = now
+
                 _imageItems.value = mutableListOf(ExerciseImageListItem.AddButtonItem)
                 _initialDataLoaded.value = null
             } else {
@@ -97,7 +97,7 @@ class ExerciseFormViewModel
                             setupEditMode(result.data)
                         }
                         is BaseResult.Error -> {
-                            _toastMessage.value = LOAD_FAIL
+                            _toastMessage.value = R.string.exercise_load_fail
                         }
                     }
                 }
@@ -124,21 +124,116 @@ class ExerciseFormViewModel
         }
 
         fun setStartTime(dateTime: LocalDateTime) {
-            _startTime.value = dateTime
-            // 시작 시간이 종료 시간 이후면, 종료 시간 초기화
-            if (_endTime.value != null && dateTime.isAfter(_endTime.value)) {
-                _endTime.value = null
+            val now = clockProvider.localDateTimeNow()
+            var newStartTime = dateTime
+
+            // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
+            if (newStartTime.isAfter(now)) {
+                newStartTime = now
+                _toastMessage.value = R.string.exercise_error_start_time_future
             }
-            // 시작 시간 변경 시 점수 안내 업데이트
+
+            _startTime.value = newStartTime
+
+            // 시작 시간이 종료 시간을 넘어서면, 종료 시간 조정
+            applyTimeCorrection(isStartChanged = true)
+
             updateScoreGuidance()
         }
 
-        fun setEndTime(dateTime: LocalDateTime): Boolean {
-            if (_startTime.value != null && dateTime.isBefore(_startTime.value)) {
-                return false
+        fun setEndTime(dateTime: LocalDateTime) {
+            val now = clockProvider.localDateTimeNow()
+            var newEndTime = dateTime
+
+            // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
+            if (newEndTime.isAfter(now)) {
+                newEndTime = now
+                _toastMessage.value = R.string.exercise_error_end_time_future
             }
-            _endTime.value = dateTime
-            return true
+
+            _endTime.value = newEndTime
+
+            // 종료 시간이 시작 시간을 넘어서지 않으면, 시작 시간 조정
+            applyTimeCorrection(isStartChanged = false)
+        }
+
+        /**
+         * 시간 역전 보정 함수
+         *
+         */
+        private fun applyTimeCorrection(isStartChanged: Boolean) {
+            val now = clockProvider.localDateTimeNow()
+            var start = _startTime.value ?: return
+            var end = _endTime.value ?: return
+
+            if (isStartChanged) {
+                // 시작 시간이 종료 시간보다 같거나 늦어지면: 종료 = 시작 + 1시간
+                if (!start.isBefore(end)) {
+                    end = start.plusHours(1)
+                    // 보정된 종료 시간이 현재를 초과하면 현재 시간으로 강제 고정
+                    if (end.isAfter(now)) {
+                        end = now
+                    }
+                }
+            } else {
+                // 종료 시간이 시작 시간보다 같거나 빨라지면: 시작 = 종료 - 1시간
+                if (!end.isAfter(start)) {
+                    start = end.minusHours(1)
+                }
+            }
+
+            _startTime.value = start
+            _endTime.value = end
+        }
+
+        // 시간 선택 버튼 클릭 이벤트 처리
+        fun onTimeSelectionClick(selection: TimeSelectionState) {
+            // 이미 선택된 버튼을 다시 누르면 선택 해제
+            if (_timeSelectionState.value == selection) {
+                _timeSelectionState.value = TimeSelectionState.NONE
+            } else {
+                _timeSelectionState.value = selection
+            }
+        }
+
+        // CalendarView에서 날짜가 선택되었을 때 호출
+        fun updateDate(
+            year: Int,
+            month: Int,
+            dayOfMonth: Int,
+        ) {
+            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+            when (_timeSelectionState.value) {
+                TimeSelectionState.START_DATE -> {
+                    val existingTime = _startTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                    setStartTime(LocalDateTime.of(selectedDate, existingTime))
+                }
+                TimeSelectionState.END_DATE -> {
+                    val existingTime = _endTime.value?.toLocalTime() ?: clockProvider.nowTime()
+                    setEndTime(LocalDateTime.of(selectedDate, existingTime))
+                }
+                else -> return
+            }
+        }
+
+        // 시간 선택 후 데이터를 업데이트
+        fun updateTime(
+            hour: Int,
+            minute: Int,
+        ) {
+            val selectedTime = LocalTime.of(hour, minute)
+            when (_timeSelectionState.value) {
+                TimeSelectionState.START_TIME -> {
+                    val existingDate = _startTime.value?.toLocalDate() ?: LocalDate.now()
+                    setStartTime(LocalDateTime.of(existingDate, selectedTime))
+                }
+                TimeSelectionState.END_TIME -> {
+                    val existingDate = _endTime.value?.toLocalDate() ?: LocalDate.now()
+                    setEndTime(LocalDateTime.of(existingDate, selectedTime))
+                }
+                else -> return
+            }
+            _timeSelectionState.value = TimeSelectionState.NONE // 시간 설정 후 선택기 닫기
         }
 
         fun addImage(uris: List<Uri>) {
@@ -197,7 +292,7 @@ class ExerciseFormViewModel
         ) {
             // 유효성 검사
             if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
-                _toastMessage.value = INVALID_INPUT
+                _toastMessage.value = R.string.exercise_invalid_input
                 return
             }
 
@@ -215,7 +310,7 @@ class ExerciseFormViewModel
 
             // 변경 사항 확인 (수정 모드일 때)
             if (isEditMode && !hasChanges(recordToSubmit)) {
-                _toastMessage.value = NO_CHANGE
+                _toastMessage.value = R.string.exercise_no_change
                 return
             }
 
@@ -248,8 +343,8 @@ class ExerciseFormViewModel
                     }
                     is BaseResult.Error -> {
                         // 기록 생성 실패
-                        _createResult.value = SubmissionResult.Failure(CREATE_FAIL, createResult.cause)
-                        _toastMessage.value = CREATE_FAIL
+                        _createResult.value = SubmissionResult.Failure(createResult.message.toString(), createResult.cause)
+                        _toastMessage.value = R.string.exercise_create_fail
                         _isLoading.value = false
                     }
                 }
@@ -270,7 +365,7 @@ class ExerciseFormViewModel
                     }
                     is BaseResult.Error -> {
                         // 이미지 업로드 실패 -> 부분 성공
-                        _createResult.value = SubmissionResult.PartialSuccess(recordId, UPLOAD_FAIL)
+                        _createResult.value = SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail)
                     }
                 }
             } else {
@@ -319,7 +414,6 @@ class ExerciseFormViewModel
                 when (val result = getExpectedScoreInfoUseCase()) { // UseCase 호출
                     is BaseResult.Success -> {
                         val expectedScoreInfo = result.data
-                        Timber.tag(TAG).d("Expected Score Info: $expectedScoreInfo")
 
                         // 최대 점수 도달 여부 확인
                         val currentUserScore = expectedScoreInfo.currentUserScore
@@ -327,7 +421,7 @@ class ExerciseFormViewModel
                         val pointsPerExercise = expectedScoreInfo.pointsPerExercise
 
                         if (currentUserScore >= maxScore) {
-                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(MAX_SCORE_REACHED)
+                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(R.string.exercise_max_score_reached)
                             return@launch
                         }
 
@@ -336,14 +430,14 @@ class ExerciseFormViewModel
                         val validEnd = expectedScoreInfo.validWindow.endDateTime
                         if (startTime.isBefore(validStart) || startTime.isAfter(validEnd)) {
                             _scoreGuidanceState.value =
-                                ScoreGuidanceState.Warning(UPLOAD_PERIOD_EXPIRED)
+                                ScoreGuidanceState.Warning(R.string.exercise_upload_period_expired)
                             return@launch
                         }
 
                         // 이미 점수 획득 여부 확인
                         val recordDate = startTime.toLocalDate()
                         if (!expectedScoreInfo.earnableScoreDays.contains(recordDate)) {
-                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(ALREADY_SCORED_TODAY)
+                            _scoreGuidanceState.value = ScoreGuidanceState.Warning(R.string.exercise_already_scored_today)
                             return@launch
                         }
 
@@ -354,26 +448,10 @@ class ExerciseFormViewModel
 
                     is BaseResult.Error -> {
                         // API 호출 실패 시 에러 메시지 표시 및 안내 숨김
-                        Timber.e("Failed to fetch expected score info: ${result.message}")
-                        _toastMessage.value = FETCH_SCORE_INFO_FAIL // 새로운 상수 추가
+                        _toastMessage.value = R.string.exercise_fetch_score_info_fail
                         _scoreGuidanceState.value = ScoreGuidanceState.Hidden
                     }
                 }
             }
-        }
-
-        companion object {
-            const val LOAD_FAIL = "기록을 불러오는데 실패했습니다"
-            const val NO_CHANGE = "변경 사항이 없습니다"
-            const val INVALID_INPUT = "필수 항목을 입력해주세요."
-            const val CREATE_FAIL = "기록 생성에 실패했습니다"
-            const val UPLOAD_FAIL = "이미지 업로드에 실패했습니다"
-            const val FETCH_SCORE_INFO_FAIL = "점수 정보를 불러오는데 실패했습니다."
-            const val TAG = "ExerciseViewModel"
-
-            // 점수 안내 관련 상수
-            const val ALREADY_SCORED_TODAY = "이 날은 이미 점수를 획득했어요"
-            const val UPLOAD_PERIOD_EXPIRED = "점수를 획득할 수 있는 기간이 지났어요"
-            const val MAX_SCORE_REACHED = "점수가 최대치에 도달했어요!"
         }
     }
