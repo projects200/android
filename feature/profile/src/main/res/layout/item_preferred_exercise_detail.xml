@@ -9,13 +9,21 @@
     android:elevation="2dp"
     android:paddingVertical="15dp">
 
-    <de.hdodenhof.circleimageview.CircleImageView
-        android:id="@+id/exercise_type_iv"
+    <androidx.cardview.widget.CardView
+        android:id="@+id/exercise_type_card"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_marginStart="12dp"
+        app:cardCornerRadius="50dp"
+        app:cardElevation="0dp"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent" >
+        <ImageView
+            android:id="@+id/exercise_type_iv"
+            android:layout_margin="5dp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"/>
+    </androidx.cardview.widget.CardView>
 
     <TextView
         android:id="@+id/exercise_type_tv"
@@ -24,8 +32,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="13dp"
         app:layout_constraintBottom_toTopOf="@id/exercise_info_tv"
-        app:layout_constraintStart_toEndOf="@id/exercise_type_iv"
-        app:layout_constraintTop_toTopOf="@id/exercise_type_iv" />
+        app:layout_constraintStart_toEndOf="@id/exercise_type_card"
+        app:layout_constraintTop_toTopOf="@id/exercise_type_card" />
 
     <TextView
         android:id="@+id/exercise_info_tv"
@@ -33,7 +41,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:textColor="@color/gray200"
-        app:layout_constraintBottom_toBottomOf="@id/exercise_type_iv"
+        app:layout_constraintBottom_toBottomOf="@id/exercise_type_card"
         app:layout_constraintStart_toStartOf="@id/exercise_type_tv"
         app:layout_constraintTop_toBottomOf="@id/exercise_type_tv" />
 
@@ -43,7 +51,7 @@
         android:layout_height="1dp"
         android:layout_marginTop="13dp"
         android:background="@color/gray300"
-        app:layout_constraintTop_toBottomOf="@id/exercise_type_iv" />
+        app:layout_constraintTop_toBottomOf="@id/exercise_type_card" />
 
     <TextView
         android:id="@+id/exercise_days_title_tv"
@@ -120,34 +128,34 @@
         app:layout_constraintTop_toBottomOf="@+id/exercise_level_title_tv">
 
         <TextView
-            android:id="@+id/btn_novice"
-            style="@style/SkillButtonStyle"
-            android:text="@string/novice" />
-
-        <TextView
             android:id="@+id/btn_beginner"
             style="@style/SkillButtonStyle"
-            android:text="@string/beginner" />
+            android:text="@string/skill_beginner" />
+
+        <TextView
+            android:id="@+id/btn_rookie"
+            style="@style/SkillButtonStyle"
+            android:text="@string/skill_rookie" />
 
         <TextView
             android:id="@+id/btn_intermediate"
             style="@style/SkillButtonStyle"
-            android:text="@string/intermediate" />
+            android:text="@string/skill_intermediate" />
 
         <TextView
             android:id="@+id/btn_advanced"
             style="@style/SkillButtonStyle"
-            android:text="@string/advanced" />
+            android:text="@string/skill_advanced" />
 
         <TextView
-            android:id="@+id/btn_expert"
+            android:id="@+id/btn_skilled"
             style="@style/SkillButtonStyle"
-            android:text="@string/expert" />
+            android:text="@string/skill_skilled" />
 
         <TextView
             android:id="@+id/btn_professional"
             style="@style/SkillButtonStyle"
-            android:text="@string/professional" />
+            android:text="@string/skill_pro" />
 
     </GridLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

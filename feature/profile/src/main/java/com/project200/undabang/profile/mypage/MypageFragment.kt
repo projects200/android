@@ -22,6 +22,7 @@ import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.CalendarDayLayoutBinding
 import com.project200.undabang.feature.profile.databinding.FragmentMypageBinding
+import com.project200.undabang.profile.mypage.preferredExercise.PreferredExerciseRVAdapter
 import com.project200.undabang.profile.utils.GenderType
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch

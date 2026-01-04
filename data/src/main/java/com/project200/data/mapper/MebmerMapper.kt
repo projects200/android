@@ -6,7 +6,9 @@ import com.project200.data.dto.GetPreferredExerciseDTO
 import com.project200.data.dto.GetPreferredExerciseTypeDTO
 import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
+import com.project200.data.dto.GetProfilePreferredExerciseDTO
 import com.project200.data.dto.GetScoreDTO
+import com.project200.data.dto.PostPreferredExerciseDTO
 import com.project200.domain.model.BlockedMember
 import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.OpenUrl
@@ -43,7 +45,18 @@ fun GetPreferredExerciseDTO.toModel(): PreferredExercise {
     return PreferredExercise(
         preferredExerciseId = this.preferredExerciseId,
         exerciseTypeId = this.exerciseTypeId,
+        name = this.exerciseName,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
+        imageUrl = this.imageUrl,
+    )
+}
+
+fun GetProfilePreferredExerciseDTO.toModel(): PreferredExercise {
+    return PreferredExercise(
+        preferredExerciseId = this.preferredExerciseId,
         name = this.name,
+        exerciseTypeId = -1L,
         skillLevel = this.skillLevel,
         daysOfWeek = this.daysOfWeek,
         imageUrl = this.imageUrl,
@@ -54,10 +67,18 @@ fun PreferredExercise.toDto(): GetPreferredExerciseDTO {
     return GetPreferredExerciseDTO(
         preferredExerciseId = this.preferredExerciseId,
         exerciseTypeId = this.exerciseTypeId,
-        name = this.name,
+        exerciseName = this.name,
         skillLevel = this.skillLevel,
         daysOfWeek = this.daysOfWeek,
         imageUrl = this.imageUrl,
+    )
+}
+
+fun PreferredExercise.toPostDto(): PostPreferredExerciseDTO {
+    return PostPreferredExerciseDTO(
+        exerciseTypeId = this.exerciseTypeId,
+        skillLevel = this.skillLevel,
+        daysOfWeek = this.daysOfWeek,
     )
 }
 

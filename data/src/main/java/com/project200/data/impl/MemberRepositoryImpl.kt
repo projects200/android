@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetOpenChatUrlDTO
 import com.project200.data.dto.GetPreferredExerciseDTO
@@ -15,6 +16,7 @@ import com.project200.data.dto.PutProfileRequest
 import com.project200.data.mapper.toDto
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
+import com.project200.data.mapper.toPostDto
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.BlockedMember
@@ -186,7 +188,7 @@ class MemberRepositoryImpl
     override suspend fun createPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toDto() }) },
+            apiCall = { apiService.postPreferredExercises(preferredExercises.map { it.toPostDto() }) },
             mapper = { Unit },
         )
     }
@@ -194,7 +196,7 @@ class MemberRepositoryImpl
     override suspend fun editPreferredExercise(preferredExercises: List<PreferredExercise>): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toDto() }) },
+            apiCall = { apiService.patchPreferredExercises(preferredExercises.map { it.toPostDto() }) },
             mapper = { Unit },
         )
     }
@@ -202,7 +204,7 @@ class MemberRepositoryImpl
     override suspend fun deletePreferredExercise(preferredExerciseIds: List<Long>): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deletePreferredExercises(preferredExerciseIds) },
+            apiCall = { apiService.deletePreferredExercises(DeletePreferredExerciseDTO(preferredExerciseIds)) },
             mapper = { Unit },
         )
     }

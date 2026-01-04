@@ -1,4 +1,4 @@
-package com.project200.undabang.profile.mypage
+package com.project200.undabang.profile.mypage.preferredExercise
 
 import android.content.res.ColorStateList
 import android.view.LayoutInflater
@@ -8,9 +8,9 @@ import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
 import com.project200.domain.model.PreferredExercise
 import com.project200.undabang.feature.profile.databinding.ItemExerciseTypeBinding
+import com.project200.undabang.presentation.R
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
 
 
@@ -51,14 +51,14 @@ class PreferredExerciseTypeRVAdapter(
             binding.exerciseTypeLl.isSelected = uiModel.isSelected
 
             if (uiModel.isSelected) {
-                binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, com.project200.undabang.presentation.R.color.white300))
+                binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, R.color.white300))
                 binding.root.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(binding.root.context, com.project200.undabang.presentation.R.color.main)
+                    ContextCompat.getColor(binding.root.context, R.color.main)
                 )
             } else {
-                binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, com.project200.undabang.presentation.R.color.black))
+                binding.exerciseNameTv.setTextColor(ContextCompat.getColor(binding.root.context, R.color.black))
                 binding.root.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(binding.root.context, com.project200.undabang.presentation.R.color.gray300)
+                    ContextCompat.getColor(binding.root.context, R.color.gray300)
                 )
             }
         }

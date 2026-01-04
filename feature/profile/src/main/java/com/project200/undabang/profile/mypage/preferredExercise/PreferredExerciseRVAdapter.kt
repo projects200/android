@@ -1,11 +1,14 @@
-package com.project200.undabang.profile.mypage
+package com.project200.undabang.profile.mypage.preferredExercise
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.content.ContextCompat.getString
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.PreferredExercise
+import com.project200.presentation.utils.SkillLevel
+import com.project200.presentation.utils.SkillLevel.Companion.toSkillLevelRes
 import com.project200.undabang.feature.profile.databinding.ItemPreferredExerciseBinding
 
 class PreferredExerciseRVAdapter(
@@ -43,7 +46,7 @@ class PreferredExerciseRVAdapter(
         RecyclerView.ViewHolder(binding.root) {
         fun bind(exercise: PreferredExercise) {
             binding.exerciseNameTv.text = exercise.name
-            binding.skillTv.text = exercise.skillLevel
+            binding.skillTv.text = getString(binding.root.context, exercise.skillLevel.toSkillLevelRes() ?: SkillLevel.SKILLED.resId)
             binding.exerciseDaysTv.text = formatter.formatDaysOfWeek(exercise.daysOfWeek)
             Glide.with(binding.exerciseIv.context)
                 .load(exercise.imageUrl)

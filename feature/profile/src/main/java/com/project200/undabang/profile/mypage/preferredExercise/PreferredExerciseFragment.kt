@@ -1,4 +1,4 @@
-package com.project200.undabang.profile.mypage
+package com.project200.undabang.profile.mypage.preferredExercise
 
 import android.view.View
 import android.widget.Toast
@@ -10,6 +10,7 @@ import androidx.navigation.fragment.navArgs
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.feature.profile.databinding.FragmentPreferredExerciseBinding
+import com.project200.undabang.profile.mypage.MypageFragment
 import com.project200.undabang.profile.utils.CompletionState
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -47,6 +48,7 @@ class PreferredExerciseFragment :
                 }
                 is CompletionState.Success -> {
                     Toast.makeText(requireContext(), R.string.preferred_exercise_success, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(MypageFragment.REFRESH_KEY, true)
                     findNavController().popBackStack()
                     viewModel.consumeCompletionState()
                 }

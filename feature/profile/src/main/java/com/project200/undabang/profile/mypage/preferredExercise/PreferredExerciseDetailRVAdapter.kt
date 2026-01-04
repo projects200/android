@@ -1,4 +1,4 @@
-package com.project200.undabang.profile.mypage
+package com.project200.undabang.profile.mypage.preferredExercise
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
@@ -7,10 +7,10 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
-import com.project200.undabang.feature.profile.databinding.ItemPreferredExerciseDetailBinding
 import com.project200.common.utils.PreferredExerciseDayFormatter
+import com.project200.presentation.utils.SkillLevel
+import com.project200.undabang.feature.profile.databinding.ItemPreferredExerciseDetailBinding
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
-import com.project200.undabang.profile.utils.SkillLevel
 
 class PreferredExerciseDetailRVAdapter(
     private val viewModel: PreferredExerciseViewModel,
@@ -30,12 +30,12 @@ class PreferredExerciseDetailRVAdapter(
         private val dayButtons: List<TextView> =
             with(binding) { listOf(btnMon, btnTue, btnWed, btnThu, btnFri, btnSat, btnSun) }
         private val skillButtons: Map<SkillLevel, TextView> = mapOf(
-            SkillLevel.NOVICE to binding.btnNovice,
             SkillLevel.BEGINNER to binding.btnBeginner,
+            SkillLevel.ROOKIE to binding.btnRookie,
             SkillLevel.INTERMEDIATE to binding.btnIntermediate,
             SkillLevel.ADVANCED to binding.btnAdvanced,
-            SkillLevel.EXPERT to binding.btnExpert,
-            SkillLevel.PROFESSIONAL to binding.btnProfessional
+            SkillLevel.SKILLED to binding.btnSkilled,
+            SkillLevel.PRO to binding.btnProfessional
         )
 
         fun bind(uiModel: PreferredExerciseUiModel) {

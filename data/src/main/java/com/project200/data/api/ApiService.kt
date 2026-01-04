@@ -2,6 +2,7 @@ package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerIdDTO
+import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -39,6 +40,7 @@ import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.data.dto.PostLoginRequest
 import com.project200.data.dto.PostMessageResponse
+import com.project200.data.dto.PostPreferredExerciseDTO
 import com.project200.data.dto.PostSignUpData
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
@@ -47,10 +49,12 @@ import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
+import com.project200.domain.usecase.DeletePreferredExerciseUseCase
 import okhttp3.MultipartBody
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.HTTP
 import retrofit2.http.Header
 import retrofit2.http.Multipart
 import retrofit2.http.PATCH
@@ -184,27 +188,24 @@ interface ApiService {
     suspend fun getPreferredExerciseTypes(): BaseResponse<List<GetPreferredExerciseTypeDTO>>
 
     // 선호 운동 생성
-    // TODO: 실제 API 명세가 나오면 수정 필요
     @POST("api/v1/preferred-exercises")
     @AccessTokenApi
     suspend fun postPreferredExercises(
-        @Body preferredExercises: List<GetPreferredExerciseDTO>,
-    ): BaseResponse<Unit?>
-
-    // 선호 운동 수정
-    // TODO: 실제 API 명세가 나오면 수정 필요
-    @PATCH("api/v1/preferred-exercises")
-    @AccessTokenApi
-    suspend fun patchPreferredExercises(
-        @Body preferredExercises: List<GetPreferredExerciseDTO>,
+        @Body preferredExercises: List<PostPreferredExerciseDTO>,
     ): BaseResponse<Unit?>
 
     // 선호 운동 삭제
-    // TODO: 실제 API 명세가 나오면 수정 필요
-    @DELETE("api/v1/preferred-exercises")
+    @HTTP(method = "DELETE", path = "api/v1/preferred-exercises", hasBody = true)
     @AccessTokenApi
     suspend fun deletePreferredExercises(
-        @Query("preferredExerciseIds") preferredExerciseIds: List<Long>,
+        @Body preferredExerciseIds: DeletePreferredExerciseDTO,
+    ): BaseResponse<Unit?>
+
+    // 선호 운동 수정
+    @PATCH("api/v1/preferred-exercises")
+    @AccessTokenApi
+    suspend fun patchPreferredExercises(
+        @Body preferredExercises: List<PostPreferredExerciseDTO>,
     ): BaseResponse<Unit?>
 
     /** 운동 기록 */

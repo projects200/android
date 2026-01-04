@@ -5,13 +5,14 @@ import androidx.annotation.StringRes
 import androidx.core.content.ContextCompat.getString
 import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.PreferredExercise
+import com.project200.presentation.utils.SkillLevel
 import com.project200.undabang.feature.profile.R
 
 data class PreferredExerciseUiModel(
     val exercise: PreferredExercise,
     var isSelected: Boolean,
     var selectedDays: MutableList<Boolean> = MutableList(7) { false }, // 월~일 선택 상태
-    var skillLevel: SkillLevel? = null // 숙련도
+    var skillLevel: SkillLevel? = null // 숙련도ㅎ
 ) {
     fun getExerciseInfo(context: Context, formatter: PreferredExerciseDayFormatter): String {
         val formattedDays = formatter.formatDaysOfWeek(selectedDays)
@@ -47,21 +48,4 @@ sealed class CompletionState {
     object NoneSelected : CompletionState()
     object IncompleteSelection : CompletionState()
     data class Error(val message: String) : CompletionState()
-}
-
-enum class SkillLevel(
-    @StringRes val resId: Int,
-) {
-    NOVICE(R.string.skill_novice),
-    BEGINNER(R.string.skill_beginner),
-    INTERMEDIATE(R.string.skill_intermediate),
-    ADVANCED(R.string.skill_advanced),
-    EXPERT(R.string.skill_expert),
-    PROFESSIONAL(R.string.skill_professional);
-
-    companion object {
-        fun from(key: String?): SkillLevel? {
-            return entries.find { it.name == key }
-        }
-    }
 }

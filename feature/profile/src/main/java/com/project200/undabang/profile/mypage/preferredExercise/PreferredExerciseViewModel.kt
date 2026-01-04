@@ -1,4 +1,4 @@
-package com.project200.undabang.profile.mypage
+package com.project200.undabang.profile.mypage.preferredExercise
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MediatorLiveData
@@ -13,9 +13,9 @@ import com.project200.domain.usecase.DeletePreferredExerciseUseCase
 import com.project200.domain.usecase.EditPreferredExerciseUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
+import com.project200.presentation.utils.SkillLevel
 import com.project200.undabang.profile.utils.CompletionState
 import com.project200.undabang.profile.utils.PreferredExerciseUiModel
-import com.project200.undabang.profile.utils.SkillLevel // 추가
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
@@ -69,21 +69,12 @@ class PreferredExerciseViewModel @Inject constructor(
             val preferredExercises = async { getPreferredExerciseUseCase() }
 
             val allTypesResult = allTypes.await()
-            val preferredExerciseResult = preferredExercises.await()
+            val exerciseResult = preferredExercises.await()
 
-            // 전체 운동 종류 목록 설정
-            if (allTypesResult is BaseResult.Success) {
+            if (allTypesResult is BaseResult.Success && exerciseResult is BaseResult.Success) {
+                initialPreferredExercises = exerciseResult.data
                 _exerciseTypes.value = allTypesResult.data
-            } else {
-                // TODO: 전체 목록 로드 실패 시 에러 처리
-            }
-
-            // 기존에 선택된 선호 운동 목록 설정
-            if (preferredExerciseResult is BaseResult.Success) {
-                initialPreferredExercises = preferredExerciseResult.data
-                _preferredExercise.value = preferredExerciseResult.data
-            } else {
-                // TODO: 선호 운동 목록 로드 실패 시 에러 처리
+                _preferredExercise.value = exerciseResult.data
             }
         }
     }
@@ -97,19 +88,24 @@ class PreferredExerciseViewModel @Inject constructor(
         val selectedTypeIds = selected.map { it.exerciseTypeId }.toSet()
 
         val uiList = allTypes.map { exercise ->
-            // 기존에 생성된 UI 모델이 있다면 상세 정보를 유지, 없다면 새로 생성
             val existingUiModel = exerciseUiModels.value?.find { it.exercise.exerciseTypeId == exercise.exerciseTypeId }
-            val serverData = selected.find { it.exerciseTypeId == exercise.exerciseTypeId }
+            val serverData = initialPreferredExercises.find { it.exerciseTypeId == exercise.exerciseTypeId }
+
             PreferredExerciseUiModel(
                 exercise = exercise,
                 isSelected = selectedTypeIds.contains(exercise.exerciseTypeId)
             ).apply {
-                if (existingUiModel != null) {
-                    this.selectedDays = existingUiModel.selectedDays
-                    this.skillLevel = existingUiModel.skillLevel
-                } else if (serverData != null) {
+                // 서버 데이터가 있으면 먼저 채우고,
+                // 사용자가 수정한 기록이 있을 때만 덮어씌움
+                if (serverData != null) {
                     this.selectedDays = serverData.daysOfWeek.toMutableList()
                     this.skillLevel = SkillLevel.from(serverData.skillLevel)
+                }
+
+                // 만약 이미 사용자가 화면에서 조작 중이었다면 그 상태를 유지
+                if (existingUiModel != null && (existingUiModel.selectedDays.contains(true) || existingUiModel.skillLevel != null)) {
+                    this.selectedDays = existingUiModel.selectedDays
+                    this.skillLevel = existingUiModel.skillLevel
                 }
             }
         }
@@ -181,7 +177,7 @@ class PreferredExerciseViewModel @Inject constructor(
             if (initial == null) {
                 // 생성 목록
                 toCreate.add(current)
-            } else if (initial != current) {
+            } else if (initial.daysOfWeek != current.daysOfWeek || initial.skillLevel != current.skillLevel) {
                 // 수정 목록
                 toEdit.add(current)
             }

@@ -38,12 +38,12 @@
     <string name="sat">토</string>
     <string name="sun">일</string>
 
-    <string name="novice">입문</string>
-    <string name="beginner">초급</string>
-    <string name="intermediate">중급</string>
-    <string name="advanced">고급</string>
-    <string name="expert">숙련</string>
-    <string name="professional">선출</string>
+    <string name="skill_beginner">입문</string>
+    <string name="skill_rookie">초급</string>
+    <string name="skill_intermediate">중급</string>
+    <string name="skill_advanced">고급</string>
+    <string name="skill_skilled">숙련</string>
+    <string name="skill_pro">선출</string>
 
     <!-- 에러 -->
     <string name="unknown_error">알 수 없는 오류가 발생했습니다.</string>
