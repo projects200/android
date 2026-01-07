@@ -2,13 +2,15 @@ package com.project200.feature.chatting.chattingRoom
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
+import com.project200.domain.usecase.ConnectChatRoomUseCase
+import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
-import com.project200.domain.usecase.SendChatMessageUseCase
+import com.project200.domain.usecase.ObserveSocketMessagesUseCase
+import com.project200.domain.usecase.SendSocketMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,9 +26,11 @@ class ChattingRoomViewModel
     constructor(
         private val getChatMessagesUseCase: GetChatMessagesUseCase,
         private val getNewChatMessagesUseCase: GetNewChatMessagesUseCase,
-        private val sendChatMessageUseCase: SendChatMessageUseCase,
         private val exitChatRoomUseCase: ExitChatRoomUseCase,
-        private val clockProvider: ClockProvider,
+        private val connectChatRoomUseCase: ConnectChatRoomUseCase,
+        private val disconnectChatRoomUseCase: DisconnectChatRoomUseCase,
+        private val observeSocketMessagesUseCase: ObserveSocketMessagesUseCase,
+        private val sendSocketMessageUseCase: SendSocketMessageUseCase,
     ) : ViewModel() {
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
         val messages = _messages.asStateFlow()
@@ -46,6 +50,16 @@ class ChattingRoomViewModel
         private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
+        init {
+            viewModelScope.launch {
+                // TODO: 내 memberId 저장
+                observeSocketMessagesUseCase().collect { chat ->
+                    // 리스트에 추가
+                    addMessage(chat)
+                }
+            }
+        }
+
         fun setId(
             chatRoomId: Long,
             opponentId: String,
@@ -55,10 +69,35 @@ class ChattingRoomViewModel
             loadInitialMessages(chatRoomId)
         }
 
+        // 소켓 연결 및 공백 채우기
+        fun connectAndSync() {
+            if (chatRoomId == DEFAULT_ID) return
+            // 소켓 연결 시도
+            connectChatRoomUseCase(chatRoomId)
+            // 소켓이 끊겨있던 동안 온 메시지 가져오기
+            syncMissedMessages()
+        }
+
+        fun disconnect() {
+            disconnectChatRoomUseCase()
+        }
+
+        // 메시지 추가
+        private fun addMessage(newMessage: ChattingMessage) {
+            val currentList = _messages.value
+            if (currentList.none { it.content == newMessage.content && it.sentAt == newMessage.sentAt }) {
+                updateAndEmitMessages(currentList + newMessage)
+            }
+        }
+
+        // 메시지 목록 업데이트 및 방출
         private fun updateAndEmitMessages(updatedList: List<ChattingMessage>) {
             _messages.value = processMessagesForGrouping(updatedList)
         }
 
+        /**
+         * 메시지 그룹화 처리
+         */
         private fun processMessagesForGrouping(messages: List<ChattingMessage>): List<ChattingMessage> {
             if (messages.isEmpty()) return emptyList()
 
@@ -99,13 +138,7 @@ class ChattingRoomViewModel
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
 
-                        _chatState.emit(
-                            when {
-                                chattingModel.blockActive -> ChatInputState.OpponentBlocked
-                                !chattingModel.opponentActive -> ChatInputState.OpponentLeft
-                                else -> ChatInputState.Active
-                            },
-                        )
+                        updateChatState(chattingModel.blockActive, chattingModel.opponentActive)
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -115,9 +148,9 @@ class ChattingRoomViewModel
         }
 
         /**
-         * 새 메시지를 받아오는 폴링 함수
+         * 소켓 연결이 끊겨있는 사이 온 새 메시지를 받아오는 함수
          */
-        fun getNewMessages() {
+        fun syncMissedMessages() {
             if (chatRoomId == DEFAULT_ID) return
             viewModelScope.launch {
                 when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
@@ -131,20 +164,12 @@ class ChattingRoomViewModel
                                     !currentMessages.any { it.chatId == newMessage.chatId }
                                 }
                             if (uniqueNewMessages.isNotEmpty()) {
+                                // 마지막 메시지 ID 업데이트
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
                         }
-                        val currentState = _chatState.value
-                        val newChatState =
-                            when {
-                                result.data.blockActive -> ChatInputState.OpponentBlocked
-                                !result.data.opponentActive -> ChatInputState.OpponentLeft
-                                else -> ChatInputState.Active
-                            }
-                        if (currentState != newChatState) {
-                            _chatState.value = newChatState
-                        }
+                        updateChatState(result.data.blockActive, result.data.opponentActive)
                     }
 
                     is BaseResult.Error -> {
@@ -161,33 +186,8 @@ class ChattingRoomViewModel
             if (text.isBlank()) return
             if (chatRoomId == DEFAULT_ID) return
 
-            val messageToSend =
-                ChattingMessage(
-                    chatId = DEFAULT_ID, // 임시 아이디
-                    senderId = "my_user_id",
-                    nickname = "나",
-                    profileUrl = null,
-                    thumbnailImageUrl = null,
-                    content = text,
-                    chatType = "USER",
-                    sentAt = clockProvider.localDateTimeNow(),
-                    isMine = true,
-                )
-
             viewModelScope.launch {
-                when (val result = sendChatMessageUseCase(chatRoomId, text)) {
-                    is BaseResult.Success -> {
-                        // 서버로부터 받은 chatId로 설정
-                        val confirmedMessage =
-                            messageToSend.copy(
-                                chatId = result.data,
-                            )
-                        updateAndEmitMessages(_messages.value + confirmedMessage)
-                    }
-                    is BaseResult.Error -> {
-                        _toast.emit(result.message.toString())
-                    }
-                }
+                sendSocketMessageUseCase(text)
             }
         }
 
@@ -215,10 +215,30 @@ class ChattingRoomViewModel
             }
         }
 
+        /**
+         * 채팅 상태 업데이트
+         */
+        private fun updateChatState(
+            blockActive: Boolean,
+            opponentActive: Boolean,
+        ) {
+            _chatState.value =
+                when {
+                    blockActive -> ChatInputState.OpponentBlocked
+                    !opponentActive -> ChatInputState.OpponentLeft
+                    else -> ChatInputState.Active
+                }
+        }
+
         fun exitChatRoom() {
             viewModelScope.launch {
                 _exitResult.emit(exitChatRoomUseCase(chatRoomId))
             }
+        }
+
+        override fun onCleared() {
+            super.onCleared()
+            disconnect()
         }
 
         companion object {

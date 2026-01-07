@@ -1,5 +1,7 @@
 package com.project200.data.dto
 
+import com.project200.domain.model.SocketType
+import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
 import java.time.LocalDateTime
 
@@ -61,4 +63,37 @@ data class PostMessageResponse(
 @JsonClass(generateAdapter = true)
 data class PostChatMessageRequest(
     val content: String,
+)
+
+// 티켓 발급 응답
+@JsonClass(generateAdapter = true)
+data class TicketResponse(
+    @Json(name = "chatTicket")
+    val chatTicket: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatMessage(
+    @Json(name = "webSocketType")
+    val type: SocketType,
+    val data: SocketChatMessageDTO? = null,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatMessageDTO(
+    val chatId: Long,
+    val senderId: String?,
+    val senderNickname: String?,
+    val senderProfileUrl: String?,
+    val senderThumbnailUrl: String?,
+    val chatContent: String,
+    val chatType: String,
+    val sentAt: LocalDateTime,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatRequest(
+    @Json(name = "webSocketType")
+    val type: SocketType,
+    val content: String?,
 )
