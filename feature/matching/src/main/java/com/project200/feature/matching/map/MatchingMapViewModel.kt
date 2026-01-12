@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
@@ -60,7 +61,8 @@ class MatchingMapViewModel
             combine(
                 matchingMembers,
                 exercisePlaces,
-            ) { membersResult, placesResult ->
+                _filterState
+            ) { membersResult, placesResult, filters ->
                 // 성공 데이터만 추출, 실패 시 빈 리스트
                 val members = (membersResult as? BaseResult.Success)?.data ?: emptyList()
                 val places = (placesResult as? BaseResult.Success)?.data ?: emptyList()
@@ -69,6 +71,10 @@ class MatchingMapViewModel
                 (membersResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
                 (placesResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
 
+                // 필터링 적용
+                val filteredMembers = members.filter { member ->
+                    checkMemberMatchesFilter(member, filters)
+                }
                 // 최종적으로 성공 데이터만 Pair로 묶어서 UI에 전달
                 Pair(members, places)
             }.stateIn(
@@ -167,7 +173,6 @@ class MatchingMapViewModel
          */
         fun clearFilters() {
             _filterState.value = FilterState()
-            fetchMatchingMembers()
         }
 
         /**
@@ -197,7 +202,59 @@ class MatchingMapViewModel
                     }
                 }
             }
-            fetchMatchingMembers()
+        }
+
+
+        /**
+         * 회원이 필터 조건을 만족하는지 검사합니다.
+         */
+        private fun checkMemberMatchesFilter(member: MatchingMember, filters: FilterState): Boolean {
+            // 성별 필터 (선택 안됨(null)이면 통과, 선택되었으면 일치해야 함)
+            if (filters.gender != null && member.gender != filters.gender) {
+                return false
+            }
+
+            // 나이대 필터 (AgeGroup 로직에 따라 구현)
+            if (filters.ageGroup != null) {
+                if (!isAgeInGroup(member.birthDate, filters.ageGroup)) {
+                    return false
+                }
+            }
+
+            // 운동 실력 필터
+            // TODO: 선호 운동 추가 시 활용
+            /*if (filters.skillLevel != null && member.skillLevel != filters.skillLevel) {
+                return false
+            }*/
+
+            // 운동 점수 필터
+            // TODO: 운동 점수 데이터 추가 시 활용
+            /*if (filters.exerciseScore != null && member.exerciseScore < filters.exerciseScore) {
+                return false
+            }*/
+
+            // 요일 필터 (선택된 요일이 포함되면 통과)
+            // TODO: 선호 운동 날짜 추가 시 활용
+            /*if (filters.days.isNotEmpty()) {
+                val hasMatchingDay = member.availableDays.any { it in filters.days }
+                if (!hasMatchingDay) return false
+            }*/
+
+            return true
+        }
+
+        /**
+         * 나이대 매칭 헬퍼 함수
+         */
+        private fun isAgeInGroup(age: Int, group: AgeGroup): Boolean {
+            // AgeGroup의 정의에 따라 분기 처리 (예시)
+            return when (group) {
+                AgeGroup.TEEN -> age in 10..19
+                AgeGroup.TWENTIES -> age in 20..29
+                AgeGroup.THIRTIES -> age in 30..39
+                AgeGroup.FORTIES -> age in 40..49
+                else -> true
+            }
         }
 
         private fun <T> toggle(
