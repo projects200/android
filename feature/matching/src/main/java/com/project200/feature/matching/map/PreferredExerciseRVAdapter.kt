@@ -45,8 +45,8 @@ class PreferredExerciseRVAdapter(
     inner class ViewHolder(private val binding: ItemPreferredExerciseBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(exercise: PreferredExercise) {
-            binding.exerciseNameTv.text = getString(binding.root.context, exercise.skillLevel.toSkillLevelRes() ?: SkillLevel.SKILLED.resId)
-            binding.skillTv.text = exercise.skillLevel
+            binding.exerciseNameTv.text = exercise.name
+            binding.skillTv.text = getString(binding.root.context, exercise.skillLevel.toSkillLevelRes() ?: SkillLevel.SKILLED.resId)
             binding.exerciseDaysTv.text = formatter.formatDaysOfWeek(exercise.daysOfWeek)
             Glide.with(binding.exerciseIv.context)
                 .load(exercise.imageUrl)
