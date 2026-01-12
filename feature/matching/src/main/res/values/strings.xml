@@ -38,12 +38,6 @@
 
     <string name="preferred_exercise">선호 운동</string>
     <string name="empty_preferred_exercise">선호운동을 선택해주세요+</string>
-    <string name="skill_level_0">입문자</string>
-    <string name="skill_level_1">초급자</string>
-    <string name="skill_level_2">중급자</string>
-    <string name="skill_level_3">고급자</string>
-    <string name="skill_level_4">숙련자</string>
-    <string name="skill_level_5">선출</string>
 
     <string name="open_chat_link">오픈 채팅 링크</string>
     <string name="open_chat_announce">채팅 기능이 개발 중입니다. 카카오 오픈 채팅을 사용해주세요!</string>

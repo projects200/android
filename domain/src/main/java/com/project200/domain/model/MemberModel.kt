@@ -21,12 +21,30 @@ data class UserProfile(
 )
 
 data class PreferredExercise(
-    val preferredExerciseId: Int,
+    val preferredExerciseId: Long,
+    val exerciseTypeId: Long,
     val name: String,
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
-    val imageUrl: String
+    val imageUrl: String?
 )
+
+data class ExerciseType(
+    val id: Long,
+    val name: String,
+    val imageUrl: String?
+) {
+    fun toEmptyPreferredExercise(): PreferredExercise {
+        return PreferredExercise(
+            preferredExerciseId = -1,
+            exerciseTypeId = id,
+            name = name,
+            skillLevel = "",
+            daysOfWeek = List(7) { false },
+            imageUrl = imageUrl
+        )
+    }
+}
 
 data class ProfileImageList(
     val thumbnail: ProfileImage?,
