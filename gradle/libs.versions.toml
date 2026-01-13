@@ -8,8 +8,8 @@ ksp = "1.9.23-1.0.19"
 compileSdk = "35"
 minSdk = "26"
 targetSdk = "35"
-versionCode = "23"
-versionName = "0.5.8"
+versionCode = "24"
+versionName = "0.6.0"
 firebaseBom = "32.7.0"
 googleServicesPlugin = "4.4.2"
 firebasePerfPlugin = "1.4.2"
@@ -32,6 +32,7 @@ androidxArchCoreTesting = "2.2.0" # 테스트용
 androidxMedia = "1.7.0"
 lottie = "6.6.6"
 circleImageView = "3.1.0"
+flexbox = "3.0.0"
 shimmer = "0.5.0" # 스켈레톤
 
 # Google (SDK 34 호환 버전)
@@ -203,6 +204,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 
 # TED Clustring
 ted-clustering = { group = "io.github.ParkSangGwon", name = "tedclustering", version.ref = "tedClustering" }
+
+# Flexbox
+flexbox = { group = "com.google.android.flexbox", name = "flexbox", version.ref = "flexbox" }
 
 [plugins]
 # Android Gradle Plugins
