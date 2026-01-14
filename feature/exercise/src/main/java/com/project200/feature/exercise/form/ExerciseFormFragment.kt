@@ -181,6 +181,29 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             viewModel.updateTime(hour, minute)
         }
 
+        // 운동 장소 선택 버튼
+        binding.recordLocationSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseLocation.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseLocation()
+                return@setOnClickListener
+            }
+
+            SelectionBottomSheetDialog(items, binding.recordLocationSelectBtn.text.toString()) { selectedLocation ->
+                if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    binding.recordLocationSelectBtn.setText(R.string.exercise_record_location_hint)
+                    binding.recordLocationSelectBtn.apply {
+                        setText("")
+                        visibility = View.VISIBLE
+                        requestFocus()
+                    }
+                } else {
+                    binding.recordLocationSelectBtn.setText(selectedLocation)
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
         // 기록 완료 버튼
         binding.recordCompleteBtn.setOnClickListener {
             val type = binding.recordTypeSelectBtn.text.toString().trim()
@@ -313,7 +336,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     private fun setupInitialData(record: ExerciseRecord) {
         binding.recordTitleEt.setText(record.title)
         binding.recordTypeEt.setText(record.personalType)
-        binding.recordLocationEt.setText(record.location)
+        binding.recordLocationSelectBtn.setText(record.location)
         binding.recordDescEt.setText(record.detail)
     }
 
