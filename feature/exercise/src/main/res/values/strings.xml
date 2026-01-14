@@ -10,6 +10,8 @@
     <string name="exercise_record_time_divider">:</string>
     <string name="exercise_record_location">장소</string>
     <string name="exercise_record_title_hint">제목을 입력해주세요.</string>
+    <string name="exercise_record_type_select_hint">운동 종류를 선택해주세요.</string>
+    <string name="exercise_record_type_direct">직접 입력</string>
     <string name="exercise_record_type_hint">운동 종류를 입력해주세요.</string>
     <string name="exercise_record_location_hint">운동장소를 입력해주세요.</string>
     <string name="exercise_record_desc">내용</string>

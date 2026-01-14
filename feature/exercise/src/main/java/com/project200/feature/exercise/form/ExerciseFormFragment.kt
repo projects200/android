@@ -31,6 +31,7 @@ import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeIns
 import com.project200.presentation.utils.TimeEditTextLimiter.addRangeLimit
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
+import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -130,6 +131,30 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
     }
 
     private fun initListeners() {
+        // 운동 종류 선택 버튼
+        binding.recordTypeSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseTypeList.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseTypes() // 데이터가 없으면 다시 요청
+                return@setOnClickListener
+            }
+
+            SelectionBottomSheetDialog(items, binding.recordTypeSelectBtn.text.toString()) { selectedType ->
+                if (selectedType == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    binding.recordTypeSelectBtn.setText(R.string.exercise_record_type_direct)
+                    binding.recordTypeEt.apply {
+                        setText("")
+                        visibility = View.VISIBLE
+                        requestFocus()
+                    }
+                } else {
+                    binding.recordTypeSelectBtn.setText(selectedType)
+                    binding.recordTypeEt.visibility = View.GONE
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
         // 시간/날짜 버튼 클릭 리스너 설정
         binding.startDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_DATE) }
         binding.startTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_TIME) }
