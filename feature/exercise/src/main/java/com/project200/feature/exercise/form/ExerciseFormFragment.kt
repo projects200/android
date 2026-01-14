@@ -183,11 +183,17 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
         // 기록 완료 버튼
         binding.recordCompleteBtn.setOnClickListener {
+            val type = binding.recordTypeSelectBtn.text.toString().trim()
+            if (type == getString(R.string.exercise_record_type_direct)
+                && binding.recordTypeEt.text.toString().isBlank()) {
+                Toast.makeText(requireContext(), R.string.exercise_record_type_direct_input_warning, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             viewModel.submitRecord(
                 recordId = args.recordId,
                 title = binding.recordTitleEt.text.toString().trim(),
-                type = binding.recordTypeEt.text.toString().trim(),
-                location = binding.recordLocationEt.text.toString().trim(),
+                type = if (type == getString(R.string.exercise_record_type_direct)) binding.recordTypeEt.text.toString().trim() else binding.recordTypeSelectBtn.text.toString().trim(),
+                location = binding.recordLocationSelectBtn.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
         }
