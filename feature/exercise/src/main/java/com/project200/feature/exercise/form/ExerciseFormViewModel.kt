@@ -276,6 +276,7 @@ constructor(
 
     /** 운동 종류 리스트 로드 */
     fun loadExerciseTypes() {
+        if (!_exerciseTypeList.value.isNullOrEmpty()) return
         viewModelScope.launch {
             // 유저의 선호 운동 리스트
             val preferredResult = getPreferredExerciseUseCase()
@@ -302,6 +303,7 @@ constructor(
 
     /** 운동 장소 설정 */
     fun loadExerciseLocation() {
+        if (!_exerciseLocation.value.isNullOrEmpty()) return
         viewModelScope.launch {
             val locationResult = getExercisePlaceUseCase()
             val locationList = if(locationResult is BaseResult.Success) {

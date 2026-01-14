@@ -17,8 +17,10 @@ import com.project200.common.utils.CommonDateTimeFormatters.HH_MM_KR
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.domain.model.SubmissionResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragment
+import com.project200.feature.exercise.main.ExerciseMainFragmentDirections
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.presentation.base.BindingFragment
@@ -38,6 +40,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
+import kotlin.math.E
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
@@ -126,6 +129,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             )
         }
         viewModel.loadInitialRecord(args.recordId)
+        viewModel.loadExerciseTypes()
+        viewModel.loadExerciseLocation()
+
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
         initListeners()
     }
@@ -192,12 +198,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             SelectionBottomSheetDialog(items, binding.recordLocationSelectBtn.text.toString()) { selectedLocation ->
                 if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
                     // 직접 입력 선택
-                    binding.recordLocationSelectBtn.setText(R.string.exercise_record_location_hint)
-                    binding.recordLocationSelectBtn.apply {
-                        setText("")
-                        visibility = View.VISIBLE
-                        requestFocus()
-                    }
+                    findNavController().navigate(
+                        ExerciseFormFragmentDirections.actionExerciseFormFragmentToExercisePlaceSearchFragment(),
+                    )
                 } else {
                     binding.recordLocationSelectBtn.setText(selectedLocation)
                 }
@@ -248,6 +251,16 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         // 시간 선택 상태 (어떤 버튼이 선택되었는지)
         viewModel.timeSelectionState.observe(viewLifecycleOwner) { state ->
             updateTimeSelectionUi(state)
+        }
+
+        findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<String>(
+            ExercisePlaceSearchFragment.KEY_SELECTED_PLACE,
+        )?.observe(viewLifecycleOwner) { name ->
+            binding.recordLocationSelectBtn.setText(name)
+            // 선택 후에는 결과 삭제
+            findNavController().currentBackStackEntry?.savedStateHandle?.remove<String>(
+                ExercisePlaceSearchFragment.KEY_SELECTED_PLACE,
+            )
         }
 
         viewModel.imageItems.observe(viewLifecycleOwner) { items ->

@@ -54,4 +54,10 @@ dependencies {
 
     // Shimmer
     implementation(libs.shimmer)
+
+    // Google Maps
+    implementation(libs.play.services.location)
+
+    // Kakao Map
+    implementation(libs.kakao.map)
 }
