@@ -129,7 +129,6 @@ class ChatSocketRepositoryImpl
                             } else {
                                 "$BASE_URL_RELEASE$ticket"
                             }
-
                         val request = Request.Builder().url(wsUrl).build()
                         webSocket = okHttpClient.newWebSocket(request, socketListener)
                     } catch (e: Exception) {
