@@ -348,7 +348,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private fun setupInitialData(record: ExerciseRecord) {
         binding.recordTitleEt.setText(record.title)
-        binding.recordTypeEt.setText(record.personalType)
+        binding.recordTypeSelectBtn.setText(record.personalType)
         binding.recordLocationSelectBtn.setText(record.location)
         binding.recordDescEt.setText(record.detail)
     }
