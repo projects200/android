@@ -3,6 +3,7 @@ package com.project200.data.impl
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ChatApiService
 import com.project200.data.dto.SocketChatMessage
+import com.project200.data.dto.SocketChatMessageDTO
 import com.project200.data.dto.SocketChatRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.mapper.toModel
@@ -53,6 +54,9 @@ class ChatSocketRepositoryImpl
 
         private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
         override val incomingMessages = _incomingMessages.asSharedFlow()
+
+        private val _socketErrors = MutableSharedFlow<String>()
+        override val socketErrors = _socketErrors.asSharedFlow()
 
         private val memberId = spManager.getMemberId().toString()
         private var currentChatRoomId: Long = -1L
@@ -159,14 +163,34 @@ class ChatSocketRepositoryImpl
                     repositoryScope.launch {
                         try {
                             val wrapper = responseAdapter.fromJson(text) ?: return@launch
-                            // TALK 타입 메시지 처리
-                            // PING/PONG은 별도 처리 없음
-                            if (wrapper.type == SocketType.TALK && wrapper.data != null) {
-                                val message = wrapper.data.toModel().copy(isMine = wrapper.data.senderId == memberId)
-                                Timber.d("Received TALK message: $text \n $memberId")
-                                _incomingMessages.emit(message)
-                            } else if (wrapper.type == SocketType.PONG) {
-                                Timber.d("Received PONG from server")
+                            when (wrapper.type) {
+                                SocketType.TALK -> {
+                                    val chatDto = wrapper.getChatData(moshi)
+
+                                    if (chatDto != null) {
+                                        val message = chatDto.toModel().copy(
+                                            isMine = chatDto.senderId == memberId
+                                        )
+                                        Timber.d("Received TALK message: $text")
+                                        _incomingMessages.emit(message)
+                                    }
+                                }
+
+                                SocketType.PONG -> {
+                                    Timber.d("Received PONG from server")
+                                }
+
+                                SocketType.ERROR -> {
+                                    // 에러 처리 (차단됨, 상대방 나감 등)
+                                    val errorMessage = wrapper.getErrorDetail() ?: "오류가 발생했습니다."
+                                    Timber.e("Socket Error: ${wrapper.message} - $errorMessage")
+
+                                    _socketErrors.emit(errorMessage)
+                                }
+
+                                else -> {
+                                    Timber.d("Received Other type (${wrapper.type}): $text")
+                                }
                             }
                         } catch (e: Exception) {
                             Timber.e(e, "Socket Message Parsing Error. Text: $text")

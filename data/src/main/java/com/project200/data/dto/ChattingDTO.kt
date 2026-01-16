@@ -3,6 +3,7 @@ package com.project200.data.dto
 import com.project200.domain.model.SocketType
 import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.squareup.moshi.Moshi
 import java.time.LocalDateTime
 
 @JsonClass(generateAdapter = true)
@@ -74,10 +75,31 @@ data class TicketResponse(
 
 @JsonClass(generateAdapter = true)
 data class SocketChatMessage(
-    @Json(name = "webSocketType")
+    val succeed: Boolean,
     val type: SocketType,
-    val data: SocketChatMessageDTO? = null,
-)
+    val message: String? = null,
+    val data: Any? = null,
+) {
+    /**
+     * TALK 타입일 때 안전하게 DTO로 변환하여 가져오는 도우미 함수
+     */
+    fun getChatData(moshi: Moshi): SocketChatMessageDTO? {
+        if (type != SocketType.TALK || data == null) return null
+        return try {
+            val adapter = moshi.adapter(SocketChatMessageDTO::class.java)
+            adapter.fromJsonValue(data)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * ERROR 타입일 때 data 필드에 담긴 에러 상세 내용을 가져오는 도우미 함수
+     */
+    fun getErrorDetail(): String? {
+        return data as? String
+    }
+}
 
 @JsonClass(generateAdapter = true)
 data class SocketChatMessageDTO(
@@ -93,7 +115,6 @@ data class SocketChatMessageDTO(
 
 @JsonClass(generateAdapter = true)
 data class SocketChatRequest(
-    @Json(name = "webSocketType")
     val type: SocketType,
     val content: String?,
 )

@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.SharedFlow
 
 interface ChatSocketRepository {
     val incomingMessages: SharedFlow<ChattingMessage>
+    val socketErrors: SharedFlow<String>
     fun connect(chatRoomId: Long)
     fun disconnect()
     fun sendMessage(content: String)

@@ -9,6 +9,7 @@ import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
+import com.project200.domain.usecase.ObserveSocketErrorsUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -30,6 +31,7 @@ class ChattingRoomViewModel
         private val connectChatRoomUseCase: ConnectChatRoomUseCase,
         private val disconnectChatRoomUseCase: DisconnectChatRoomUseCase,
         private val observeSocketMessagesUseCase: ObserveSocketMessagesUseCase,
+        private val observeSocketErrorsUseCase: ObserveSocketErrorsUseCase,
         private val sendSocketMessageUseCase: SendSocketMessageUseCase,
     ) : ViewModel() {
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
@@ -55,6 +57,17 @@ class ChattingRoomViewModel
                 observeSocketMessagesUseCase().collect { chat ->
                     // 리스트에 추가
                     addMessage(chat)
+                }
+            }
+
+            viewModelScope.launch {
+                // 시스템 메시지(상대방 나감 등)
+                observeSocketErrorsUseCase().collect { errorMessage ->
+                    // 토스트 메시지 출력
+                    _toast.emit(errorMessage)
+
+                    // 상대방 상태가 변했다는 의미이므로 강제 동기화 수행
+                    syncMissedMessages()
                 }
             }
         }
