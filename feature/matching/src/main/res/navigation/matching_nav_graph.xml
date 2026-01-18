@@ -16,6 +16,10 @@
             <argument
                 android:name="memberId"
                 app:argType="string" />
+            <argument
+                android:name="placeId"
+                app:argType="long"
+                android:defaultValue="-1L"/>
         </action>
         <action
             android:id="@+id/action_matchingMapFragment_to_exercisePlaceFragment"
@@ -42,6 +46,10 @@
         <argument
             android:name="memberId"
             app:argType="string" />
+        <argument
+            android:name="placeId"
+            app:argType="long"
+            android:defaultValue="-1L"/>
     </fragment>
     <fragment
         android:id="@+id/exercisePlaceFragment"
@@ -133,16 +141,4 @@
             app:destination="@id/matchingUrlFormFragment" />
     </fragment>
 
-    <fragment
-        android:id="@+id/matchingUrlFormFragment"
-        android:name="com.project200.feature.matching.map.MatchingUrlFormFragment"
-        android:label="matchingUrlForm"
-        tools:layout="@layout/fragment_matching_url_form" >
-        <action
-            android:id="@+id/action_matchingUrlFormFragment_to_matchingMapFragment"
-            app:destination="@id/matchingMapFragment"
-            app:popUpTo="@id/matchingMapFragment"
-            app:popUpToInclusive="true" >
-        </action>
-    </fragment>
 </navigation>

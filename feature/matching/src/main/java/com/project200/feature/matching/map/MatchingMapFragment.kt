@@ -246,7 +246,9 @@ class MatchingMapFragment :
         val bottomSheet =
             MembersBottomSheetDialog(items) { item ->
                 findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(item.member.memberId),
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
+                        memberId = item.member.memberId,
+                        placeId = item.location.id),
                 )
             }
         bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)

@@ -136,9 +136,9 @@ class MatchingProfileViewModel
             _selectedMonth.value = newMonth
         }
 
-        fun createChatRoom() {
+        fun createChatRoom(longitude: Double, latitude: Double) {
             viewModelScope.launch {
-                _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+                _createChatRoomResult.emit(createChatRoomUseCase(memberId, longitude, latitude))
             }
         }
 

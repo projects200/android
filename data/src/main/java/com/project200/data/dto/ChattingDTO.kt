@@ -11,6 +11,9 @@ data class PostChatRoomResponse(
 @JsonClass(generateAdapter = true)
 data class PostChatRoomRequest(
     val receiverId: String,
+    val exerciseLocationId: Long,
+    val requesterLatitude: Double,
+    val requesterLongitude: Double,
 )
 
 @JsonClass(generateAdapter = true)
