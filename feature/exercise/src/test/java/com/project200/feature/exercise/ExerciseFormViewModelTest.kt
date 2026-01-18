@@ -16,8 +16,11 @@ import com.project200.domain.model.SubmissionResult
 import com.project200.domain.model.ValidWindow
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
+import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
+import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
+import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
 import com.project200.feature.exercise.form.ExerciseImageListItem
@@ -63,6 +66,15 @@ class ExerciseFormViewModelTest {
 
     @MockK
     private lateinit var mockExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
+
+    @MockK
+    private lateinit var mockGetExercisePlaceUseCase: GetExercisePlaceUseCase
+
+    @MockK
+    private lateinit var mockGetPreferredExerciseUseCase: GetPreferredExerciseUseCase
+
+    @MockK
+    private lateinit var mockGetPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase
 
     @MockK
     private lateinit var mockClockProvider: ClockProvider
@@ -125,6 +137,9 @@ class ExerciseFormViewModelTest {
                 uploadExerciseRecordImagesUseCase = mockUploadUseCase,
                 editExerciseRecordUseCase = mockEditUseCase,
                 getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
+                getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
+                getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
+                getPreferredExerciseTypesUseCase = mockGetPreferredExerciseTypesUseCase,
                 clockProvider = mockClockProvider,
             )
     }
@@ -133,12 +148,15 @@ class ExerciseFormViewModelTest {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel =
             ExerciseFormViewModel(
-                mockGetDetailUseCase,
-                mockCreateUseCase,
-                mockUploadUseCase,
-                mockEditUseCase,
-                mockExpectedScoreInfoUseCase,
-                mockClockProvider,
+                getExerciseRecordDetailUseCase = mockGetDetailUseCase,
+                createExerciseRecordUseCase = mockCreateUseCase,
+                uploadExerciseRecordImagesUseCase = mockUploadUseCase,
+                editExerciseRecordUseCase = mockEditUseCase,
+                getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
+                getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
+                getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
+                getPreferredExerciseTypesUseCase = mockGetPreferredExerciseTypesUseCase,
+                clockProvider = mockClockProvider,
             )
         // 수정 모드 테스트를 위해 초기 데이터를 미리 로드합니다.
         coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)

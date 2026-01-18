@@ -66,6 +66,9 @@
                 android:name="recordId"
                 app:argType="long" />
         </action>
+        <action
+            android:id="@+id/action_exerciseFormFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
     </fragment>
 
     <fragment
@@ -96,6 +99,12 @@
                 android:name="recordId"
                 app:argType="long" />
         </action>
+    </fragment>
+    <fragment
+        android:id="@+id/exercisePlaceSearchFragment"
+        android:name="com.project200.feature.exercise.form.ExercisePlaceSearchFragment"
+        android:label="exercisePlaceSearch"
+        tools:layout="@layout/fragment_exercise_place_search">
     </fragment>
 
 </navigation>
