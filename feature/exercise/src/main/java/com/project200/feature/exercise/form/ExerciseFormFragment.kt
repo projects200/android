@@ -17,10 +17,8 @@ import com.project200.common.utils.CommonDateTimeFormatters.HH_MM_KR
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.domain.model.SubmissionResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragment
-import com.project200.feature.exercise.main.ExerciseMainFragmentDirections
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.presentation.base.BindingFragment
@@ -40,7 +38,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.time.ZoneId
 import java.util.Calendar
 import java.util.Date
-import kotlin.math.E
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
