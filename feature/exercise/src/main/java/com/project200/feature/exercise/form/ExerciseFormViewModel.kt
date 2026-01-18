@@ -64,7 +64,6 @@ class ExerciseFormViewModel
         private val _exerciseTypeList = MutableLiveData<List<String>>()
         val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
 
-
         private val _initialDataLoaded = MutableLiveData<ExerciseRecord?>()
         val initialDataLoaded: LiveData<ExerciseRecord?> = _initialDataLoaded
 
@@ -276,22 +275,29 @@ class ExerciseFormViewModel
             viewModelScope.launch {
                 // 유저의 선호 운동 리스트
                 val preferredResult = getPreferredExerciseUseCase()
-                val preferredNames = if (preferredResult is BaseResult.Success) {
-                    preferredResult.data.map { it.name }
-                } else emptyList()
+                val preferredNames =
+                    if (preferredResult is BaseResult.Success) {
+                        preferredResult.data.map { it.name }
+                    } else {
+                        emptyList()
+                    }
 
                 // 전체 운동 종류 리스트
                 val allTypesResult = getPreferredExerciseTypesUseCase()
-                val allNames = if (allTypesResult is BaseResult.Success) {
-                    allTypesResult.data.map { it.name }
-                } else emptyList()
+                val allNames =
+                    if (allTypesResult is BaseResult.Success) {
+                        allTypesResult.data.map { it.name }
+                    } else {
+                        emptyList()
+                    }
 
                 // 직접 입력 + 선호 운동 + 그 외 전체 운동(중복 제거)
-                val combinedList = mutableListOf<String>().apply {
-                    add(DIRECT_INPUT)
-                    addAll(preferredNames)
-                    addAll(allNames.filterNot { preferredNames.contains(it) })
-                }
+                val combinedList =
+                    mutableListOf<String>().apply {
+                        add(DIRECT_INPUT)
+                        addAll(preferredNames)
+                        addAll(allNames.filterNot { preferredNames.contains(it) })
+                    }
 
                 _exerciseTypeList.value = combinedList
             }

@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.project200.undabang.presentation.R
-import com.project200.undabang.presentation.databinding.BottomSheetDialogMenuBinding
 import com.project200.undabang.presentation.databinding.BottomSheetDialogSelectBinding
 
 /** 선택 바텀 시트 다이얼로그
@@ -43,10 +42,11 @@ class SelectionBottomSheetDialog(
         super.onViewCreated(view, savedInstanceState)
 
         // 어댑터 생성 및 연결
-        val selectionAdapter = SelectionRVAdapter(items, selectedItem) { item ->
-            onItemSelected(item)
-            dismiss()
-        }
+        val selectionAdapter =
+            SelectionRVAdapter(items, selectedItem) { item ->
+                onItemSelected(item)
+                dismiss()
+            }
 
         binding.selectItemRv.apply {
             layoutManager = LinearLayoutManager(requireContext())
