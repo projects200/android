@@ -13,6 +13,7 @@ import com.kakao.vectormap.label.LabelStyles
 import com.kakao.vectormap.label.LabelTextBuilder
 import com.kakao.vectormap.label.LabelTextStyle
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.MapBounds
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.createClusterBitmap
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.getClusterSizePx
@@ -145,5 +146,26 @@ class MapViewManager(
                 .setRank(1)
                 .setTag(cluster)
         labelManager.layer?.addLabel(textOptions)?.let { currentLabels.add(it) }
+    }
+
+    /**
+     * 현재 지도의 경계 좌표를 반환합니다.
+     */
+    fun getCurrentBounds(): MapBounds? {
+        val width = kakaoMap.viewport.width()
+        val height = kakaoMap.viewport.height()
+
+        // 화면의 좌상단(0,0)과 우하단(width, height) 픽셀 좌표를 위경도로 변환
+        val topLeft = kakaoMap.fromScreenPoint(0, 0)
+        val bottomRight = kakaoMap.fromScreenPoint(width, height)
+
+        if (topLeft == null || bottomRight == null) return null
+
+        return MapBounds(
+            topLeftLat = topLeft.latitude,
+            topLeftLng = bottomRight.longitude,
+            bottomRightLat = bottomRight.latitude,
+            bottomRightLng = topLeft.longitude
+        )
     }
 }

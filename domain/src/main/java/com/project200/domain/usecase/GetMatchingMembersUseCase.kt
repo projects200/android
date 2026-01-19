@@ -1,6 +1,7 @@
 package com.project200.domain.usecase
 
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.repository.MatchingRepository
 import javax.inject.Inject
@@ -8,7 +9,7 @@ import javax.inject.Inject
 class GetMatchingMembersUseCase @Inject constructor(
     private val matchingRepository: MatchingRepository
 ) {
-    suspend operator fun invoke(): BaseResult<List<MatchingMember>> {
-        return matchingRepository.getMembers()
+    suspend operator fun invoke(mapBounds: MapBounds): BaseResult<List<MatchingMember>> {
+        return matchingRepository.getMembers(mapBounds)
     }
 }

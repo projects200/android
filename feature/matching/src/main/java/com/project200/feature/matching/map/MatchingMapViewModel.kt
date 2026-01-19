@@ -4,11 +4,13 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kakao.vectormap.LatLng
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.usecase.GetExercisePlaceUseCase
@@ -31,6 +33,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
 import javax.inject.Inject
+import kotlin.math.abs
 
 @HiltViewModel
 class MatchingMapViewModel
@@ -60,6 +63,10 @@ class MatchingMapViewModel
         // 현재 선택된 필터 타입
         private val _currentFilterType = MutableSharedFlow<MatchingFilterType>()
         val currentFilterType: SharedFlow<MatchingFilterType> = _currentFilterType
+
+        // 마지막으로 가져온 지도 위치 정보
+        private var lastFetchedCenter: LatLng? = null
+        private var lastFetchedZoom: Int? = null
 
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
@@ -105,11 +112,19 @@ class MatchingMapViewModel
         /**
          * 서버에서 매칭 회원 목록을 가져옵니다.
          */
-        fun fetchMatchingMembers() {
+        private fun fetchMatchingMembers(
+            bounds: MapBounds,
+            center: LatLng,
+            zoom: Int
+        ) {
             viewModelScope.launch {
-                val filters = _filterState.value
-                // useCase 호출 시 filters.gender, filters.ageGroup 등을 전달
-                matchingMembers.value = getMatchingMembersUseCase()
+                val result = getMatchingMembersUseCase(bounds)
+
+                matchingMembers.value = result
+
+                // 호출 성공 시 마지막 상태 업데이트
+                lastFetchedCenter = center
+                lastFetchedZoom = zoom
             }
         }
 
@@ -271,6 +286,46 @@ class MatchingMapViewModel
                 false
             }
         }
+
+    /**
+     * @param currentBounds 현재 지도 영역 (API 전송용)
+     * @param currentCenter 현재 카메라 중심 (이동 거리 계산용)
+     * @param currentZoom 현재 줌 레벨 (이동 거리 계산용)
+     */
+    fun fetchMatchingMembersIfMoved(
+        currentBounds: MapBounds,
+        currentCenter: LatLng,
+        currentZoom: Int
+    ) {
+        if (shouldFetch(currentBounds, currentCenter, currentZoom)) {
+            fetchMatchingMembers(currentBounds, currentCenter, currentZoom)
+        }
+    }
+
+    private fun shouldFetch(
+        currentBounds: MapBounds,
+        currentCenter: LatLng,
+        currentZoom: Int
+    ): Boolean {
+        val lastCenter = lastFetchedCenter ?: return true
+        val lastZoom = lastFetchedZoom ?: return true
+
+        // 줌이 바뀌면 다시 조회
+        if (lastZoom != currentZoom) return true
+
+        // N% 이상 이동했는지 확인
+        // 화면 가로/세로 길이의 N% 이상 이동 시
+        val latSpan = abs(currentBounds.topLeftLat - currentBounds.bottomRightLat)
+        val lngSpan = abs(currentBounds.topLeftLng - currentBounds.bottomRightLng)
+
+        val latThreshold = latSpan * 0.3 // 30% 기준
+        val lngThreshold = lngSpan * 0.3
+
+        val latDiff = abs(lastCenter.latitude - currentCenter.latitude)
+        val lngDiff = abs(lastCenter.longitude - currentCenter.longitude)
+
+        return latDiff > latThreshold || lngDiff > lngThreshold
+    }
 
         private fun <T> toggle(
             current: T?,
