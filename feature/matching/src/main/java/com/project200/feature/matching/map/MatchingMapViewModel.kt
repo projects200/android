@@ -4,6 +4,7 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -37,6 +40,7 @@ class MatchingMapViewModel
         private val getLastMapPositionUseCase: GetLastMapPositionUseCase,
         private val saveLastMapPositionUseCase: SaveLastMapPositionUseCase,
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
+        private val clockProvider: ClockProvider,
     ) : ViewModel() {
         // 회원 목록
         private val matchingMembers =
@@ -76,7 +80,7 @@ class MatchingMapViewModel
                     checkMemberMatchesFilter(member, filters)
                 }
                 // 최종적으로 성공 데이터만 Pair로 묶어서 UI에 전달
-                Pair(members, places)
+                Pair(filteredMembers, places)
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -210,7 +214,7 @@ class MatchingMapViewModel
          */
         private fun checkMemberMatchesFilter(member: MatchingMember, filters: FilterState): Boolean {
             // 성별 필터 (선택 안됨(null)이면 통과, 선택되었으면 일치해야 함)
-            if (filters.gender != null && member.gender != filters.gender) {
+            if (filters.gender != null && member.gender != filters.gender.name) {
                 return false
             }
 
@@ -246,14 +250,25 @@ class MatchingMapViewModel
         /**
          * 나이대 매칭 헬퍼 함수
          */
-        private fun isAgeInGroup(age: Int, group: AgeGroup): Boolean {
-            // AgeGroup의 정의에 따라 분기 처리 (예시)
-            return when (group) {
-                AgeGroup.TEEN -> age in 10..19
-                AgeGroup.TWENTIES -> age in 20..29
-                AgeGroup.THIRTIES -> age in 30..39
-                AgeGroup.FORTIES -> age in 40..49
-                else -> true
+        private fun isAgeInGroup(birth: String, group: AgeGroup): Boolean {
+            // 생년월일 데이터가 비어있으면 매칭에서 제외하거나 포함 (정책에 따라 결정)
+            if (birth.isBlank()) return false
+
+            return try {
+                // 올해 - 생년
+                val age = clockProvider.now().year - LocalDate.parse(birth).year
+
+                when (group) {
+                    AgeGroup.TEEN -> age in 10..19
+                    AgeGroup.TWENTIES -> age in 20..29
+                    AgeGroup.THIRTIES -> age in 30..39
+                    AgeGroup.FORTIES -> age in 40..49
+                    AgeGroup.FIFTIES -> age >= 50
+                    else -> true
+                }
+            } catch (e: DateTimeParseException) {
+                // 날짜 형식이 잘못되었을 경우 처리
+                false
             }
         }
 
