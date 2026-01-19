@@ -23,15 +23,15 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.KakaoPlaceInfo
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.exercise.R
-import com.project200.undabang.feature.exercise.databinding.FragmentExercisePlaceSearchBinding
+import com.project200.undabang.feature.exercise.databinding.FragmentPlaceSearchBinding
 import dagger.hilt.android.AndroidEntryPoint
 import timber.log.Timber
 
 @AndroidEntryPoint
-class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchBinding>(R.layout.fragment_exercise_place_search) {
+class PlaceSearchFragment : BindingFragment<FragmentPlaceSearchBinding>(R.layout.fragment_place_search) {
     private var kakaoMap: KakaoMap? = null
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private val viewModel: ExercisePlaceSearchViewModel by viewModels()
+    private val viewModel: PlaceSearchViewModel by viewModels()
 
     private lateinit var searchedPlaceAdapter: SearchedPlaceRVAdapter
 
@@ -44,8 +44,8 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
             }
         }
 
-    override fun getViewBinding(view: View): FragmentExercisePlaceSearchBinding {
-        return FragmentExercisePlaceSearchBinding.bind(view)
+    override fun getViewBinding(view: View): FragmentPlaceSearchBinding {
+        return FragmentPlaceSearchBinding.bind(view)
     }
 
     override fun setupViews() {

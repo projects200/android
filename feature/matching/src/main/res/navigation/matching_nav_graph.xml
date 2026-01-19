@@ -25,9 +25,6 @@
             app:destination="@id/matchingGuideFragment"
             app:popUpTo="@id/matchingMapFragment"
             app:popUpToInclusive="true" />
-        <action
-            android:id="@+id/action_matchingMapFragment_to_exercisePlaceSearchFragment"
-            app:destination="@id/exercisePlaceSearchFragment" />
     </fragment>
     <fragment
         android:id="@+id/matchingProfileFragment"
@@ -129,20 +126,7 @@
         android:label="matchingGuide"
         tools:layout="@layout/fragment_matching_guide">
         <action
-            android:id="@+id/action_matchingGuideFragment_to_urlFormFragment"
-            app:destination="@id/matchingUrlFormFragment" />
-    </fragment>
-
-    <fragment
-        android:id="@+id/matchingUrlFormFragment"
-        android:name="com.project200.feature.matching.map.MatchingUrlFormFragment"
-        android:label="matchingUrlForm"
-        tools:layout="@layout/fragment_matching_url_form" >
-        <action
-            android:id="@+id/action_matchingUrlFormFragment_to_matchingMapFragment"
-            app:destination="@id/matchingMapFragment"
-            app:popUpTo="@id/matchingMapFragment"
-            app:popUpToInclusive="true" >
-        </action>
+            android:id="@+id/action_matchingGuideFragment_to_exercisePlaceSearchFragment"
+            app:destination="@id/exercisePlaceSearchFragment" />
     </fragment>
 </navigation>

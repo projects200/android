@@ -196,7 +196,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
                     // 직접 입력 선택
                     findNavController().navigate(
-                        ExerciseFormFragmentDirections.actionExerciseFormFragmentToExercisePlaceSearchFragment(),
+                        ExerciseFormFragmentDirections.actionExerciseFormFragmentToPlaceSearchFragment(),
                     )
                 } else {
                     binding.recordLocationSelectBtn.setText(selectedLocation)
@@ -261,12 +261,12 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         }
 
         findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<String>(
-            ExercisePlaceSearchFragment.KEY_SELECTED_PLACE,
+            PlaceSearchFragment.KEY_SELECTED_PLACE,
         )?.observe(viewLifecycleOwner) { name ->
             binding.recordLocationSelectBtn.setText(name)
             // 선택 후에는 결과 삭제
             findNavController().currentBackStackEntry?.savedStateHandle?.remove<String>(
-                ExercisePlaceSearchFragment.KEY_SELECTED_PLACE,
+                PlaceSearchFragment.KEY_SELECTED_PLACE,
             )
         }
 
