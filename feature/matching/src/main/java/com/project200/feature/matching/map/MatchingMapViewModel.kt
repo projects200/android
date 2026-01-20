@@ -313,13 +313,14 @@ class MatchingMapViewModel
         // 줌이 바뀌면 다시 조회
         if (lastZoom != currentZoom) return true
 
-        // N% 이상 이동했는지 확인
-        // 화면 가로/세로 길이의 N% 이상 이동 시
+        // THRESHOLD_RATE 이상 이동했는지 확인
+        // 화면 가로/세로 길이의 THRESHOLD_RATE 이상 이동 시
         val latSpan = abs(currentBounds.topLeftLat - currentBounds.bottomRightLat)
         val lngSpan = abs(currentBounds.topLeftLng - currentBounds.bottomRightLng)
 
-        val latThreshold = latSpan * 0.3 // 30% 기준
-        val lngThreshold = lngSpan * 0.3
+        // 이동 임계값 계산
+        val latThreshold = latSpan * THRESHOLD_RATE
+        val lngThreshold = lngSpan * THRESHOLD_RATE
 
         val latDiff = abs(lastCenter.latitude - currentCenter.latitude)
         val lngDiff = abs(lastCenter.longitude - currentCenter.longitude)
@@ -333,5 +334,9 @@ class MatchingMapViewModel
         ): T? {
             val selectedCasted = selected as T
             return if (current == selectedCasted) null else selectedCasted
+        }
+
+        companion object {
+            private const val THRESHOLD_RATE = 0.3
         }
     }
