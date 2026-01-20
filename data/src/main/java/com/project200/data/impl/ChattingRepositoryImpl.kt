@@ -25,10 +25,24 @@ class ChattingRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : ChattingRepository {
         // 채팅방 생성
-        override suspend fun createChatRoom(receiverId: String, locationId: Long, longitude: Double, latitude: Double): BaseResult<Long> {
+        override suspend fun createChatRoom(
+            receiverId: String,
+            locationId: Long,
+            longitude: Double,
+            latitude: Double
+        ): BaseResult<Long> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postChatRoom(PostChatRoomRequest(receiverId= receiverId, exerciseLocationId = locationId, requesterLatitude = latitude, requesterLongitude = longitude)) },
+                apiCall = {
+                    apiService.postChatRoom(
+                        PostChatRoomRequest(
+                            receiverId = receiverId,
+                            exerciseLocationId = locationId,
+                            requesterLatitude = latitude,
+                            requesterLongitude = longitude
+                        )
+                    )
+                },
                 mapper = { dto: PostChatRoomResponse? ->
                     dto?.chatRoomId ?: throw NoSuchElementException()
                 },
