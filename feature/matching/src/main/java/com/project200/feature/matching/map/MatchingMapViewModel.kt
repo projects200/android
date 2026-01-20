@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -63,6 +64,10 @@ class MatchingMapViewModel
         // 현재 선택된 필터 타입
         private val _currentFilterType = MutableSharedFlow<MatchingFilterType>()
         val currentFilterType: SharedFlow<MatchingFilterType> = _currentFilterType
+
+        // 필터 로딩 상태 (필터 변경 시 0.5초 로딩)
+        private val _isFilterLoading = MutableStateFlow(false)
+        val isFilterLoading: StateFlow<Boolean> = _isFilterLoading.asStateFlow()
 
         // 마지막으로 가져온 지도 위치 정보
         private var lastFetchedCenter: LatLng? = null
@@ -191,7 +196,12 @@ class MatchingMapViewModel
          * 필터 초기화
          */
         fun clearFilters() {
-            _filterState.value = FilterState()
+            viewModelScope.launch {
+                _isFilterLoading.value = true
+                delay(FILTER_LOADING_DELAY_MS)
+                _filterState.value = FilterState()
+                _isFilterLoading.value = false
+            }
         }
 
         /**
@@ -201,25 +211,30 @@ class MatchingMapViewModel
             type: MatchingFilterType,
             option: Any?,
         ) {
-            _filterState.update { current ->
-                when (type) {
-                    MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
-                    MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
-                    MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
-                    MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
-                    MatchingFilterType.DAY -> {
-                        val newDays =
-                            if (option == null) {
-                                // 전체 선택 시 모두 비움 (Empty == 전체)
-                                emptySet()
-                            } else {
-                                val day = option as DayOfWeek
-                                // 요일 토글
-                                if (day in current.days) current.days - day else current.days + day
-                            }
-                        current.copy(days = newDays)
+            viewModelScope.launch {
+                _isFilterLoading.value = true
+                delay(FILTER_LOADING_DELAY_MS)
+                _filterState.update { current ->
+                    when (type) {
+                        MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
+                        MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
+                        MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
+                        MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
+                        MatchingFilterType.DAY -> {
+                            val newDays =
+                                if (option == null) {
+                                    // 전체 선택 시 모두 비움 (Empty == 전체)
+                                    emptySet()
+                                } else {
+                                    val day = option as DayOfWeek
+                                    // 요일 토글
+                                    if (day in current.days) current.days - day else current.days + day
+                                }
+                            current.copy(days = newDays)
+                        }
                     }
                 }
+                _isFilterLoading.value = false
             }
         }
 
@@ -338,5 +353,6 @@ class MatchingMapViewModel
 
         companion object {
             private const val THRESHOLD_RATE = 0.3
+            private const val FILTER_LOADING_DELAY_MS = 500L
         }
     }
