@@ -31,6 +31,7 @@ class MatchingProfileViewModel
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private var memberId: String = ""
+        private var placeId: Long = -1L
 
         private val _profile = MutableLiveData<MatchingMemberProfile>()
         val profile: LiveData<MatchingMemberProfile> = _profile
@@ -55,8 +56,9 @@ class MatchingProfileViewModel
         private val _blockResult = MutableSharedFlow<BaseResult<Unit>>()
         val blockResult: SharedFlow<BaseResult<Unit>> = _blockResult
 
-        fun setMemberId(id: String) {
-            memberId = id
+        fun setInitialData(memberId: String, placeId: Long) {
+            this.memberId = memberId
+            this.placeId = placeId
             getProfile(memberId)
 
             val initialMonth = clockProvider.yearMonthNow()
@@ -138,7 +140,7 @@ class MatchingProfileViewModel
 
         fun createChatRoom(longitude: Double, latitude: Double) {
             viewModelScope.launch {
-                _createChatRoomResult.emit(createChatRoomUseCase(memberId, longitude, latitude))
+                _createChatRoomResult.emit(createChatRoomUseCase(memberId, placeId, longitude, latitude))
             }
         }
 

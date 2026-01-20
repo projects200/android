@@ -24,7 +24,8 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
 
 fun LocationDto.toModel(): Location {
     return Location(
-        exerciseLocationName = this.exerciseLocationName,
+        placeId = this.exerciseLocationId,
+        placeName = this.exerciseLocationName,
         latitude = this.latitude,
         longitude = this.longitude,
     )

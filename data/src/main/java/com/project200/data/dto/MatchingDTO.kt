@@ -15,6 +15,7 @@ data class GetMatchingMembersDto(
 
 @JsonClass(generateAdapter = true)
 data class LocationDto(
+    val exerciseLocationId: Long,
     val exerciseLocationName: String,
     val latitude: Double,
     val longitude: Double,

@@ -84,7 +84,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         }
         binding.chatBtn.isVisible = !args.fromDeepLink
         initClickListener()
-        viewModel.setMemberId(args.memberId)
+        viewModel.setInitialData(args.memberId, args.placeId)
         setupCalendar()
         setupPreferredExercise()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
