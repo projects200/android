@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class ExercisePlaceSearchViewModel
+class PlaceSearchViewModel
     @Inject
     constructor(
         private val getAddressFromCoordinatesUseCase: GetAddressFromCoordinatesUseCase,
