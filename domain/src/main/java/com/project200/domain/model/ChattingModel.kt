@@ -35,5 +35,10 @@ data class ChattingModel(
 )
 
 enum class SocketType {
-    PING, TALK, ERROR, PONG
+    PING, TALK, ERROR, PONG, SYSTEM_LEAVE, SYSTEM_BANNED
+}
+
+sealed class OpponentStatus {
+    data object Left : OpponentStatus()
+    data object Blocked : OpponentStatus()
 }

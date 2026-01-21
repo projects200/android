@@ -8,6 +8,7 @@ import com.project200.data.dto.SocketChatRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.mapper.toModel
 import com.project200.domain.model.ChattingMessage
+import com.project200.domain.model.OpponentStatus
 import com.project200.domain.model.SocketType
 import com.project200.domain.repository.ChatSocketRepository
 import com.project200.undabang.data.BuildConfig
@@ -57,6 +58,9 @@ class ChatSocketRepositoryImpl
 
         private val _socketErrors = MutableSharedFlow<String>()
         override val socketErrors = _socketErrors.asSharedFlow()
+
+        private val _opponentStatusChanges = MutableSharedFlow<OpponentStatus>()
+        override val opponentStatusChanges = _opponentStatusChanges.asSharedFlow()
 
         private val memberId = spManager.getMemberId().toString()
         private var currentChatRoomId: Long = -1L
@@ -181,11 +185,24 @@ class ChatSocketRepositoryImpl
                                 }
 
                                 SocketType.ERROR -> {
-                                    // 에러 처리 (차단됨, 상대방 나감 등)
                                     val errorMessage = wrapper.getErrorDetail() ?: "오류가 발생했습니다."
                                     Timber.e("Socket Error: ${wrapper.message} - $errorMessage")
 
                                     _socketErrors.emit(errorMessage)
+                                }
+
+                                SocketType.SYSTEM_LEAVE -> {
+                                    val message = wrapper.message ?: "상대방이 채팅방을 나갔습니다."
+                                    Timber.d("Opponent left: $message")
+                                    _socketErrors.emit(message)
+                                    _opponentStatusChanges.emit(OpponentStatus.Left)
+                                }
+
+                                SocketType.SYSTEM_BANNED -> {
+                                    val message = wrapper.message ?: "차단된 회원과는 대화할 수 없습니다."
+                                    Timber.d("Opponent blocked: $message")
+                                    _socketErrors.emit(message)
+                                    _opponentStatusChanges.emit(OpponentStatus.Blocked)
                                 }
 
                                 else -> {

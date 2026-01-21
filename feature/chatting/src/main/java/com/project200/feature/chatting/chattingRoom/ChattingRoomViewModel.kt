@@ -4,11 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
+import com.project200.domain.model.OpponentStatus
 import com.project200.domain.usecase.ConnectChatRoomUseCase
 import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
+import com.project200.domain.usecase.ObserveOpponentStatusUseCase
 import com.project200.domain.usecase.ObserveSocketErrorsUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
@@ -32,6 +34,7 @@ class ChattingRoomViewModel
         private val disconnectChatRoomUseCase: DisconnectChatRoomUseCase,
         private val observeSocketMessagesUseCase: ObserveSocketMessagesUseCase,
         private val observeSocketErrorsUseCase: ObserveSocketErrorsUseCase,
+        private val observeOpponentStatusUseCase: ObserveOpponentStatusUseCase,
         private val sendSocketMessageUseCase: SendSocketMessageUseCase,
     ) : ViewModel() {
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
@@ -68,6 +71,15 @@ class ChattingRoomViewModel
 
                     // 상대방 상태가 변했다는 의미이므로 강제 동기화 수행
                     syncMissedMessages()
+                }
+            }
+
+            viewModelScope.launch {
+                observeOpponentStatusUseCase().collect { status ->
+                    when (status) {
+                        is OpponentStatus.Left -> _chatState.value = ChatInputState.OpponentLeft
+                        is OpponentStatus.Blocked -> _chatState.value = ChatInputState.OpponentBlocked
+                    }
                 }
             }
         }
@@ -149,8 +161,6 @@ class ChattingRoomViewModel
                         hasNextMessages = chattingModel.hasNext
                         prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
                         lastChatId = chattingModel.messages.lastOrNull()?.chatId
-
-                        updateChatState(chattingModel.blockActive, chattingModel.opponentActive)
                     }
                     is BaseResult.Error -> {
                         _toast.emit(result.message.toString())
@@ -181,7 +191,6 @@ class ChattingRoomViewModel
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
                         }
-                        updateChatState(result.data.blockActive, result.data.opponentActive)
                     }
 
                     is BaseResult.Error -> {
@@ -225,21 +234,6 @@ class ChattingRoomViewModel
                     }
                 }
             }
-        }
-
-        /**
-         * 채팅 상태 업데이트
-         */
-        private fun updateChatState(
-            blockActive: Boolean,
-            opponentActive: Boolean,
-        ) {
-            _chatState.value =
-                when {
-                    blockActive -> ChatInputState.OpponentBlocked
-                    !opponentActive -> ChatInputState.OpponentLeft
-                    else -> ChatInputState.Active
-                }
         }
 
         fun exitChatRoom() {
