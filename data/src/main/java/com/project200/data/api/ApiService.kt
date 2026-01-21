@@ -319,7 +319,12 @@ interface ApiService {
     // 매칭지도 회원들 조회
     @GET("api/v1/members")
     @AccessTokenApi
-    suspend fun getMatchingMembers(): BaseResponse<List<GetMatchingMembersDto>>
+    suspend fun getMatchingMembers(
+        @Query("leftTopLatitude") leftTopLatitude: Double,
+        @Query("leftTopLongitude") leftTopLongitude: Double,
+        @Query("rightBottomLatitude") rightBottomLatitude: Double,
+        @Query("rightBottomLongitude") rightBottomLongitude: Double,
+    ): BaseResponse<List<GetMatchingMembersDto>>
 
     // 매칭 타 회원 프로필 조회
     @GET("api/v1/members/{memberId}/profile")

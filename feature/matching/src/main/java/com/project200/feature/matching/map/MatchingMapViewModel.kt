@@ -10,9 +10,11 @@ import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.ExerciseScore
 import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
+import com.project200.domain.model.SkillLevel
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
@@ -255,24 +257,28 @@ class MatchingMapViewModel
                 }
             }
 
-            // 운동 실력 필터
-            // TODO: 선호 운동 추가 시 활용
-            /*if (filters.skillLevel != null && member.skillLevel != filters.skillLevel) {
-                return false
-            }*/
+            // 운동 실력 필터: 선호 운동 중 하나라도 해당 숙련도가 있으면 통과
+            if (filters.skillLevel != null) {
+                val hasMatchingSkill = member.preferredExercises.any {
+                    it.skillLevel == filters.skillLevel.code
+                }
+                if (!hasMatchingSkill) return false
+            }
 
-            // 운동 점수 필터
-            // TODO: 운동 점수 데이터 추가 시 활용
-            /*if (filters.exerciseScore != null && member.exerciseScore < filters.exerciseScore) {
-                return false
-            }*/
+            // 운동 점수 필터: 회원 점수가 필터 최소 점수 이상이면 통과
+            if (filters.exerciseScore != null) {
+                if (member.memberScore < filters.exerciseScore.minScore) {
+                    return false
+                }
+            }
 
-            // 요일 필터 (선택된 요일이 포함되면 통과)
-            // TODO: 선호 운동 날짜 추가 시 활용
-            /*if (filters.days.isNotEmpty()) {
-                val hasMatchingDay = member.availableDays.any { it in filters.days }
+            // 요일 필터: 선호 운동 중 하나라도 선택된 요일에 운동하면 통과
+            if (filters.days.isNotEmpty()) {
+                val hasMatchingDay = member.preferredExercises.any { exercise ->
+                    filters.days.any { day -> exercise.daysOfWeek.getOrElse(day.index) { false } }
+                }
                 if (!hasMatchingDay) return false
-            }*/
+            }
 
             return true
         }

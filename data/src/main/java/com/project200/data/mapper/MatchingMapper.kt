@@ -19,12 +19,23 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
         nickname = this.nickname,
         gender = this.gender,
         birthDate = this.birthDate,
+        memberScore = this.memberScore,
         locations = this.locations.map { it.toModel() },
+        preferredExercises = this.preferredExercises.map {
+            PreferredExercise(
+                preferredExerciseId = it.preferredExerciseId,
+                name = it.name,
+                skillLevel = it.skillLevel,
+                daysOfWeek = it.daysOfWeek,
+                imageUrl = it.imageUrl,
+            )
+        },
     )
 }
 
 fun LocationDto.toModel(): Location {
     return Location(
+        exerciseLocationId = this.exerciseLocationId,
         exerciseLocationName = this.exerciseLocationName,
         latitude = this.latitude,
         longitude = this.longitude,

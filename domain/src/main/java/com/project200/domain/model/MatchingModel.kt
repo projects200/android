@@ -7,10 +7,13 @@ data class MatchingMember(
     val nickname: String,
     val gender: String,
     val birthDate: String,
-    val locations: List<Location>
+    val memberScore: Int,
+    val locations: List<Location>,
+    val preferredExercises: List<PreferredExercise>,
 )
 
 data class Location(
+    val exerciseLocationId: Long,
     val exerciseLocationName: String,
     val latitude: Double,
     val longitude: Double

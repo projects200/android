@@ -41,7 +41,14 @@ class MatchingRepositoryImpl
         override suspend fun getMembers(mapBounds: MapBounds): BaseResult<List<MatchingMember>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getMatchingMembers() },
+                apiCall = {
+                    apiService.getMatchingMembers(
+                        leftTopLatitude = mapBounds.topLeftLat,
+                        leftTopLongitude = mapBounds.topLeftLng,
+                        rightBottomLatitude = mapBounds.bottomRightLat,
+                        rightBottomLongitude = mapBounds.bottomRightLng,
+                    )
+                },
                 mapper = { dtoList: List<GetMatchingMembersDto>? ->
                     dtoList?.map { it.toModel() } ?: throw NoSuchElementException()
                 },
