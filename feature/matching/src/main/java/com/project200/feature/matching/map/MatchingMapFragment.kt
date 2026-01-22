@@ -48,8 +48,6 @@ class MatchingMapFragment :
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
 
-    private var isOnResume = true
-
     private val filterAdapter by lazy {
         MatchingFilterRVAdapter(
             onFilterClick = { type ->
@@ -149,8 +147,6 @@ class MatchingMapFragment :
             currentCenter = cameraPosition.position,
             currentZoom = cameraPosition.zoomLevel
         )
-
-        isOnResume = false
 
         // 카메라 위치가 바뀌면 클러스터도 변경됨 -> 마커 redraw
         mapViewManager?.redrawMarkers(myPlaces = viewModel.combinedMapData.value.second, clusterCalculator)
@@ -355,7 +351,6 @@ class MatchingMapFragment :
 
     override fun onResume() {
         super.onResume()
-        isOnResume = true
         binding.mapView.resume()
     }
 
