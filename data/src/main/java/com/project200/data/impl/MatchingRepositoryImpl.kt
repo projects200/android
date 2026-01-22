@@ -18,6 +18,7 @@ import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
@@ -37,7 +38,7 @@ class MatchingRepositoryImpl
         /**
          * 매칭 지도 상에서 회원들의 정보를 반환하는 함수
          */
-        override suspend fun getMembers(): BaseResult<List<MatchingMember>> {
+        override suspend fun getMembers(mapBounds: MapBounds): BaseResult<List<MatchingMember>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.getMatchingMembers() },

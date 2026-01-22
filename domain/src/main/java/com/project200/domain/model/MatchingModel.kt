@@ -42,3 +42,11 @@ data class ExercisePlace(
     val latitude: Double,
     val longitude: Double
 )
+
+
+data class MapBounds(
+    val topLeftLat: Double,
+    val topLeftLng: Double,
+    val bottomRightLat: Double,
+    val bottomRightLng: Double
+)
