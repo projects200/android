@@ -163,9 +163,9 @@ class MapViewManager(
 
         return MapBounds(
             topLeftLat = topLeft.latitude,
-            topLeftLng = bottomRight.longitude,
+            topLeftLng = topLeft.longitude,
             bottomRightLat = bottomRight.latitude,
-            bottomRightLng = topLeft.longitude
+            bottomRightLng = bottomRight.longitude
         )
     }
 }
