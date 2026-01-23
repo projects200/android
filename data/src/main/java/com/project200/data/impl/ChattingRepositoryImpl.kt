@@ -29,7 +29,7 @@ class ChattingRepositoryImpl
             receiverId: String,
             locationId: Long,
             longitude: Double,
-            latitude: Double
+            latitude: Double,
         ): BaseResult<Long> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
@@ -39,8 +39,8 @@ class ChattingRepositoryImpl
                             receiverId = receiverId,
                             exerciseLocationId = locationId,
                             requesterLatitude = latitude,
-                            requesterLongitude = longitude
-                        )
+                            requesterLongitude = longitude,
+                        ),
                     )
                 },
                 mapper = { dto: PostChatRoomResponse? ->

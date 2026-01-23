@@ -56,7 +56,10 @@ class MatchingProfileViewModel
         private val _blockResult = MutableSharedFlow<BaseResult<Unit>>()
         val blockResult: SharedFlow<BaseResult<Unit>> = _blockResult
 
-        fun setInitialData(memberId: String, placeId: Long) {
+        fun setInitialData(
+            memberId: String,
+            placeId: Long,
+        ) {
             this.memberId = memberId
             this.placeId = placeId
             getProfile(memberId)
@@ -138,13 +141,18 @@ class MatchingProfileViewModel
             _selectedMonth.value = newMonth
         }
 
-        fun createChatRoom(latitude: Double, longitude: Double) {
+        fun createChatRoom(
+            latitude: Double,
+            longitude: Double,
+        ) {
             viewModelScope.launch {
-                _createChatRoomResult.emit(createChatRoomUseCase(
-                    receiverId = memberId,
-                    locationId = placeId,
-                    longitude = longitude,
-                    latitude = latitude)
+                _createChatRoomResult.emit(
+                    createChatRoomUseCase(
+                        receiverId = memberId,
+                        locationId = placeId,
+                        longitude = longitude,
+                        latitude = latitude,
+                    ),
                 )
             }
         }

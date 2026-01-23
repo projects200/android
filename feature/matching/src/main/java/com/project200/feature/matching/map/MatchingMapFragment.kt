@@ -255,7 +255,8 @@ class MatchingMapFragment :
                 findNavController().navigate(
                     MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
                         memberId = item.member.memberId,
-                        placeId = item.location.placeId),
+                        placeId = item.location.placeId,
+                    ),
                 )
             }
         bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)

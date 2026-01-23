@@ -8,8 +8,6 @@ import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.RequiresPermission
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.net.toUri
@@ -59,16 +57,17 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
     @Inject
     lateinit var dayFormatter: PreferredExerciseDayFormatter
 
-    private val locationPermissionLauncher = registerForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val granted = permissions.entries.all { it.value }
-        if (granted) {
-            getLastLocationAndCreateChat()
-        } else {
-            Toast.makeText(requireContext(), getString(R.string.chat_location_permission), Toast.LENGTH_SHORT).show()
+    private val locationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { permissions ->
+            val granted = permissions.entries.all { it.value }
+            if (granted) {
+                getLastLocationAndCreateChat()
+            } else {
+                Toast.makeText(requireContext(), getString(R.string.chat_location_permission), Toast.LENGTH_SHORT).show()
+            }
         }
-    }
 
     override fun getViewBinding(view: View): FragmentMatchingProfileBinding {
         return FragmentMatchingProfileBinding.bind(view)
@@ -259,7 +258,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         ) {
             // 권한이 없으면 요청
             locationPermissionLauncher.launch(
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION)
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             )
             return
         }
