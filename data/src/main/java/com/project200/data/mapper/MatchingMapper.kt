@@ -29,7 +29,7 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
                     skillLevel = it.skillLevel,
                     daysOfWeek = it.daysOfWeek,
                     imageUrl = it.imageUrl,
-                    exerciseTypeId = -1
+                    exerciseTypeId = -1,
                 )
             },
     )
