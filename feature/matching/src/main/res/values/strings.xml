@@ -82,4 +82,15 @@
     <string name="error_fail_to_register_place">운동장소 등록에 실패했습니다.</string>
     
     <string name="chat_request">1:1 채팅하기</string>
+    
+    <string name="filter_clear">초기화</string>
+
+    <string name="filter_gender">성별</string>
+    <string name="filter_age">나이</string>
+    <string name="filter_day">운동 요일</string>
+    <string name="filter_exercise_type">운동 종목</string>
+    <string name="filter_skill">숙련도</string>
+    <string name="filter_score">운동 점수</string>
+
+    <string name="zoom_level_warning">지도를 확대하여 운동 메이트를 확인하세요</string>
 </resources>

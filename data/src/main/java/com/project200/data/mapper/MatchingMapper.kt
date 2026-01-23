@@ -9,6 +9,7 @@ import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.Location
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.model.PreferredExercise
 
 fun GetMatchingMembersDto.toModel(): MatchingMember {
     return MatchingMember(
@@ -18,7 +19,19 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
         nickname = this.nickname,
         gender = this.gender,
         birthDate = this.birthDate,
+        memberScore = this.memberScore,
         locations = this.locations.map { it.toModel() },
+        preferredExercises =
+            this.preferredExercises.map {
+                PreferredExercise(
+                    preferredExerciseId = it.preferredExerciseId,
+                    name = it.name,
+                    skillLevel = it.skillLevel,
+                    daysOfWeek = it.daysOfWeek,
+                    imageUrl = it.imageUrl,
+                    exerciseTypeId = -1,
+                )
+            },
     )
 }
 

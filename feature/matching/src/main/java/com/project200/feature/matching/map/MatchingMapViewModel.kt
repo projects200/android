@@ -5,25 +5,38 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.kakao.vectormap.LatLng
+import com.project200.common.utils.ClockProvider
 import com.project200.common.utils.DefaultPrefs
+import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.SaveLastMapPositionUseCase
+import com.project200.feature.matching.utils.FilterState
+import com.project200.feature.matching.utils.MatchingFilterType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.format.DateTimeParseException
 import javax.inject.Inject
+import kotlin.math.abs
 
 @HiltViewModel
 class MatchingMapViewModel
@@ -33,6 +46,7 @@ class MatchingMapViewModel
         private val getLastMapPositionUseCase: GetLastMapPositionUseCase,
         private val saveLastMapPositionUseCase: SaveLastMapPositionUseCase,
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
+        private val clockProvider: ClockProvider,
         @DefaultPrefs private val sharedPreferences: SharedPreferences,
     ) : ViewModel() {
         // 회원 목록
@@ -46,11 +60,33 @@ class MatchingMapViewModel
         private val _errorEvents = MutableSharedFlow<String>()
         val errorEvents: SharedFlow<String> = _errorEvents
 
+        // 필터 상태
+        private val _filterState = MutableStateFlow(FilterState())
+        val filterState: StateFlow<FilterState> = _filterState.asStateFlow()
+
+        // 현재 선택된 필터 타입
+        private val _currentFilterType = MutableSharedFlow<MatchingFilterType>()
+        val currentFilterType: SharedFlow<MatchingFilterType> = _currentFilterType
+
+        // 필터 로딩 상태 (필터 변경 시 0.5초 로딩)
+        private val _isFilterLoading = MutableStateFlow(false)
+        val isFilterLoading: StateFlow<Boolean> = _isFilterLoading.asStateFlow()
+
+        // 줌 레벨 경고 토스트 이벤트
+        private val _zoomLevelWarning = MutableSharedFlow<Unit>()
+        val zoomLevelWarning: SharedFlow<Unit> = _zoomLevelWarning
+
+        // 마지막으로 가져온 지도 위치 정보
+        private var lastFetchedCenter: LatLng? = null
+        private var lastFetchedZoom: Int? = null
+        private var wasZoomTooLow: Boolean = false
+
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
                 matchingMembers,
                 exercisePlaces,
-            ) { membersResult, placesResult ->
+                _filterState,
+            ) { membersResult, placesResult, filters ->
                 // 성공 데이터만 추출, 실패 시 빈 리스트
                 val members = (membersResult as? BaseResult.Success)?.data ?: emptyList()
                 val places = (placesResult as? BaseResult.Success)?.data ?: emptyList()
@@ -59,8 +95,13 @@ class MatchingMapViewModel
                 (membersResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
                 (placesResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
 
+                // 필터링 적용
+                val filteredMembers =
+                    members.filter { member ->
+                        checkMemberMatchesFilter(member, filters)
+                    }
                 // 최종적으로 성공 데이터만 Pair로 묶어서 UI에 전달
-                Pair(members, places)
+                Pair(filteredMembers, places)
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5000),
@@ -96,9 +137,19 @@ class MatchingMapViewModel
         /**
          * 서버에서 매칭 회원 목록을 가져옵니다.
          */
-        fun fetchMatchingMembers() {
+        private fun fetchMatchingMembers(
+            bounds: MapBounds,
+            center: LatLng,
+            zoom: Int,
+        ) {
             viewModelScope.launch {
-                matchingMembers.value = getMatchingMembersUseCase()
+                val result = getMatchingMembersUseCase(bounds)
+
+                matchingMembers.value = result
+
+                // 호출 성공 시 마지막 상태 업데이트
+                lastFetchedCenter = center
+                lastFetchedZoom = zoom
             }
         }
 
@@ -154,6 +205,193 @@ class MatchingMapViewModel
             }
         }
 
+        // 필터 버튼 클릭 시 호출
+        fun onFilterTypeClicked(type: MatchingFilterType) {
+            viewModelScope.launch {
+                _currentFilterType.emit(type)
+            }
+        }
+
+        /**
+         * 필터 초기화
+         */
+        fun clearFilters() {
+            viewModelScope.launch {
+                _isFilterLoading.value = true
+                delay(FILTER_LOADING_DELAY_MS)
+                _filterState.value = FilterState()
+                _isFilterLoading.value = false
+            }
+        }
+
+        /**
+         * 필터 옵션 선택 시 호출
+         */
+        fun onFilterOptionSelected(
+            type: MatchingFilterType,
+            option: Any?,
+        ) {
+            viewModelScope.launch {
+                _isFilterLoading.value = true
+                delay(FILTER_LOADING_DELAY_MS)
+                _filterState.update { current ->
+                    when (type) {
+                        MatchingFilterType.GENDER -> current.copy(gender = toggle(current.gender, option))
+                        MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
+                        MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
+                        MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
+                        MatchingFilterType.DAY -> {
+                            val newDays =
+                                if (option == null) {
+                                    // 전체 선택 시 모두 비움 (Empty == 전체)
+                                    emptySet()
+                                } else {
+                                    val day = option as DayOfWeek
+                                    // 요일 토글
+                                    if (day in current.days) current.days - day else current.days + day
+                                }
+                            current.copy(days = newDays)
+                        }
+                    }
+                }
+                _isFilterLoading.value = false
+            }
+        }
+
+        /**
+         * 회원이 필터 조건을 만족하는지 검사합니다.
+         */
+        private fun checkMemberMatchesFilter(
+            member: MatchingMember,
+            filters: FilterState,
+        ): Boolean {
+            // 성별 필터 (선택 안됨(null)이면 통과, 선택되었으면 일치해야 함)
+            if (filters.gender != null && member.gender != filters.gender.name) {
+                return false
+            }
+
+            // 나이대 필터 (AgeGroup 로직에 따라 구현)
+            if (filters.ageGroup != null) {
+                if (!isAgeInGroup(member.birthDate, filters.ageGroup)) {
+                    return false
+                }
+            }
+
+            // 운동 실력 필터: 선호 운동 중 하나라도 해당 숙련도가 있으면 통과
+            if (filters.skillLevel != null) {
+                val hasMatchingSkill =
+                    member.preferredExercises.any {
+                        it.skillLevel == filters.skillLevel.code
+                    }
+                if (!hasMatchingSkill) return false
+            }
+
+            // 운동 점수 필터: 회원 점수가 필터 최소 점수 이상이면 통과
+            if (filters.exerciseScore != null) {
+                if (member.memberScore < filters.exerciseScore.minScore) {
+                    return false
+                }
+            }
+
+            // 요일 필터: 선호 운동 중 하나라도 선택된 요일에 운동하면 통과
+            if (filters.days.isNotEmpty()) {
+                val hasMatchingDay =
+                    member.preferredExercises.any { exercise ->
+                        filters.days.any { day -> exercise.daysOfWeek.getOrElse(day.index) { false } }
+                    }
+                if (!hasMatchingDay) return false
+            }
+
+            return true
+        }
+
+        /**
+         * 나이대 매칭 헬퍼 함수
+         */
+        private fun isAgeInGroup(
+            birth: String,
+            group: AgeGroup,
+        ): Boolean {
+            // 생년월일 데이터가 비어있으면 매칭에서 제외하거나 포함 (정책에 따라 결정)
+            if (birth.isBlank()) return false
+
+            return try {
+                // 올해 - 생년
+                val age = clockProvider.now().year - LocalDate.parse(birth).year
+
+                when (group) {
+                    AgeGroup.TEEN -> age in 10..19
+                    AgeGroup.TWENTIES -> age in 20..29
+                    AgeGroup.THIRTIES -> age in 30..39
+                    AgeGroup.FORTIES -> age in 40..49
+                    AgeGroup.FIFTIES -> age >= 50
+                    else -> true
+                }
+            } catch (e: DateTimeParseException) {
+                // 날짜 형식이 잘못되었을 경우 처리
+                false
+            }
+        }
+
+        /**
+         * @param currentBounds 현재 지도 영역 (API 전송용)
+         * @param currentCenter 현재 카메라 중심 (이동 거리 계산용)
+         * @param currentZoom 현재 줌 레벨 (이동 거리 계산용)
+         */
+        fun fetchMatchingMembersIfMoved(
+            currentBounds: MapBounds,
+            currentCenter: LatLng,
+            currentZoom: Int,
+        ) {
+            val isZoomTooLow = currentZoom < MIN_ZOOM_LEVEL_FOR_MEMBERS
+
+            if (isZoomTooLow) {
+                matchingMembers.value = BaseResult.Success(emptyList())
+                lastFetchedCenter = currentCenter
+                lastFetchedZoom = currentZoom
+
+                if (!wasZoomTooLow) {
+                    viewModelScope.launch {
+                        _zoomLevelWarning.emit(Unit)
+                    }
+                }
+                wasZoomTooLow = true
+                return
+            }
+
+            wasZoomTooLow = false
+
+            if (shouldFetch(currentBounds, currentCenter, currentZoom)) {
+                fetchMatchingMembers(currentBounds, currentCenter, currentZoom)
+            }
+        }
+
+        private fun shouldFetch(
+            currentBounds: MapBounds,
+            currentCenter: LatLng,
+            currentZoom: Int,
+        ): Boolean {
+            val lastCenter = lastFetchedCenter ?: return true
+            val lastZoom = lastFetchedZoom ?: return true
+
+            // 줌이 바뀌면 다시 조회
+            if (lastZoom != currentZoom) return true
+
+            // THRESHOLD_RATE 이상 이동했는지 확인
+            // 화면 가로/세로 길이의 THRESHOLD_RATE 이상 이동 시
+            val latSpan = abs(currentBounds.topLeftLat - currentBounds.bottomRightLat)
+            val lngSpan = abs(currentBounds.topLeftLng - currentBounds.bottomRightLng)
+
+            // 이동 임계값 계산
+            val latThreshold = latSpan * THRESHOLD_RATE
+            val lngThreshold = lngSpan * THRESHOLD_RATE
+
+            val latDiff = abs(lastCenter.latitude - currentCenter.latitude)
+            val lngDiff = abs(lastCenter.longitude - currentCenter.longitude)
+
+            return latDiff > latThreshold || lngDiff > lngThreshold
+        }
+
         /**
          * 최초 방문 여부를 확인하고 가이드 화면 이동 이벤트를 발생시킵니다.
          * @return 최초 방문이면 true, 아니면 false
@@ -169,7 +407,18 @@ class MatchingMapViewModel
             return isFirstVisit
         }
 
+        private fun <T> toggle(
+            current: T?,
+            selected: Any?,
+        ): T? {
+            val selectedCasted = selected as T
+            return if (current == selectedCasted) null else selectedCasted
+        }
+
         companion object {
             private const val KEY_FIRST_MATCHING_VISIT = "key_first_matching_visit"
+            private const val THRESHOLD_RATE = 0.3
+            private const val FILTER_LOADING_DELAY_MS = 500L
+            private const val MIN_ZOOM_LEVEL_FOR_MEMBERS = 13
         }
     }

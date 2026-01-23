@@ -4,6 +4,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.KakaoPlaceInfo
+import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.model.MatchingMemberProfile
@@ -11,7 +12,7 @@ import com.project200.domain.model.OpenUrl
 import java.time.LocalDate
 
 interface MatchingRepository {
-    suspend fun getMembers(): BaseResult<List<MatchingMember>>
+    suspend fun getMembers(mapBounds: MapBounds): BaseResult<List<MatchingMember>>
 
     // 마지막 위치 저장
     suspend fun saveLastMapPosition(mapPosition: MapPosition)
