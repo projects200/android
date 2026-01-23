@@ -3,7 +3,6 @@ package com.project200.data.impl
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ChatApiService
 import com.project200.data.dto.SocketChatMessage
-import com.project200.data.dto.SocketChatMessageDTO
 import com.project200.data.dto.SocketChatRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.mapper.toModel
@@ -172,9 +171,10 @@ class ChatSocketRepositoryImpl
                                     val chatDto = wrapper.getChatData(moshi)
 
                                     if (chatDto != null) {
-                                        val message = chatDto.toModel().copy(
-                                            isMine = chatDto.senderId == memberId
-                                        )
+                                        val message =
+                                            chatDto.toModel().copy(
+                                                isMine = chatDto.senderId == memberId,
+                                            )
                                         Timber.d("Received TALK message: $text")
                                         _incomingMessages.emit(message)
                                     }
