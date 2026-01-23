@@ -145,7 +145,7 @@ class MatchingMapFragment :
         viewModel.fetchMatchingMembersIfMoved(
             currentBounds = currentBounds,
             currentCenter = cameraPosition.position,
-            currentZoom = cameraPosition.zoomLevel
+            currentZoom = cameraPosition.zoomLevel,
         )
 
         // 카메라 위치가 바뀌면 클러스터도 변경됨 -> 마커 redraw

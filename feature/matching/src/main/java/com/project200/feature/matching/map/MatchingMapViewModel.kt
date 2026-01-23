@@ -10,11 +10,9 @@ import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
-import com.project200.domain.model.ExerciseScore
 import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
-import com.project200.domain.model.SkillLevel
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
@@ -22,6 +20,7 @@ import com.project200.domain.usecase.SaveLastMapPositionUseCase
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -30,7 +29,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -79,7 +77,7 @@ class MatchingMapViewModel
             combine(
                 matchingMembers,
                 exercisePlaces,
-                _filterState
+                _filterState,
             ) { membersResult, placesResult, filters ->
                 // 성공 데이터만 추출, 실패 시 빈 리스트
                 val members = (membersResult as? BaseResult.Success)?.data ?: emptyList()
@@ -90,9 +88,10 @@ class MatchingMapViewModel
                 (placesResult as? BaseResult.Error)?.message?.let { _errorEvents.emit(it) }
 
                 // 필터링 적용
-                val filteredMembers = members.filter { member ->
-                    checkMemberMatchesFilter(member, filters)
-                }
+                val filteredMembers =
+                    members.filter { member ->
+                        checkMemberMatchesFilter(member, filters)
+                    }
                 // 최종적으로 성공 데이터만 Pair로 묶어서 UI에 전달
                 Pair(filteredMembers, places)
             }.stateIn(
@@ -122,7 +121,7 @@ class MatchingMapViewModel
         private fun fetchMatchingMembers(
             bounds: MapBounds,
             center: LatLng,
-            zoom: Int
+            zoom: Int,
         ) {
             viewModelScope.launch {
                 val result = getMatchingMembersUseCase(bounds)
@@ -240,11 +239,13 @@ class MatchingMapViewModel
             }
         }
 
-
         /**
          * 회원이 필터 조건을 만족하는지 검사합니다.
          */
-        private fun checkMemberMatchesFilter(member: MatchingMember, filters: FilterState): Boolean {
+        private fun checkMemberMatchesFilter(
+            member: MatchingMember,
+            filters: FilterState,
+        ): Boolean {
             // 성별 필터 (선택 안됨(null)이면 통과, 선택되었으면 일치해야 함)
             if (filters.gender != null && member.gender != filters.gender.name) {
                 return false
@@ -259,9 +260,10 @@ class MatchingMapViewModel
 
             // 운동 실력 필터: 선호 운동 중 하나라도 해당 숙련도가 있으면 통과
             if (filters.skillLevel != null) {
-                val hasMatchingSkill = member.preferredExercises.any {
-                    it.skillLevel == filters.skillLevel.code
-                }
+                val hasMatchingSkill =
+                    member.preferredExercises.any {
+                        it.skillLevel == filters.skillLevel.code
+                    }
                 if (!hasMatchingSkill) return false
             }
 
@@ -274,9 +276,10 @@ class MatchingMapViewModel
 
             // 요일 필터: 선호 운동 중 하나라도 선택된 요일에 운동하면 통과
             if (filters.days.isNotEmpty()) {
-                val hasMatchingDay = member.preferredExercises.any { exercise ->
-                    filters.days.any { day -> exercise.daysOfWeek.getOrElse(day.index) { false } }
-                }
+                val hasMatchingDay =
+                    member.preferredExercises.any { exercise ->
+                        filters.days.any { day -> exercise.daysOfWeek.getOrElse(day.index) { false } }
+                    }
                 if (!hasMatchingDay) return false
             }
 
@@ -286,7 +289,10 @@ class MatchingMapViewModel
         /**
          * 나이대 매칭 헬퍼 함수
          */
-        private fun isAgeInGroup(birth: String, group: AgeGroup): Boolean {
+        private fun isAgeInGroup(
+            birth: String,
+            group: AgeGroup,
+        ): Boolean {
             // 생년월일 데이터가 비어있으면 매칭에서 제외하거나 포함 (정책에 따라 결정)
             if (birth.isBlank()) return false
 
@@ -308,46 +314,46 @@ class MatchingMapViewModel
             }
         }
 
-    /**
-     * @param currentBounds 현재 지도 영역 (API 전송용)
-     * @param currentCenter 현재 카메라 중심 (이동 거리 계산용)
-     * @param currentZoom 현재 줌 레벨 (이동 거리 계산용)
-     */
-    fun fetchMatchingMembersIfMoved(
-        currentBounds: MapBounds,
-        currentCenter: LatLng,
-        currentZoom: Int
-    ) {
-        if (shouldFetch(currentBounds, currentCenter, currentZoom)) {
-            fetchMatchingMembers(currentBounds, currentCenter, currentZoom)
+        /**
+         * @param currentBounds 현재 지도 영역 (API 전송용)
+         * @param currentCenter 현재 카메라 중심 (이동 거리 계산용)
+         * @param currentZoom 현재 줌 레벨 (이동 거리 계산용)
+         */
+        fun fetchMatchingMembersIfMoved(
+            currentBounds: MapBounds,
+            currentCenter: LatLng,
+            currentZoom: Int,
+        ) {
+            if (shouldFetch(currentBounds, currentCenter, currentZoom)) {
+                fetchMatchingMembers(currentBounds, currentCenter, currentZoom)
+            }
         }
-    }
 
-    private fun shouldFetch(
-        currentBounds: MapBounds,
-        currentCenter: LatLng,
-        currentZoom: Int
-    ): Boolean {
-        val lastCenter = lastFetchedCenter ?: return true
-        val lastZoom = lastFetchedZoom ?: return true
+        private fun shouldFetch(
+            currentBounds: MapBounds,
+            currentCenter: LatLng,
+            currentZoom: Int,
+        ): Boolean {
+            val lastCenter = lastFetchedCenter ?: return true
+            val lastZoom = lastFetchedZoom ?: return true
 
-        // 줌이 바뀌면 다시 조회
-        if (lastZoom != currentZoom) return true
+            // 줌이 바뀌면 다시 조회
+            if (lastZoom != currentZoom) return true
 
-        // THRESHOLD_RATE 이상 이동했는지 확인
-        // 화면 가로/세로 길이의 THRESHOLD_RATE 이상 이동 시
-        val latSpan = abs(currentBounds.topLeftLat - currentBounds.bottomRightLat)
-        val lngSpan = abs(currentBounds.topLeftLng - currentBounds.bottomRightLng)
+            // THRESHOLD_RATE 이상 이동했는지 확인
+            // 화면 가로/세로 길이의 THRESHOLD_RATE 이상 이동 시
+            val latSpan = abs(currentBounds.topLeftLat - currentBounds.bottomRightLat)
+            val lngSpan = abs(currentBounds.topLeftLng - currentBounds.bottomRightLng)
 
-        // 이동 임계값 계산
-        val latThreshold = latSpan * THRESHOLD_RATE
-        val lngThreshold = lngSpan * THRESHOLD_RATE
+            // 이동 임계값 계산
+            val latThreshold = latSpan * THRESHOLD_RATE
+            val lngThreshold = lngSpan * THRESHOLD_RATE
 
-        val latDiff = abs(lastCenter.latitude - currentCenter.latitude)
-        val lngDiff = abs(lastCenter.longitude - currentCenter.longitude)
+            val latDiff = abs(lastCenter.latitude - currentCenter.latitude)
+            val lngDiff = abs(lastCenter.longitude - currentCenter.longitude)
 
-        return latDiff > latThreshold || lngDiff > lngThreshold
-    }
+            return latDiff > latThreshold || lngDiff > lngThreshold
+        }
 
         private fun <T> toggle(
             current: T?,

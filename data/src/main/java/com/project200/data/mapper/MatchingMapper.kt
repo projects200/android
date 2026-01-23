@@ -21,15 +21,16 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
         birthDate = this.birthDate,
         memberScore = this.memberScore,
         locations = this.locations.map { it.toModel() },
-        preferredExercises = this.preferredExercises.map {
-            PreferredExercise(
-                preferredExerciseId = it.preferredExerciseId,
-                name = it.name,
-                skillLevel = it.skillLevel,
-                daysOfWeek = it.daysOfWeek,
-                imageUrl = it.imageUrl,
-            )
-        },
+        preferredExercises =
+            this.preferredExercises.map {
+                PreferredExercise(
+                    preferredExerciseId = it.preferredExerciseId,
+                    name = it.name,
+                    skillLevel = it.skillLevel,
+                    daysOfWeek = it.daysOfWeek,
+                    imageUrl = it.imageUrl,
+                )
+            },
     )
 }
 

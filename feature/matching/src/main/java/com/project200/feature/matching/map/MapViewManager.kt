@@ -165,7 +165,7 @@ class MapViewManager(
             topLeftLat = topLeft.latitude,
             topLeftLng = topLeft.longitude,
             bottomRightLat = bottomRight.latitude,
-            bottomRightLng = bottomRight.longitude
+            bottomRightLng = bottomRight.longitude,
         )
     }
 }
