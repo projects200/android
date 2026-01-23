@@ -207,6 +207,15 @@ class MatchingMapFragment :
                         binding.filterLoadingGroup.isVisible = isLoading
                     }
                 }
+                launch {
+                    viewModel.zoomLevelWarning.collect {
+                        Toast.makeText(
+                            requireContext(),
+                            R.string.zoom_level_warning,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
             }
         }
     }

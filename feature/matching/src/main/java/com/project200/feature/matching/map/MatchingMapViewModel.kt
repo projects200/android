@@ -72,9 +72,14 @@ class MatchingMapViewModel
         private val _isFilterLoading = MutableStateFlow(false)
         val isFilterLoading: StateFlow<Boolean> = _isFilterLoading.asStateFlow()
 
+        // 줌 레벨 경고 토스트 이벤트
+        private val _zoomLevelWarning = MutableSharedFlow<Unit>()
+        val zoomLevelWarning: SharedFlow<Unit> = _zoomLevelWarning
+
         // 마지막으로 가져온 지도 위치 정보
         private var lastFetchedCenter: LatLng? = null
         private var lastFetchedZoom: Int? = null
+        private var wasZoomTooLow: Boolean = false
 
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
@@ -338,6 +343,24 @@ class MatchingMapViewModel
             currentCenter: LatLng,
             currentZoom: Int,
         ) {
+            val isZoomTooLow = currentZoom < MIN_ZOOM_LEVEL_FOR_MEMBERS
+
+            if (isZoomTooLow) {
+                matchingMembers.value = BaseResult.Success(emptyList())
+                lastFetchedCenter = currentCenter
+                lastFetchedZoom = currentZoom
+
+                if (!wasZoomTooLow) {
+                    viewModelScope.launch {
+                        _zoomLevelWarning.emit(Unit)
+                    }
+                }
+                wasZoomTooLow = true
+                return
+            }
+
+            wasZoomTooLow = false
+
             if (shouldFetch(currentBounds, currentCenter, currentZoom)) {
                 fetchMatchingMembers(currentBounds, currentCenter, currentZoom)
             }
@@ -396,5 +419,6 @@ class MatchingMapViewModel
             private const val KEY_FIRST_MATCHING_VISIT = "key_first_matching_visit"
             private const val THRESHOLD_RATE = 0.3
             private const val FILTER_LOADING_DELAY_MS = 500L
+            private const val MIN_ZOOM_LEVEL_FOR_MEMBERS = 13
         }
     }
