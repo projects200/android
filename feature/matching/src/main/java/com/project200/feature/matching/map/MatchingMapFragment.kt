@@ -212,7 +212,7 @@ class MatchingMapFragment :
                         Toast.makeText(
                             requireContext(),
                             R.string.zoom_level_warning,
-                            Toast.LENGTH_SHORT
+                            Toast.LENGTH_SHORT,
                         ).show()
                     }
                 }
