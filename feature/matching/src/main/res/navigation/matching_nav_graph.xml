@@ -16,6 +16,10 @@
             <argument
                 android:name="memberId"
                 app:argType="string" />
+            <argument
+                android:name="placeId"
+                app:argType="long"
+                android:defaultValue="-1L"/>
         </action>
         <action
             android:id="@+id/action_matchingMapFragment_to_exercisePlaceFragment"
@@ -39,6 +43,10 @@
         <argument
             android:name="memberId"
             app:argType="string" />
+        <argument
+            android:name="placeId"
+            app:argType="long"
+            android:defaultValue="-1L"/>
     </fragment>
     <fragment
         android:id="@+id/exercisePlaceFragment"

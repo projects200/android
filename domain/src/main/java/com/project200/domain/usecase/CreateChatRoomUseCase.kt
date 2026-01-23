@@ -7,7 +7,7 @@ import javax.inject.Inject
 class CreateChatRoomUseCase @Inject constructor(
     private val chattingRepository: ChattingRepository
 ){
-    suspend operator fun invoke(receiverId: String): BaseResult<Long> {
-        return chattingRepository.createChatRoom(receiverId)
+    suspend operator fun invoke(receiverId: String, locationId: Long, longitude: Double, latitude: Double): BaseResult<Long> {
+        return chattingRepository.createChatRoom(receiverId, locationId, longitude, latitude)
     }
 }
