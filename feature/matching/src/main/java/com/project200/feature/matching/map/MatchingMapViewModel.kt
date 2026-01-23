@@ -419,6 +419,6 @@ class MatchingMapViewModel
             private const val KEY_FIRST_MATCHING_VISIT = "key_first_matching_visit"
             private const val THRESHOLD_RATE = 0.3
             private const val FILTER_LOADING_DELAY_MS = 500L
-            private const val MIN_ZOOM_LEVEL_FOR_MEMBERS = 13
+            private const val MIN_ZOOM_LEVEL_FOR_MEMBERS = 12
         }
     }
