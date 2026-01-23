@@ -138,12 +138,12 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.profile.R.id.urlFormFragment,
                 com.project200.undabang.feature.profile.R.id.notificationFragment,
                 com.project200.undabang.feature.profile.R.id.blockMembersFragment,
+                com.project200.undabang.feature.profile.R.id.preferredExerciseFragment,
                 com.project200.undabang.feature.matching.R.id.matchingProfileFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceSearchFragment,
                 com.project200.undabang.feature.matching.R.id.exercisePlaceRegisterFragment,
                 com.project200.undabang.feature.matching.R.id.matchingGuideFragment,
-                com.project200.undabang.feature.matching.R.id.matchingUrlFormFragment,
                 com.project200.undabang.feature.chatting.R.id.chattingRoomFragment,
                 // ... 필요한 다른 프래그먼트 ID들 추가 ... //
             )

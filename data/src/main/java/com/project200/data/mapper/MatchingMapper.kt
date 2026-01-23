@@ -29,6 +29,7 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
                     skillLevel = it.skillLevel,
                     daysOfWeek = it.daysOfWeek,
                     imageUrl = it.imageUrl,
+                    exerciseTypeId = -1
                 )
             },
     )
@@ -36,8 +37,8 @@ fun GetMatchingMembersDto.toModel(): MatchingMember {
 
 fun LocationDto.toModel(): Location {
     return Location(
-        exerciseLocationId = this.exerciseLocationId,
-        exerciseLocationName = this.exerciseLocationName,
+        placeId = this.exerciseLocationId,
+        placeName = this.exerciseLocationName,
         latitude = this.latitude,
         longitude = this.longitude,
     )
@@ -55,15 +56,7 @@ fun GetMatchingProfileDTO.toModel(): MatchingMemberProfile {
         exerciseCountInLast30Days = this.exerciseCountInLast30Days,
         exerciseScore = this.exerciseScore,
         preferredExercises =
-            this.preferredExercises.map {
-                PreferredExercise(
-                    preferredExerciseId = it.preferredExerciseId,
-                    name = it.name,
-                    skillLevel = it.skillLevel,
-                    daysOfWeek = it.daysOfWeek,
-                    imageUrl = it.imageUrl,
-                )
-            },
+            this.preferredExercises.map { it.toModel() },
     )
 }
 

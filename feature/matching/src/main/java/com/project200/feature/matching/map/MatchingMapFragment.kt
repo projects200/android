@@ -176,8 +176,15 @@ class MatchingMapFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.shouldShowPlaceDialog.collect {
+                    viewModel.shouldShowPlaceGuideDialog.collect {
                         showPlaceGuideDialog()
+                    }
+                }
+                launch {
+                    viewModel.shouldShowGuide.collect {
+                        findNavController().navigate(
+                            MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
+                        )
                     }
                 }
                 launch {
@@ -277,7 +284,7 @@ class MatchingMapFragment :
             MatchingPlaceGuideDialog(
                 onGoToPlaceRegister = {
                     findNavController().navigate(
-                        MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceSearchFragment(),
+                        MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
                     )
                 },
             )
@@ -289,7 +296,10 @@ class MatchingMapFragment :
         val bottomSheet =
             MembersBottomSheetDialog(items) { item ->
                 findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(item.member.memberId),
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
+                        memberId = item.member.memberId,
+                        placeId = item.location.placeId,
+                    ),
                 )
             }
         bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)

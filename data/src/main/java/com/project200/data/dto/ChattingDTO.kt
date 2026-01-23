@@ -1,6 +1,9 @@
 package com.project200.data.dto
 
+import com.project200.domain.model.SocketType
+import com.squareup.moshi.Json
 import com.squareup.moshi.JsonClass
+import com.squareup.moshi.Moshi
 import java.time.LocalDateTime
 
 @JsonClass(generateAdapter = true)
@@ -11,6 +14,9 @@ data class PostChatRoomResponse(
 @JsonClass(generateAdapter = true)
 data class PostChatRoomRequest(
     val receiverId: String,
+    val exerciseLocationId: Long,
+    val requesterLatitude: Double,
+    val requesterLongitude: Double,
 )
 
 @JsonClass(generateAdapter = true)
@@ -61,4 +67,57 @@ data class PostMessageResponse(
 @JsonClass(generateAdapter = true)
 data class PostChatMessageRequest(
     val content: String,
+)
+
+// 티켓 발급 응답
+@JsonClass(generateAdapter = true)
+data class TicketResponse(
+    @Json(name = "chatTicket")
+    val chatTicket: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatMessage(
+    val succeed: Boolean,
+    val type: SocketType,
+    val message: String? = null,
+    val data: Any? = null,
+) {
+    /**
+     * TALK 타입일 때 안전하게 DTO로 변환하여 가져오는 도우미 함수
+     */
+    fun getChatData(moshi: Moshi): SocketChatMessageDTO? {
+        if (type != SocketType.TALK || data == null) return null
+        return try {
+            val adapter = moshi.adapter(SocketChatMessageDTO::class.java)
+            adapter.fromJsonValue(data)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /**
+     * ERROR 타입일 때 data 필드에 담긴 에러 상세 내용을 가져오는 도우미 함수
+     */
+    fun getErrorDetail(): String? {
+        return data as? String
+    }
+}
+
+@JsonClass(generateAdapter = true)
+data class SocketChatMessageDTO(
+    val chatId: Long,
+    val senderId: String?,
+    val senderNickname: String?,
+    val senderProfileUrl: String?,
+    val senderThumbnailUrl: String?,
+    val chatContent: String,
+    val chatType: String,
+    val sentAt: LocalDateTime,
+)
+
+@JsonClass(generateAdapter = true)
+data class SocketChatRequest(
+    val type: SocketType,
+    val content: String?,
 )

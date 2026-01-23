@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.MatchingMemberProfile
+import com.project200.domain.model.PreferredExercise
 import com.project200.domain.usecase.BlockMemberUseCase
 import com.project200.domain.usecase.CreateChatRoomUseCase
 import com.project200.domain.usecase.GetMatchingMemberExerciseUseCase
@@ -30,6 +31,7 @@ class MatchingProfileViewModel
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private var memberId: String = ""
+        private var placeId: Long = -1L
 
         private val _profile = MutableLiveData<MatchingMemberProfile>()
         val profile: LiveData<MatchingMemberProfile> = _profile
@@ -48,11 +50,18 @@ class MatchingProfileViewModel
         private val _createChatRoomResult = MutableSharedFlow<BaseResult<Long>>()
         val createChatRoomResult: SharedFlow<BaseResult<Long>> = _createChatRoomResult
 
+        private val _preferredExercise = MutableLiveData<List<PreferredExercise>>()
+        val preferredExercise: LiveData<List<PreferredExercise>> = _preferredExercise
+
         private val _blockResult = MutableSharedFlow<BaseResult<Unit>>()
         val blockResult: SharedFlow<BaseResult<Unit>> = _blockResult
 
-        fun setMemberId(id: String) {
-            memberId = id
+        fun setInitialData(
+            memberId: String,
+            placeId: Long,
+        ) {
+            this.memberId = memberId
+            this.placeId = placeId
             getProfile(memberId)
 
             val initialMonth = clockProvider.yearMonthNow()
@@ -132,9 +141,19 @@ class MatchingProfileViewModel
             _selectedMonth.value = newMonth
         }
 
-        fun createChatRoom() {
+        fun createChatRoom(
+            latitude: Double,
+            longitude: Double,
+        ) {
             viewModelScope.launch {
-                _createChatRoomResult.emit(createChatRoomUseCase(memberId))
+                _createChatRoomResult.emit(
+                    createChatRoomUseCase(
+                        receiverId = memberId,
+                        locationId = placeId,
+                        longitude = longitude,
+                        latitude = latitude,
+                    ),
+                )
             }
         }
 

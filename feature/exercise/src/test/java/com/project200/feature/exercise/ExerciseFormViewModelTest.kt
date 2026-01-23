@@ -5,6 +5,7 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.SavedStateHandle
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
+import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
@@ -15,14 +16,19 @@ import com.project200.domain.model.SubmissionResult
 import com.project200.domain.model.ValidWindow
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
+import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
+import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
+import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
 import com.project200.feature.exercise.form.ExerciseImageListItem
-import com.project200.feature.exercise.form.ScoreGuidanceState
+import com.project200.feature.exercise.utils.ScoreGuidanceState
+import com.project200.undabang.feature.exercise.R
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import io.mockk.mockk
@@ -61,19 +67,31 @@ class ExerciseFormViewModelTest {
     @MockK
     private lateinit var mockExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
 
+    @MockK
+    private lateinit var mockGetExercisePlaceUseCase: GetExercisePlaceUseCase
+
+    @MockK
+    private lateinit var mockGetPreferredExerciseUseCase: GetPreferredExerciseUseCase
+
+    @MockK
+    private lateinit var mockGetPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase
+
+    @MockK
+    private lateinit var mockClockProvider: ClockProvider
+
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: ExerciseFormViewModel
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val now: LocalDateTime = LocalDateTime.now()
+    private val now: LocalDateTime = LocalDateTime.of(2025, 12, 23, 10, 0, 0)
     private val sampleRecord =
         ExerciseRecord(
             title = "테스트 운동",
             detail = "테스트 상세",
             personalType = "테스트",
-            startedAt = now.minusHours(1),
-            endedAt = now,
+            startedAt = now.minusHours(5),
+            endedAt = now.minusHours(4),
             location = "테스트 장소",
             pictures = null,
         )
@@ -101,6 +119,7 @@ class ExerciseFormViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { mockClockProvider.localDateTimeNow() } returns now
         coEvery { mockExpectedScoreInfoUseCase.invoke() } returns BaseResult.Success(sampleExpectedScoreInfo)
     }
 
@@ -118,6 +137,10 @@ class ExerciseFormViewModelTest {
                 uploadExerciseRecordImagesUseCase = mockUploadUseCase,
                 editExerciseRecordUseCase = mockEditUseCase,
                 getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
+                getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
+                getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
+                getPreferredExerciseTypesUseCase = mockGetPreferredExerciseTypesUseCase,
+                clockProvider = mockClockProvider,
             )
     }
 
@@ -125,11 +148,15 @@ class ExerciseFormViewModelTest {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel =
             ExerciseFormViewModel(
-                mockGetDetailUseCase,
-                mockCreateUseCase,
-                mockUploadUseCase,
-                mockEditUseCase,
-                mockExpectedScoreInfoUseCase,
+                getExerciseRecordDetailUseCase = mockGetDetailUseCase,
+                createExerciseRecordUseCase = mockCreateUseCase,
+                uploadExerciseRecordImagesUseCase = mockUploadUseCase,
+                editExerciseRecordUseCase = mockEditUseCase,
+                getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
+                getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
+                getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
+                getPreferredExerciseTypesUseCase = mockGetPreferredExerciseTypesUseCase,
+                clockProvider = mockClockProvider,
             )
         // 수정 모드 테스트를 위해 초기 데이터를 미리 로드합니다.
         coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
@@ -156,37 +183,36 @@ class ExerciseFormViewModelTest {
     }
 
     @Test
-    fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 false를 반환하고 값이 변경되지 않는다`() {
-        // Given: 시작 시간이 설정된 상태
+    fun `setEndTime - 시작 시간보다 이전의 종료 시간을 설정하면 시작 시간이 1시간 전으로 보정된다`() {
         setupViewModelForCreateMode()
-        val initialStartTime = now
-        viewModel.setStartTime(initialStartTime)
 
-        // Then: 현재 종료 시간이 null임을 확인
-        assertThat(viewModel.endTime.value).isNull()
+        // Given: 시작 시간을 09:00으로 설정
+        val start = now.minusHours(2) // 08:00
+        viewModel.setStartTime(start)
 
-        // When: 시작 시간보다 이른 시간으로 종료 시간을 설정 시도
-        val invalidEndTime = initialStartTime.minusHours(1) // invalidEndTime은 09:00
-        val result = viewModel.setEndTime(invalidEndTime)
+        // When: 종료 시간을 07:00으로 설정 (시작 시간보다 빠름)
+        val targetEnd = now.minusHours(3)
+        viewModel.setEndTime(targetEnd)
 
-        // Then: false를 반환하고, 종료 시간은 여전히 null
-        assertThat(result).isFalse()
-        assertThat(viewModel.endTime.value).isNull()
+        // Then: 보정 로직에 의해 시작 시간이 종료 시간 1시간 전인 07:00으로 바뀜
+        assertThat(viewModel.endTime.value).isEqualTo(targetEnd)
+        assertThat(viewModel.startTime.value).isEqualTo(targetEnd.minusHours(1))
     }
 
     @Test
-    fun `setStartTime - 기존 종료 시간보다 늦은 시작 시간을 설정하면 종료 시간이 초기화된다`() {
-        // Given: 시작과 종료 시간이 모두 설정된 상태
+    fun `setStartTime - 종료 시간보다 늦은 시작 시간을 설정하면 종료 시간이 1시간 후로 보정된다`() {
         setupViewModelForCreateMode()
-        viewModel.setStartTime(now.minusHours(1))
-        viewModel.setEndTime(now.minusMinutes(30))
-        assertThat(viewModel.endTime.value).isNotNull()
 
-        // When: 기존 종료 시간보다 늦은 시간으로 시작 시간을 재설정
-        viewModel.setStartTime(now)
+        // Given: 종료 시간이 07:00인 상태
+        viewModel.setEndTime(now.minusHours(3))
 
-        // Then: 종료 시간이 null로 초기화되어야 함
-        assertThat(viewModel.endTime.value).isNull()
+        // When: 시작 시간을 08:00으로 설정 (종료 시간보다 늦음)
+        val targetStart = now.minusHours(2)
+        viewModel.setStartTime(targetStart)
+
+        // Then: 종료 시간이 시작 시간 1시간 후인 09:00으로 밀려남
+        assertThat(viewModel.startTime.value).isEqualTo(targetStart)
+        assertThat(viewModel.endTime.value).isEqualTo(targetStart.plusHours(1))
     }
 
     @Test
@@ -220,24 +246,19 @@ class ExerciseFormViewModelTest {
     @Test
     fun `hasContentChanges - 다른 내용은 그대로고 시간만 변경되어도 변경으로 감지한다`() =
         runTest {
-            // Given: 수정 모드
             setupViewModelForEditMode()
             coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
 
-            // When: 다른 내용은 그대로 두고, 종료 시간만 변경하여 제출
-            viewModel.setEndTime(sampleRecord.endedAt.plusHours(1))
-            viewModel.submitRecord(
-                recordId = recordId,
-                title = sampleRecord.title,
-                type = sampleRecord.personalType,
-                location = sampleRecord.location,
-                detail = sampleRecord.detail,
-            )
+            // When: 종료 시간 변경 (06:00 -> 07:00). 현재 시간 10시보다 전이므로 정상 반영됨
+            val newEnd = sampleRecord.endedAt.plusHours(1)
+            viewModel.setEndTime(newEnd)
+
+            viewModel.submitRecord(recordId, sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then: useCase가 호출되어야 함 (변경 사항이 없다는 토스트 메시지가 뜨지 않아야 함)
-            assertThat(viewModel.toastMessage.value).isNotEqualTo(ExerciseFormViewModel.NO_CHANGE)
-            coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
+            // Then: 변경이 감지되어 USE CASE가 호출되어야 함
+            assertThat(viewModel.toastMessage.value).isNotEqualTo(R.string.exercise_no_change)
+            coVerify(exactly = 1) { mockEditUseCase(any(), any(), true, any(), any()) }
         }
 
     @Test
@@ -259,7 +280,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: useCase가 호출되어야 함
-            assertThat(viewModel.toastMessage.value).isNotEqualTo(ExerciseFormViewModel.NO_CHANGE)
+            assertThat(viewModel.toastMessage.value).isNotEqualTo(R.string.exercise_no_change)
             coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
         }
 
@@ -364,7 +385,7 @@ class ExerciseFormViewModelTest {
             val actual = viewModel.createResult.value
             assertThat(actual).isInstanceOf(SubmissionResult.PartialSuccess::class.java)
             assertThat((actual as SubmissionResult.PartialSuccess).recordId).isEqualTo(recordId)
-            assertThat(actual.message).isEqualTo(ExerciseFormViewModel.UPLOAD_FAIL)
+            assertThat(actual.messageId).isEqualTo(R.string.exercise_upload_fail)
         }
 
     /** 수정 모드 테스트
@@ -412,20 +433,16 @@ class ExerciseFormViewModelTest {
 
     @Test
     fun `submitRecord 호출 시 수정 모드에서 변경 사항이 없을 경우`() =
-        runTest(testDispatcher) {
-            // Given: 수정 모드로 ViewModel을 설정하고, 초기 데이터를 로드
+        runTest {
             setupViewModelForEditMode()
-            coEvery { mockGetDetailUseCase(recordId) } returns BaseResult.Success(sampleRecord)
-            viewModel.loadInitialRecord(recordId)
-            testDispatcher.scheduler.advanceUntilIdle()
 
-            // When: 변경 없이 동일한 내용으로 기록 제출
+            // When: 아무것도 안 바꾸고 제출
             viewModel.submitRecord(recordId, sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then: 변경 사항이 없으므로 useCase가 호출되지 않고, 토스트 메시지가 표시되는지 검증
+            // Then: R.string.exercise_no_change 가 발생해야 함 (기존 테스트 오타 수정)
+            assertThat(viewModel.toastMessage.value).isEqualTo(R.string.exercise_no_change)
             coVerify(exactly = 0) { mockEditUseCase(any(), any(), any(), any(), any()) }
-            assertThat(viewModel.toastMessage.value).isEqualTo(ExerciseFormViewModel.NO_CHANGE)
         }
 
     @Test
@@ -506,16 +523,15 @@ class ExerciseFormViewModelTest {
                 BaseResult.Success(
                     sampleExpectedScoreInfo.copy(currentUserScore = 100),
                 )
-            val testStartTime = LocalDateTime.now()
 
             // When
-            viewModel.setStartTime(testStartTime)
+            viewModel.setStartTime(now.minusMinutes(10))
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
             val guidanceState = viewModel.scoreGuidanceState.value
             assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
-            assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.MAX_SCORE_REACHED)
+            assertThat((guidanceState as ScoreGuidanceState.Warning).messageId).isEqualTo(R.string.exercise_max_score_reached)
         }
 
     @Test
@@ -536,7 +552,7 @@ class ExerciseFormViewModelTest {
             // Then
             val guidanceState = viewModel.scoreGuidanceState.value
             assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
-            assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.ALREADY_SCORED_TODAY)
+            assertThat((guidanceState as ScoreGuidanceState.Warning).messageId).isEqualTo(R.string.exercise_already_scored_today)
         }
 
     @Test
@@ -563,7 +579,7 @@ class ExerciseFormViewModelTest {
             // Then
             val guidanceState = viewModel.scoreGuidanceState.value
             assertThat(guidanceState).isInstanceOf(ScoreGuidanceState.Warning::class.java)
-            assertThat((guidanceState as ScoreGuidanceState.Warning).message).isEqualTo(ExerciseFormViewModel.UPLOAD_PERIOD_EXPIRED)
+            assertThat((guidanceState as ScoreGuidanceState.Warning).messageId).isEqualTo(R.string.exercise_upload_period_expired)
         }
 
     @Test
@@ -579,7 +595,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.toastMessage.value).isEqualTo(ExerciseFormViewModel.FETCH_SCORE_INFO_FAIL)
+            assertThat(viewModel.toastMessage.value).isEqualTo(R.string.exercise_fetch_score_info_fail)
             assertThat(viewModel.scoreGuidanceState.value).isEqualTo(ScoreGuidanceState.Hidden)
         }
 }

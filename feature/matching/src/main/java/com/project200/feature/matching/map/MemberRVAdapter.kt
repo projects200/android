@@ -54,7 +54,7 @@ class MemberRVAdapter(
                     item.member.gender,
                     item.member.birthDate,
                 )
-            binding.placeNameTv.text = item.location.exerciseLocationName
+            binding.placeNameTv.text = item.location.placeName
 
             val imageRes = item.member.profileThumbnailUrl ?: item.member.profileImageUrl
 

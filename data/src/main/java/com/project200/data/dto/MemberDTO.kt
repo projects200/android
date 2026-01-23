@@ -21,16 +21,45 @@ data class GetProfileDTO(
     val yearlyExerciseDays: Int,
     val exerciseCountInLast30Days: Int,
     val exerciseScore: Int,
-    val preferredExercises: List<PreferredExerciseDTO>,
+    val preferredExercises: List<GetProfilePreferredExerciseDTO>,
 )
 
 @JsonClass(generateAdapter = true)
-data class PreferredExerciseDTO(
-    val preferredExerciseId: Int,
+data class GetProfilePreferredExerciseDTO(
+    val preferredExerciseId: Long,
     val name: String,
     val skillLevel: String,
     val daysOfWeek: List<Boolean>,
-    val imageUrl: String,
+    val imageUrl: String?,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetPreferredExerciseDTO(
+    val preferredExerciseId: Long,
+    val exerciseTypeId: Long,
+    val exerciseName: String,
+    val skillLevel: String,
+    val daysOfWeek: List<Boolean>,
+    val imageUrl: String?,
+)
+
+@JsonClass(generateAdapter = true)
+data class GetPreferredExerciseTypeDTO(
+    val exerciseId: Long,
+    val exerciseName: String,
+    val imageUrl: String?,
+)
+
+@JsonClass(generateAdapter = true)
+data class PostPreferredExerciseDTO(
+    val exerciseTypeId: Long,
+    val skillLevel: String,
+    val daysOfWeek: List<Boolean>,
+)
+
+@JsonClass(generateAdapter = true)
+data class DeletePreferredExerciseDTO(
+    val preferredExerciseIds: List<Long>,
 )
 
 @JsonClass(generateAdapter = true)

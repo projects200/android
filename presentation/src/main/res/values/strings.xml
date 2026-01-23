@@ -59,6 +59,21 @@
     <string name="block_dialog_title">회원 차단</string>
     <string name="block">차단</string>
     <string name="block_dialog_content">차단하면 차단한 회원이 보내는 메세지를 받을 수 없습니다. 또한, 매칭 지도에서 차단한 회원을 조회할 수 없습니다.</string>
+    
+    <string name="mon">월</string>
+    <string name="tue">화</string>
+    <string name="wed">수</string>
+    <string name="thu">목</string>
+    <string name="fri">금</string>
+    <string name="sat">토</string>
+    <string name="sun">일</string>
+
+    <string name="skill_beginner">입문</string>
+    <string name="skill_rookie">초급</string>
+    <string name="skill_intermediate">중급</string>
+    <string name="skill_advanced">고급</string>
+    <string name="skill_skilled">숙련</string>
+    <string name="skill_pro">선출</string>
 
     <!-- 에러 -->
     <string name="unknown_error">알 수 없는 오류가 발생했습니다.</string>

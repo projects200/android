@@ -1,11 +1,13 @@
 package com.project200.feature.matching.map
 
+import android.content.SharedPreferences
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kakao.vectormap.LatLng
 import com.project200.common.utils.ClockProvider
+import com.project200.common.utils.DefaultPrefs
 import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
@@ -45,6 +47,7 @@ class MatchingMapViewModel
         private val saveLastMapPositionUseCase: SaveLastMapPositionUseCase,
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
         private val clockProvider: ClockProvider,
+        @DefaultPrefs private val sharedPreferences: SharedPreferences,
     ) : ViewModel() {
         // 회원 목록
         private val matchingMembers =
@@ -104,14 +107,25 @@ class MatchingMapViewModel
         private val _initialMapPosition = MutableLiveData<MapPosition?>()
         val initialMapPosition: LiveData<MapPosition?> = _initialMapPosition
 
-        // 장소 안내 다이얼로그 표시 알림
-        private val _shouldShowPlaceDialog = MutableSharedFlow<Unit>()
-        val shouldShowPlaceDialog: SharedFlow<Unit> = _shouldShowPlaceDialog
+        // 운동 장소 다이얼로그 표시 알림
+        private val _shouldShowPlaceGuideDialog = MutableSharedFlow<Unit>()
+        val shouldShowPlaceGuideDialog: SharedFlow<Unit> = _shouldShowPlaceGuideDialog
+
+        // 매칭 가이드 알림
+        private val _shouldShowGuide = MutableSharedFlow<Unit>()
+        val shouldShowGuide: SharedFlow<Unit> = _shouldShowGuide
 
         private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
-            checkExercisePlace()
+            // 1. 최초 방문 여부를 먼저 확인합니다.
+            val isFirstVisit = checkFirstVisit()
+
+            // 2. 최초 방문이 아닐 때만 장소 검사(다이얼로그 표시 로직)를 실행합니다.
+            if (!isFirstVisit) {
+                checkExercisePlace()
+            }
+
             loadInitialMapPosition()
         }
 
@@ -174,17 +188,18 @@ class MatchingMapViewModel
                 when (result) {
                     is BaseResult.Success -> {
                         if (result.data.isEmpty()) {
-                            _shouldShowPlaceDialog.emit(Unit)
+                            _shouldShowPlaceGuideDialog.emit(Unit)
                         }
                     }
 
                     is BaseResult.Error -> {
                         // 에러 발생 시에도 없다고 간주하고 다이얼로그 표시
-                        _shouldShowPlaceDialog.emit(Unit)
+                        _shouldShowPlaceGuideDialog.emit(Unit)
                     }
                 }
             }
         }
+
 
         // 필터 버튼 클릭 시 호출
         fun onFilterTypeClicked(type: MatchingFilterType) {
@@ -355,6 +370,21 @@ class MatchingMapViewModel
             return latDiff > latThreshold || lngDiff > lngThreshold
         }
 
+        /**
+         * 최초 방문 여부를 확인하고 가이드 화면 이동 이벤트를 발생시킵니다.
+         * @return 최초 방문이면 true, 아니면 false
+         */
+        private fun checkFirstVisit(): Boolean {
+            val isFirstVisit = sharedPreferences.getBoolean(KEY_FIRST_MATCHING_VISIT, true)
+
+            if (isFirstVisit) {
+                viewModelScope.launch {
+                    _shouldShowGuide.emit(Unit)
+                }
+            }
+            return isFirstVisit
+        }
+
         private fun <T> toggle(
             current: T?,
             selected: Any?,
@@ -364,6 +394,7 @@ class MatchingMapViewModel
         }
 
         companion object {
+            private const val KEY_FIRST_MATCHING_VISIT = "key_first_matching_visit"
             private const val THRESHOLD_RATE = 0.3
             private const val FILTER_LOADING_DELAY_MS = 500L
         }

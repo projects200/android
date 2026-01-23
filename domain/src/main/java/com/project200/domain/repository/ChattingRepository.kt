@@ -6,7 +6,7 @@ import com.project200.domain.model.ChattingModel
 import com.project200.domain.model.ChattingRoom
 
 interface ChattingRepository {
-    suspend fun createChatRoom(receiverId: String): BaseResult<Long>
+    suspend fun createChatRoom(receiverId: String, locationId: Long, longitude: Double, latitude: Double): BaseResult<Long>
     suspend fun deleteChatRoom(chatRoomId: Long): BaseResult<Unit>
     suspend fun getChattingRooms(): BaseResult<List<ChattingRoom>>
     suspend fun getChattingMessages(chatRoomId: Long, prevChatId: Long?, size: Int): BaseResult<ChattingModel>

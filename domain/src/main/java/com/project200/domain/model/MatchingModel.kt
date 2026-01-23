@@ -13,8 +13,8 @@ data class MatchingMember(
 )
 
 data class Location(
-    val exerciseLocationId: Long,
-    val exerciseLocationName: String,
+    val placeId: Long,
+    val placeName: String,
     val latitude: Double,
     val longitude: Double
 )

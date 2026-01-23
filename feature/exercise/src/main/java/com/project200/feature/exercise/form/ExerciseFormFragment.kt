@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat.getDrawable
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
@@ -12,10 +13,14 @@ import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.GridLayoutManager
 import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
+import com.project200.common.utils.CommonDateTimeFormatters.HH_MM_KR
+import com.project200.common.utils.CommonDateTimeFormatters.YYYY_MM_DD_KR
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragment
+import com.project200.feature.exercise.utils.ScoreGuidanceState
+import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
@@ -23,16 +28,16 @@ import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
 import com.project200.presentation.utils.ImageValidator.INVALID_TYPE
 import com.project200.presentation.utils.ImageValidator.OVERSIZE
 import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeInsets
+import com.project200.presentation.utils.TimeEditTextLimiter.addRangeLimit
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
+import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
-import timber.log.Timber
-import java.time.LocalDateTime
 import java.time.ZoneId
-import java.time.temporal.ChronoUnit
 import java.util.Calendar
+import java.util.Date
 
 @AndroidEntryPoint
 class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layout.fragment_exercise_form) {
@@ -121,20 +126,107 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             )
         }
         viewModel.loadInitialRecord(args.recordId)
+        viewModel.loadExerciseTypes()
+        viewModel.loadExerciseLocation()
+
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
-        initClickListeners()
+        initListeners()
     }
 
-    private fun initClickListeners() {
-        binding.startTimeBtn.setOnClickListener { showTimePickerDialog(true) }
-        binding.endTimeBtn.setOnClickListener { showTimePickerDialog(false) }
+    private fun initListeners() {
+        // 운동 종류 선택 버튼
+        binding.recordTypeSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseTypeList.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseTypes() // 데이터가 없으면 다시 요청
+                return@setOnClickListener
+            }
 
+            SelectionBottomSheetDialog(items, binding.recordTypeSelectBtn.text.toString()) { selectedType ->
+                if (selectedType == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    binding.recordTypeSelectBtn.setText(R.string.exercise_record_type_direct)
+                    binding.recordTypeEt.apply {
+                        setText("")
+                        visibility = View.VISIBLE
+                        requestFocus()
+                    }
+                } else {
+                    binding.recordTypeSelectBtn.setText(selectedType)
+                    binding.recordTypeEt.visibility = View.GONE
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
+        // 시간/날짜 버튼 클릭 리스너 설정
+        binding.startDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_DATE) }
+        binding.startTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_TIME) }
+        binding.endDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_DATE) }
+        binding.endTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.END_TIME) }
+
+        binding.timeHourEt.addRangeLimit(23)
+        binding.timeMinuteEt.addRangeLimit(59)
+
+        // 캘린더 날짜 선택
+        binding.exerciseDateCalendar.setOnDateChangeListener { _, year, month, dayOfMonth ->
+            viewModel.updateDate(year, month, dayOfMonth)
+        }
+
+        // 시간 입력 확인
+        binding.timeConfirmBtn.setOnClickListener {
+            val hour = binding.timeHourEt.text.toString().toIntOrNull()
+            val minute = binding.timeMinuteEt.text.toString().toIntOrNull()
+
+            if (hour == null || minute == null || hour !in 0..23 || minute !in 0..59) {
+                Toast.makeText(requireContext(), "유효한 시간을 입력해주세요.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            viewModel.updateTime(hour, minute)
+        }
+
+        // 운동 장소 선택 버튼
+        binding.recordLocationSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseLocation.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseLocation()
+                return@setOnClickListener
+            }
+
+            SelectionBottomSheetDialog(items, binding.recordLocationSelectBtn.text.toString()) { selectedLocation ->
+                if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    findNavController().navigate(
+                        ExerciseFormFragmentDirections.actionExerciseFormFragmentToPlaceSearchFragment(),
+                    )
+                } else {
+                    binding.recordLocationSelectBtn.setText(selectedLocation)
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
+        // 기록 완료 버튼
         binding.recordCompleteBtn.setOnClickListener {
+            val type = binding.recordTypeSelectBtn.text.toString().trim()
+            if (type == getString(R.string.exercise_record_type_direct) &&
+                binding.recordTypeEt.text.toString().isBlank()
+            ) {
+                Toast.makeText(requireContext(), R.string.exercise_record_type_direct_input_warning, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             viewModel.submitRecord(
                 recordId = args.recordId,
                 title = binding.recordTitleEt.text.toString().trim(),
-                type = binding.recordTypeEt.text.toString().trim(),
-                location = binding.recordLocationEt.text.toString().trim(),
+                type =
+                    if (type ==
+                        getString(
+                            R.string.exercise_record_type_direct,
+                        )
+                    ) {
+                        binding.recordTypeEt.text.toString().trim()
+                    } else {
+                        binding.recordTypeSelectBtn.text.toString().trim()
+                    },
+                location = binding.recordLocationSelectBtn.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
         }
@@ -144,54 +236,38 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         pickMultipleMediaLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
     }
 
-    private fun showTimePickerDialog(isStart: Boolean) {
-        // 기존 선택된 시간이 있다면 해당 시간을 사용하고, 없다면 현재 시간을 기준으로 5분 단위로 내림한 시간으로 설정
-        val dateTimeToShow =
-            (if (isStart) viewModel.startTime.value else viewModel.endTime.value) ?: run {
-                val now = LocalDateTime.now()
-                val flooredMinute = (now.minute / 5) * 5
-                now.withMinute(flooredMinute).truncatedTo(ChronoUnit.MINUTES)
-            }
-
-        val initialCalendar =
-            Calendar.getInstance().apply {
-                timeInMillis = dateTimeToShow.atZone(ZoneId.of("Asia/Seoul")).toInstant().toEpochMilli()
-            }
-
-        // 다이얼로그 생성 및 표시
-        val dialog =
-            ExerciseTimeDialog.newInstance(initialCalendar).apply {
-                onDateTimeSelected = { year, month, day, hour, minute ->
-                    val selectedDateTime = LocalDateTime.of(year, month + 1, day, hour, minute)
-                    if (isStart) {
-                        viewModel.setStartTime(selectedDateTime)
-                    } else {
-                        if (!viewModel.setEndTime(selectedDateTime)) {
-                            Toast.makeText(requireContext(), getString(R.string.exercise_record_time_error), Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-            }
-        dialog.show(parentFragmentManager, ExerciseTimeDialog::class.java.simpleName)
-    }
-
     override fun setupObservers() {
+        // 시작 시간
         viewModel.startTime.observe(viewLifecycleOwner) { dateTime ->
-            binding.startTimeBtn.text = dateTime?.let {
-                viewModel.dateTimeFormatter.format(
-                    it,
-                )
-            } ?: getString(R.string.exercise_record_start_time)
-            binding.startTimeIv.isVisible = dateTime == null
+            binding.startDateBtn.text = dateTime?.format(YYYY_MM_DD_KR)
+            binding.startTimeBtn.text = dateTime?.format(HH_MM_KR)
+            // CalendarView의 날짜도 동기화
+            dateTime?.let {
+                val calendar = Calendar.getInstance()
+                calendar.time = Date.from(it.atZone(ZoneId.systemDefault()).toInstant())
+                binding.exerciseDateCalendar.date = calendar.timeInMillis
+            }
         }
 
+        // 종료 시간
         viewModel.endTime.observe(viewLifecycleOwner) { dateTime ->
-            binding.endTimeBtn.text = dateTime?.let {
-                viewModel.dateTimeFormatter.format(
-                    it,
-                )
-            } ?: getString(R.string.exercise_record_end_time)
-            binding.endTimeIv.isVisible = dateTime == null
+            binding.endDateBtn.text = dateTime?.format(YYYY_MM_DD_KR)
+            binding.endTimeBtn.text = dateTime?.format(HH_MM_KR)
+        }
+
+        // 시간 선택 상태 (어떤 버튼이 선택되었는지)
+        viewModel.timeSelectionState.observe(viewLifecycleOwner) { state ->
+            updateTimeSelectionUi(state)
+        }
+
+        findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<String>(
+            PlaceSearchFragment.KEY_SELECTED_PLACE,
+        )?.observe(viewLifecycleOwner) { name ->
+            binding.recordLocationSelectBtn.setText(name)
+            // 선택 후에는 결과 삭제
+            findNavController().currentBackStackEntry?.savedStateHandle?.remove<String>(
+                PlaceSearchFragment.KEY_SELECTED_PLACE,
+            )
         }
 
         viewModel.imageItems.observe(viewLifecycleOwner) { items ->
@@ -255,9 +331,9 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             }
         }
 
-        viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            if (!message.isNullOrEmpty()) {
-                Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+        viewModel.toastMessage.observe(viewLifecycleOwner) { messageId ->
+            messageId?.let {
+                Toast.makeText(requireContext(), getString(messageId), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -268,7 +344,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 }
                 is ScoreGuidanceState.Warning -> {
                     binding.scoreWarningTv.isVisible = true
-                    binding.scoreWarningTv.text = state.message
+                    binding.scoreWarningTv.text = getString(state.messageId)
                 }
                 is ScoreGuidanceState.PointsAvailable -> {
                     binding.scoreWarningTv.isVisible = false
@@ -279,23 +355,63 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private fun setupInitialData(record: ExerciseRecord) {
         binding.recordTitleEt.setText(record.title)
-        binding.recordTypeEt.setText(record.personalType)
-        binding.recordLocationEt.setText(record.location)
+        binding.recordTypeSelectBtn.setText(record.personalType)
+        binding.recordLocationSelectBtn.setText(record.location)
         binding.recordDescEt.setText(record.detail)
+    }
+
+    // 선택된 시간/날짜 UI를 업데이트하는 함수
+    private fun updateTimeSelectionUi(state: TimeSelectionState) {
+        // 모든 선택 UI 초기화
+        binding.startDateBtn.background = null
+        binding.startTimeBtn.background = null
+        binding.endDateBtn.background = null
+        binding.endTimeBtn.background = null
+
+        binding.exerciseDateCalendar.isVisible = false
+        binding.timeSelectorLl.isVisible = false
+
+        // 현재 상태에 맞는 UI 활성화
+        val indicator = getDrawable(requireContext(), R.drawable.bg_time_indicator)
+        when (state) {
+            TimeSelectionState.START_DATE -> {
+                binding.startDateBtn.background = indicator
+                binding.exerciseDateCalendar.isVisible = true
+            }
+            TimeSelectionState.START_TIME -> {
+                binding.startTimeBtn.background = indicator
+                binding.timeSelectorLl.isVisible = true
+                // 현재 시간으로 EditText 초기화
+                val time = viewModel.startTime.value
+                binding.timeHourEt.setText(time?.hour?.toString()?.padStart(2, '0') ?: "")
+                binding.timeMinuteEt.setText(time?.minute?.toString()?.padStart(2, '0') ?: "")
+            }
+            TimeSelectionState.END_DATE -> {
+                binding.endDateBtn.background = indicator
+                binding.exerciseDateCalendar.isVisible = true
+            }
+            TimeSelectionState.END_TIME -> {
+                binding.endTimeBtn.background = indicator
+                binding.timeSelectorLl.isVisible = true
+
+                val time = viewModel.endTime.value
+                binding.timeHourEt.setText(time?.hour?.toString()?.padStart(2, '0') ?: "")
+                binding.timeMinuteEt.setText(time?.minute?.toString()?.padStart(2, '0') ?: "")
+            }
+            TimeSelectionState.NONE -> { }
+        }
     }
 
     private fun handleSuccessfulCreate(earnedPoints: Int) {
         when {
             (earnedPoints > 0) -> {
-                Timber.tag("ExerciseFormFragment").d("PointsAvailable")
                 ScoreCongratulationDialog(earnedPoints).apply {
                     confirmClickListener = {
                         findNavController().popBackStack()
                     }
-                }.show(parentFragmentManager, "ScoreCongratulationDialog")
+                }.show(parentFragmentManager, ScoreCongratulationDialog::class.java.name)
             }
             else -> {
-                Timber.tag("ExerciseFormFragment").d("불가능")
                 findNavController().popBackStack()
             }
         }
