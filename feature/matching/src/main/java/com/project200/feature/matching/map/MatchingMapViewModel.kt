@@ -123,10 +123,10 @@ class MatchingMapViewModel
         private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
-            // 1. 최초 방문 여부를 먼저 확인합니다.
+            // 최초 방문 여부를 먼저 확인합니다.
             val isFirstVisit = checkFirstVisit()
 
-            // 2. 최초 방문이 아닐 때만 장소 검사(다이얼로그 표시 로직)를 실행합니다.
+            // 최초 방문이 아닐 때만 장소 검사(다이얼로그 표시 로직)를 실행합니다.
             if (!isFirstVisit) {
                 checkExercisePlace()
             }

@@ -92,5 +92,5 @@
     <string name="filter_skill">숙련도</string>
     <string name="filter_score">운동 점수</string>
 
-    <string name="zoom_level_warning">지도를 확대하여 운동 메이트를 확인하세요</string>
+    <string name="zoom_level_warning">운동장소 확인을 위해 지도를 확대해주세요</string>
 </resources>
