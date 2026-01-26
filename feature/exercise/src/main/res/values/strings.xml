@@ -86,4 +86,14 @@
     <string name="exercise_already_scored_today">이 날은 이미 점수를 획득했어요</string>
     <string name="exercise_upload_period_expired">점수를 획득할 수 있는 기간이 지났어요</string>
     <string name="exercise_max_score_reached">점수가 최대치에 도달했어요!</string>
+
+    <!-- 스티커 -->
+    <string name="sticker_total_time">TOTAL TIME</string>
+    <string name="sticker_mascot_description">운다방 마스코트</string>
+    <string name="sticker_type_description">운동 종류 아이콘</string>
+    <string name="sticker_location_description">장소 아이콘</string>
+    <string name="exercise_share">공유하기</string>
+    <string name="share_to_instagram_story">인스타그램 스토리</string>
+    <string name="share_to_instagram_feed">인스타그램 피드</string>
+    <string name="share_to_others">다른 앱으로 공유</string>
 </resources>
