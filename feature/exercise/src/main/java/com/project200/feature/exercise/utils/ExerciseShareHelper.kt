@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -13,26 +14,32 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
+import androidx.core.graphics.scale
 
 object ExerciseShareHelper {
 
     private const val SHARE_IMAGE_FILE_NAME = "exercise_share.png"
     private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
-    private const val STICKER_MARGIN_DP = 24f
+    private const val STICKER_WIDTH_RATIO = 0.45f
+    private const val STICKER_MARGIN_RATIO = 0.03f
 
     suspend fun shareExerciseRecord(
         context: Context,
         record: ExerciseRecord
     ) {
+        val backgroundImageUrl = record.pictures?.firstOrNull()?.url
+
+        val backgroundBitmap = withContext(Dispatchers.IO) {
+            backgroundImageUrl?.let { loadBitmapFromUrl(context, it) }
+        }
+
         val stickerBitmap = withContext(Dispatchers.Main) {
             ExerciseRecordStickerGenerator.generateStickerBitmap(context, record)
         }
 
-        val backgroundImageUrl = record.pictures?.firstOrNull()?.url
-
         val imageUri = withContext(Dispatchers.IO) {
-            val combinedBitmap = createCombinedImage(context, stickerBitmap, backgroundImageUrl)
-            saveBitmapToCache(context, combinedBitmap, SHARE_IMAGE_FILE_NAME)
+            val combinedBitmap = createCombinedImage(stickerBitmap, backgroundBitmap)
+            saveBitmapToCache(context, combinedBitmap)
         }
 
         val intent = Intent(Intent.ACTION_SEND).apply {
@@ -45,25 +52,29 @@ object ExerciseShareHelper {
     }
 
     private fun createCombinedImage(
-        context: Context,
         stickerBitmap: Bitmap,
-        backgroundImageUrl: String?
+        backgroundBitmap: Bitmap?
     ): Bitmap {
-        val backgroundBitmap = backgroundImageUrl?.let { loadBitmapFromUrl(context, it) }
-
-        return if (backgroundBitmap != null) {
-            val resultBitmap = backgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
-            val canvas = Canvas(resultBitmap)
-
-            val density = context.resources.displayMetrics.density
-            val margin = STICKER_MARGIN_DP * density
-
-            canvas.drawBitmap(stickerBitmap, margin, margin, Paint())
-
-            resultBitmap
-        } else {
-            stickerBitmap
+        if (backgroundBitmap == null) {
+            return stickerBitmap
         }
+
+        val resultBitmap = backgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
+        val canvas = Canvas(resultBitmap)
+
+        val targetStickerWidth = backgroundBitmap.width * STICKER_WIDTH_RATIO
+        val scale = targetStickerWidth / stickerBitmap.width
+        val scaledStickerWidth = (stickerBitmap.width * scale).toInt()
+        val scaledStickerHeight = (stickerBitmap.height * scale).toInt()
+
+        val scaledSticker = stickerBitmap.scale(scaledStickerWidth, scaledStickerHeight)
+
+        val margin = backgroundBitmap.width * STICKER_MARGIN_RATIO
+
+        canvas.drawBitmap(scaledSticker, margin, margin, Paint(Paint.FILTER_BITMAP_FLAG))
+
+        scaledSticker.recycle()
+        return resultBitmap
     }
 
     private fun loadBitmapFromUrl(context: Context, url: String): Bitmap? {
@@ -78,13 +89,13 @@ object ExerciseShareHelper {
         }
     }
 
-    private fun saveBitmapToCache(context: Context, bitmap: Bitmap, fileName: String): Uri {
+    private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri {
         val cacheDir = File(context.cacheDir, "share")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
         }
 
-        val file = File(cacheDir, fileName)
+        val file = File(cacheDir, SHARE_IMAGE_FILE_NAME)
         FileOutputStream(file).use { stream ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         }
