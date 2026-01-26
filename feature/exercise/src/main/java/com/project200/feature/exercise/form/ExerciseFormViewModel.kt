@@ -13,8 +13,11 @@ import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
+import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
+import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
+import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
@@ -35,6 +38,9 @@ class ExerciseFormViewModel
         private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
         private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
+        private val getPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase,
+        private val getPreferredExerciseUseCase: GetPreferredExerciseUseCase,
+        private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
         private val _startTime = MutableLiveData<LocalDateTime?>()
@@ -53,6 +59,14 @@ class ExerciseFormViewModel
         private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
         private var isEditMode = false
         private val removedPictureIds = mutableListOf<Long>() // 삭제할 기존 이미지 ID 목록
+
+        // 운동 종류
+        private val _exerciseTypeList = MutableLiveData<List<String>>()
+        val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
+
+        // 운동 장소 목록
+        private val _exerciseLocation = MutableLiveData<List<String>>()
+        val exerciseLocation: LiveData<List<String>> = _exerciseLocation
 
         private val _initialDataLoaded = MutableLiveData<ExerciseRecord?>()
         val initialDataLoaded: LiveData<ExerciseRecord?> = _initialDataLoaded
@@ -159,7 +173,6 @@ class ExerciseFormViewModel
 
         /**
          * 시간 역전 보정 함수
-         *
          */
         private fun applyTimeCorrection(isStartChanged: Boolean) {
             val now = clockProvider.localDateTimeNow()
@@ -259,6 +272,61 @@ class ExerciseFormViewModel
             val imageCount =
                 _imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
             return MAX_IMAGE - imageCount
+        }
+
+        /** 운동 종류 리스트 로드 */
+        fun loadExerciseTypes() {
+            if (!_exerciseTypeList.value.isNullOrEmpty()) return
+            viewModelScope.launch {
+                // 유저의 선호 운동 리스트
+                val preferredResult = getPreferredExerciseUseCase()
+                val preferredNames =
+                    if (preferredResult is BaseResult.Success) {
+                        preferredResult.data.map { it.name }
+                    } else {
+                        emptyList()
+                    }
+
+                // 전체 운동 종류 리스트
+                val allTypesResult = getPreferredExerciseTypesUseCase()
+                val allNames =
+                    if (allTypesResult is BaseResult.Success) {
+                        allTypesResult.data.map { it.name }
+                    } else {
+                        emptyList()
+                    }
+
+                // 직접 입력 + 선호 운동 + 그 외 전체 운동(중복 제거)
+                val combinedList =
+                    mutableListOf<String>().apply {
+                        add(DIRECT_INPUT)
+                        addAll(preferredNames)
+                        addAll(allNames.filterNot { preferredNames.contains(it) })
+                    }
+
+                _exerciseTypeList.value = combinedList
+            }
+        }
+
+        /** 운동 장소 설정 */
+        fun loadExerciseLocation() {
+            if (!_exerciseLocation.value.isNullOrEmpty()) return
+            viewModelScope.launch {
+                val locationResult = getExercisePlaceUseCase()
+                val locationList =
+                    if (locationResult is BaseResult.Success) {
+                        locationResult.data.map { it.name }
+                    } else {
+                        emptyList()
+                    }
+
+                val combinedList =
+                    mutableListOf<String>().apply {
+                        add(DIRECT_INPUT)
+                        addAll(locationList)
+                    }
+                _exerciseLocation.value = combinedList
+            }
         }
 
         /** 변경 사항이 있는지 확인 */
@@ -453,5 +521,9 @@ class ExerciseFormViewModel
                     }
                 }
             }
+        }
+
+        companion object {
+            const val DIRECT_INPUT = "직접 입력"
         }
     }

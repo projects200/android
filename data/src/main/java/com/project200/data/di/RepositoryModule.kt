@@ -3,6 +3,7 @@ package com.project200.data.di
 import com.project200.data.impl.AddressRepositoryImpl
 import com.project200.data.impl.AppUpdateRepositoryImpl
 import com.project200.data.impl.AuthRepositoryImpl
+import com.project200.data.impl.ChatSocketRepositoryImpl
 import com.project200.data.impl.ChattingRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
 import com.project200.data.impl.FcmRepositoryImpl
@@ -15,6 +16,7 @@ import com.project200.data.impl.TimerRepositoryImpl
 import com.project200.domain.repository.AddressRepository
 import com.project200.domain.repository.AppUpdateRepository
 import com.project200.domain.repository.AuthRepository
+import com.project200.domain.repository.ChatSocketRepository
 import com.project200.domain.repository.ChattingRepository
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.domain.repository.FcmRepository
@@ -76,6 +78,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindChattingRepository(chattingRepositoryImpl: ChattingRepositoryImpl): ChattingRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatSocketRepository(chatSocketRepositoryImpl: ChatSocketRepositoryImpl): ChatSocketRepository
 
     @Binds
     @Singleton

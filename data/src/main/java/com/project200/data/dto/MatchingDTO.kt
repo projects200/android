@@ -10,11 +10,14 @@ data class GetMatchingMembersDto(
     val nickname: String,
     val gender: String,
     val birthDate: String,
+    val memberScore: Int,
     val locations: List<LocationDto>,
+    val preferredExercises: List<GetProfilePreferredExerciseDTO>,
 )
 
 @JsonClass(generateAdapter = true)
 data class LocationDto(
+    val exerciseLocationId: Long,
     val exerciseLocationName: String,
     val latitude: Double,
     val longitude: Double,

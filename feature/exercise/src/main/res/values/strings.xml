@@ -10,6 +10,8 @@
     <string name="exercise_record_time_divider">:</string>
     <string name="exercise_record_location">장소</string>
     <string name="exercise_record_title_hint">제목을 입력해주세요.</string>
+    <string name="exercise_record_type_select_hint">운동 종류를 선택해주세요.</string>
+    <string name="exercise_record_type_direct">직접 입력</string>
     <string name="exercise_record_type_hint">운동 종류를 입력해주세요.</string>
     <string name="exercise_record_location_hint">운동장소를 입력해주세요.</string>
     <string name="exercise_record_desc">내용</string>
@@ -23,6 +25,14 @@
     <string name="exercise_record_edit">수정하기</string>
     <string name="exercise_create_get_score">운동 기록하고 점수 얻기</string>
     <string name="exercise_empty">이 날짜에 등록된 기록이 없습니다</string>
+    <string name="exercise_place_search">운동하는 장소 검색</string>
+    <string name="search">검색</string>
+    <string name="exercise_place_input">입력</string>
+    <string name="empty_searched_place">검색 결과가 없습니다.</string>
+    <string name="no_search_keyword">검색어를 입력해주세요.</string>
+    <string name="error_cannot_find_address">주소를 가져오는데 실패했습니다.</string>
+    <string name="error_failed_to_search_place">검색 중 오류가 발생했습니다.</string>
+    <string name="error_cannot_find_current_location">현재 위치를 가져올 수 없습니다.</string>
 
     <!-- 점수 -->
     <string name="exercise_count_format">%d회</string>
@@ -70,6 +80,7 @@
     <string name="exercise_create_fail">기록 생성에 실패했습니다</string>
     <string name="exercise_upload_fail">이미지 업로드에 실패했습니다</string>
     <string name="exercise_fetch_score_info_fail">점수 정보를 불러오는데 실패했습니다.</string>
+    <string name="exercise_record_type_direct_input_warning">운동 종류를 입력해주세요.</string>
 
     <!-- 점수 안내 메시지 -->
     <string name="exercise_already_scored_today">이 날은 이미 점수를 획득했어요</string>

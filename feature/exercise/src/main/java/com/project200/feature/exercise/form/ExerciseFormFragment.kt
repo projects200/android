@@ -31,6 +31,7 @@ import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeIns
 import com.project200.presentation.utils.TimeEditTextLimiter.addRangeLimit
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
+import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -125,11 +126,38 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             )
         }
         viewModel.loadInitialRecord(args.recordId)
+        viewModel.loadExerciseTypes()
+        viewModel.loadExerciseLocation()
+
         setupRVAdapter((getScreenWidthPx(requireActivity()) - dpToPx(requireContext(), GRID_SPAN_MARGIN)) / GRID_SPAN_COUNT)
         initListeners()
     }
 
     private fun initListeners() {
+        // 운동 종류 선택 버튼
+        binding.recordTypeSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseTypeList.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseTypes() // 데이터가 없으면 다시 요청
+                return@setOnClickListener
+            }
+
+            SelectionBottomSheetDialog(items, binding.recordTypeSelectBtn.text.toString()) { selectedType ->
+                if (selectedType == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    binding.recordTypeSelectBtn.setText(R.string.exercise_record_type_direct)
+                    binding.recordTypeEt.apply {
+                        setText("")
+                        visibility = View.VISIBLE
+                        requestFocus()
+                    }
+                } else {
+                    binding.recordTypeSelectBtn.setText(selectedType)
+                    binding.recordTypeEt.visibility = View.GONE
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
         // 시간/날짜 버튼 클릭 리스너 설정
         binding.startDateBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_DATE) }
         binding.startTimeBtn.setOnClickListener { viewModel.onTimeSelectionClick(TimeSelectionState.START_TIME) }
@@ -156,13 +184,49 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
             viewModel.updateTime(hour, minute)
         }
 
+        // 운동 장소 선택 버튼
+        binding.recordLocationSelectBtn.setOnClickListener {
+            val items = viewModel.exerciseLocation.value
+            if (items.isNullOrEmpty()) {
+                viewModel.loadExerciseLocation()
+                return@setOnClickListener
+            }
+
+            SelectionBottomSheetDialog(items, binding.recordLocationSelectBtn.text.toString()) { selectedLocation ->
+                if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
+                    // 직접 입력 선택
+                    findNavController().navigate(
+                        ExerciseFormFragmentDirections.actionExerciseFormFragmentToPlaceSearchFragment(),
+                    )
+                } else {
+                    binding.recordLocationSelectBtn.setText(selectedLocation)
+                }
+            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
+
         // 기록 완료 버튼
         binding.recordCompleteBtn.setOnClickListener {
+            val type = binding.recordTypeSelectBtn.text.toString().trim()
+            if (type == getString(R.string.exercise_record_type_direct) &&
+                binding.recordTypeEt.text.toString().isBlank()
+            ) {
+                Toast.makeText(requireContext(), R.string.exercise_record_type_direct_input_warning, Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
             viewModel.submitRecord(
                 recordId = args.recordId,
                 title = binding.recordTitleEt.text.toString().trim(),
-                type = binding.recordTypeEt.text.toString().trim(),
-                location = binding.recordLocationEt.text.toString().trim(),
+                type =
+                    if (type ==
+                        getString(
+                            R.string.exercise_record_type_direct,
+                        )
+                    ) {
+                        binding.recordTypeEt.text.toString().trim()
+                    } else {
+                        binding.recordTypeSelectBtn.text.toString().trim()
+                    },
+                location = binding.recordLocationSelectBtn.text.toString().trim(),
                 detail = binding.recordDescEt.text.toString().trim(),
             )
         }
@@ -194,6 +258,16 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
         // 시간 선택 상태 (어떤 버튼이 선택되었는지)
         viewModel.timeSelectionState.observe(viewLifecycleOwner) { state ->
             updateTimeSelectionUi(state)
+        }
+
+        findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<String>(
+            PlaceSearchFragment.KEY_SELECTED_PLACE,
+        )?.observe(viewLifecycleOwner) { name ->
+            binding.recordLocationSelectBtn.setText(name)
+            // 선택 후에는 결과 삭제
+            findNavController().currentBackStackEntry?.savedStateHandle?.remove<String>(
+                PlaceSearchFragment.KEY_SELECTED_PLACE,
+            )
         }
 
         viewModel.imageItems.observe(viewLifecycleOwner) { items ->
@@ -281,8 +355,8 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
 
     private fun setupInitialData(record: ExerciseRecord) {
         binding.recordTitleEt.setText(record.title)
-        binding.recordTypeEt.setText(record.personalType)
-        binding.recordLocationEt.setText(record.location)
+        binding.recordTypeSelectBtn.setText(record.personalType)
+        binding.recordLocationSelectBtn.setText(record.location)
         binding.recordDescEt.setText(record.detail)
     }
 

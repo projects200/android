@@ -74,6 +74,24 @@
                 android:text="@string/exercise_record_type" />
 
             <EditText
+                android:id="@+id/record_type_select_btn"
+                style="@style/subtext_14"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="@dimen/base_horizontal_margin"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_solid_corner"
+                android:gravity="center_vertical"
+                android:focusable="false"
+                android:hint="@string/exercise_record_type_select_hint"
+                android:maxLength="255"
+                android:maxLines="1"
+                android:inputType="text"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="11dp"
+                android:textColorHint="@color/gray200" />
+
+            <EditText
                 android:id="@+id/record_type_et"
                 style="@style/subtext_14"
                 android:layout_width="match_parent"
@@ -88,8 +106,8 @@
                 android:inputType="text"
                 android:paddingHorizontal="16dp"
                 android:paddingVertical="11dp"
+                android:visibility="gone"
                 android:textColorHint="@color/gray200" />
-
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/record_time_cl"
@@ -268,7 +286,7 @@
                 android:text="@string/exercise_record_location" />
 
             <EditText
-                android:id="@+id/record_location_et"
+                android:id="@+id/record_location_select_btn"
                 style="@style/subtext_14"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -279,6 +297,7 @@
                 android:hint="@string/exercise_record_location_hint"
                 android:maxLength="255"
                 android:maxLines="1"
+                android:focusable="false"
                 android:inputType="text"
                 android:paddingHorizontal="16dp"
                 android:paddingVertical="11dp"

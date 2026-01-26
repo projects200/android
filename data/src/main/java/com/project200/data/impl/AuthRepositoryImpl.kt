@@ -27,6 +27,7 @@ class AuthRepositoryImpl
             withContext(ioDispatcher) {
                 try {
                     val response = apiService.getIsRegistered()
+                    response.data?.let { spManager.saveMemberId(it.memberId) }
                     response.data?.isRegistered ?: false
                 } catch (e: CancellationException) {
                     throw e
@@ -79,6 +80,10 @@ class AuthRepositoryImpl
                     dto?.available == true
                 },
             )
+        }
+
+        override suspend fun getMemberId(): String {
+            return spManager.getMemberId().toString()
         }
 
         companion object {

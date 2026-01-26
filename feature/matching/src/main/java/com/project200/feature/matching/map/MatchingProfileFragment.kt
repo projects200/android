@@ -1,9 +1,14 @@
 package com.project200.feature.matching.map
 
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.widget.PopupMenu
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat.checkSelfPermission
 import androidx.core.content.ContextCompat.getColor
 import androidx.core.net.toUri
 import androidx.core.view.isVisible
@@ -15,6 +20,8 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationServices
 import com.kizitonwose.calendar.core.CalendarDay
 import com.kizitonwose.calendar.core.DayPosition
 import com.kizitonwose.calendar.core.daysOfWeek
@@ -45,9 +52,22 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
     private val args: MatchingProfileFragmentArgs by navArgs()
     lateinit var preferredExerciseRVAdapter: PreferredExerciseRVAdapter
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     @Inject
     lateinit var dayFormatter: PreferredExerciseDayFormatter
+
+    private val locationPermissionLauncher =
+        registerForActivityResult(
+            ActivityResultContracts.RequestMultiplePermissions(),
+        ) { permissions ->
+            val granted = permissions.entries.all { it.value }
+            if (granted) {
+                getLastLocationAndCreateChat()
+            } else {
+                Toast.makeText(requireContext(), getString(R.string.chat_location_permission), Toast.LENGTH_SHORT).show()
+            }
+        }
 
     override fun getViewBinding(view: View): FragmentMatchingProfileBinding {
         return FragmentMatchingProfileBinding.bind(view)
@@ -63,9 +83,10 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
         }
         binding.chatBtn.isVisible = !args.fromDeepLink
         initClickListener()
-        viewModel.setMemberId(args.memberId)
+        viewModel.setInitialData(args.memberId, args.placeId)
         setupCalendar()
         setupPreferredExercise()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
     }
 
     private fun initClickListener() {
@@ -77,7 +98,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
             viewModel.onNextMonthClicked()
         }
         binding.chatBtn.setOnClickListener {
-            viewModel.createChatRoom()
+            getLastLocationAndCreateChat()
         }
     }
 
@@ -226,6 +247,32 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                         }
                     }
                 }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun getLastLocationAndCreateChat() {
+        // 권한 체크
+        if (checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            checkSelfPermission(requireContext(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            // 권한이 없으면 요청
+            locationPermissionLauncher.launch(
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
+            )
+            return
+        }
+
+        // 현재 위치 가져오기
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                // 위치 정보 조회 성공
+                viewModel.createChatRoom(location.latitude, location.longitude)
+            } else {
+                Toast.makeText(requireContext(), getString(R.string.error_cannot_find_current_location), Toast.LENGTH_SHORT).show()
+            }
+        }.addOnFailureListener {
+            Toast.makeText(requireContext(), getString(R.string.error_cannot_find_current_location), Toast.LENGTH_SHORT).show()
         }
     }
 

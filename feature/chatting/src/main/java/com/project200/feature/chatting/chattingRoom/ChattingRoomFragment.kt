@@ -35,8 +35,6 @@ import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -200,15 +198,6 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                launch {
-                    // Fragment가 STARTED 상태가 되면 폴링 시작
-                    // STOPPED 상태가 되면 자동으로 코루틴 취소
-                    while (isActive && viewModel.chatState.value != ChatInputState.OpponentBlocked) {
-                        viewModel.getNewMessages()
-                        delay(POLLING_PERIOD)
-                    }
-                }
-
                 launch {
                     viewModel.chatState.collect { state ->
                         val isEnabled: Boolean
@@ -393,6 +382,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         super.onResume()
         // 현재 채팅방을 활성 채팅방으로 설정
         chatRoomStateRepository.setActiveChatRoomId(args.roomId)
+        viewModel.connectAndSync()
     }
 
     override fun onPause() {
@@ -401,6 +391,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         if (chatRoomStateRepository.activeChatRoomId.value == args.roomId) {
             chatRoomStateRepository.setActiveChatRoomId(null)
         }
+        viewModel.disconnect()
     }
 
     companion object {

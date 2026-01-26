@@ -1,6 +1,7 @@
 package com.project200.data.di
 
 import com.project200.data.api.ApiService
+import com.project200.data.api.ChatApiService
 import com.project200.data.utils.FcmTokenProvider
 import com.project200.data.utils.LocalDateAdapter
 import com.project200.data.utils.LocalDateTimeAdapter
@@ -71,6 +72,7 @@ object NetworkModule {
             .addInterceptor(tokenInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .pingInterval(30, TimeUnit.SECONDS)
             .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
@@ -99,5 +101,11 @@ object NetworkModule {
     @Singleton
     fun provideApiService(retrofit: Retrofit): ApiService {
         return retrofit.create(ApiService::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideChatApiService(retrofit: Retrofit): ChatApiService {
+        return retrofit.create(ChatApiService::class.java)
     }
 }

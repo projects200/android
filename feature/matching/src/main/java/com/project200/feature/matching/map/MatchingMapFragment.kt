@@ -7,6 +7,7 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -27,6 +28,10 @@ import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
+import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
+import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
+import com.project200.feature.matching.utils.FilterUiMapper
+import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
@@ -42,6 +47,17 @@ class MatchingMapFragment :
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private val viewModel: MatchingMapViewModel by viewModels()
+
+    private val filterAdapter by lazy {
+        MatchingFilterRVAdapter(
+            onFilterClick = { type ->
+                viewModel.onFilterTypeClicked(type)
+            },
+            onClearClick = {
+                viewModel.clearFilters()
+            },
+        )
+    }
 
     private var isMapInitialized: Boolean = false
 
@@ -69,6 +85,8 @@ class MatchingMapFragment :
 
         initMapView()
         initListeners()
+        binding.matchingFilterRv.adapter = filterAdapter
+        filterAdapter.submitFilterList(MatchingFilterType.entries)
     }
 
     private fun initMapView() {
@@ -120,6 +138,16 @@ class MatchingMapFragment :
             cameraPosition.zoomLevel,
         )
 
+        // 현재 화면 영역(Bounds) 조회
+        val currentBounds = mapViewManager?.getCurrentBounds() ?: return
+
+        // 화면 이동에 따라 매칭 멤버 데이터 갱신
+        viewModel.fetchMatchingMembersIfMoved(
+            currentBounds = currentBounds,
+            currentCenter = cameraPosition.position,
+            currentZoom = cameraPosition.zoomLevel,
+        )
+
         // 카메라 위치가 바뀌면 클러스터도 변경됨 -> 마커 redraw
         mapViewManager?.redrawMarkers(myPlaces = viewModel.combinedMapData.value.second, clusterCalculator)
     }
@@ -148,13 +176,44 @@ class MatchingMapFragment :
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.shouldShowPlaceDialog.collect {
+                    viewModel.shouldShowPlaceGuideDialog.collect {
                         showPlaceGuideDialog()
+                    }
+                }
+                launch {
+                    viewModel.shouldShowGuide.collect {
+                        findNavController().navigate(
+                            MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
+                        )
                     }
                 }
                 launch {
                     viewModel.errorEvents.collect { message ->
                         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                launch {
+                    viewModel.filterState.collect { state ->
+                        filterAdapter.submitFilterState(state)
+                    }
+                }
+                launch {
+                    viewModel.currentFilterType.collect { type ->
+                        showFilterBottomSheet(type)
+                    }
+                }
+                launch {
+                    viewModel.isFilterLoading.collect { isLoading ->
+                        binding.filterLoadingGroup.isVisible = isLoading
+                    }
+                }
+                launch {
+                    viewModel.zoomLevelWarning.collect {
+                        Toast.makeText(
+                            requireContext(),
+                            R.string.zoom_level_warning,
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     }
                 }
             }
@@ -234,7 +293,7 @@ class MatchingMapFragment :
             MatchingPlaceGuideDialog(
                 onGoToPlaceRegister = {
                     findNavController().navigate(
-                        MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceSearchFragment(),
+                        MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingGuideFragment(),
                     )
                 },
             )
@@ -246,10 +305,31 @@ class MatchingMapFragment :
         val bottomSheet =
             MembersBottomSheetDialog(items) { item ->
                 findNavController().navigate(
-                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(item.member.memberId),
+                    MatchingMapFragmentDirections.actionMatchingMapFragmentToMatchingProfileFragment(
+                        memberId = item.member.memberId,
+                        placeId = item.location.placeId,
+                    ),
                 )
             }
         bottomSheet.show(parentFragmentManager, MembersBottomSheetDialog::class.java.simpleName)
+    }
+
+    private fun showFilterBottomSheet(type: MatchingFilterType) {
+        // 필터 옵션들을 UI 모델로 매핑
+        val options =
+            FilterUiMapper.mapToUiModels(
+                type = type,
+                currentState = viewModel.filterState.value,
+            )
+
+        val bottomSheet =
+            FilterBottomSheetDialog(
+                filterType = type,
+                onOptionSelected = { selectedDomainData ->
+                    viewModel.onFilterOptionSelected(type, selectedDomainData)
+                },
+            )
+        bottomSheet.show(childFragmentManager, FilterBottomSheetDialog::class.java.simpleName)
     }
 
     private fun checkPermissionAndMove() {
@@ -290,7 +370,6 @@ class MatchingMapFragment :
 
     override fun onResume() {
         super.onResume()
-        viewModel.fetchMatchingMembers()
         binding.mapView.resume()
     }
 
