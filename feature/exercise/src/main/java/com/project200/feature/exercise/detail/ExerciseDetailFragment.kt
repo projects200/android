@@ -164,8 +164,14 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
 
     private fun shareExerciseRecord() {
         val record = currentRecord ?: return
+        binding.loadingOverlay.visibility = View.VISIBLE
+
         lifecycleScope.launch {
-            ExerciseShareHelper.shareExerciseRecord(requireContext(), record)
+            try {
+                ExerciseShareHelper.shareExerciseRecord(requireContext(), record)
+            } finally {
+                binding.loadingOverlay.visibility = View.GONE
+            }
         }
     }
 
