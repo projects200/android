@@ -21,17 +21,13 @@
             android:contentDescription="@null"
             android:scaleType="centerCrop" />
 
-        <ImageView
+        <com.project200.feature.exercise.share.TransformableImageView
             android:id="@+id/sticker_preview"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/base_horizontal_margin"
-            android:layout_marginTop="@dimen/base_horizontal_margin"
-            android:adjustViewBounds="true"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:contentDescription="@string/sticker_preview_description"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintWidth_percent="0.45" />
+            app:layout_constraintTop_toTopOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

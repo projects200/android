@@ -116,12 +116,13 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
     private fun shareImage() {
         val record = viewModel.exerciseRecord.value ?: return
         val theme = viewModel.selectedTheme.value
+        val transformInfo = binding.stickerPreview.getTransformInfo()
 
         binding.loadingOverlay.visibility = View.VISIBLE
 
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                ExerciseShareHelper.shareExerciseRecord(requireContext(), record, theme)
+                ExerciseShareHelper.shareExerciseRecord(requireContext(), record, theme, transformInfo)
             } finally {
                 binding.loadingOverlay.visibility = View.GONE
             }
