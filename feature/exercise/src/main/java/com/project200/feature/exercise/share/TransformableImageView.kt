@@ -8,7 +8,25 @@ import android.util.AttributeSet
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import androidx.appcompat.widget.AppCompatImageView
+import com.project200.feature.exercise.utils.StickerTransformInfo
 
+/**
+ * 드래그와 핀치줌을 지원하는 커스텀 ImageView
+ *
+ * 스티커 편집 화면에서 사용자가 스티커의 위치와 크기를 조정할 수 있도록 함.
+ *
+ * 초기화 동작:
+ * 1. 이미지가 설정되면 부모 뷰 너비의 45% 크기로 자동 스케일링
+ * 2. 좌상단에서 5% 마진 위치에 배치
+ * 3. ScaleType.MATRIX 모드로 전환하여 직접 변환 제어
+ *
+ * 터치 제스처:
+ * - 한 손가락 드래그: 위치 이동
+ * - 두 손가락 핀치: 크기 조절 (초기 크기의 30% ~ 300%)
+ *
+ * @see StickerTransformInfo 현재 변환 정보를 담는 data class
+ * @see ExerciseShareHelper 이 뷰의 변환 정보를 사용하여 최종 이미지 생성
+ */
 class TransformableImageView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null,
@@ -18,23 +36,35 @@ class TransformableImageView @JvmOverloads constructor(
     private val transformMatrix = Matrix()
     private val savedMatrix = Matrix()
 
+    // 터치 모드 상태
     private var mode = NONE
     private val startPoint = PointF()
     private val midPoint = PointF()
 
+    // 스케일 관련 변수
     private var currentScale = 1f
     private var savedScale = 1f
     private var initialScale = 1f
+
+    // 스케일 제한: 초기 크기 대비 30% ~ 300%
     private val minScaleRatio = 0.3f
     private val maxScaleRatio = 3.0f
 
+    // 위치 (픽셀 단위)
     private var translationX = 0f
     private var translationY = 0f
 
+    // 초기화 상태
     private var isInitialized = false
+
+    // 기본 설정: 부모 너비의 45% 크기, 5% 마진
     private val defaultWidthRatio = 0.45f
     private val defaultMarginRatio = 0.05f
 
+    /**
+     * 핀치줌 제스처 감지기
+     * 두 손가락으로 확대/축소 시 스케일 값을 조정
+     */
     private val scaleDetector = ScaleGestureDetector(
         context,
         object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
@@ -67,6 +97,9 @@ class TransformableImageView @JvmOverloads constructor(
         onTransformChangedListener = listener
     }
 
+    /**
+     * 비트맵 설정 시 초기화 플래그 리셋 후 변환 초기화 시도
+     */
     override fun setImageBitmap(bm: android.graphics.Bitmap?) {
         isInitialized = false
         super.setImageBitmap(bm)
@@ -75,6 +108,9 @@ class TransformableImageView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 뷰 크기 변경 시 초기화되지 않은 상태면 변환 초기화
+     */
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
         super.onSizeChanged(w, h, oldw, oldh)
         if (drawable != null && !isInitialized && w > 0 && h > 0) {
@@ -82,6 +118,11 @@ class TransformableImageView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 초기 변환 설정
+     * - 스케일: 부모 너비의 45%가 되도록 계산
+     * - 위치: 좌상단에서 5% 마진
+     */
     private fun initializeTransform() {
         val drawableWidth = drawable?.intrinsicWidth ?: return
         if (drawableWidth <= 0) return
@@ -104,6 +145,13 @@ class TransformableImageView @JvmOverloads constructor(
         isInitialized = true
     }
 
+    /**
+     * 터치 이벤트 처리
+     * - ACTION_DOWN: 드래그 시작점 저장
+     * - ACTION_POINTER_DOWN: 핀치줌 모드 전환
+     * - ACTION_MOVE: 드래그 시 위치 업데이트
+     * - ACTION_UP: 모드 리셋 및 리스너 콜백
+     */
     @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
@@ -148,6 +196,9 @@ class TransformableImageView @JvmOverloads constructor(
         return true
     }
 
+    /**
+     * 현재 스케일과 위치를 Matrix에 적용
+     */
     private fun applyTransform() {
         transformMatrix.reset()
         transformMatrix.postScale(currentScale, currentScale)
@@ -168,6 +219,12 @@ class TransformableImageView @JvmOverloads constructor(
         }
     }
 
+    /**
+     * 현재 변환 정보를 비율 기반으로 반환
+     * ExerciseShareHelper에서 최종 이미지 생성 시 사용
+     *
+     * @return 위치(비율)와 스티커 너비 비율을 담은 StickerTransformInfo
+     */
     fun getTransformInfo(): StickerTransformInfo {
         val parent = parent as? android.view.View
         val parentWidth = parent?.width?.toFloat() ?: 1f
@@ -184,6 +241,10 @@ class TransformableImageView @JvmOverloads constructor(
         )
     }
 
+    /**
+     * 외부에서 변환 값을 직접 설정
+     * 저장된 상태 복원 시 사용 가능
+     */
     fun setInitialTransform(xRatio: Float, yRatio: Float, scale: Float) {
         post {
             val parent = parent as? android.view.View ?: return@post
@@ -201,9 +262,3 @@ class TransformableImageView @JvmOverloads constructor(
         private const val ZOOM = 2
     }
 }
-
-data class StickerTransformInfo(
-    val translationXRatio: Float,
-    val translationYRatio: Float,
-    val stickerWidthRatio: Float
-)
