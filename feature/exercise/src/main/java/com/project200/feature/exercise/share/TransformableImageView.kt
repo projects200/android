@@ -11,9 +11,9 @@ import androidx.appcompat.widget.AppCompatImageView
 import com.project200.feature.exercise.utils.StickerTransformInfo
 
 /**
- * 드래그와 핀치줌을 지원하는 커스텀 ImageView
+ * 드래그, 핀치줌, 회전을 지원하는 커스텀 ImageView
  *
- * 스티커 편집 화면에서 사용자가 스티커의 위치와 크기를 조정할 수 있도록 함.
+ * 스티커 편집 화면에서 사용자가 스티커의 위치, 크기, 회전을 조정할 수 있도록 함.
  *
  * 초기화 동작:
  * 1. 이미지가 설정되면 부모 뷰 너비의 45% 크기로 자동 스케일링
@@ -23,6 +23,7 @@ import com.project200.feature.exercise.utils.StickerTransformInfo
  * 터치 제스처:
  * - 한 손가락 드래그: 위치 이동
  * - 두 손가락 핀치: 크기 조절 (초기 크기의 30% ~ 300%)
+ * - 두 손가락 회전: 회전 조절
  *
  * @see StickerTransformInfo 현재 변환 정보를 담는 data class
  * @see ExerciseShareHelper 이 뷰의 변환 정보를 사용하여 최종 이미지 생성
@@ -53,6 +54,11 @@ class TransformableImageView @JvmOverloads constructor(
     // 위치 (픽셀 단위)
     private var translationX = 0f
     private var translationY = 0f
+
+    // 회전 (도 단위)
+    private var currentRotation = 0f
+    private var savedRotation = 0f
+    private var startAngle = 0f
 
     // 초기화 상태
     private var isInitialized = false
@@ -144,6 +150,8 @@ class TransformableImageView @JvmOverloads constructor(
 
             translationX = pending.translationXRatio * parentWidth
             translationY = pending.translationYRatio * parentHeight
+            currentRotation = pending.rotationDegrees
+            savedRotation = currentRotation
 
             pendingTransform = null
         } else {
@@ -154,6 +162,8 @@ class TransformableImageView @JvmOverloads constructor(
 
             translationX = parentWidth * defaultMarginRatio
             translationY = parentHeight * defaultMarginRatio
+            currentRotation = 0f
+            savedRotation = 0f
         }
 
         scaleType = ScaleType.MATRIX
@@ -182,10 +192,12 @@ class TransformableImageView @JvmOverloads constructor(
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.pointerCount == 2) {
                     savedScale = currentScale
+                    savedRotation = currentRotation
                     midPoint.set(
                         (event.getX(0) + event.getX(1)) / 2,
                         (event.getY(0) + event.getY(1)) / 2
                     )
+                    startAngle = calculateAngle(event)
                     mode = ZOOM
                 }
             }
@@ -199,6 +211,10 @@ class TransformableImageView @JvmOverloads constructor(
                     translationY += dy
 
                     startPoint.set(event.x, event.y)
+                    applyTransform()
+                } else if (mode == ZOOM && event.pointerCount == 2) {
+                    val currentAngle = calculateAngle(event)
+                    currentRotation = savedRotation + (currentAngle - startAngle)
                     applyTransform()
                 }
             }
@@ -214,14 +230,28 @@ class TransformableImageView @JvmOverloads constructor(
     }
 
     /**
-     * 현재 스케일과 위치를 Matrix에 적용
+     * 현재 스케일, 회전, 위치를 Matrix에 적용
+     * 회전은 이미지 중심을 기준으로 적용
      */
     private fun applyTransform() {
+        val drawableWidth = drawable?.intrinsicWidth?.toFloat() ?: 0f
+        val drawableHeight = drawable?.intrinsicHeight?.toFloat() ?: 0f
+
+        val scaledCenterX = (drawableWidth * currentScale) / 2
+        val scaledCenterY = (drawableHeight * currentScale) / 2
+
         transformMatrix.reset()
         transformMatrix.postScale(currentScale, currentScale)
+        transformMatrix.postRotate(currentRotation, scaledCenterX, scaledCenterY)
         transformMatrix.postTranslate(translationX, translationY)
         imageMatrix = transformMatrix
         scaleType = ScaleType.MATRIX
+    }
+
+    private fun calculateAngle(event: MotionEvent): Float {
+        val dx = event.getX(1) - event.getX(0)
+        val dy = event.getY(1) - event.getY(0)
+        return Math.toDegrees(kotlin.math.atan2(dy.toDouble(), dx.toDouble())).toFloat()
     }
 
     private fun notifyTransformChanged() {
@@ -254,7 +284,8 @@ class TransformableImageView @JvmOverloads constructor(
         return StickerTransformInfo(
             translationXRatio = if (parentWidth > 0) translationX / parentWidth else 0f,
             translationYRatio = if (parentHeight > 0) translationY / parentHeight else 0f,
-            stickerWidthRatio = widthRatio
+            stickerWidthRatio = widthRatio,
+            rotationDegrees = currentRotation
         )
     }
 

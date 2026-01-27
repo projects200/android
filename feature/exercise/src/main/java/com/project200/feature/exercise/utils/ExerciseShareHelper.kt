@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -81,7 +82,7 @@ object ExerciseShareHelper {
 
     /**
      * 배경 이미지 위에 스티커를 합성
-     * 스티커는 좌상단에 배치되며, 배경 너비에 비례한 크기로 스케일링됨
+     * 스티커는 위치, 크기, 회전 정보에 따라 배치됨
      */
     private fun createCombinedImage(
         stickerBitmap: Bitmap,
@@ -106,8 +107,13 @@ object ExerciseShareHelper {
 
         val posX = (transformInfo?.translationXRatio ?: 0f) * backgroundBitmap.width
         val posY = (transformInfo?.translationYRatio ?: 0f) * backgroundBitmap.height
+        val rotation = transformInfo?.rotationDegrees ?: 0f
 
-        canvas.drawBitmap(scaledSticker, posX, posY, Paint(Paint.FILTER_BITMAP_FLAG))
+        val matrix = Matrix()
+        matrix.postRotate(rotation, scaledStickerWidth / 2f, scaledStickerHeight / 2f)
+        matrix.postTranslate(posX, posY)
+
+        canvas.drawBitmap(scaledSticker, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
 
         scaledSticker.recycle()
         return resultBitmap

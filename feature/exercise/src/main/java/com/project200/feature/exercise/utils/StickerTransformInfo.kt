@@ -7,9 +7,11 @@ package com.project200.feature.exercise.utils
  * @property translationXRatio X 위치 (부모 너비 대비 비율, 0.0 = 왼쪽 끝)
  * @property translationYRatio Y 위치 (부모 높이 대비 비율, 0.0 = 위쪽 끝)
  * @property stickerWidthRatio 스티커 너비 (부모 너비 대비 비율, 0.45 = 45%)
+ * @property rotationDegrees 회전 각도 (도 단위, 0.0 = 회전 없음)
  */
 data class StickerTransformInfo(
     val translationXRatio: Float,
     val translationYRatio: Float,
-    val stickerWidthRatio: Float
+    val stickerWidthRatio: Float,
+    val rotationDegrees: Float = 0f
 )
