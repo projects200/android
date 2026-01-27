@@ -13,7 +13,6 @@ import androidx.core.graphics.scale
 import com.bumptech.glide.Glide
 import com.project200.domain.model.ExerciseRecord
 import com.project200.feature.exercise.share.StickerTheme
-import com.project200.feature.exercise.share.StickerTransformInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
