@@ -56,6 +56,8 @@ class TransformableImageView @JvmOverloads constructor(
 
     // 초기화 상태
     private var isInitialized = false
+    private var hasUserInteracted = false
+    private var pendingTransform: StickerTransformInfo? = null
 
     // 기본 설정: 부모 너비의 45% 크기, 5% 마진
     private val defaultWidthRatio = 0.45f
@@ -122,6 +124,7 @@ class TransformableImageView @JvmOverloads constructor(
      * 초기 변환 설정
      * - 스케일: 부모 너비의 45%가 되도록 계산
      * - 위치: 좌상단에서 5% 마진
+     * - pendingTransform이 있으면 해당 값으로 복원
      */
     private fun initializeTransform() {
         val drawableWidth = drawable?.intrinsicWidth ?: return
@@ -132,13 +135,26 @@ class TransformableImageView @JvmOverloads constructor(
         val parentHeight = parentView.height.toFloat()
         if (parentWidth <= 0 || parentHeight <= 0) return
 
-        val targetWidth = parentWidth * defaultWidthRatio
-        initialScale = targetWidth / drawableWidth
-        currentScale = initialScale
-        savedScale = initialScale
+        val pending = pendingTransform
+        if (pending != null) {
+            val targetStickerWidth = parentWidth * pending.stickerWidthRatio
+            currentScale = targetStickerWidth / drawableWidth
+            savedScale = currentScale
+            initialScale = parentWidth * defaultWidthRatio / drawableWidth
 
-        translationX = parentWidth * defaultMarginRatio
-        translationY = parentHeight * defaultMarginRatio
+            translationX = pending.translationXRatio * parentWidth
+            translationY = pending.translationYRatio * parentHeight
+
+            pendingTransform = null
+        } else {
+            val targetWidth = parentWidth * defaultWidthRatio
+            initialScale = targetWidth / drawableWidth
+            currentScale = initialScale
+            savedScale = initialScale
+
+            translationX = parentWidth * defaultMarginRatio
+            translationY = parentHeight * defaultMarginRatio
+        }
 
         scaleType = ScaleType.MATRIX
         applyTransform()
@@ -189,6 +205,7 @@ class TransformableImageView @JvmOverloads constructor(
 
             MotionEvent.ACTION_UP, MotionEvent.ACTION_POINTER_UP -> {
                 mode = NONE
+                hasUserInteracted = true
                 notifyTransformChanged()
             }
         }
@@ -254,6 +271,18 @@ class TransformableImageView @JvmOverloads constructor(
             savedScale = scale
             applyTransform()
         }
+    }
+
+    /**
+     * 사용자가 드래그/핀치줌으로 조작했는지 여부
+     */
+    fun hasUserInteracted(): Boolean = hasUserInteracted
+
+    /**
+     * 비트맵 설정 전에 호출하여 초기화 시 해당 위치로 바로 설정
+     */
+    fun setPendingTransform(transformInfo: StickerTransformInfo) {
+        pendingTransform = transformInfo
     }
 
     companion object {

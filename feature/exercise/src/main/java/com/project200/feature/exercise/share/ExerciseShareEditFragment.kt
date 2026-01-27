@@ -102,6 +102,9 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
     private fun updateStickerPreview(theme: StickerTheme) {
         val record = viewModel.exerciseRecord.value ?: return
 
+        val currentTransform = binding.stickerPreview.getTransformInfo()
+        val hasUserTransform = binding.stickerPreview.hasUserInteracted()
+
         viewLifecycleOwner.lifecycleScope.launch {
             currentStickerBitmap?.recycle()
             currentStickerBitmap = ExerciseRecordStickerGenerator.generateStickerBitmap(
@@ -109,6 +112,10 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
                 record,
                 theme
             )
+
+            if (hasUserTransform) {
+                binding.stickerPreview.setPendingTransform(currentTransform)
+            }
             binding.stickerPreview.setImageBitmap(currentStickerBitmap)
         }
     }
