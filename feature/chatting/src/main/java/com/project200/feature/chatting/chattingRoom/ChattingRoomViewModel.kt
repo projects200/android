@@ -11,7 +11,6 @@ import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
 import com.project200.domain.usecase.ObserveOpponentStatusUseCase
-import com.project200.domain.usecase.ObserveSocketErrorsUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel

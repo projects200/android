@@ -28,12 +28,12 @@ import java.io.FileOutputStream
  * 5. 시스템 공유 인텐트 실행
  */
 object ExerciseShareHelper {
-
     private const val SHARE_IMAGE_FILE_NAME = "exercise_share.jpg"
     private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
 
     // 스티커 크기: 배경 이미지 너비의 45%
     private const val STICKER_WIDTH_RATIO = 0.45f
+
     // 스티커 마진: 배경 이미지 너비의 5%
     private const val STICKER_MARGIN_RATIO = 0.05f
 
@@ -47,30 +47,34 @@ object ExerciseShareHelper {
 
     suspend fun shareExerciseRecord(
         context: Context,
-        record: ExerciseRecord
+        record: ExerciseRecord,
     ) {
         val backgroundImageUrl = record.pictures?.firstOrNull()?.url
 
         // 배경 이미지와 스티커를 병렬로 준비
-        val backgroundBitmap = withContext(Dispatchers.IO) {
-            backgroundImageUrl?.let { loadBitmapFromUrl(context, it) }
-        }
+        val backgroundBitmap =
+            withContext(Dispatchers.IO) {
+                backgroundImageUrl?.let { loadBitmapFromUrl(context, it) }
+            }
 
-        val stickerBitmap = withContext(Dispatchers.Main) {
-            ExerciseRecordStickerGenerator.generateStickerBitmap(context, record)
-        }
+        val stickerBitmap =
+            withContext(Dispatchers.Main) {
+                ExerciseRecordStickerGenerator.generateStickerBitmap(context, record)
+            }
 
-        val imageUri = withContext(Dispatchers.IO) {
-            val combinedBitmap = createCombinedImage(stickerBitmap, backgroundBitmap)
-            val instagramReadyBitmap = adjustToInstagramRatio(combinedBitmap)
-            saveBitmapToCache(context, instagramReadyBitmap)
-        }
+        val imageUri =
+            withContext(Dispatchers.IO) {
+                val combinedBitmap = createCombinedImage(stickerBitmap, backgroundBitmap)
+                val instagramReadyBitmap = adjustToInstagramRatio(combinedBitmap)
+                saveBitmapToCache(context, instagramReadyBitmap)
+            }
 
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "image/*"
-            putExtra(Intent.EXTRA_STREAM, imageUri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
+        val intent =
+            Intent(Intent.ACTION_SEND).apply {
+                type = "image/*"
+                putExtra(Intent.EXTRA_STREAM, imageUri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
 
         context.startActivity(Intent.createChooser(intent, null))
     }
@@ -81,7 +85,7 @@ object ExerciseShareHelper {
      */
     private fun createCombinedImage(
         stickerBitmap: Bitmap,
-        backgroundBitmap: Bitmap?
+        backgroundBitmap: Bitmap?,
     ): Bitmap {
         if (backgroundBitmap == null) {
             return stickerBitmap
@@ -122,18 +126,20 @@ object ExerciseShareHelper {
 
         val isPortrait = sourceHeight >= sourceWidth
 
-        val targetRatio = if (isPortrait) {
-            INSTAGRAM_PORTRAIT_RATIO
-        } else {
-            INSTAGRAM_LANDSCAPE_RATIO
-        }
+        val targetRatio =
+            if (isPortrait) {
+                INSTAGRAM_PORTRAIT_RATIO
+            } else {
+                INSTAGRAM_LANDSCAPE_RATIO
+            }
 
         // 이미 인스타그램 호환 비율인지 확인
-        val isWithinInstagramBounds = if (isPortrait) {
-            sourceRatio >= INSTAGRAM_PORTRAIT_RATIO
-        } else {
-            sourceRatio <= INSTAGRAM_LANDSCAPE_RATIO
-        }
+        val isWithinInstagramBounds =
+            if (isPortrait) {
+                sourceRatio >= INSTAGRAM_PORTRAIT_RATIO
+            } else {
+                sourceRatio <= INSTAGRAM_LANDSCAPE_RATIO
+            }
 
         if (isWithinInstagramBounds) {
             return source
@@ -170,7 +176,10 @@ object ExerciseShareHelper {
      * URL에서 이미지 로드
      * 성능 최적화를 위해 최대 크기 제한 적용
      */
-    private fun loadBitmapFromUrl(context: Context, url: String): Bitmap? {
+    private fun loadBitmapFromUrl(
+        context: Context,
+        url: String,
+    ): Bitmap? {
         return try {
             Glide.with(context)
                 .asBitmap()
@@ -187,7 +196,10 @@ object ExerciseShareHelper {
      * 비트맵을 캐시에 저장하고 공유 가능한 URI 반환
      * JPEG 형식으로 저장하여 파일 크기 및 저장 속도 최적화
      */
-    private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri {
+    private fun saveBitmapToCache(
+        context: Context,
+        bitmap: Bitmap,
+    ): Uri {
         val cacheDir = File(context.cacheDir, "share")
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
@@ -201,7 +213,7 @@ object ExerciseShareHelper {
         return FileProvider.getUriForFile(
             context,
             context.packageName + FILE_PROVIDER_AUTHORITY_SUFFIX,
-            file
+            file,
         )
     }
 }

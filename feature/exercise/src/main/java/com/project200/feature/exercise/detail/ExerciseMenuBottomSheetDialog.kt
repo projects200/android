@@ -11,9 +11,8 @@ class ExerciseMenuBottomSheetDialog(
     private val onEditClicked: () -> Unit,
     private val onDeleteClicked: () -> Unit,
 ) : BottomSheetDialogFragment() {
-
     private var _binding: BottomSheetExerciseMenuBinding? = null
-    private val binding get() = _binding!!
+    val binding get() = _binding!!
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,7 +28,10 @@ class ExerciseMenuBottomSheetDialog(
         return binding.root
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
 
         binding.editBtn.setOnClickListener {
