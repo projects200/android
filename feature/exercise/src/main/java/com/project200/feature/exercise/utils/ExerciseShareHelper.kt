@@ -12,6 +12,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.bumptech.glide.Glide
 import com.project200.domain.model.ExerciseRecord
+import com.project200.feature.exercise.share.StickerTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -48,6 +49,7 @@ object ExerciseShareHelper {
     suspend fun shareExerciseRecord(
         context: Context,
         record: ExerciseRecord,
+        theme: StickerTheme = StickerTheme.DARK,
     ) {
         val backgroundImageUrl = record.pictures?.firstOrNull()?.url
 
@@ -59,7 +61,7 @@ object ExerciseShareHelper {
 
         val stickerBitmap =
             withContext(Dispatchers.Main) {
-                ExerciseRecordStickerGenerator.generateStickerBitmap(context, record)
+                ExerciseRecordStickerGenerator.generateStickerBitmap(context, record, theme)
             }
 
         val imageUri =
