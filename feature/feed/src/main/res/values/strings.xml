@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Feed List Screen -->
+    <string name="feed_title">피드</string>
+    <string name="feed_empty_message">아직 작성된 피드가 없습니다</string>
+    <string name="feed_loading_error">피드를 불러오는 데 실패했습니다</string>
+    <string name="feed_likes_count">좋아요 %d</string>
+    <string name="feed_comments_count">댓글 %d</string>
+    <string name="feed_select_dabang">다방 선택</string>
+</resources>
