@@ -3,6 +3,8 @@ package com.project200.data.api
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
+import com.project200.data.dto.FeedDTO
+import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -474,4 +476,17 @@ interface ApiService {
         @Header("X-Fcm-Token") fcmToken: String,
         @Body notiRequest: List<NotificationStateDTO>,
     ): BaseResponse<Unit?>
+
+    /** 피드 */
+    @GET("api/v1/feeds")
+    @AccessTokenApi
+    suspend fun getFeeds(
+        @Query("prevFeedId") prevFeedId: Long?,
+    ): BaseResponse<GetFeedsDTO>
+
+    @GET("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun getFeedDetail(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<FeedDTO>
 }
