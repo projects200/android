@@ -44,6 +44,11 @@
                 android:name="recordId"
                 app:argType="long" />
         </action>
+        <action
+            android:id="@+id/action_exerciseDetailFragment_to_exerciseShareEditFragment"
+            app:destination="@id/exerciseShareEditFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:popExitAnim="@anim/anim_fade_out" />
     </fragment>
 
     <fragment
@@ -105,6 +110,16 @@
         android:name="com.project200.feature.exercise.form.PlaceSearchFragment"
         android:label="placeSearch"
         tools:layout="@layout/fragment_place_search">
+    </fragment>
+
+    <fragment
+        android:id="@+id/exerciseShareEditFragment"
+        android:name="com.project200.feature.exercise.share.ExerciseShareEditFragment"
+        android:label="exerciseShareEdit"
+        tools:layout="@layout/fragment_exercise_share_edit">
+        <argument
+            android:name="recordId"
+            app:argType="long" />
     </fragment>
 
 </navigation>

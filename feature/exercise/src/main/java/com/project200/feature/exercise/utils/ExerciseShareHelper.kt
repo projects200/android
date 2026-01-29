@@ -5,6 +5,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Matrix
 import android.graphics.Paint
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -12,6 +13,7 @@ import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.bumptech.glide.Glide
 import com.project200.domain.model.ExerciseRecord
+import com.project200.feature.exercise.share.StickerTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -32,10 +34,7 @@ object ExerciseShareHelper {
     private const val FILE_PROVIDER_AUTHORITY_SUFFIX = ".fileprovider"
 
     // 스티커 크기: 배경 이미지 너비의 45%
-    private const val STICKER_WIDTH_RATIO = 0.45f
-
-    // 스티커 마진: 배경 이미지 너비의 5%
-    private const val STICKER_MARGIN_RATIO = 0.05f
+    private const val DEFAULT_STICKER_WIDTH_RATIO = 0.45f
 
     // 인스타그램 지원 비율
     // 세로: 4:5 (0.8), 가로: 1.91:1
@@ -48,6 +47,8 @@ object ExerciseShareHelper {
     suspend fun shareExerciseRecord(
         context: Context,
         record: ExerciseRecord,
+        theme: StickerTheme = StickerTheme.DARK,
+        transformInfo: StickerTransformInfo? = null,
     ) {
         val backgroundImageUrl = record.pictures?.firstOrNull()?.url
 
@@ -59,12 +60,12 @@ object ExerciseShareHelper {
 
         val stickerBitmap =
             withContext(Dispatchers.Main) {
-                ExerciseRecordStickerGenerator.generateStickerBitmap(context, record)
+                ExerciseRecordStickerGenerator.generateStickerBitmap(context, record, theme)
             }
 
         val imageUri =
             withContext(Dispatchers.IO) {
-                val combinedBitmap = createCombinedImage(stickerBitmap, backgroundBitmap)
+                val combinedBitmap = createCombinedImage(stickerBitmap, backgroundBitmap, transformInfo)
                 val instagramReadyBitmap = adjustToInstagramRatio(combinedBitmap)
                 saveBitmapToCache(context, instagramReadyBitmap)
             }
@@ -81,11 +82,12 @@ object ExerciseShareHelper {
 
     /**
      * 배경 이미지 위에 스티커를 합성
-     * 스티커는 좌상단에 배치되며, 배경 너비에 비례한 크기로 스케일링됨
+     * 스티커는 위치, 크기, 회전 정보에 따라 배치됨
      */
     private fun createCombinedImage(
         stickerBitmap: Bitmap,
         backgroundBitmap: Bitmap?,
+        transformInfo: StickerTransformInfo?,
     ): Bitmap {
         if (backgroundBitmap == null) {
             return stickerBitmap
@@ -94,16 +96,24 @@ object ExerciseShareHelper {
         val resultBitmap = backgroundBitmap.copy(Bitmap.Config.ARGB_8888, true)
         val canvas = Canvas(resultBitmap)
 
-        val targetStickerWidth = backgroundBitmap.width * STICKER_WIDTH_RATIO
-        val scale = targetStickerWidth / stickerBitmap.width
-        val scaledStickerWidth = (stickerBitmap.width * scale).toInt()
-        val scaledStickerHeight = (stickerBitmap.height * scale).toInt()
+        val widthRatio = transformInfo?.stickerWidthRatio ?: DEFAULT_STICKER_WIDTH_RATIO
+        val targetStickerWidth = backgroundBitmap.width * widthRatio
+        val finalScale = targetStickerWidth / stickerBitmap.width
+
+        val scaledStickerWidth = (stickerBitmap.width * finalScale).toInt().coerceAtLeast(1)
+        val scaledStickerHeight = (stickerBitmap.height * finalScale).toInt().coerceAtLeast(1)
 
         val scaledSticker = stickerBitmap.scale(scaledStickerWidth, scaledStickerHeight)
 
-        val margin = backgroundBitmap.width * STICKER_MARGIN_RATIO
+        val posX = (transformInfo?.translationXRatio ?: 0f) * backgroundBitmap.width
+        val posY = (transformInfo?.translationYRatio ?: 0f) * backgroundBitmap.height
+        val rotation = transformInfo?.rotationDegrees ?: 0f
 
-        canvas.drawBitmap(scaledSticker, margin, margin, Paint(Paint.FILTER_BITMAP_FLAG))
+        val matrix = Matrix()
+        matrix.postRotate(rotation, scaledStickerWidth / 2f, scaledStickerHeight / 2f)
+        matrix.postTranslate(posX, posY)
+
+        canvas.drawBitmap(scaledSticker, matrix, Paint(Paint.FILTER_BITMAP_FLAG))
 
         scaledSticker.recycle()
         return resultBitmap

@@ -12,7 +12,7 @@ import androidx.navigation.fragment.navArgs
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
-import com.project200.feature.exercise.utils.ExerciseShareHelper
+
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.UiState
@@ -37,7 +37,11 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
         binding.baseToolbar.apply {
             setTitle(getString(R.string.exercise_detail))
             showBackButton(true) { findNavController().navigateUp() }
-            setSecondarySubButton(R.drawable.ic_share) { shareExerciseRecord() }
+            setSecondarySubButton(R.drawable.ic_share) {
+                findNavController().navigate(
+                    ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseShareEditFragment(args.recordId)
+                )
+            }
             setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }
     }
@@ -160,19 +164,6 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
                 viewModel.deleteExerciseRecord(args.recordId)
             },
         ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
-    }
-
-    private fun shareExerciseRecord() {
-        val record = currentRecord ?: return
-        binding.loadingOverlay.visibility = View.VISIBLE
-
-        lifecycleScope.launch {
-            try {
-                ExerciseShareHelper.shareExerciseRecord(requireContext(), record)
-            } finally {
-                binding.loadingOverlay.visibility = View.GONE
-            }
-        }
     }
 
     companion object {

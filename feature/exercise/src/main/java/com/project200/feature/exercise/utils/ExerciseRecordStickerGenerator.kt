@@ -9,9 +9,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.constraintlayout.widget.ConstraintLayout
+import androidx.core.content.ContextCompat
 import androidx.core.graphics.createBitmap
 import androidx.core.graphics.withClip
 import com.project200.domain.model.ExerciseRecord
+import com.project200.feature.exercise.share.StickerTheme
 import com.project200.undabang.feature.exercise.R
 import java.time.Duration
 import java.time.LocalDateTime
@@ -24,14 +27,37 @@ object ExerciseRecordStickerGenerator {
     fun generateStickerBitmap(
         context: Context,
         record: ExerciseRecord,
+        theme: StickerTheme = StickerTheme.DARK,
     ): Bitmap {
         val inflater = LayoutInflater.from(context)
         val stickerView = inflater.inflate(R.layout.layout_exercise_sticker, null, false)
 
+        applyTheme(context, stickerView, theme)
         bindRecordToView(stickerView, record)
 
         val rawBitmap = convertViewToBitmap(stickerView)
         return applyRoundedClipping(context, rawBitmap)
+    }
+
+    private fun applyTheme(context: Context, view: View, theme: StickerTheme) {
+        val root = view.findViewById<ConstraintLayout>(R.id.sticker_root)
+        if (theme.backgroundDrawable != null) {
+            root.setBackgroundResource(theme.backgroundDrawable)
+        } else {
+            root.background = null
+        }
+
+        val textColor = ContextCompat.getColor(context, theme.textColorRes)
+        val subTextColor = ContextCompat.getColor(context, theme.subTextColorRes)
+
+        view.findViewById<TextView>(R.id.sticker_total_time_label).setTextColor(subTextColor)
+        view.findViewById<TextView>(R.id.sticker_time_value).setTextColor(textColor)
+        view.findViewById<TextView>(R.id.sticker_exercise_info).setTextColor(textColor)
+        view.findViewById<TextView>(R.id.sticker_type_text).setTextColor(textColor)
+        view.findViewById<TextView>(R.id.sticker_location_text).setTextColor(textColor)
+
+        val mascot = view.findViewById<ImageView>(R.id.sticker_mascot)
+        mascot.visibility = if (theme.showMascot) View.VISIBLE else View.GONE
     }
 
     private fun bindRecordToView(
