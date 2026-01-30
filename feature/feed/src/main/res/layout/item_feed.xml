@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:paddingBottom="24dp">
+
+    <!-- 1. Image List (Z-index: Bottom / 명명규칙 적용) -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/images_rv"
+        android:layout_width="0dp"
+        android:layout_height="120dp"
+        android:layout_marginTop="12dp"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="@+id/content_tv"
+        app:layout_constraintTop_toBottomOf="@+id/content_tv"
+        tools:listitem="@layout/item_feed_image" />
+
+    <!-- 2. Header (Z-index: Top / 명명규칙 적용) -->
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_iv"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:src="@drawable/ic_profile_default"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/nickname_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        style="@style/content_bold"
+        android:textSize="14sp"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toTopOf="@+id/profile_iv"
+        tools:text="운동하는개발자" />
+
+    <ImageView
+        android:id="@+id/arrow_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/ic_arrow_right"
+        app:layout_constraintStart_toEndOf="@id/nickname_tv"
+        app:layout_constraintTop_toTopOf="@id/nickname_tv"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_tv"
+        app:tint="@color/gray200"
+        android:layout_marginStart="6dp"/>
+
+    <TextView
+        android:id="@+id/feed_type_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="14sp"
+        style="@style/content_bold"
+        android:layout_marginStart="6dp"
+        app:layout_constraintBottom_toBottomOf="@+id/nickname_tv"
+        app:layout_constraintStart_toEndOf="@+id/arrow_iv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_tv"
+        tools:text="오운완" />
+
+    <TextView
+        android:id="@+id/time_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        style="@style/subtext_12"
+        android:textColor="@color/gray200"
+        app:layout_goneMarginStart="12dp"
+        app:layout_constraintBottom_toBottomOf="@+id/feed_type_tv"
+        app:layout_constraintStart_toEndOf="@+id/feed_type_tv"
+        app:layout_constraintTop_toTopOf="@+id/feed_type_tv"
+        tools:text="2시간 전" />
+
+    <ImageView
+        android:id="@+id/more_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/ic_more"
+        app:layout_constraintBottom_toBottomOf="@+id/profile_iv"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/profile_iv" />
+
+    <!-- 3. Content Text (Z-index: Top / 명명규칙 적용) -->
+    <TextView
+        android:id="@+id/content_tv"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        style="@style/subtext_14"
+        android:layout_marginTop="12dp"
+        android:maxLines="6"
+        android:ellipsize="end"
+        app:layout_constraintEnd_toStartOf="@+id/more_iv"
+        app:layout_constraintStart_toStartOf="@+id/nickname_tv"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
+        tools:text="오늘 운동 완료! 다들 득근하세요." />
+
+    <!-- 4. Actions Row (Z-index: Top / 명명규칙 적용) -->
+    <ImageView
+        android:id="@+id/comment_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:padding="4dp"
+        android:src="@drawable/ic_comment"
+        android:layout_marginTop="12dp"
+        app:layout_constraintBottom_toBottomOf="@+id/like_iv"
+        app:layout_constraintStart_toStartOf="@id/nickname_tv"
+        app:layout_constraintTop_toBottomOf="@+id/images_rv" />
+
+    <TextView
+        android:id="@+id/comment_count_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:text="0"
+        style="@style/subtext_14"
+        app:layout_constraintBottom_toBottomOf="@+id/comment_iv"
+        app:layout_constraintStart_toEndOf="@+id/comment_iv"
+        app:layout_constraintTop_toTopOf="@+id/comment_iv" />
+
+    <ImageView
+        android:id="@+id/like_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:padding="4dp"
+        android:src="@drawable/ic_like"
+        android:layout_marginStart="12dp"
+        app:layout_constraintStart_toEndOf="@+id/comment_count_tv"
+        app:layout_constraintTop_toBottomOf="@+id/images_rv" />
+
+    <TextView
+        android:id="@+id/like_count_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:text="0"
+        style="@style/subtext_14"
+        app:layout_constraintBottom_toBottomOf="@+id/like_iv"
+        app:layout_constraintStart_toEndOf="@+id/like_iv"
+        app:layout_constraintTop_toTopOf="@+id/like_iv" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
