@@ -36,8 +36,8 @@ class FeedRepositoryImpl @Inject constructor(
                 profileUrl = null,
                 thumbnailUrl = null,
                 feedPictures = listOf(
-                    com.project200.domain.model.FeedPicture(1L, "https://picsum.photos/seed/feed1/600/600"),
-                    com.project200.domain.model.FeedPicture(2L, "https://picsum.photos/seed/feed2/600/600")
+                    com.project200.domain.model.FeedPicture(1L, "https://picsum.photos/id/10/800/400"), // 가로로 긴 사진 (2:1)
+                    com.project200.domain.model.FeedPicture(2L, "https://picsum.photos/id/20/400/800")  // 세로로 긴 사진 (1:2)
                 )
             ),
             Feed(
@@ -55,7 +55,9 @@ class FeedRepositoryImpl @Inject constructor(
                 nickname = "장비빨최고",
                 profileUrl = null,
                 thumbnailUrl = null,
-                feedPictures = emptyList()
+                feedPictures = listOf(
+                    com.project200.domain.model.FeedPicture(4L, "https://picsum.photos/id/30/1000/300") // 극단적으로 가로로 긴 사진
+                )
             ),
             Feed(
                 feedId = 3L,
@@ -73,7 +75,7 @@ class FeedRepositoryImpl @Inject constructor(
                 profileUrl = null,
                 thumbnailUrl = null,
                 feedPictures = listOf(
-                    com.project200.domain.model.FeedPicture(3L, "https://picsum.photos/seed/feed3/600/600")
+                    com.project200.domain.model.FeedPicture(3L, "https://picsum.photos/id/40/300/1000") // 극단적으로 세로로 긴 사진
                 )
             )
         )

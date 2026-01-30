@@ -60,7 +60,7 @@ class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
                 if (feed.feedPictures.isNotEmpty()) {
                     imagesRv.visibility = View.VISIBLE
                     
-                    val imageAdapter = ImagePagerAdapter(feed.feedPictures)
+                    val imageAdapter = ImageRVAdapter(feed.feedPictures)
                     imagesRv.adapter = imageAdapter
                 } else {
                     imagesRv.visibility = View.GONE

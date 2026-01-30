@@ -1,16 +1,18 @@
 package com.project200.undabang.feature.feed.list
 
 import android.view.ViewGroup
-import android.widget.ImageView
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.domain.model.FeedPicture
 import com.project200.undabang.feature.feed.R
 import android.view.LayoutInflater
+import com.bumptech.glide.load.resource.bitmap.CenterCrop
+import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.undabang.feature.feed.databinding.ItemFeedImageBinding
 
-class ImagePagerAdapter(private val pictures: List<FeedPicture>) :
-    RecyclerView.Adapter<ImagePagerAdapter.ImageViewHolder>() {
+class ImageRVAdapter(private val pictures: List<FeedPicture>) :
+    RecyclerView.Adapter<ImageRVAdapter.ImageViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ImageViewHolder {
         val binding = ItemFeedImageBinding.inflate(
@@ -34,6 +36,7 @@ class ImagePagerAdapter(private val pictures: List<FeedPicture>) :
             Glide.with(binding.feedImageIv.context)
                 .load(picture.feedPictureUrl)
                 .placeholder(R.drawable.ic_feed_image_placeholder)
+                .transform(RoundedCorners(dpToPx(binding.root.context, 12f)))
                 .error(R.drawable.ic_feed_image_placeholder)
                 .into(binding.feedImageIv)
         }
