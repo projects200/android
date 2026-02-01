@@ -9,8 +9,10 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
+import com.project200.domain.model.ExerciseRecord
 import com.project200.feature.exercise.utils.ExerciseRecordStickerGenerator
 import com.project200.feature.exercise.utils.ExerciseShareHelper
+import com.project200.feature.exercise.utils.ShareEventData
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseShareEditBinding
@@ -46,7 +48,7 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
             findNavController().navigateUp()
         }
         binding.shareBtn.setOnClickListener {
-            shareImage()
+            viewModel.requestShare(binding.stickerPreview.getTransformInfo())
         }
     }
 
@@ -62,21 +64,24 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
                 launch {
                     viewModel.selectedTheme.collect { theme ->
                         updateThemeButtonSelection(theme)
-                        updateStickerPreview(theme)
                     }
                 }
 
                 launch {
-                    viewModel.exerciseRecord.collect { record ->
-                        if (record != null) {
-                            updateStickerPreview(viewModel.selectedTheme.value)
-                        }
+                    viewModel.stickerState.collect { state ->
+                        updateStickerPreview(state.record, state.theme)
                     }
                 }
 
                 launch {
                     viewModel.isLoading.collect { isLoading ->
                         binding.loadingOverlay.visibility = if (isLoading) View.VISIBLE else View.GONE
+                    }
+                }
+
+                launch {
+                    viewModel.shareEvent.collect { data ->
+                        shareImage(data)
                     }
                 }
             }
@@ -99,9 +104,7 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
         binding.themeMinimalBtn.alpha = if (theme == StickerTheme.MINIMAL) selectedAlpha else unselectedAlpha
     }
 
-    private fun updateStickerPreview(theme: StickerTheme) {
-        val record = viewModel.exerciseRecord.value ?: return
-
+    private fun updateStickerPreview(record: ExerciseRecord, theme: StickerTheme) {
         val currentTransform = binding.stickerPreview.getTransformInfo()
         val hasUserTransform = binding.stickerPreview.hasUserInteracted()
 
@@ -120,18 +123,17 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
         }
     }
 
-    private fun shareImage() {
-        val record = viewModel.exerciseRecord.value ?: return
-        val theme = viewModel.selectedTheme.value
-        val transformInfo = binding.stickerPreview.getTransformInfo()
-
-        binding.loadingOverlay.visibility = View.VISIBLE
-
+    private fun shareImage(data: ShareEventData) {
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                ExerciseShareHelper.shareExerciseRecord(requireContext(), record, theme, transformInfo)
+                ExerciseShareHelper.shareExerciseRecord(
+                    requireContext(),
+                    data.record,
+                    data.theme,
+                    data.transformInfo
+                )
             } finally {
-                binding.loadingOverlay.visibility = View.GONE
+                viewModel.onShareCompleted()
             }
         }
     }
