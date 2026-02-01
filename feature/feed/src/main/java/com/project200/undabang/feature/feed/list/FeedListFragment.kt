@@ -11,6 +11,8 @@ import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedListBinding
 import dagger.hilt.android.AndroidEntryPoint
 
+import com.project200.presentation.view.SelectionBottomSheetDialog
+
 @AndroidEntryPoint
 class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragment_feed_list) {
 
@@ -23,8 +25,36 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        initToolbar()
         initView()
         initObserver()
+    }
+
+    private fun initToolbar() {
+        binding.baseToolbar.apply {
+            setTitle("피드")
+            showBackButton(false)
+            setSubButton(R.drawable.ic_feed_add) {
+                // TODO: 피드 추가 화면으로 이동
+                Toast.makeText(context, "피드 추가 클릭", Toast.LENGTH_SHORT).show()
+            }
+            setSubButton2(R.drawable.ic_category) {
+                showCategoryBottomSheet()
+            }
+        }
+    }
+
+    private fun showCategoryBottomSheet() {
+        val items = viewModel.exerciseTypeList.value
+        if (items.isNullOrEmpty()) {
+            viewModel.loadExerciseTypes()
+            return
+        }
+
+        SelectionBottomSheetDialog(items) { selectedType ->
+            // TODO: 선택된 타입으로 필터링 로직 구현
+            Toast.makeText(context, "$selectedType 필터링", Toast.LENGTH_SHORT).show()
+        }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
     }
 
     private fun initView() {
