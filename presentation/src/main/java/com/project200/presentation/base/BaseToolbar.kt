@@ -35,21 +35,6 @@ class BaseToolbar
             }
         }
 
-        fun setLeftButton(
-            iconRes: Int?,
-            onClick: (() -> Unit)? = null,
-        ) {
-            binding.backBtn.apply {
-                if (iconRes != null) {
-                    setImageResource(iconRes)
-                    visibility = View.VISIBLE
-                    setOnClickListener { onClick?.invoke() }
-                } else {
-                    visibility = View.INVISIBLE
-                }
-            }
-        }
-
         fun setSubButton(
             iconRes: Int?,
             onClick: ((View) -> Unit)? = null,

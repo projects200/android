@@ -52,8 +52,7 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         }
 
         SelectionBottomSheetDialog(items) { selectedType ->
-            // TODO: 선택된 타입으로 필터링 로직 구현
-            Toast.makeText(context, "$selectedType 필터링", Toast.LENGTH_SHORT).show()
+            viewModel.selectType(selectedType)
         }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
     }
 
@@ -69,7 +68,10 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
                     val totalItemCount = layoutManager.itemCount
                     val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
 
-                    if (!viewModel.isLoading.value!! && totalItemCount <= (lastVisibleItem + 5)) {
+                    // 필터링 상태가 아닐 때만 다음 페이지 로드
+                    if (viewModel.selectedType.value == null && 
+                        !viewModel.isLoading.value!! && 
+                        totalItemCount <= (lastVisibleItem + 5)) {
                         viewModel.loadFeeds()
                     }
                 }
@@ -80,6 +82,22 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     private fun initObserver() {
         viewModel.feedList.observe(viewLifecycleOwner) { feeds ->
             feedAdapter.submitList(feeds)
+        }
+
+        viewModel.selectedType.observe(viewLifecycleOwner) { type ->
+            binding.baseToolbar.apply {
+                if (type != null) {
+                    setTitle(type)
+                    setSubButton2(null)
+                    showBackButton(true) { viewModel.clearType() }
+                } else {
+                    setTitle("피드")
+                    setSubButton2(R.drawable.ic_category) {
+                        showCategoryBottomSheet()
+                    }
+                    showBackButton(false)
+                }
+            }
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->

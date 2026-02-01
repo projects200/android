@@ -23,6 +23,9 @@ class FeedListViewModel @Inject constructor(
     private val _feedList = MutableLiveData<List<Feed>>()
     val feedList: LiveData<List<Feed>> get() = _feedList
 
+    private val _selectedType = MutableLiveData<String?>(null)
+    val selectedType: LiveData<String?> = _selectedType
+
     private val _isLoading = MutableLiveData<Boolean>()
     val isLoading: LiveData<Boolean> get() = _isLoading
 
@@ -34,11 +37,30 @@ class FeedListViewModel @Inject constructor(
 
     private var hasNext: Boolean = true
     private var lastFeedId: Long? = null
-    private val currentFeeds = mutableListOf<Feed>()
+    private val allFeeds = mutableListOf<Feed>()
 
     init {
         loadFeeds()
         loadExerciseTypes()
+    }
+
+    fun selectType(type: String?) {
+        _selectedType.value = type
+        updateFilteredList()
+    }
+
+    fun clearType() {
+        _selectedType.value = null
+        updateFilteredList()
+    }
+
+    private fun updateFilteredList() {
+        val type = _selectedType.value
+        if (type == null) {
+            _feedList.value = allFeeds.toList()
+        } else {
+            _feedList.value = allFeeds.filter { it.feedTypeName == type }
+        }
     }
 
     fun loadExerciseTypes() {
@@ -77,7 +99,7 @@ class FeedListViewModel @Inject constructor(
         if (isRefresh) {
             hasNext = true
             lastFeedId = null
-            currentFeeds.clear()
+            allFeeds.clear()
         }
 
         if (!hasNext || (_isLoading.value == true && !isRefresh)) return
@@ -92,8 +114,8 @@ class FeedListViewModel @Inject constructor(
                     
                     if (newFeeds.isNotEmpty()) {
                         lastFeedId = newFeeds.last().feedId
-                        currentFeeds.addAll(newFeeds)
-                        _feedList.value = currentFeeds.toList()
+                        allFeeds.addAll(newFeeds)
+                        updateFilteredList()
                     } else if (isRefresh) {
                          _feedList.value = emptyList()
                     }
