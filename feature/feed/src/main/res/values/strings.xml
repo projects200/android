@@ -2,7 +2,7 @@
 <resources>
     <!-- Feed List Screen -->
     <string name="feed_title">피드</string>
-    <string name="feed_empty_message">아직 작성된 피드가 없습니다</string>
+    <string name="feed_empty_message">아직 작성된 피드가 없어요\n첫 번째 피드를 작성해보세요!</string>
     <string name="feed_loading_error">피드를 불러오는 데 실패했습니다</string>
     <string name="feed_likes_count">좋아요 %d</string>
     <string name="feed_comments_count">댓글 %d</string>

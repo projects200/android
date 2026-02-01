@@ -82,6 +82,11 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     private fun initObserver() {
         viewModel.feedList.observe(viewLifecycleOwner) { feeds ->
             feedAdapter.submitList(feeds)
+            
+            // 데이터 유무에 따른 Empty View 처리
+            val isLoading = viewModel.isLoading.value ?: false
+            binding.emptyTv.visibility = if (feeds.isEmpty() && !isLoading) View.VISIBLE else View.GONE
+            binding.feedListRv.visibility = if (feeds.isEmpty() && !isLoading) View.GONE else View.VISIBLE
         }
 
         viewModel.selectedType.observe(viewLifecycleOwner) { type ->
