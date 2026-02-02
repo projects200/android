@@ -1,4 +1,4 @@
-package com.project200.presentation.util
+package com.project200.presentation.utils
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -26,14 +26,12 @@ object RelativeTimeUtil {
         }
     }
 
-    // Overload for string input if needed, assuming ISO format
     fun getRelativeTime(isoString: String?): String {
         if (isoString.isNullOrEmpty()) return ""
         return try {
             val parsed = LocalDateTime.parse(isoString, DateTimeFormatter.ISO_DATE_TIME)
             getRelativeTime(parsed)
         } catch (e: Exception) {
-            // Fallback for parsing errors or different formats
             isoString
         }
     }

@@ -1,9 +1,13 @@
 package com.project200.data.mapper
 
+import com.project200.data.dto.CreateFeedRequestDTO
+import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.FeedPictureDTO
 import com.project200.data.dto.GetFeedsDTO
+import com.project200.domain.model.CreateFeedModel
 import com.project200.domain.model.Feed
+import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
 import com.project200.domain.model.FeedPicture
 import java.time.LocalDateTime
@@ -40,5 +44,18 @@ fun FeedPictureDTO.toModel(): FeedPicture {
     return FeedPicture(
         feedPictureId = feedPictureId,
         feedPictureUrl = feedPictureUrl,
+    )
+}
+
+fun CreateFeedModel.toDTO(): CreateFeedRequestDTO {
+    return CreateFeedRequestDTO(
+        feedContent = feedContent,
+        feedTypeId = feedTypeId,
+    )
+}
+
+fun FeedCreateResultDTO.toModel(): FeedCreateResult {
+    return FeedCreateResult(
+        feedId = feedId,
     )
 }

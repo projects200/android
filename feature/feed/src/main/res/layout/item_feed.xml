@@ -7,7 +7,6 @@
     android:background="@android:color/white"
     android:paddingBottom="24dp">
 
-    <!-- 1. Image List (Z-index: Bottom / 명명규칙 적용) -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/images_rv"
         android:layout_width="0dp"
@@ -21,7 +20,6 @@
         app:layout_constraintTop_toBottomOf="@+id/content_tv"
         tools:listitem="@layout/item_feed_image" />
 
-    <!-- 2. Header (Z-index: Top / 명명규칙 적용) -->
     <de.hdodenhof.circleimageview.CircleImageView
         android:id="@+id/profile_iv"
         android:layout_width="40dp"
@@ -89,7 +87,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/profile_iv" />
 
-    <!-- 3. Content Text (Z-index: Top / 명명규칙 적용) -->
     <TextView
         android:id="@+id/content_tv"
         android:layout_width="0dp"
@@ -103,7 +100,6 @@
         app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
         tools:text="오늘 운동 완료! 다들 득근하세요." />
 
-    <!-- 4. Actions Row (Z-index: Top / 명명규칙 적용) -->
     <ImageView
         android:id="@+id/comment_iv"
         android:layout_width="wrap_content"

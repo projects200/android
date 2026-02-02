@@ -71,4 +71,10 @@
         <item name="android:itemTextAppearance">@style/MenuTextAppearance</item>
     </style>
 
+    <!-- ShapeableImageView Rounded Corner Styles -->
+    <style name="RoundedCorner12dp" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">12dp</item>
+    </style>
+
 </resources>

@@ -35,3 +35,12 @@ data class FeedType(
     val feedTypeName: String,
     val feedTypeDesc: String,
 )
+
+data class CreateFeedModel(
+    val feedContent: String,
+    val feedTypeId: Long?,
+)
+
+data class FeedCreateResult(
+    val feedId: Long,
+)

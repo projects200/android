@@ -7,4 +7,12 @@
     <string name="feed_likes_count">좋아요 %d</string>
     <string name="feed_comments_count">댓글 %d</string>
     <string name="feed_select_dabang">다방 선택</string>
+
+    <!-- Feed Form Screen -->
+    <string name="feed_form_title">새로운 피드</string>
+    <string name="feed_form_done">완료</string>
+    <string name="feed_form_content_hint">피드 내용을 입력해주세요.</string>
+    <string name="feed_form_add_image">이미지 추가</string>
+    <string name="feed_form_empty_content_warning">내용을 입력해주세요.</string>
+    <string name="feed_form_create_success">피드가 등록되었습니다.</string>
 </resources>

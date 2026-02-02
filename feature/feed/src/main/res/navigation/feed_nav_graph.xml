@@ -9,5 +9,15 @@
         android:id="@+id/feedListFragment"
         android:name="com.project200.undabang.feature.feed.list.FeedListFragment"
         android:label="FeedListFragment"
-        tools:layout="@layout/fragment_feed_list" />
+        tools:layout="@layout/fragment_feed_list" >
+        <action
+            android:id="@+id/action_feedListFragment_to_feedFormFragment"
+            app:destination="@id/feedFormFragment" />
+    </fragment>
+    <fragment
+        android:id="@+id/feedFormFragment"
+        android:name="com.project200.undabang.feature.feed.form.FeedFormFragment"
+        android:label="FeedFormFragment"
+        tools:layout="@layout/fragment_feed_form" >
+    </fragment>
 </navigation>

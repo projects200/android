@@ -1,8 +1,10 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
+import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.EditExercisePlaceDTO
@@ -489,4 +491,10 @@ interface ApiService {
     suspend fun getFeedDetail(
         @Path("feedId") feedId: Long,
     ): BaseResponse<FeedDTO>
+
+    @POST("api/v1/feeds")
+    @AccessTokenApi
+    suspend fun postFeed(
+        @Body createFeedRequest: CreateFeedRequestDTO,
+    ): BaseResponse<FeedCreateResultDTO>
 }

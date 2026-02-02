@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.viewModels
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.presentation.base.BindingFragment
@@ -35,8 +36,9 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             setTitle("피드")
             showBackButton(false)
             setSubButton(R.drawable.ic_feed_add) {
-                // TODO: 피드 추가 화면으로 이동
-                Toast.makeText(context, "피드 추가 클릭", Toast.LENGTH_SHORT).show()
+                findNavController().navigate(
+                    FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment()
+                )
             }
             setSubButton2(R.drawable.ic_category) {
                 showCategoryBottomSheet()

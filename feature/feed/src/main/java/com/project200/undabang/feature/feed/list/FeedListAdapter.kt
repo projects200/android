@@ -8,7 +8,7 @@ import com.bumptech.glide.Glide
 import com.project200.domain.model.Feed
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.ItemFeedBinding
-import com.project200.presentation.util.RelativeTimeUtil
+import com.project200.presentation.utils.RelativeTimeUtil
 
 class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
 
@@ -48,8 +48,8 @@ class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
                 // Avatar
                 Glide.with(root.context)
                     .load(feed.profileUrl)
-                    .placeholder(R.drawable.ic_profile_default)
-                    .error(R.drawable.ic_profile_default)
+                    .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
+                    .error(com.project200.undabang.presentation.R.drawable.ic_profile_default)
                     .circleCrop()
                     .into(profileIv)
 

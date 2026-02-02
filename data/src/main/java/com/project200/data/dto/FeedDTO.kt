@@ -33,3 +33,14 @@ data class FeedPictureDTO(
     val feedPictureId: Long,
     val feedPictureUrl: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class CreateFeedRequestDTO(
+    val feedContent: String,
+    val feedTypeId: Long?,
+)
+
+@JsonClass(generateAdapter = true)
+data class FeedCreateResultDTO(
+    val feedId: Long,
+)
