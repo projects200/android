@@ -22,12 +22,12 @@ class FeedRepositoryImpl @Inject constructor(
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
 ) : FeedRepository {
 
-    override suspend fun getFeeds(prevFeedId: Long?): BaseResult<FeedListResult> {
+    override suspend fun getFeeds(prevFeedId: Long?, size: Int?): BaseResult<FeedListResult> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getFeeds(prevFeedId) },
+            apiCall = { apiService.getFeeds(prevFeedId, size) },
             mapper = { dto: GetFeedsDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException("피드 목록 데이터가 없습니다.")
+                dto?.toModel() ?: FeedListResult(hasNext = false, feeds = emptyList())
             },
         )
     }

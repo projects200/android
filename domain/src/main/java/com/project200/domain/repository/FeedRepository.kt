@@ -7,7 +7,7 @@ import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
 
 interface FeedRepository {
-    suspend fun getFeeds(prevFeedId: Long?): BaseResult<FeedListResult>
+    suspend fun getFeeds(prevFeedId: Long?, size: Int? = null): BaseResult<FeedListResult>
 
     suspend fun getFeedDetail(feedId: Long): BaseResult<Feed>
 

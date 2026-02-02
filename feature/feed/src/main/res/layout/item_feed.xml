@@ -71,10 +71,10 @@
         android:layout_marginStart="6dp"
         style="@style/subtext_12"
         android:textColor="@color/gray200"
-        app:layout_goneMarginStart="12dp"
-        app:layout_constraintBottom_toBottomOf="@+id/feed_type_tv"
+        app:layout_goneMarginStart="6dp"
+        app:layout_constraintBottom_toBottomOf="@+id/nickname_tv"
         app:layout_constraintStart_toEndOf="@+id/feed_type_tv"
-        app:layout_constraintTop_toTopOf="@+id/feed_type_tv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_tv"
         tools:text="2시간 전" />
 
     <ImageView

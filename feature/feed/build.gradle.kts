@@ -46,4 +46,7 @@ dependencies {
 
     // ViewPager2 Indicator
     implementation(libs.circleindicator)
+
+    // Shimmer
+    implementation(libs.shimmer)
 }

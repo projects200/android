@@ -8,7 +8,7 @@ import javax.inject.Inject
 class GetFeedsUseCase @Inject constructor(
     private val feedRepository: FeedRepository,
 ) {
-    suspend operator fun invoke(prevFeedId: Long? = null): BaseResult<FeedListResult> {
-        return feedRepository.getFeeds(prevFeedId)
+    suspend operator fun invoke(prevFeedId: Long? = null, size: Int? = null): BaseResult<FeedListResult> {
+        return feedRepository.getFeeds(prevFeedId, size)
     }
 }

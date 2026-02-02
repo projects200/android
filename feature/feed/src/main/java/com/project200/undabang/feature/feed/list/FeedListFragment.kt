@@ -31,6 +31,11 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         initObserver()
     }
 
+    override fun onResume() {
+        super.onResume()
+        viewModel.loadFeeds(isRefresh = true)
+    }
+
     private fun initToolbar() {
         binding.baseToolbar.apply {
             setTitle("피드")
@@ -84,11 +89,15 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     private fun initObserver() {
         viewModel.feedList.observe(viewLifecycleOwner) { feeds ->
             feedAdapter.submitList(feeds)
-            
-            // 데이터 유무에 따른 Empty View 처리
+        }
+
+        viewModel.isEmpty.observe(viewLifecycleOwner) { isEmpty ->
             val isLoading = viewModel.isLoading.value ?: false
-            binding.emptyTv.visibility = if (feeds.isEmpty() && !isLoading) View.VISIBLE else View.GONE
-            binding.feedListRv.visibility = if (feeds.isEmpty() && !isLoading) View.GONE else View.VISIBLE
+            val isInitialLoading = isLoading && feedAdapter.itemCount == 0
+            binding.emptyTv.visibility = if (isEmpty && !isLoading) View.VISIBLE else View.GONE
+            if (!isInitialLoading) {
+                binding.feedListRv.visibility = if (isEmpty) View.GONE else View.VISIBLE
+            }
         }
 
         viewModel.selectedType.observe(viewLifecycleOwner) { type ->
@@ -108,7 +117,15 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.loadingPb.visibility = if (isLoading && feedAdapter.itemCount == 0) View.VISIBLE else View.GONE
+            val isInitialLoading = isLoading && feedAdapter.itemCount == 0
+            if (isInitialLoading) {
+                binding.shimmerLayout.visibility = View.VISIBLE
+                binding.shimmerLayout.startShimmer()
+                binding.feedListRv.visibility = View.GONE
+            } else {
+                binding.shimmerLayout.stopShimmer()
+                binding.shimmerLayout.visibility = View.GONE
+            }
         }
 
         viewModel.error.observe(viewLifecycleOwner) { errorMessage ->

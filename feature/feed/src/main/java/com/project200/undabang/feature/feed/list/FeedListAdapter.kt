@@ -40,10 +40,15 @@ class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
 
         fun bind(feed: Feed) {
             with(binding) {
-                // Header
                 nicknameTv.text = feed.nickname
-                feedTypeTv.text = feed.feedTypeName
                 timeTv.text = RelativeTimeUtil.getRelativeTime(feed.feedCreatedAt)
+                
+                val hasType = !feed.feedTypeName.isNullOrBlank()
+                arrowIv.visibility = if (hasType) View.VISIBLE else View.GONE
+                feedTypeTv.visibility = if (hasType) View.VISIBLE else View.GONE
+                if (hasType) {
+                    feedTypeTv.text = feed.feedTypeName
+                }
                 
                 // Avatar
                 Glide.with(root.context)

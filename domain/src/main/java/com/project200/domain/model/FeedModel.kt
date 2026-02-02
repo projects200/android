@@ -12,9 +12,9 @@ data class Feed(
     val feedContent: String,
     val feedLikesCount: Int,
     val feedCommentsCount: Int,
-    val feedTypeId: Long,
-    val feedTypeName: String,
-    val feedTypeDesc: String,
+    val feedTypeId: Long?,
+    val feedTypeName: String?,
+    val feedTypeDesc: String?,
     val feedCreatedAt: LocalDateTime,
     val feedIsLiked: Boolean,
     val feedHasCommented: Boolean,
@@ -28,12 +28,6 @@ data class Feed(
 data class FeedPicture(
     val feedPictureId: Long,
     val feedPictureUrl: String,
-)
-
-data class FeedType(
-    val feedTypeId: Long,
-    val feedTypeName: String,
-    val feedTypeDesc: String,
 )
 
 data class CreateFeedModel(

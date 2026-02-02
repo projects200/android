@@ -484,7 +484,8 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getFeeds(
         @Query("prevFeedId") prevFeedId: Long?,
-    ): BaseResponse<GetFeedsDTO>
+        @Query("size") size: Int?,
+    ): BaseResponse<GetFeedsDTO?>
 
     @GET("api/v1/feeds/{feedId}")
     @AccessTokenApi

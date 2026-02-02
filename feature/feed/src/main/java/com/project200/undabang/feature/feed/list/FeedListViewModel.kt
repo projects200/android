@@ -26,11 +26,14 @@ class FeedListViewModel @Inject constructor(
     private val _selectedType = MutableLiveData<String?>(null)
     val selectedType: LiveData<String?> = _selectedType
 
-    private val _isLoading = MutableLiveData<Boolean>()
+    private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> get() = _isLoading
 
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> get() = _error
+
+    private val _isEmpty = MutableLiveData<Boolean>(false)
+    val isEmpty: LiveData<Boolean> get() = _isEmpty
 
     private val _exerciseTypeList = MutableLiveData<List<String>>()
     val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
@@ -39,8 +42,11 @@ class FeedListViewModel @Inject constructor(
     private var lastFeedId: Long? = null
     private val allFeeds = mutableListOf<Feed>()
 
+    companion object {
+        private const val DEFAULT_PAGE_SIZE = 10
+    }
+
     init {
-        loadFeeds()
         loadExerciseTypes()
     }
 
@@ -107,7 +113,7 @@ class FeedListViewModel @Inject constructor(
         _isLoading.value = true
         
         viewModelScope.launch {
-            when (val result = getFeedsUseCase(lastFeedId)) {
+            when (val result = getFeedsUseCase(lastFeedId, DEFAULT_PAGE_SIZE)) {
                 is BaseResult.Success -> {
                     val newFeeds = result.data.feeds
                     hasNext = result.data.hasNext
@@ -115,13 +121,16 @@ class FeedListViewModel @Inject constructor(
                     if (newFeeds.isNotEmpty()) {
                         lastFeedId = newFeeds.last().feedId
                         allFeeds.addAll(newFeeds)
-                        updateFilteredList()
-                    } else if (isRefresh) {
-                         _feedList.value = emptyList()
                     }
+                    updateFilteredList()
+                    _isEmpty.value = allFeeds.isEmpty()
                 }
                 is BaseResult.Error -> {
                     _error.value = result.message ?: "알 수 없는 오류가 발생했습니다."
+                    if (allFeeds.isEmpty()) {
+                        _isEmpty.value = true
+                        _feedList.value = emptyList()
+                    }
                 }
             }
             _isLoading.value = false
