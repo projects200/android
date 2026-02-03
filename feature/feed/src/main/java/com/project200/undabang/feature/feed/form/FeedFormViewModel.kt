@@ -46,6 +46,9 @@ class FeedFormViewModel @Inject constructor(
     private val _error = MutableLiveData<String>()
     val error: LiveData<String> get() = _error
 
+    private val _showDabangSelection = MutableLiveData<List<PreferredExercise>?>()
+    val showDabangSelection: LiveData<List<PreferredExercise>?> get() = _showDabangSelection
+
     init {
         loadData()
     }
@@ -70,6 +73,17 @@ class FeedFormViewModel @Inject constructor(
 
     fun selectType(exercise: PreferredExercise?) {
         _selectedType.value = exercise
+    }
+
+    fun requestShowDabangSelection() {
+        val types = _exerciseTypes.value
+        if (!types.isNullOrEmpty()) {
+            _showDabangSelection.value = types
+        }
+    }
+
+    fun onDabangSelectionShown() {
+        _showDabangSelection.value = null
     }
 
     fun addImages(uris: List<Uri>) {

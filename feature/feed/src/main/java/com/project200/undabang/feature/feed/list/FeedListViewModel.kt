@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Feed
+import com.project200.domain.usecase.DeleteFeedUseCase
 import com.project200.domain.usecase.GetFeedsUseCase
+import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,7 +19,9 @@ import javax.inject.Inject
 class FeedListViewModel @Inject constructor(
     private val getFeedsUseCase: GetFeedsUseCase,
     private val getPreferredExerciseUseCase: GetPreferredExerciseUseCase,
-    private val getPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase
+    private val getPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase,
+    private val getMemberIdUseCase: GetMemberIdUseCase,
+    private val deleteFeedUseCase: DeleteFeedUseCase
 ) : ViewModel() {
 
     private val _feedList = MutableLiveData<List<Feed>>()
@@ -38,6 +42,18 @@ class FeedListViewModel @Inject constructor(
     private val _exerciseTypeList = MutableLiveData<List<String>>()
     val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
 
+    private val _currentMemberId = MutableLiveData<String>()
+    val currentMemberId: LiveData<String> get() = _currentMemberId
+
+    private val _deleteSuccess = MutableLiveData<Boolean>()
+    val deleteSuccess: LiveData<Boolean> get() = _deleteSuccess
+
+    private val _showEmptyView = MutableLiveData<Boolean>(false)
+    val showEmptyView: LiveData<Boolean> get() = _showEmptyView
+
+    private val _showCategoryBottomSheet = MutableLiveData<List<String>?>()
+    val showCategoryBottomSheet: LiveData<List<String>?> get() = _showCategoryBottomSheet
+
     private var hasNext: Boolean = true
     private var lastFeedId: Long? = null
     private val allFeeds = mutableListOf<Feed>()
@@ -47,7 +63,15 @@ class FeedListViewModel @Inject constructor(
     }
 
     init {
+        loadFeeds()
         loadExerciseTypes()
+        loadCurrentMemberId()
+    }
+
+    private fun loadCurrentMemberId() {
+        viewModelScope.launch {
+            _currentMemberId.value = getMemberIdUseCase()
+        }
     }
 
     fun selectType(type: String?) {
@@ -58,6 +82,27 @@ class FeedListViewModel @Inject constructor(
     fun clearType() {
         _selectedType.value = null
         updateFilteredList()
+    }
+
+    fun canLoadMore(): Boolean {
+        return _selectedType.value == null && _isLoading.value != true && hasNext
+    }
+
+    fun requestShowCategoryBottomSheet() {
+        val items = _exerciseTypeList.value
+        if (items.isNullOrEmpty()) {
+            loadExerciseTypes()
+        } else {
+            _showCategoryBottomSheet.value = items
+        }
+    }
+
+    fun onCategoryBottomSheetShown() {
+        _showCategoryBottomSheet.value = null
+    }
+
+    private fun updateShowEmptyView() {
+        _showEmptyView.value = _isEmpty.value == true && _isLoading.value != true
     }
 
     private fun updateFilteredList() {
@@ -124,16 +169,37 @@ class FeedListViewModel @Inject constructor(
                     }
                     updateFilteredList()
                     _isEmpty.value = allFeeds.isEmpty()
+                    updateShowEmptyView()
                 }
                 is BaseResult.Error -> {
                     _error.value = result.message ?: "알 수 없는 오류가 발생했습니다."
                     if (allFeeds.isEmpty()) {
                         _isEmpty.value = true
                         _feedList.value = emptyList()
+                        updateShowEmptyView()
                     }
                 }
             }
             _isLoading.value = false
+            updateShowEmptyView()
+        }
+    }
+
+    fun deleteFeed(feedId: Long) {
+        viewModelScope.launch {
+            when (val result = deleteFeedUseCase(feedId)) {
+                is BaseResult.Success -> {
+                    allFeeds.removeAll { it.feedId == feedId }
+                    updateFilteredList()
+                    _isEmpty.value = allFeeds.isEmpty()
+                    updateShowEmptyView()
+                    _deleteSuccess.value = true
+                }
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "피드 삭제에 실패했습니다."
+                    _deleteSuccess.value = false
+                }
+            }
         }
     }
 }

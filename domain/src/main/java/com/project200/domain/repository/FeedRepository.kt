@@ -12,4 +12,6 @@ interface FeedRepository {
     suspend fun getFeedDetail(feedId: Long): BaseResult<Feed>
 
     suspend fun createFeed(createFeedModel: CreateFeedModel): BaseResult<FeedCreateResult>
+
+    suspend fun deleteFeed(feedId: Long): BaseResult<Unit>
 }

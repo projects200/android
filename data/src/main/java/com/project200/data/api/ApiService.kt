@@ -498,4 +498,10 @@ interface ApiService {
     suspend fun postFeed(
         @Body createFeedRequest: CreateFeedRequestDTO,
     ): BaseResponse<FeedCreateResultDTO>
+
+    @DELETE("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun deleteFeed(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<Unit?>
 }

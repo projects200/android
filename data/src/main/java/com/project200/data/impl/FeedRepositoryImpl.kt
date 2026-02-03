@@ -51,4 +51,12 @@ class FeedRepositoryImpl @Inject constructor(
             },
         )
     }
+
+    override suspend fun deleteFeed(feedId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteFeed(feedId) },
+            mapper = { Unit },
+        )
+    }
 }

@@ -1,6 +1,5 @@
 package com.project200.undabang.feature.feed.form
 
-import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
@@ -9,6 +8,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
+import com.project200.domain.model.PreferredExercise
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
@@ -67,7 +67,10 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
     }
 
     private fun showDabangSelection() {
-        val types = viewModel.exerciseTypes.value ?: return
+        viewModel.requestShowDabangSelection()
+    }
+
+    private fun displayDabangSelection(types: List<PreferredExercise>) {
         val names = types.map { it.name }
         
         SelectionBottomSheetDialog(names) { selectedName ->
@@ -76,6 +79,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
             binding.dabangSelectionTv.text = selectedName
             binding.dabangSelectionTv.setTextColor(resources.getColor(com.project200.undabang.presentation.R.color.black, null))
         }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        viewModel.onDabangSelectionShown()
     }
 
     private fun initObserver() {
@@ -104,6 +108,12 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
         viewModel.error.observe(viewLifecycleOwner) { message ->
             if (message.isNotEmpty()) {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.showDabangSelection.observe(viewLifecycleOwner) { types ->
+            if (!types.isNullOrEmpty()) {
+                displayDabangSelection(types)
             }
         }
     }

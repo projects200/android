@@ -10,13 +10,21 @@ import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.ItemFeedBinding
 import com.project200.presentation.utils.RelativeTimeUtil
 
-class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
+class FeedListAdapter(
+    private val onMoreClick: (Feed) -> Unit
+) : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
 
     private val items = mutableListOf<Feed>()
+    private var currentMemberId: String? = null
 
     fun submitList(newItems: List<Feed>) {
         items.clear()
         items.addAll(newItems)
+        notifyDataSetChanged()
+    }
+
+    fun setCurrentMemberId(memberId: String) {
+        currentMemberId = memberId
         notifyDataSetChanged()
     }
 
@@ -49,6 +57,10 @@ class FeedListAdapter : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
                 if (hasType) {
                     feedTypeTv.text = feed.feedTypeName
                 }
+
+                val isMyFeed = currentMemberId != null && feed.memberId == currentMemberId
+                moreIv.visibility = if (isMyFeed) View.VISIBLE else View.GONE
+                moreIv.setOnClickListener { onMoreClick(feed) }
                 
                 // Avatar
                 Glide.with(root.context)
