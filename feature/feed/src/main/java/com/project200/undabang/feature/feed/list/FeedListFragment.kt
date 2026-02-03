@@ -36,10 +36,17 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     }
 
     private fun initAdapter() {
-        feedAdapter = FeedListAdapter { feed ->
-            selectedFeed = feed
-            showMenuBottomSheet()
-        }
+        feedAdapter = FeedListAdapter(
+            onItemClick = { feed ->
+                findNavController().navigate(
+                    FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feed.feedId)
+                )
+            },
+            onMoreClick = { feed ->
+                selectedFeed = feed
+                showMenuBottomSheet()
+            }
+        )
     }
 
     private fun showMenuBottomSheet() {

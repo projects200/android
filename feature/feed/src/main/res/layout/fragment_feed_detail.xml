@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/white">
+
+    <com.project200.presentation.base.BaseToolbar
+        android:id="@+id/base_toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_iv"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="56dp"
+
+        app:layout_constraintBottom_toBottomOf="@id/base_toolbar"
+        android:src="@drawable/ic_profile_default"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/base_toolbar" />
+
+    <TextView
+        android:id="@+id/nickname_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textSize="14sp"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toTopOf="@+id/profile_iv"
+        tools:text="러닝고수" />
+
+    <ImageView
+        android:id="@+id/arrow_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:src="@drawable/ic_arrow_right"
+        app:layout_constraintBottom_toBottomOf="@id/nickname_tv"
+        app:layout_constraintStart_toEndOf="@id/nickname_tv"
+        app:layout_constraintTop_toTopOf="@id/nickname_tv"
+        app:tint="@color/gray200" />
+
+    <TextView
+        android:id="@+id/feed_type_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:textSize="14sp"
+        app:layout_constraintBottom_toBottomOf="@+id/nickname_tv"
+        app:layout_constraintStart_toEndOf="@+id/arrow_iv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_tv"
+        tools:text="러닝다방" />
+
+    <TextView
+        android:id="@+id/time_tv"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:textColor="@color/gray200"
+        app:layout_constraintBottom_toBottomOf="@+id/profile_iv"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
+        tools:text="2026-02-02" />
+
+    <ImageView
+        android:id="@+id/more_iv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="16dp"
+        android:src="@drawable/ic_more"
+        app:layout_constraintBottom_toBottomOf="@+id/profile_iv"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/profile_iv" />
+
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/scroll_view"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/base_toolbar">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingBottom="24dp">
+
+            <TextView
+                android:id="@+id/content_tv"
+                style="@style/subtext_14"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                android:layout_marginTop="@dimen/base_horizontal_margin"
+                android:layout_marginEnd="@dimen/base_horizontal_margin"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                tools:text="피드 상세 조회 내용입니다." />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/images_rv"
+                android:layout_width="0dp"
+                android:layout_height="160dp"
+                android:paddingStart="@dimen/base_horizontal_margin"
+                android:layout_marginTop="@dimen/base_horizontal_margin"
+                android:clipToPadding="false"
+                android:orientation="horizontal"
+                android:visibility="gone"
+                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/content_tv"
+                tools:listitem="@layout/item_feed_detail_image"
+                tools:visibility="visible" />
+
+            <androidx.constraintlayout.widget.Barrier
+                android:id="@+id/image_barrier"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                app:barrierDirection="bottom"
+                app:constraint_referenced_ids="content_tv,images_rv" />
+
+            <ImageView
+                android:id="@+id/comment_iv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/base_horizontal_margin"
+                android:layout_marginTop="@dimen/base_horizontal_margin"
+                android:padding="4dp"
+                android:src="@drawable/ic_comment"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/image_barrier" />
+
+            <TextView
+                android:id="@+id/comment_count_tv"
+                style="@style/subtext_14"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="0"
+                app:layout_constraintBottom_toBottomOf="@+id/comment_iv"
+                app:layout_constraintStart_toEndOf="@+id/comment_iv"
+                app:layout_constraintTop_toTopOf="@+id/comment_iv" />
+
+            <ImageView
+                android:id="@+id/like_iv"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:padding="4dp"
+                android:src="@drawable/ic_like"
+                app:layout_constraintBottom_toBottomOf="@+id/comment_iv"
+                app:layout_constraintStart_toEndOf="@+id/comment_count_tv"
+                app:layout_constraintTop_toTopOf="@+id/comment_iv" />
+
+            <TextView
+                android:id="@+id/like_count_tv"
+                style="@style/subtext_14"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="4dp"
+                android:text="0"
+                app:layout_constraintBottom_toBottomOf="@+id/like_iv"
+                app:layout_constraintStart_toEndOf="@+id/like_iv"
+                app:layout_constraintTop_toTopOf="@+id/like_iv" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+    </androidx.core.widget.NestedScrollView>
+
+    <com.facebook.shimmer.ShimmerFrameLayout
+        android:id="@+id/shimmer_layout"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/base_toolbar">
+
+        <include layout="@layout/layout_feed_list_skeleton" />
+
+    </com.facebook.shimmer.ShimmerFrameLayout>
+
+    <TextView
+        android:id="@+id/error_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="데이터를 불러오는데 실패했습니다."
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/base_toolbar" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

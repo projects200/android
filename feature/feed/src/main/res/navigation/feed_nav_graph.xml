@@ -13,11 +13,23 @@
         <action
             android:id="@+id/action_feedListFragment_to_feedFormFragment"
             app:destination="@id/feedFormFragment" />
+        <action
+            android:id="@+id/action_feedListFragment_to_feedDetailFragment"
+            app:destination="@id/feedDetailFragment" />
     </fragment>
     <fragment
         android:id="@+id/feedFormFragment"
         android:name="com.project200.undabang.feature.feed.form.FeedFormFragment"
         android:label="FeedFormFragment"
         tools:layout="@layout/fragment_feed_form" >
+    </fragment>
+    <fragment
+        android:id="@+id/feedDetailFragment"
+        android:name="com.project200.undabang.feature.feed.detail.FeedDetailFragment"
+        android:label="FeedDetailFragment"
+        tools:layout="@layout/fragment_feed_detail" >
+        <argument
+            android:name="feedId"
+            app:argType="long" />
     </fragment>
 </navigation>

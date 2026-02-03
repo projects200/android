@@ -11,6 +11,7 @@ import com.project200.undabang.feature.feed.databinding.ItemFeedBinding
 import com.project200.presentation.utils.RelativeTimeUtil
 
 class FeedListAdapter(
+    private val onItemClick: (Feed) -> Unit,
     private val onMoreClick: (Feed) -> Unit
 ) : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
 
@@ -86,6 +87,8 @@ class FeedListAdapter(
                 // Stats
                 likeCountTv.text = feed.feedLikesCount.toString()
                 commentCountTv.text = feed.feedCommentsCount.toString()
+
+                root.setOnClickListener { onItemClick(feed) }
             }
         }
     }
