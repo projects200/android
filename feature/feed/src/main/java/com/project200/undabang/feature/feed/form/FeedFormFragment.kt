@@ -13,6 +13,7 @@ import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedFormBinding
+import com.project200.undabang.feature.feed.list.FeedListFragment
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -102,6 +103,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
 
         viewModel.createSuccess.observe(viewLifecycleOwner) {
             Toast.makeText(context, R.string.feed_form_create_success, Toast.LENGTH_SHORT).show()
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
             findNavController().popBackStack()
         }
 

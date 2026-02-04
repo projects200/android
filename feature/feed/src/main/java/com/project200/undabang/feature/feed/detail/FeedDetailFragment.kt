@@ -13,6 +13,7 @@ import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedDetailBinding
+import com.project200.undabang.feature.feed.list.FeedListFragment
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -69,6 +70,7 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
         viewModel.deleteSuccess.observe(viewLifecycleOwner) { success ->
             if (success) {
                 Toast.makeText(context, "피드가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+                findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
                 findNavController().navigateUp()
             }
         }

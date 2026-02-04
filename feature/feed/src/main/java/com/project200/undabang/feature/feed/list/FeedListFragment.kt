@@ -23,6 +23,10 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     private lateinit var feedAdapter: FeedListAdapter
     private var selectedFeed: Feed? = null
 
+    companion object {
+        const val REFRESH_KEY = "feed_list_refresh"
+    }
+
     override fun getViewBinding(view: View): FragmentFeedListBinding {
         return FragmentFeedListBinding.bind(view)
     }
@@ -33,6 +37,17 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         initToolbar()
         initView()
         initObserver()
+        observeRefreshSignal()
+    }
+
+    private fun observeRefreshSignal() {
+        val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
+        savedStateHandle?.getLiveData<Boolean>(REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
+            if (shouldRefresh) {
+                viewModel.loadFeeds(isRefresh = true)
+                savedStateHandle.remove<Boolean>(REFRESH_KEY)
+            }
+        }
     }
 
     private fun initAdapter() {
@@ -117,7 +132,6 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
 
         viewModel.showEmptyView.observe(viewLifecycleOwner) { showEmpty ->
             binding.emptyTv.visibility = if (showEmpty) View.VISIBLE else View.GONE
-            binding.swipeRefreshLayout.visibility = if (showEmpty) View.GONE else View.VISIBLE
         }
 
         viewModel.showCategoryBottomSheet.observe(viewLifecycleOwner) { items ->
@@ -152,6 +166,7 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             } else {
                 binding.shimmerLayout.stopShimmer()
                 binding.shimmerLayout.visibility = View.GONE
+                binding.swipeRefreshLayout.visibility = View.VISIBLE
                 binding.swipeRefreshLayout.isRefreshing = false
             }
         }
