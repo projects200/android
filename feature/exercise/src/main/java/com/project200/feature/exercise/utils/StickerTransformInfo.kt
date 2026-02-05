@@ -13,5 +13,5 @@ data class StickerTransformInfo(
     val translationXRatio: Float,
     val translationYRatio: Float,
     val stickerWidthRatio: Float,
-    val rotationDegrees: Float = 0f
+    val rotationDegrees: Float = 0f,
 )

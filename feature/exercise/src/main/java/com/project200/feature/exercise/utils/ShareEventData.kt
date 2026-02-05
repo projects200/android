@@ -6,10 +6,10 @@ import com.project200.feature.exercise.share.StickerTheme
 data class ShareEventData(
     val record: ExerciseRecord,
     val theme: StickerTheme,
-    val transformInfo: StickerTransformInfo
+    val transformInfo: StickerTransformInfo,
 )
 
 data class StickerState(
     val record: ExerciseRecord,
-    val theme: StickerTheme
+    val theme: StickerTheme,
 )

@@ -39,7 +39,11 @@ object ExerciseRecordStickerGenerator {
         return applyRoundedClipping(context, rawBitmap)
     }
 
-    private fun applyTheme(context: Context, view: View, theme: StickerTheme) {
+    private fun applyTheme(
+        context: Context,
+        view: View,
+        theme: StickerTheme,
+    ) {
         val root = view.findViewById<ConstraintLayout>(R.id.sticker_root)
         if (theme.backgroundDrawable != null) {
             root.setBackgroundResource(theme.backgroundDrawable)

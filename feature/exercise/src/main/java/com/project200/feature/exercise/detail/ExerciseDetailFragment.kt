@@ -12,7 +12,6 @@ import androidx.navigation.fragment.navArgs
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
-
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.UiState
@@ -39,7 +38,7 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
             showBackButton(true) { findNavController().navigateUp() }
             setSecondarySubButton(R.drawable.ic_share) {
                 findNavController().navigate(
-                    ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseShareEditFragment(args.recordId)
+                    ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseShareEditFragment(args.recordId),
                 )
             }
             setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }

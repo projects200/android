@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBinding>(R.layout.fragment_exercise_share_edit) {
-
     private val viewModel: ExerciseShareEditViewModel by viewModels()
     private val args: ExerciseShareEditFragmentArgs by navArgs()
 
@@ -104,17 +103,21 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
         binding.themeMinimalBtn.alpha = if (theme == StickerTheme.MINIMAL) selectedAlpha else unselectedAlpha
     }
 
-    private fun updateStickerPreview(record: ExerciseRecord, theme: StickerTheme) {
+    private fun updateStickerPreview(
+        record: ExerciseRecord,
+        theme: StickerTheme,
+    ) {
         val currentTransform = binding.stickerPreview.getTransformInfo()
         val hasUserTransform = binding.stickerPreview.hasUserInteracted()
 
         viewLifecycleOwner.lifecycleScope.launch {
             currentStickerBitmap?.recycle()
-            currentStickerBitmap = ExerciseRecordStickerGenerator.generateStickerBitmap(
-                requireContext(),
-                record,
-                theme
-            )
+            currentStickerBitmap =
+                ExerciseRecordStickerGenerator.generateStickerBitmap(
+                    requireContext(),
+                    record,
+                    theme,
+                )
 
             if (hasUserTransform) {
                 binding.stickerPreview.setPendingTransform(currentTransform)
@@ -130,7 +133,7 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
                     requireContext(),
                     data.record,
                     data.theme,
-                    data.transformInfo
+                    data.transformInfo,
                 )
             } finally {
                 viewModel.onShareCompleted()
