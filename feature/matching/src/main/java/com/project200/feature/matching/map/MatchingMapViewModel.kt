@@ -257,11 +257,12 @@ class MatchingMapViewModel
                         MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
                         MatchingFilterType.EXERCISE_TYPE -> {
                             val exerciseType = option as? ExerciseType
-                            val newSelection = if (exerciseType == null || current.selectedExerciseType?.id == exerciseType.id) {
-                                null
-                            } else {
-                                ExerciseTypeSelection(exerciseType.id, exerciseType.name)
-                            }
+                            val newSelection =
+                                if (exerciseType == null || current.selectedExerciseType?.id == exerciseType.id) {
+                                    null
+                                } else {
+                                    ExerciseTypeSelection(exerciseType.id, exerciseType.name)
+                                }
                             current.copy(selectedExerciseType = newSelection)
                         }
                         MatchingFilterType.DAY -> {

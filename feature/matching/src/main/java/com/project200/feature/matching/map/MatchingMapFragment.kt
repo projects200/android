@@ -30,7 +30,6 @@ import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
 import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
-import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R

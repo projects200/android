@@ -34,18 +34,19 @@ class FilterViewHolder(
     ) {
         val context = binding.root.context
 
-        val labelText = when {
-            item == MatchingFilterType.EXERCISE_TYPE && currentState.selectedExerciseType != null -> {
-                currentState.selectedExerciseType.name
+        val labelText =
+            when {
+                item == MatchingFilterType.EXERCISE_TYPE && currentState.selectedExerciseType != null -> {
+                    currentState.selectedExerciseType.name
+                }
+                item.isMultiSelect -> {
+                    context.getString(item.labelResId)
+                }
+                else -> {
+                    val selectedLabelResId = getSelectedOptionLabelResId(item, currentState)
+                    context.getString(selectedLabelResId ?: item.labelResId)
+                }
             }
-            item.isMultiSelect -> {
-                context.getString(item.labelResId)
-            }
-            else -> {
-                val selectedLabelResId = getSelectedOptionLabelResId(item, currentState)
-                context.getString(selectedLabelResId ?: item.labelResId)
-            }
-        }
         binding.filterTitleTv.text = labelText
 
         val isSelected = isFilterSelected(item, currentState)
