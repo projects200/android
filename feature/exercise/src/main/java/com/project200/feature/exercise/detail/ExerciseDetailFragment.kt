@@ -37,9 +37,14 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
             setTitle(getString(R.string.exercise_detail))
             showBackButton(true) { findNavController().navigateUp() }
             setSecondarySubButton(R.drawable.ic_share) {
-                findNavController().navigate(
-                    ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseShareEditFragment(args.recordId),
-                )
+                val record = currentRecord
+                if (record?.pictures.isNullOrEmpty()) {
+                    Toast.makeText(requireContext(), R.string.share_image_required, Toast.LENGTH_SHORT).show()
+                } else {
+                    findNavController().navigate(
+                        ExerciseDetailFragmentDirections.actionExerciseDetailFragmentToExerciseShareEditFragment(args.recordId),
+                    )
+                }
             }
             setSubButton(R.drawable.ic_menu) { showExerciseDetailMenu() }
         }

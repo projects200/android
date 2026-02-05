@@ -103,4 +103,5 @@
     <string name="theme_light">라이트 테마</string>
     <string name="theme_minimal">미니멀 테마</string>
     <string name="share_edit_title">사진 편집</string>
+    <string name="share_image_required">공유하려면 사진이 필요해요</string>
 </resources>
