@@ -19,6 +19,7 @@ enum class MatchingFilterType(
 ) {
     GENDER(R.string.filter_gender), // 성별
     AGE(R.string.filter_age), // 나이
+    EXERCISE_TYPE(R.string.filter_exercise_type), // 종목
     DAY(R.string.filter_day, true), // 요일
     SKILL(R.string.filter_skill), // 숙련도
     SCORE(R.string.filter_score), // 점수
@@ -27,13 +28,20 @@ enum class MatchingFilterType(
 data class FilterState(
     val gender: Gender? = null,
     val ageGroup: AgeGroup? = null,
+    val selectedExerciseType: ExerciseTypeSelection? = null,
     val days: Set<DayOfWeek> = emptySet(),
     val skillLevel: SkillLevel? = null,
     val exerciseScore: ExerciseScore? = null,
 )
 
+data class ExerciseTypeSelection(
+    val id: Long,
+    val name: String,
+)
+
 data class FilterOptionUiModel(
-    val labelResId: Int,
+    val labelResId: Int? = null,
+    val labelText: String? = null,
     val isSelected: Boolean,
-    val originalData: Any?, // 선택된 Enum 객체 (Gender, AgeGroup 등)
+    val originalData: Any?,
 )

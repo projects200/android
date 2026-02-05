@@ -34,16 +34,20 @@ class FilterViewHolder(
     ) {
         val context = binding.root.context
 
-        // 라벨 설정
-        val labelResId =
-            if (item.isMultiSelect) {
-                item.labelResId
-            } else {
-                getSelectedOptionLabelResId(item, currentState) ?: item.labelResId
+        val labelText = when {
+            item == MatchingFilterType.EXERCISE_TYPE && currentState.selectedExerciseType != null -> {
+                currentState.selectedExerciseType.name
             }
-        binding.filterTitleTv.text = context.getString(labelResId)
+            item.isMultiSelect -> {
+                context.getString(item.labelResId)
+            }
+            else -> {
+                val selectedLabelResId = getSelectedOptionLabelResId(item, currentState)
+                context.getString(selectedLabelResId ?: item.labelResId)
+            }
+        }
+        binding.filterTitleTv.text = labelText
 
-        // 선택 상태 디자인
         val isSelected = isFilterSelected(item, currentState)
         binding.root.isSelected = isSelected
 
@@ -65,13 +69,13 @@ class FilterViewHolder(
         return when (type) {
             MatchingFilterType.GENDER -> state.gender != null
             MatchingFilterType.AGE -> state.ageGroup != null
+            MatchingFilterType.EXERCISE_TYPE -> state.selectedExerciseType != null
             MatchingFilterType.DAY -> state.days.isNotEmpty()
             MatchingFilterType.SKILL -> state.skillLevel != null
             MatchingFilterType.SCORE -> state.exerciseScore != null
         }
     }
 
-    // 선택된 옵션의 라벨 리소스 ID를 반환
     private fun getSelectedOptionLabelResId(
         type: MatchingFilterType,
         state: FilterState,

@@ -315,13 +315,6 @@ class MatchingMapFragment :
     }
 
     private fun showFilterBottomSheet(type: MatchingFilterType) {
-        // 필터 옵션들을 UI 모델로 매핑
-        val options =
-            FilterUiMapper.mapToUiModels(
-                type = type,
-                currentState = viewModel.filterState.value,
-            )
-
         val bottomSheet =
             FilterBottomSheetDialog(
                 filterType = type,

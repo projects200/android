@@ -15,6 +15,7 @@ import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.undabang.feature.matching.databinding.DialogFilterBottomSheetBinding
 import com.project200.undabang.presentation.R
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
@@ -57,8 +58,19 @@ class FilterBottomSheetDialog(
 
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.filterState.collect { state ->
-                    adapter.submitList(FilterUiMapper.mapToUiModels(filterType, state))
+                if (filterType == MatchingFilterType.EXERCISE_TYPE) {
+                    combine(
+                        viewModel.filterState,
+                        viewModel.exerciseTypes,
+                    ) { state, exerciseTypes ->
+                        FilterUiMapper.mapExerciseTypesToUiModels(exerciseTypes, state)
+                    }.collect { options ->
+                        adapter.submitList(options)
+                    }
+                } else {
+                    viewModel.filterState.collect { state ->
+                        adapter.submitList(FilterUiMapper.mapToUiModels(filterType, state))
+                    }
                 }
             }
         }

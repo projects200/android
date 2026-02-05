@@ -12,13 +12,16 @@ import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExercisePlace
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.MapBounds
 import com.project200.domain.model.MapPosition
 import com.project200.domain.model.MatchingMember
 import com.project200.domain.usecase.GetExercisePlaceUseCase
+import com.project200.domain.usecase.GetExerciseTypesUseCase
 import com.project200.domain.usecase.GetLastMapPositionUseCase
 import com.project200.domain.usecase.GetMatchingMembersUseCase
 import com.project200.domain.usecase.SaveLastMapPositionUseCase
+import com.project200.feature.matching.utils.ExerciseTypeSelection
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,6 +49,7 @@ class MatchingMapViewModel
         private val getLastMapPositionUseCase: GetLastMapPositionUseCase,
         private val saveLastMapPositionUseCase: SaveLastMapPositionUseCase,
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
+        private val getExerciseTypesUseCase: GetExerciseTypesUseCase,
         private val clockProvider: ClockProvider,
         @DefaultPrefs private val sharedPreferences: SharedPreferences,
     ) : ViewModel() {
@@ -59,6 +63,9 @@ class MatchingMapViewModel
 
         private val _errorEvents = MutableSharedFlow<String>()
         val errorEvents: SharedFlow<String> = _errorEvents
+
+        private val _exerciseTypes = MutableStateFlow<List<ExerciseType>>(emptyList())
+        val exerciseTypes: StateFlow<List<ExerciseType>> = _exerciseTypes.asStateFlow()
 
         // 필터 상태
         private val _filterState = MutableStateFlow(FilterState())
@@ -123,15 +130,23 @@ class MatchingMapViewModel
         private var isPlaceCheckDone = false // 최초 장소 검사가 완료되었는가?
 
         init {
-            // 최초 방문 여부를 먼저 확인합니다.
             val isFirstVisit = checkFirstVisit()
 
-            // 최초 방문이 아닐 때만 장소 검사(다이얼로그 표시 로직)를 실행합니다.
             if (!isFirstVisit) {
                 checkExercisePlace()
             }
 
             loadInitialMapPosition()
+            loadExerciseTypes()
+        }
+
+        private fun loadExerciseTypes() {
+            viewModelScope.launch {
+                when (val result = getExerciseTypesUseCase()) {
+                    is BaseResult.Success -> _exerciseTypes.value = result.data
+                    is BaseResult.Error -> result.message?.let { _errorEvents.emit(it) }
+                }
+            }
         }
 
         /**
@@ -240,14 +255,21 @@ class MatchingMapViewModel
                         MatchingFilterType.AGE -> current.copy(ageGroup = toggle(current.ageGroup, option))
                         MatchingFilterType.SKILL -> current.copy(skillLevel = toggle(current.skillLevel, option))
                         MatchingFilterType.SCORE -> current.copy(exerciseScore = toggle(current.exerciseScore, option))
+                        MatchingFilterType.EXERCISE_TYPE -> {
+                            val exerciseType = option as? ExerciseType
+                            val newSelection = if (exerciseType == null || current.selectedExerciseType?.id == exerciseType.id) {
+                                null
+                            } else {
+                                ExerciseTypeSelection(exerciseType.id, exerciseType.name)
+                            }
+                            current.copy(selectedExerciseType = newSelection)
+                        }
                         MatchingFilterType.DAY -> {
                             val newDays =
                                 if (option == null) {
-                                    // 전체 선택 시 모두 비움 (Empty == 전체)
                                     emptySet()
                                 } else {
                                     val day = option as DayOfWeek
-                                    // 요일 토글
                                     if (day in current.days) current.days - day else current.days + day
                                 }
                             current.copy(days = newDays)
@@ -265,19 +287,24 @@ class MatchingMapViewModel
             member: MatchingMember,
             filters: FilterState,
         ): Boolean {
-            // 성별 필터 (선택 안됨(null)이면 통과, 선택되었으면 일치해야 함)
             if (filters.gender != null && member.gender != filters.gender.name) {
                 return false
             }
 
-            // 나이대 필터 (AgeGroup 로직에 따라 구현)
             if (filters.ageGroup != null) {
                 if (!isAgeInGroup(member.birthDate, filters.ageGroup)) {
                     return false
                 }
             }
 
-            // 운동 실력 필터: 선호 운동 중 하나라도 해당 숙련도가 있으면 통과
+            if (filters.selectedExerciseType != null) {
+                val hasMatchingExerciseType =
+                    member.preferredExercises.any { exercise ->
+                        exercise.exerciseTypeId == filters.selectedExerciseType.id
+                    }
+                if (!hasMatchingExerciseType) return false
+            }
+
             if (filters.skillLevel != null) {
                 val hasMatchingSkill =
                     member.preferredExercises.any {
@@ -286,14 +313,12 @@ class MatchingMapViewModel
                 if (!hasMatchingSkill) return false
             }
 
-            // 운동 점수 필터: 회원 점수가 필터 최소 점수 이상이면 통과
             if (filters.exerciseScore != null) {
                 if (member.memberScore < filters.exerciseScore.minScore) {
                     return false
                 }
             }
 
-            // 요일 필터: 선호 운동 중 하나라도 선택된 요일에 운동하면 통과
             if (filters.days.isNotEmpty()) {
                 val hasMatchingDay =
                     member.preferredExercises.any { exercise ->

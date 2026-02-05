@@ -3,6 +3,7 @@ package com.project200.feature.matching.utils
 import com.project200.domain.model.AgeGroup
 import com.project200.domain.model.DayOfWeek
 import com.project200.domain.model.ExerciseScore
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.Gender
 import com.project200.domain.model.SkillLevel
 import com.project200.presentation.utils.labelResId
@@ -29,10 +30,11 @@ object FilterUiMapper {
                         originalData = age,
                     )
                 }
+            MatchingFilterType.EXERCISE_TYPE ->
+                throw IllegalArgumentException("Use mapExerciseTypesToUiModels for EXERCISE_TYPE")
             MatchingFilterType.DAY -> {
                 val list = mutableListOf<FilterOptionUiModel>()
 
-                // 전체 옵션
                 list.add(
                     FilterOptionUiModel(
                         labelResId = com.project200.undabang.presentation.R.string.filter_all,
@@ -41,7 +43,6 @@ object FilterUiMapper {
                     ),
                 )
 
-                // 요일 옵션
                 list.addAll(
                     DayOfWeek.entries.map { day ->
                         FilterOptionUiModel(
@@ -70,6 +71,19 @@ object FilterUiMapper {
                         originalData = score,
                     )
                 }
+        }
+    }
+
+    fun mapExerciseTypesToUiModels(
+        exerciseTypes: List<ExerciseType>,
+        currentState: FilterState,
+    ): List<FilterOptionUiModel> {
+        return exerciseTypes.map { exerciseType ->
+            FilterOptionUiModel(
+                labelText = exerciseType.name,
+                isSelected = currentState.selectedExerciseType?.id == exerciseType.id,
+                originalData = exerciseType,
+            )
         }
     }
 }
