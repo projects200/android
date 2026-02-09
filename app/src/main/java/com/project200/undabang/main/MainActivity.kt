@@ -146,6 +146,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.matching.R.id.matchingGuideFragment,
                 com.project200.undabang.feature.chatting.R.id.chattingRoomFragment,
                 com.project200.undabang.feature.feed.R.id.feedFormFragment,
+                com.project200.undabang.feature.feed.R.id.feedDetailFragment,
                 // ... 필요한 다른 프래그먼트 ID들 추가 ... //
             )
 

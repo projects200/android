@@ -1,6 +1,9 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.CommentDTO
+import com.project200.data.dto.CreateCommentRequestDTO
+import com.project200.data.dto.CreateCommentResponseDTO
 import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
@@ -503,5 +506,30 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteFeed(
         @Path("feedId") feedId: Long,
+    ): BaseResponse<Unit?>
+
+    /** 댓글 */
+    // 댓글 목록 조회
+    @GET("api/v1/feeds/{feedId}/comments")
+    @AccessTokenApi
+    suspend fun getComments(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<List<CommentDTO>>
+
+    // 댓글 작성
+    @POST("api/v1/feeds/{feedId}/comments")
+    @AccessTokenApi
+    suspend fun createComment(
+        @Path("feedId") feedId: Long,
+        @Body request: CreateCommentRequestDTO,
+    ): BaseResponse<CreateCommentResponseDTO>
+
+
+    // 댓글 삭제
+    @DELETE("api/v1/feeds/{feedId}/comments/{commentId}")
+    @AccessTokenApi
+    suspend fun deleteComment(
+        @Path("feedId") feedId: Long,
+        @Path("commentId") commentId: Long,
     ): BaseResponse<Unit?>
 }

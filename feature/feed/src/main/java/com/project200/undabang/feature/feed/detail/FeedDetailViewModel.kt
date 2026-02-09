@@ -6,10 +6,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.Comment
 import com.project200.domain.model.Feed
+import com.project200.domain.usecase.CreateCommentUseCase
+import com.project200.domain.usecase.DeleteCommentUseCase
 import com.project200.domain.usecase.DeleteFeedUseCase
+import com.project200.domain.usecase.GetCommentsUseCase
 import com.project200.domain.usecase.GetFeedDetailUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
+import com.project200.domain.usecase.LikeCommentUseCase
+import com.project200.domain.usecase.UnlikeCommentUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -19,6 +25,11 @@ class FeedDetailViewModel @Inject constructor(
     private val getFeedDetailUseCase: GetFeedDetailUseCase,
     private val getMemberIdUseCase: GetMemberIdUseCase,
     private val deleteFeedUseCase: DeleteFeedUseCase,
+    private val getCommentsUseCase: GetCommentsUseCase,
+    private val createCommentUseCase: CreateCommentUseCase,
+    private val likeCommentUseCase: LikeCommentUseCase,
+    private val unlikeCommentUseCase: UnlikeCommentUseCase,
+    private val deleteCommentUseCase: DeleteCommentUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -42,9 +53,25 @@ class FeedDetailViewModel @Inject constructor(
     private val _deleteSuccess = MutableLiveData<Boolean>()
     val deleteSuccess: LiveData<Boolean> get() = _deleteSuccess
 
+    private val _comments = MutableLiveData<List<Comment>>()
+    val comments: LiveData<List<Comment>> get() = _comments
+
+    private val _commentsLoading = MutableLiveData<Boolean>(false)
+    val commentsLoading: LiveData<Boolean> get() = _commentsLoading
+
+    private val _replyTarget = MutableLiveData<CommentItem?>()
+    val replyTarget: LiveData<CommentItem?> get() = _replyTarget
+
+    private val _commentCreated = MutableLiveData<Boolean>()
+    val commentCreated: LiveData<Boolean> get() = _commentCreated
+
+    private val _commentDeleted = MutableLiveData<Boolean>()
+    val commentDeleted: LiveData<Boolean> get() = _commentDeleted
+
     init {
         loadCurrentMemberId()
         loadFeedDetail()
+        loadComments()
     }
 
     private fun loadCurrentMemberId() {
@@ -89,6 +116,94 @@ class FeedDetailViewModel @Inject constructor(
                     _error.value = result.message ?: "피드 삭제에 실패했습니다."
                     _deleteSuccess.value = false
                 }
+            }
+        }
+    }
+
+    fun loadComments() {
+        if (feedId == -1L) return
+
+        _commentsLoading.value = true
+        viewModelScope.launch {
+            when (val result = getCommentsUseCase(feedId)) {
+                is BaseResult.Success -> {
+                    _comments.value = result.data
+                }
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "댓글을 불러오는데 실패했습니다."
+                }
+            }
+            _commentsLoading.value = false
+        }
+    }
+
+    fun createComment(content: String) {
+        if (content.isBlank() || feedId == -1L) return
+
+        viewModelScope.launch {
+            val parentCommentId = when (val target = _replyTarget.value) {
+                is CommentItem.CommentData -> target.commentId
+                is CommentItem.ReplyData -> target.parentCommentId
+                null -> null
+            }
+            when (val result = createCommentUseCase(feedId, content, parentCommentId)) {
+                is BaseResult.Success -> {
+                    _commentCreated.value = true
+                    _replyTarget.value = null
+                    loadComments()
+                    refreshFeedCommentsCount()
+                }
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "댓글 작성에 실패했습니다."
+                    _commentCreated.value = false
+                }
+            }
+        }
+    }
+
+    fun setReplyTarget(target: CommentItem?) {
+        _replyTarget.value = target
+    }
+
+    fun toggleCommentLike(item: CommentItem) {
+        viewModelScope.launch {
+            val result = if (item.isLiked) {
+                unlikeCommentUseCase(feedId, item.commentId)
+            } else {
+                likeCommentUseCase(feedId, item.commentId)
+            }
+            when (result) {
+                is BaseResult.Success -> loadComments()
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "좋아요 처리에 실패했습니다."
+                }
+            }
+        }
+    }
+
+    fun deleteComment(commentId: Long) {
+        viewModelScope.launch {
+            when (val result = deleteCommentUseCase(feedId, commentId)) {
+                is BaseResult.Success -> {
+                    _commentDeleted.value = true
+                    loadComments()
+                    refreshFeedCommentsCount()
+                }
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "댓글 삭제에 실패했습니다."
+                    _commentDeleted.value = false
+                }
+            }
+        }
+    }
+
+    private fun refreshFeedCommentsCount() {
+        viewModelScope.launch {
+            when (val result = getFeedDetailUseCase(feedId)) {
+                is BaseResult.Success -> {
+                    _feed.value = result.data
+                }
+                is BaseResult.Error -> { }
             }
         }
     }

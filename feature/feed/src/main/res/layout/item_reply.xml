@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingStart="64dp"
+    android:paddingEnd="16dp"
+    android:paddingVertical="12dp">
+
+    <de.hdodenhof.circleimageview.CircleImageView
+        android:id="@+id/profile_iv"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/ic_profile_default"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/nickname_tv"
+        style="@style/content_bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginEnd="8dp"
+        android:maxLines="1"
+        android:textSize="14sp"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toTopOf="@+id/profile_iv"
+        tools:text="운동하는개발자" />
+
+    <TextView
+        android:id="@+id/time_tv"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="6dp"
+        android:textColor="@color/gray200"
+        android:textSize="11sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/nickname_tv"
+        app:layout_constraintStart_toEndOf="@+id/nickname_tv"
+        app:layout_constraintTop_toTopOf="@+id/nickname_tv"
+        tools:text="1시간 전"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/more_iv"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:padding="2dp"
+        android:src="@drawable/ic_more"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/content_tv"
+        style="@style/subtext_14"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="2dp"
+        android:textSize="13sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
+        tools:text="저도 같이 운동하고 싶어요!" />
+
+    <ImageView
+        android:id="@+id/like_iv"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="6dp"
+        android:padding="2dp"
+        android:src="@drawable/ic_like"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toBottomOf="@+id/content_tv" />
+
+    <TextView
+        android:id="@+id/like_count_tv"
+        style="@style/subtext_14"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        app:layout_constraintBottom_toBottomOf="@+id/like_iv"
+        app:layout_constraintStart_toEndOf="@+id/like_iv"
+        app:layout_constraintTop_toTopOf="@+id/like_iv"
+        tools:text="3" />
+
+    <TextView
+        android:id="@+id/reply_btn"
+        style="@style/subtext_12"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:text="@string/comment_reply_button"
+        android:textColor="@color/gray200"
+        app:layout_constraintBottom_toBottomOf="@+id/like_iv"
+        app:layout_constraintStart_toEndOf="@+id/like_count_tv"
+        app:layout_constraintTop_toTopOf="@+id/like_iv" />
+</androidx.constraintlayout.widget.ConstraintLayout>

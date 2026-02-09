@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@android:color/white"
+    android:minHeight="56dp"
+    android:paddingVertical="8dp">
+
+    <View
+        android:id="@+id/divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:background="@color/gray300"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <TextView
+        android:id="@+id/reply_target_tv"
+        style="@style/subtext_12"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/gray200"
+        android:visibility="gone"
+        app:layout_constraintEnd_toStartOf="@+id/cancel_reply_iv"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/divider"
+        tools:text="@string/feed_reply_writing"
+        tools:visibility="visible" />
+
+    <ImageView
+        android:id="@+id/cancel_reply_iv"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:src="@drawable/ic_close"
+        android:visibility="gone"
+        android:layout_marginEnd="10dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/reply_target_tv"
+        app:layout_constraintBottom_toBottomOf="@+id/reply_target_tv"
+        tools:visibility="visible" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/reply_barrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="bottom"
+        app:constraint_referenced_ids="divider,reply_target_tv" />
+
+    <EditText
+        android:id="@+id/comment_input_et"
+        style="@style/subtext_14"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_edit_text_rounded"
+        android:hint="@string/comment_input_hint"
+        android:inputType="textMultiLine"
+        android:maxHeight="150dp"
+        android:minHeight="44dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="10dp"
+        android:layout_marginStart="@dimen/base_horizontal_margin"
+        android:layout_marginEnd="10dp"
+        android:textColorHint="@color/gray200"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/send_btn"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/reply_barrier" />
+
+    <ImageView
+        android:id="@+id/send_btn"
+        android:layout_width="36dp"
+        android:layout_height="36dp"
+        android:layout_marginEnd="4dp"
+        android:padding="6dp"
+        android:src="@drawable/ic_send_unable"
+        app:layout_constraintBottom_toBottomOf="@+id/comment_input_et"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/comment_input_et" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>

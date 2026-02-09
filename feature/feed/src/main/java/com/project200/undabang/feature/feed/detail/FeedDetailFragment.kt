@@ -1,6 +1,8 @@
 package com.project200.undabang.feature.feed.detail
 
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.viewModels
@@ -20,6 +22,7 @@ import dagger.hilt.android.AndroidEntryPoint
 class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.fragment_feed_detail) {
 
     private val viewModel: FeedDetailViewModel by viewModels()
+    private var commentRVAdapter: CommentRVAdapter? = null
 
     override fun getViewBinding(view: View): FragmentFeedDetailBinding {
         return FragmentFeedDetailBinding.bind(view)
@@ -28,6 +31,7 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         initToolbar()
+        initCommentInput()
         initObserver()
     }
 
@@ -35,6 +39,36 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
         binding.baseToolbar.apply {
             setTitle("")
             showBackButton(true) { findNavController().navigateUp() }
+        }
+    }
+
+    private fun initCommentInput() {
+        with(binding.commentInputLayout) {
+            commentInputEt.addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val hasText = !s.isNullOrBlank()
+                    val sendIcon = if (hasText) {
+                        R.drawable.ic_send
+                    } else {
+                        R.drawable.ic_send_unable
+                    }
+                    sendBtn.setImageResource(sendIcon)
+                }
+            })
+
+            sendBtn.setOnClickListener {
+                val content = commentInputEt.text.toString()
+                if (content.isNotBlank()) {
+                    viewModel.createComment(content)
+                    commentInputEt.text.clear()
+                }
+            }
+
+            cancelReplyIv.setOnClickListener {
+                viewModel.setReplyTarget(null)
+            }
         }
     }
 
@@ -74,6 +108,62 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
                 findNavController().navigateUp()
             }
         }
+
+        viewModel.comments.observe(viewLifecycleOwner) { comments ->
+            setupCommentAdapter()
+            val items = comments.toCommentItems()
+            commentRVAdapter?.submitList(items)
+
+            binding.noCommentsTv.visibility = if (comments.isEmpty()) View.VISIBLE else View.GONE
+            binding.commentsRv.visibility = if (comments.isEmpty()) View.GONE else View.VISIBLE
+        }
+
+        viewModel.replyTarget.observe(viewLifecycleOwner) { target ->
+            with(binding.commentInputLayout) {
+                if (target != null) {
+                    replyTargetTv.text = "@${target.memberNickname} 님에게 답글 작성 중"
+                    replyTargetTv.visibility = View.VISIBLE
+                    cancelReplyIv.visibility = View.VISIBLE
+                } else {
+                    replyTargetTv.visibility = View.GONE
+                    cancelReplyIv.visibility = View.GONE
+                }
+            }
+        }
+
+        viewModel.commentCreated.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(context, "댓글이 작성되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        viewModel.commentDeleted.observe(viewLifecycleOwner) { success ->
+            if (success) {
+                Toast.makeText(context, "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    private fun setupCommentAdapter() {
+        if (commentRVAdapter != null) return
+
+        val currentMemberId = viewModel.currentMemberId.value
+        commentRVAdapter = CommentRVAdapter(
+            currentMemberId = currentMemberId,
+            onLikeClick = { item -> viewModel.toggleCommentLike(item) },
+            onReplyClick = { item -> viewModel.setReplyTarget(item) },
+            onMoreClick = { item -> showCommentMenuBottomSheet(item) }
+        )
+        binding.commentsRv.adapter = commentRVAdapter
+    }
+
+    private fun showCommentMenuBottomSheet(item: CommentItem) {
+        MenuBottomSheetDialog(
+            onEditClicked = { },
+            onDeleteClicked = {
+                viewModel.deleteComment(item.commentId)
+            }
+        ).show(parentFragmentManager, "CommentMenu")
     }
 
     private fun bindFeedData(feed: Feed) {

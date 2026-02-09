@@ -38,3 +38,32 @@ data class CreateFeedModel(
 data class FeedCreateResult(
     val feedId: Long,
 )
+
+data class Comment(
+    val commentId: Long,
+    val memberId: String,
+    val memberNickname: String,
+    val memberProfileImageUrl: String?,
+    val memberThumbnailUrl: String?,
+    val content: String,
+    val likesCount: Int,
+    val isLiked: Boolean,
+    val createdAt: LocalDateTime,
+    val children: List<Reply>,
+)
+
+data class Reply(
+    val commentId: Long,
+    val memberId: String,
+    val memberNickname: String,
+    val memberProfileImageUrl: String?,
+    val memberThumbnailUrl: String?,
+    val content: String,
+    val likesCount: Int,
+    val isLiked: Boolean,
+    val createdAt: LocalDateTime,
+)
+
+data class CreateCommentResult(
+    val commentId: Long,
+)
