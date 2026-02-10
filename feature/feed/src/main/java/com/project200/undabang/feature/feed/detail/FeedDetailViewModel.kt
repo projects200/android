@@ -15,7 +15,9 @@ import com.project200.domain.usecase.GetCommentsUseCase
 import com.project200.domain.usecase.GetFeedDetailUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.LikeCommentUseCase
+import com.project200.domain.usecase.LikeFeedUseCase
 import com.project200.domain.usecase.UnlikeCommentUseCase
+import com.project200.domain.usecase.UnlikeFeedUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -30,6 +32,8 @@ class FeedDetailViewModel @Inject constructor(
     private val likeCommentUseCase: LikeCommentUseCase,
     private val unlikeCommentUseCase: UnlikeCommentUseCase,
     private val deleteCommentUseCase: DeleteCommentUseCase,
+    private val likeFeedUseCase: LikeFeedUseCase,
+    private val unlikeFeedUseCase: UnlikeFeedUseCase,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -183,7 +187,7 @@ class FeedDetailViewModel @Inject constructor(
 
     fun deleteComment(commentId: Long) {
         viewModelScope.launch {
-            when (val result = deleteCommentUseCase(feedId, commentId)) {
+            when (val result = deleteCommentUseCase(commentId)) {
                 is BaseResult.Success -> {
                     _commentDeleted.value = true
                     loadComments()
@@ -204,6 +208,32 @@ class FeedDetailViewModel @Inject constructor(
                     _feed.value = result.data
                 }
                 is BaseResult.Error -> { }
+            }
+        }
+    }
+
+    fun toggleFeedLike() {
+        val currentFeed = _feed.value ?: return
+        viewModelScope.launch {
+            val result = if (currentFeed.feedIsLiked) {
+                unlikeFeedUseCase(feedId)
+            } else {
+                likeFeedUseCase(feedId)
+            }
+            when (result) {
+                is BaseResult.Success -> {
+                    _feed.value = currentFeed.copy(
+                        feedIsLiked = !currentFeed.feedIsLiked,
+                        feedLikesCount = if (currentFeed.feedIsLiked) {
+                            currentFeed.feedLikesCount - 1
+                        } else {
+                            currentFeed.feedLikesCount + 1
+                        }
+                    )
+                }
+                is BaseResult.Error -> {
+                    _error.value = result.message ?: "좋아요 처리에 실패했습니다."
+                }
             }
         }
     }

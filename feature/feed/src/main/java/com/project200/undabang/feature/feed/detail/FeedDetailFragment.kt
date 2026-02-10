@@ -159,10 +159,10 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
 
     private fun showCommentMenuBottomSheet(item: CommentItem) {
         MenuBottomSheetDialog(
-            onEditClicked = { },
             onDeleteClicked = {
                 viewModel.deleteComment(item.commentId)
-            }
+            },
+            showEditButton = false
         ).show(parentFragmentManager, "CommentMenu")
     }
 
@@ -173,6 +173,17 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             contentTv.text = feed.feedContent
             likeCountTv.text = feed.feedLikesCount.toString()
             commentCountTv.text = feed.feedCommentsCount.toString()
+
+            val likeIcon = if (feed.feedIsLiked) {
+                R.drawable.ic_like_fill
+            } else {
+                R.drawable.ic_like
+            }
+            likeIv.setImageResource(likeIcon)
+
+            likeIv.setOnClickListener {
+                viewModel.toggleFeedLike()
+            }
 
             val hasType = !feed.feedTypeName.isNullOrBlank()
             arrowIv.visibility = if (hasType) View.VISIBLE else View.GONE

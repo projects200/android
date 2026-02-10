@@ -524,12 +524,41 @@ interface ApiService {
         @Body request: CreateCommentRequestDTO,
     ): BaseResponse<CreateCommentResponseDTO>
 
-
-    // 댓글 삭제
-    @DELETE("api/v1/feeds/{feedId}/comments/{commentId}")
+    // 댓글 좋아요
+    @POST("api/v1/feeds/{feedId}/comments/{commentId}/likes")
     @AccessTokenApi
-    suspend fun deleteComment(
+    suspend fun likeComment(
         @Path("feedId") feedId: Long,
         @Path("commentId") commentId: Long,
+    ): BaseResponse<Unit?>
+
+    // 댓글 좋아요 취소
+    @DELETE("api/v1/feeds/{feedId}/comments/{commentId}/likes")
+    @AccessTokenApi
+    suspend fun unlikeComment(
+        @Path("feedId") feedId: Long,
+        @Path("commentId") commentId: Long,
+    ): BaseResponse<Unit?>
+
+    // 댓글 삭제
+    @DELETE("api/v1/comments/{commentId}")
+    @AccessTokenApi
+    suspend fun deleteComment(
+        @Path("commentId") commentId: Long,
+    ): BaseResponse<Unit?>
+
+    /** 피드 좋아요 */
+    // 피드 좋아요
+    @POST("api/v1/feeds/{feedId}/likes")
+    @AccessTokenApi
+    suspend fun likeFeed(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<Unit?>
+
+    // 피드 좋아요 취소
+    @DELETE("api/v1/feeds/{feedId}/likes")
+    @AccessTokenApi
+    suspend fun unlikeFeed(
+        @Path("feedId") feedId: Long,
     ): BaseResponse<Unit?>
 }

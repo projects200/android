@@ -97,11 +97,42 @@ class FeedRepositoryImpl @Inject constructor(
         )
     }
 
-
-    override suspend fun deleteComment(feedId: Long, commentId: Long): BaseResult<Unit> {
+    override suspend fun likeComment(feedId: Long, commentId: Long): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteComment(feedId, commentId) },
+            apiCall = { apiService.likeComment(feedId, commentId) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun unlikeComment(feedId: Long, commentId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.unlikeComment(feedId, commentId) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun deleteComment(commentId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteComment(commentId) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun likeFeed(feedId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.likeFeed(feedId) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun unlikeFeed(feedId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.unlikeFeed(feedId) },
             mapper = { Unit },
         )
     }

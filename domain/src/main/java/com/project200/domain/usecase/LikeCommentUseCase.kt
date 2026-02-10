@@ -4,10 +4,10 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.FeedRepository
 import javax.inject.Inject
 
-class DeleteCommentUseCase @Inject constructor(
+class LikeCommentUseCase @Inject constructor(
     private val feedRepository: FeedRepository,
 ) {
-    suspend operator fun invoke(commentId: Long): BaseResult<Unit> {
-        return feedRepository.deleteComment(commentId)
+    suspend operator fun invoke(feedId: Long, commentId: Long): BaseResult<Unit> {
+        return feedRepository.likeComment(feedId, commentId)
     }
 }
