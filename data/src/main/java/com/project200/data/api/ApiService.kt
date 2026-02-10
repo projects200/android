@@ -10,6 +10,7 @@ import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.GetFeedsDTO
+import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -506,6 +507,13 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteFeed(
         @Path("feedId") feedId: Long,
+    ): BaseResponse<Unit?>
+
+    @PATCH("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun updateFeed(
+        @Path("feedId") feedId: Long,
+        @Body updateFeedRequest: UpdateFeedRequestDTO,
     ): BaseResponse<Unit?>
 
     /** 댓글 */

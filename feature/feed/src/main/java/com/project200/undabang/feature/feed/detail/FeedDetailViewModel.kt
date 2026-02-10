@@ -1,8 +1,8 @@
 package com.project200.undabang.feature.feed.detail
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -18,9 +18,16 @@ import com.project200.domain.usecase.LikeCommentUseCase
 import com.project200.domain.usecase.LikeFeedUseCase
 import com.project200.domain.usecase.UnlikeCommentUseCase
 import com.project200.domain.usecase.UnlikeFeedUseCase
+import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed class FeedDetailEvent {
+    data class ShowToast(@StringRes val messageResId: Int) : FeedDetailEvent()
+    data class FeedDeleted(@StringRes val messageResId: Int) : FeedDetailEvent()
+    data class FeedLoadError(@StringRes val messageResId: Int) : FeedDetailEvent()
+}
 
 @HiltViewModel
 class FeedDetailViewModel @Inject constructor(
@@ -34,10 +41,9 @@ class FeedDetailViewModel @Inject constructor(
     private val deleteCommentUseCase: DeleteCommentUseCase,
     private val likeFeedUseCase: LikeFeedUseCase,
     private val unlikeFeedUseCase: UnlikeFeedUseCase,
-    savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    private val feedId: Long = savedStateHandle.get<Long>("feedId") ?: -1L
+    private var feedId: Long = -1L
 
     private val _feed = MutableLiveData<Feed>()
     val feed: LiveData<Feed> get() = _feed
@@ -45,17 +51,14 @@ class FeedDetailViewModel @Inject constructor(
     private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> get() = _isLoading
 
-    private val _error = MutableLiveData<String>()
-    val error: LiveData<String> get() = _error
+    private val _event = MutableLiveData<FeedDetailEvent>()
+    val event: LiveData<FeedDetailEvent> get() = _event
 
     private val _currentMemberId = MutableLiveData<String>()
     val currentMemberId: LiveData<String> get() = _currentMemberId
 
     private val _isMyFeed = MutableLiveData<Boolean>(false)
     val isMyFeed: LiveData<Boolean> get() = _isMyFeed
-
-    private val _deleteSuccess = MutableLiveData<Boolean>()
-    val deleteSuccess: LiveData<Boolean> get() = _deleteSuccess
 
     private val _comments = MutableLiveData<List<Comment>>()
     val comments: LiveData<List<Comment>> get() = _comments
@@ -66,13 +69,8 @@ class FeedDetailViewModel @Inject constructor(
     private val _replyTarget = MutableLiveData<CommentItem?>()
     val replyTarget: LiveData<CommentItem?> get() = _replyTarget
 
-    private val _commentCreated = MutableLiveData<Boolean>()
-    val commentCreated: LiveData<Boolean> get() = _commentCreated
-
-    private val _commentDeleted = MutableLiveData<Boolean>()
-    val commentDeleted: LiveData<Boolean> get() = _commentDeleted
-
-    init {
+    fun setFeedId(feedId: Long) {
+        this.feedId = feedId
         loadCurrentMemberId()
         loadFeedDetail()
         loadComments()
@@ -86,7 +84,7 @@ class FeedDetailViewModel @Inject constructor(
 
     private fun loadFeedDetail() {
         if (feedId == -1L) {
-            _error.value = "피드 정보를 불러올 수 없습니다."
+            _event.value = FeedDetailEvent.FeedLoadError(R.string.feed_load_error)
             return
         }
 
@@ -98,7 +96,7 @@ class FeedDetailViewModel @Inject constructor(
                     checkIsMyFeed(result.data.memberId)
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "피드를 불러오는데 실패했습니다."
+                    _event.value = FeedDetailEvent.FeedLoadError(R.string.feed_load_error)
                 }
             }
             _isLoading.value = false
@@ -110,15 +108,18 @@ class FeedDetailViewModel @Inject constructor(
         _isMyFeed.value = currentId != null && currentId == feedMemberId
     }
 
+    fun refreshFeed() {
+        loadFeedDetail()
+    }
+
     fun deleteFeed() {
         viewModelScope.launch {
-            when (val result = deleteFeedUseCase(feedId)) {
+            when (deleteFeedUseCase(feedId)) {
                 is BaseResult.Success -> {
-                    _deleteSuccess.value = true
+                    _event.value = FeedDetailEvent.FeedDeleted(R.string.feed_deleted)
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "피드 삭제에 실패했습니다."
-                    _deleteSuccess.value = false
+                    _event.value = FeedDetailEvent.ShowToast(R.string.feed_delete_error)
                 }
             }
         }
@@ -134,7 +135,7 @@ class FeedDetailViewModel @Inject constructor(
                     _comments.value = result.data
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "댓글을 불러오는데 실패했습니다."
+                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_load_error)
                 }
             }
             _commentsLoading.value = false
@@ -150,16 +151,15 @@ class FeedDetailViewModel @Inject constructor(
                 is CommentItem.ReplyData -> target.parentCommentId
                 null -> null
             }
-            when (val result = createCommentUseCase(feedId, content, parentCommentId)) {
+            when (createCommentUseCase(feedId, content, parentCommentId)) {
                 is BaseResult.Success -> {
-                    _commentCreated.value = true
+                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_created)
                     _replyTarget.value = null
                     loadComments()
                     refreshFeedCommentsCount()
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "댓글 작성에 실패했습니다."
-                    _commentCreated.value = false
+                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_create_error)
                 }
             }
         }
@@ -179,7 +179,7 @@ class FeedDetailViewModel @Inject constructor(
             when (result) {
                 is BaseResult.Success -> loadComments()
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "좋아요 처리에 실패했습니다."
+                    _event.value = FeedDetailEvent.ShowToast(R.string.like_error)
                 }
             }
         }
@@ -187,15 +187,14 @@ class FeedDetailViewModel @Inject constructor(
 
     fun deleteComment(commentId: Long) {
         viewModelScope.launch {
-            when (val result = deleteCommentUseCase(commentId)) {
+            when (deleteCommentUseCase(commentId)) {
                 is BaseResult.Success -> {
-                    _commentDeleted.value = true
+                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_deleted)
                     loadComments()
                     refreshFeedCommentsCount()
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "댓글 삭제에 실패했습니다."
-                    _commentDeleted.value = false
+                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_delete_error)
                 }
             }
         }
@@ -232,7 +231,7 @@ class FeedDetailViewModel @Inject constructor(
                     )
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "좋아요 처리에 실패했습니다."
+                    _event.value = FeedDetailEvent.ShowToast(R.string.like_error)
                 }
             }
         }

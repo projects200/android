@@ -44,3 +44,9 @@ data class CreateFeedRequestDTO(
 data class FeedCreateResultDTO(
     val feedId: Long,
 )
+
+@JsonClass(generateAdapter = true)
+data class UpdateFeedRequestDTO(
+    val feedContent: String,
+    val feedTypeId: Long?,
+)

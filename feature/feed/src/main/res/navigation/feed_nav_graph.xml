@@ -22,6 +22,24 @@
         android:name="com.project200.undabang.feature.feed.form.FeedFormFragment"
         android:label="FeedFormFragment"
         tools:layout="@layout/fragment_feed_form" >
+        <argument
+            android:name="feedId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+        <argument
+            android:name="feedContent"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
+        <argument
+            android:name="feedTypeId"
+            app:argType="long"
+            android:defaultValue="-1L" />
+        <argument
+            android:name="feedTypeName"
+            app:argType="string"
+            app:nullable="true"
+            android:defaultValue="@null" />
     </fragment>
     <fragment
         android:id="@+id/feedDetailFragment"

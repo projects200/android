@@ -77,16 +77,6 @@
         app:layout_constraintTop_toTopOf="@+id/nickname_tv"
         tools:text="2시간 전" />
 
-    <ImageView
-        android:id="@+id/more_iv"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginEnd="16dp"
-        android:src="@drawable/ic_more"
-        app:layout_constraintBottom_toBottomOf="@+id/profile_iv"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/profile_iv" />
-
     <TextView
         android:id="@+id/content_tv"
         android:layout_width="0dp"
@@ -95,7 +85,8 @@
         android:layout_marginTop="12dp"
         android:maxLines="6"
         android:ellipsize="end"
-        app:layout_constraintEnd_toStartOf="@+id/more_iv"
+        android:layout_marginEnd="@dimen/base_horizontal_margin"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="@+id/nickname_tv"
         app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
         tools:text="오늘 운동 완료! 다들 득근하세요." />

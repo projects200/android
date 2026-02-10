@@ -35,6 +35,12 @@ data class CreateFeedModel(
     val feedTypeId: Long?,
 )
 
+data class UpdateFeedModel(
+    val feedId: Long,
+    val feedContent: String,
+    val feedTypeId: Long?,
+)
+
 data class FeedCreateResult(
     val feedId: Long,
 )

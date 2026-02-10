@@ -5,11 +5,13 @@ import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.FeedPictureDTO
 import com.project200.data.dto.GetFeedsDTO
+import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.domain.model.CreateFeedModel
 import com.project200.domain.model.Feed
 import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
 import com.project200.domain.model.FeedPicture
+import com.project200.domain.model.UpdateFeedModel
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
@@ -57,5 +59,12 @@ fun CreateFeedModel.toDTO(): CreateFeedRequestDTO {
 fun FeedCreateResultDTO.toModel(): FeedCreateResult {
     return FeedCreateResult(
         feedId = feedId,
+    )
+}
+
+fun UpdateFeedModel.toDTO(): UpdateFeedRequestDTO {
+    return UpdateFeedRequestDTO(
+        feedContent = feedContent,
+        feedTypeId = feedTypeId,
     )
 }

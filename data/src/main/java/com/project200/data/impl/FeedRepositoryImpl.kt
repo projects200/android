@@ -18,6 +18,7 @@ import com.project200.domain.model.CreateFeedModel
 import com.project200.domain.model.Feed
 import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
+import com.project200.domain.model.UpdateFeedModel
 import com.project200.domain.repository.FeedRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Inject
@@ -133,6 +134,14 @@ class FeedRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.unlikeFeed(feedId) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun updateFeed(updateFeedModel: UpdateFeedModel): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.updateFeed(updateFeedModel.feedId, updateFeedModel.toDTO()) },
             mapper = { Unit },
         )
     }

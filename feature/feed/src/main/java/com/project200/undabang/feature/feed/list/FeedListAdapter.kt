@@ -12,7 +12,6 @@ import com.project200.presentation.utils.RelativeTimeUtil
 
 class FeedListAdapter(
     private val onItemClick: (Feed) -> Unit,
-    private val onMoreClick: (Feed) -> Unit
 ) : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
 
     private val items = mutableListOf<Feed>()
@@ -59,11 +58,6 @@ class FeedListAdapter(
                     feedTypeTv.text = feed.feedTypeName
                 }
 
-                val isMyFeed = currentMemberId != null && feed.memberId == currentMemberId
-                moreIv.visibility = if (isMyFeed) View.VISIBLE else View.GONE
-                moreIv.setOnClickListener { onMoreClick(feed) }
-                
-                // Avatar
                 Glide.with(root.context)
                     .load(feed.profileUrl)
                     .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
@@ -71,10 +65,8 @@ class FeedListAdapter(
                     .circleCrop()
                     .into(profileIv)
 
-                // Content
                 contentTv.text = feed.feedContent
 
-                // Images
                 if (feed.feedPictures.isNotEmpty()) {
                     imagesRv.visibility = View.VISIBLE
                     
@@ -84,7 +76,6 @@ class FeedListAdapter(
                     imagesRv.visibility = View.GONE
                 }
 
-                // Stats
                 likeCountTv.text = feed.feedLikesCount.toString()
                 commentCountTv.text = feed.feedCommentsCount.toString()
 

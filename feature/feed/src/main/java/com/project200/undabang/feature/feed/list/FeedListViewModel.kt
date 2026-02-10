@@ -1,5 +1,6 @@
 package com.project200.undabang.feature.feed.list
 
+import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -11,9 +12,15 @@ import com.project200.domain.usecase.GetFeedsUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
+import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+sealed class FeedListEvent {
+    data class ShowToast(@StringRes val messageResId: Int) : FeedListEvent()
+    data class FeedDeleted(@StringRes val messageResId: Int) : FeedListEvent()
+}
 
 @HiltViewModel
 class FeedListViewModel @Inject constructor(
@@ -33,8 +40,8 @@ class FeedListViewModel @Inject constructor(
     private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> get() = _isLoading
 
-    private val _error = MutableLiveData<String>()
-    val error: LiveData<String> get() = _error
+    private val _event = MutableLiveData<FeedListEvent>()
+    val event: LiveData<FeedListEvent> get() = _event
 
     private val _isEmpty = MutableLiveData<Boolean>(false)
     val isEmpty: LiveData<Boolean> get() = _isEmpty
@@ -44,9 +51,6 @@ class FeedListViewModel @Inject constructor(
 
     private val _currentMemberId = MutableLiveData<String>()
     val currentMemberId: LiveData<String> get() = _currentMemberId
-
-    private val _deleteSuccess = MutableLiveData<Boolean>()
-    val deleteSuccess: LiveData<Boolean> get() = _deleteSuccess
 
     private val _showEmptyView = MutableLiveData<Boolean>(false)
     val showEmptyView: LiveData<Boolean> get() = _showEmptyView
@@ -117,7 +121,6 @@ class FeedListViewModel @Inject constructor(
     fun loadExerciseTypes() {
         if (!_exerciseTypeList.value.isNullOrEmpty()) return
         viewModelScope.launch {
-            // 유저의 선호 운동 리스트
             val preferredResult = getPreferredExerciseUseCase()
             val preferredNames =
                 if (preferredResult is BaseResult.Success) {
@@ -126,7 +129,6 @@ class FeedListViewModel @Inject constructor(
                     emptyList()
                 }
 
-            // 전체 운동 종류 리스트
             val allTypesResult = getPreferredExerciseTypesUseCase()
             val allNames =
                 if (allTypesResult is BaseResult.Success) {
@@ -135,7 +137,6 @@ class FeedListViewModel @Inject constructor(
                     emptyList()
                 }
 
-            // 선호 운동 + 그 외 전체 운동(중복 제거) - 직접 입력 제외
             val combinedList =
                 mutableListOf<String>().apply {
                     addAll(preferredNames)
@@ -172,7 +173,7 @@ class FeedListViewModel @Inject constructor(
                     updateShowEmptyView()
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "알 수 없는 오류가 발생했습니다."
+                    _event.value = FeedListEvent.ShowToast(R.string.unknown_error)
                     if (allFeeds.isEmpty()) {
                         _isEmpty.value = true
                         _feedList.value = emptyList()
@@ -187,17 +188,16 @@ class FeedListViewModel @Inject constructor(
 
     fun deleteFeed(feedId: Long) {
         viewModelScope.launch {
-            when (val result = deleteFeedUseCase(feedId)) {
+            when (deleteFeedUseCase(feedId)) {
                 is BaseResult.Success -> {
                     allFeeds.removeAll { it.feedId == feedId }
                     updateFilteredList()
                     _isEmpty.value = allFeeds.isEmpty()
                     updateShowEmptyView()
-                    _deleteSuccess.value = true
+                    _event.value = FeedListEvent.FeedDeleted(R.string.feed_deleted)
                 }
                 is BaseResult.Error -> {
-                    _error.value = result.message ?: "피드 삭제에 실패했습니다."
-                    _deleteSuccess.value = false
+                    _event.value = FeedListEvent.ShowToast(R.string.feed_delete_error)
                 }
             }
         }

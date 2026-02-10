@@ -1,12 +1,12 @@
 package com.project200.undabang.feature.feed.detail
 
-import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
 import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.project200.domain.model.Feed
@@ -15,6 +15,7 @@ import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedDetailBinding
+import com.project200.undabang.feature.feed.form.FeedFormFragment
 import com.project200.undabang.feature.feed.list.FeedListFragment
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -22,17 +23,30 @@ import dagger.hilt.android.AndroidEntryPoint
 class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.fragment_feed_detail) {
 
     private val viewModel: FeedDetailViewModel by viewModels()
+    private val args: FeedDetailFragmentArgs by navArgs()
     private var commentRVAdapter: CommentRVAdapter? = null
 
     override fun getViewBinding(view: View): FragmentFeedDetailBinding {
         return FragmentFeedDetailBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+    override fun setupViews() {
+        viewModel.setFeedId(args.feedId)
         initToolbar()
         initCommentInput()
         initObserver()
+        observeFeedUpdated()
+    }
+
+    private fun observeFeedUpdated() {
+        findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<Boolean>(FeedFormFragment.FEED_UPDATED_KEY)
+            ?.observe(viewLifecycleOwner) { updated ->
+                if (updated) {
+                    viewModel.refreshFeed()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
+                    findNavController().currentBackStackEntry?.savedStateHandle?.remove<Boolean>(FeedFormFragment.FEED_UPDATED_KEY)
+                }
+            }
     }
 
     private fun initToolbar() {
@@ -89,24 +103,26 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             }
         }
 
-        viewModel.error.observe(viewLifecycleOwner) { errorMessage ->
-            if (errorMessage.isNotEmpty()) {
-                Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show()
-                binding.errorTv.visibility = View.VISIBLE
-                binding.scrollView.visibility = View.GONE
+        viewModel.event.observe(viewLifecycleOwner) { event ->
+            when (event) {
+                is FeedDetailEvent.FeedDeleted -> {
+                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                    findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
+                    findNavController().navigateUp()
+                }
+                is FeedDetailEvent.FeedLoadError -> {
+                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                    binding.errorTv.visibility = View.VISIBLE
+                    binding.scrollView.visibility = View.GONE
+                }
+                is FeedDetailEvent.ShowToast -> {
+                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
+                }
             }
         }
 
         viewModel.isMyFeed.observe(viewLifecycleOwner) { isMyFeed ->
             binding.moreIv.visibility = if (isMyFeed) View.VISIBLE else View.GONE
-        }
-
-        viewModel.deleteSuccess.observe(viewLifecycleOwner) { success ->
-            if (success) {
-                Toast.makeText(context, "피드가 삭제되었습니다.", Toast.LENGTH_SHORT).show()
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
-                findNavController().navigateUp()
-            }
         }
 
         viewModel.comments.observe(viewLifecycleOwner) { comments ->
@@ -121,25 +137,13 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
         viewModel.replyTarget.observe(viewLifecycleOwner) { target ->
             with(binding.commentInputLayout) {
                 if (target != null) {
-                    replyTargetTv.text = "@${target.memberNickname} 님에게 답글 작성 중"
+                    replyTargetTv.text = getString(R.string.feed_reply_writing, target.memberNickname)
                     replyTargetTv.visibility = View.VISIBLE
                     cancelReplyIv.visibility = View.VISIBLE
                 } else {
                     replyTargetTv.visibility = View.GONE
                     cancelReplyIv.visibility = View.GONE
                 }
-            }
-        }
-
-        viewModel.commentCreated.observe(viewLifecycleOwner) { success ->
-            if (success) {
-                Toast.makeText(context, "댓글이 작성되었습니다.", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        viewModel.commentDeleted.observe(viewLifecycleOwner) { success ->
-            if (success) {
-                Toast.makeText(context, "댓글이 삭제되었습니다.", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -220,11 +224,22 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
     private fun showMenuBottomSheet() {
         MenuBottomSheetDialog(
             onEditClicked = {
-                // TODO: 피드 수정 기능 구현
+                navigateToEditFeed()
             },
             onDeleteClicked = {
                 viewModel.deleteFeed()
             }
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
+    }
+
+    private fun navigateToEditFeed() {
+        val feed = viewModel.feed.value ?: return
+        val action = FeedDetailFragmentDirections.actionFeedDetailFragmentToFeedFormFragment(
+            feedId = feed.feedId,
+            feedContent = feed.feedContent,
+            feedTypeId = feed.feedTypeId ?: -1L,
+            feedTypeName = feed.feedTypeName
+        )
+        findNavController().navigate(action)
     }
 }
