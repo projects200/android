@@ -360,6 +360,7 @@ class MatchingMapFragment :
     override fun onResume() {
         super.onResume()
         binding.mapView.resume()
+        viewModel.refreshExercisePlaces()
     }
 
     override fun onPause() {

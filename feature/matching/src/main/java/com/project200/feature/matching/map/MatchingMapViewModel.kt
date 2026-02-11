@@ -230,6 +230,12 @@ class MatchingMapViewModel
             }
         }
 
+        fun refreshExercisePlaces() {
+            viewModelScope.launch {
+                exercisePlaces.value = getExercisePlaceUseCase()
+            }
+        }
+
         // 필터 버튼 클릭 시 호출
         fun onFilterTypeClicked(type: MatchingFilterType) {
             viewModelScope.launch {
