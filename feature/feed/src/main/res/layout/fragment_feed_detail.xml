@@ -121,7 +121,7 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@+id/content_tv"
-                tools:listitem="@layout/item_feed_detail_image"
+                tools:listitem="@layout/item_feed_image"
                 tools:visibility="visible" />
 
             <androidx.constraintlayout.widget.Barrier

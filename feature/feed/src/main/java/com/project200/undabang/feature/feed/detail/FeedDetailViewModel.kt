@@ -1,10 +1,12 @@
 package com.project200.undabang.feature.feed.detail
 
-import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Comment
 import com.project200.domain.model.Feed
@@ -18,16 +20,11 @@ import com.project200.domain.usecase.LikeCommentUseCase
 import com.project200.domain.usecase.LikeFeedUseCase
 import com.project200.domain.usecase.UnlikeCommentUseCase
 import com.project200.domain.usecase.UnlikeFeedUseCase
+import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-sealed class FeedDetailEvent {
-    data class ShowToast(@StringRes val messageResId: Int) : FeedDetailEvent()
-    data class FeedDeleted(@StringRes val messageResId: Int) : FeedDetailEvent()
-    data class FeedLoadError(@StringRes val messageResId: Int) : FeedDetailEvent()
-}
 
 @HiltViewModel
 class FeedDetailViewModel @Inject constructor(
@@ -51,8 +48,14 @@ class FeedDetailViewModel @Inject constructor(
     private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> get() = _isLoading
 
-    private val _event = MutableLiveData<FeedDetailEvent>()
-    val event: LiveData<FeedDetailEvent> get() = _event
+    private val _toastEvent = MutableSharedFlow<UiText>()
+    val toastEvent: SharedFlow<UiText> = _toastEvent.asSharedFlow()
+
+    private val _feedDeleted = MutableSharedFlow<Unit>()
+    val feedDeleted: SharedFlow<Unit> = _feedDeleted.asSharedFlow()
+
+    private val _feedLoadError = MutableSharedFlow<Unit>()
+    val feedLoadError: SharedFlow<Unit> = _feedLoadError.asSharedFlow()
 
     private val _currentMemberId = MutableLiveData<String>()
     val currentMemberId: LiveData<String> get() = _currentMemberId
@@ -84,7 +87,10 @@ class FeedDetailViewModel @Inject constructor(
 
     private fun loadFeedDetail() {
         if (feedId == -1L) {
-            _event.value = FeedDetailEvent.FeedLoadError(R.string.feed_load_error)
+            viewModelScope.launch {
+                _toastEvent.emit(UiText.StringResource(R.string.feed_load_error))
+                _feedLoadError.emit(Unit)
+            }
             return
         }
 
@@ -96,7 +102,8 @@ class FeedDetailViewModel @Inject constructor(
                     checkIsMyFeed(result.data.memberId)
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.FeedLoadError(R.string.feed_load_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_load_error))
+                    _feedLoadError.emit(Unit)
                 }
             }
             _isLoading.value = false
@@ -110,16 +117,18 @@ class FeedDetailViewModel @Inject constructor(
 
     fun refreshFeed() {
         loadFeedDetail()
+        loadComments()
     }
 
     fun deleteFeed() {
         viewModelScope.launch {
             when (deleteFeedUseCase(feedId)) {
                 is BaseResult.Success -> {
-                    _event.value = FeedDetailEvent.FeedDeleted(R.string.feed_deleted)
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_deleted))
+                    _feedDeleted.emit(Unit)
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.feed_delete_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_delete_error))
                 }
             }
         }
@@ -135,7 +144,7 @@ class FeedDetailViewModel @Inject constructor(
                     _comments.value = result.data
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_load_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.comment_load_error))
                 }
             }
             _commentsLoading.value = false
@@ -153,13 +162,13 @@ class FeedDetailViewModel @Inject constructor(
             }
             when (createCommentUseCase(feedId, content, parentCommentId)) {
                 is BaseResult.Success -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_created)
+                    _toastEvent.emit(UiText.StringResource(R.string.comment_created))
                     _replyTarget.value = null
                     loadComments()
                     refreshFeedCommentsCount()
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_create_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.comment_create_error))
                 }
             }
         }
@@ -179,7 +188,7 @@ class FeedDetailViewModel @Inject constructor(
             when (result) {
                 is BaseResult.Success -> loadComments()
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.like_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.like_error))
                 }
             }
         }
@@ -189,12 +198,12 @@ class FeedDetailViewModel @Inject constructor(
         viewModelScope.launch {
             when (deleteCommentUseCase(commentId)) {
                 is BaseResult.Success -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_deleted)
+                    _toastEvent.emit(UiText.StringResource(R.string.comment_deleted))
                     loadComments()
                     refreshFeedCommentsCount()
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.comment_delete_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.comment_delete_error))
                 }
             }
         }
@@ -231,7 +240,7 @@ class FeedDetailViewModel @Inject constructor(
                     )
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedDetailEvent.ShowToast(R.string.like_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.like_error))
                 }
             }
         }

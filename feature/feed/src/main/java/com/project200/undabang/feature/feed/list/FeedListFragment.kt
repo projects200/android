@@ -2,12 +2,12 @@ package com.project200.undabang.feature.feed.list
 
 import android.os.Bundle
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.collectToast
 import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedListBinding
@@ -148,16 +148,7 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             }
         }
 
-        viewModel.event.observe(viewLifecycleOwner) { event ->
-            when (event) {
-                is FeedListEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-                is FeedListEvent.FeedDeleted -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        collectToast(viewModel.toastEvent)
 
         viewModel.currentMemberId.observe(viewLifecycleOwner) { memberId ->
             feedAdapter.setCurrentMemberId(memberId)

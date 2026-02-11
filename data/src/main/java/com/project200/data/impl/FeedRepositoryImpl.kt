@@ -1,5 +1,7 @@
 package com.project200.data.impl
 
+import android.content.Context
+import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.CommentDTO
@@ -7,9 +9,11 @@ import com.project200.data.dto.CreateCommentRequestDTO
 import com.project200.data.dto.CreateCommentResponseDTO
 import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
+import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
+import com.project200.data.mapper.toMultipartBodyPart
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Comment
@@ -18,14 +22,19 @@ import com.project200.domain.model.CreateFeedModel
 import com.project200.domain.model.Feed
 import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
+import com.project200.domain.model.FeedPicture
 import com.project200.domain.model.UpdateFeedModel
 import com.project200.domain.repository.FeedRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import timber.log.Timber
 import javax.inject.Inject
+import kotlin.coroutines.cancellation.CancellationException
 
 class FeedRepositoryImpl @Inject constructor(
     private val apiService: ApiService,
     @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+    @ApplicationContext private val context: Context,
 ) : FeedRepository {
 
     override suspend fun getFeeds(prevFeedId: Long?, size: Int?): BaseResult<FeedListResult> {
@@ -142,6 +151,47 @@ class FeedRepositoryImpl @Inject constructor(
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
             apiCall = { apiService.updateFeed(updateFeedModel.feedId, updateFeedModel.toDTO()) },
+            mapper = { Unit },
+        )
+    }
+
+    override suspend fun uploadFeedImages(
+        feedId: Long,
+        imageUris: List<String>,
+    ): BaseResult<List<FeedPicture>> {
+        val uris = imageUris.mapNotNull {
+            try {
+                it.toUri()
+            } catch (e: CancellationException) {
+                Timber.w(e, "CancellationException: $it")
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "Invalid URI string: $it")
+                null
+            }
+        }
+
+        val imageParts = uris.mapNotNull { uri ->
+            uri.toMultipartBodyPart(context, "pictures")
+        }
+
+        if (imageParts.isEmpty() && uris.isNotEmpty()) {
+            return BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
+        }
+
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.postFeedImages(feedId, imageParts) },
+            mapper = { dtoList: List<FeedPictureUploadDTO>? ->
+                dtoList?.map { it.toModel() } ?: emptyList()
+            },
+        )
+    }
+
+    override suspend fun deleteFeedImage(feedId: Long, imageId: Long): BaseResult<Unit> {
+        return apiCallBuilder(
+            ioDispatcher = ioDispatcher,
+            apiCall = { apiService.deleteFeedImage(feedId, imageId) },
             mapper = { Unit },
         )
     }

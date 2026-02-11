@@ -50,3 +50,9 @@ data class UpdateFeedRequestDTO(
     val feedContent: String,
     val feedTypeId: Long?,
 )
+
+@JsonClass(generateAdapter = true)
+data class FeedPictureUploadDTO(
+    val pictureId: Long,
+    val pictureUrl: String,
+)

@@ -8,15 +8,21 @@ import com.bumptech.glide.Glide
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.ItemFeedFormImageBinding
 
+
 class FeedFormImageAdapter(
-    private val onDeleteClick: (Uri) -> Unit
+    private val onDeleteExistingClick: (Long) -> Unit,
+    private val onDeleteNewClick: (Uri) -> Unit
 ) : RecyclerView.Adapter<FeedFormImageAdapter.ViewHolder>() {
 
-    private val items = mutableListOf<Uri>()
+    private val items = mutableListOf<FeedFormImageItem>()
 
-    fun submitList(newItems: List<Uri>) {
+    fun submitList(
+        registeredImages: List<RegisteredImage>,
+        newImages: List<Uri>
+    ) {
         items.clear()
-        items.addAll(newItems)
+        items.addAll(registeredImages.map { FeedFormImageItem.Existing(it.imageId, it.imageUrl) })
+        items.addAll(newImages.map { FeedFormImageItem.New(it) })
         notifyDataSetChanged()
     }
 
@@ -38,15 +44,23 @@ class FeedFormImageAdapter(
     inner class ViewHolder(private val binding: ItemFeedFormImageBinding) :
         RecyclerView.ViewHolder(binding.root) {
 
-        fun bind(uri: Uri) {
+        fun bind(item: FeedFormImageItem) {
+            val imageSource: Any = when (item) {
+                is FeedFormImageItem.Existing -> item.imageUrl
+                is FeedFormImageItem.New -> item.uri
+            }
+
             Glide.with(binding.formImageIv.context)
-                .load(uri)
+                .load(imageSource)
                 .placeholder(R.drawable.ic_feed_image_placeholder)
                 .fitCenter()
                 .into(binding.formImageIv)
 
             binding.deleteIv.setOnClickListener {
-                onDeleteClick(uri)
+                when (item) {
+                    is FeedFormImageItem.Existing -> onDeleteExistingClick(item.imageId)
+                    is FeedFormImageItem.New -> onDeleteNewClick(item.uri)
+                }
             }
         }
     }

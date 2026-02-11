@@ -6,6 +6,7 @@ import com.project200.domain.model.CreateCommentResult
 import com.project200.domain.model.CreateFeedModel
 import com.project200.domain.model.Feed
 import com.project200.domain.model.FeedCreateResult
+import com.project200.domain.model.FeedPicture
 import com.project200.domain.model.FeedListResult
 import com.project200.domain.model.UpdateFeedModel
 
@@ -19,6 +20,10 @@ interface FeedRepository {
     suspend fun deleteFeed(feedId: Long): BaseResult<Unit>
 
     suspend fun updateFeed(updateFeedModel: UpdateFeedModel): BaseResult<Unit>
+
+    suspend fun uploadFeedImages(feedId: Long, imageUris: List<String>): BaseResult<List<FeedPicture>>
+
+    suspend fun deleteFeedImage(feedId: Long, imageId: Long): BaseResult<Unit>
 
     suspend fun getComments(feedId: Long): BaseResult<List<Comment>>
 

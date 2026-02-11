@@ -3,7 +3,6 @@ package com.project200.undabang.feature.feed.detail
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.View
-import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
@@ -12,11 +11,14 @@ import com.bumptech.glide.Glide
 import com.project200.domain.model.Feed
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.RelativeTimeUtil
+import com.project200.presentation.utils.collectFlow
+import com.project200.presentation.utils.collectToast
 import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedDetailBinding
 import com.project200.undabang.feature.feed.form.FeedFormFragment
 import com.project200.undabang.feature.feed.list.FeedListFragment
+import com.project200.undabang.feature.feed.list.ImageRVAdapter
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -103,22 +105,16 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             }
         }
 
-        viewModel.event.observe(viewLifecycleOwner) { event ->
-            when (event) {
-                is FeedDetailEvent.FeedDeleted -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                    findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
-                    findNavController().navigateUp()
-                }
-                is FeedDetailEvent.FeedLoadError -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                    binding.errorTv.visibility = View.VISIBLE
-                    binding.scrollView.visibility = View.GONE
-                }
-                is FeedDetailEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-            }
+        collectToast(viewModel.toastEvent)
+
+        collectFlow(viewModel.feedDeleted) {
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
+            findNavController().navigateUp()
+        }
+
+        collectFlow(viewModel.feedLoadError) {
+            binding.errorTv.visibility = View.VISIBLE
+            binding.scrollView.visibility = View.GONE
         }
 
         viewModel.isMyFeed.observe(viewLifecycleOwner) { isMyFeed ->
@@ -210,7 +206,7 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
                     LinearLayoutManager.HORIZONTAL,
                     false
                 )
-                imagesRv.adapter = FeedDetailImageAdapter(feed.feedPictures)
+                imagesRv.adapter = ImageRVAdapter(feed.feedPictures)
             } else {
                 imagesRv.visibility = View.GONE
             }
@@ -235,11 +231,13 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
     private fun navigateToEditFeed() {
         val feed = viewModel.feed.value ?: return
         val action = FeedDetailFragmentDirections.actionFeedDetailFragmentToFeedFormFragment(
-            feedId = feed.feedId,
-            feedContent = feed.feedContent,
-            feedTypeId = feed.feedTypeId ?: -1L,
-            feedTypeName = feed.feedTypeName
+            feedId = feed.feedId
         )
         findNavController().navigate(action)
+    }
+
+    override fun onDestroyView() {
+        commentRVAdapter = null
+        super.onDestroyView()
     }
 }

@@ -4,6 +4,7 @@ import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.FeedPictureDTO
+import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.domain.model.CreateFeedModel
@@ -66,5 +67,12 @@ fun UpdateFeedModel.toDTO(): UpdateFeedRequestDTO {
     return UpdateFeedRequestDTO(
         feedContent = feedContent,
         feedTypeId = feedTypeId,
+    )
+}
+
+fun FeedPictureUploadDTO.toModel(): FeedPicture {
+    return FeedPicture(
+        feedPictureId = pictureId,
+        feedPictureUrl = pictureUrl,
     )
 }

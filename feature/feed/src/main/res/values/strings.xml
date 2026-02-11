@@ -18,6 +18,7 @@
     <string name="feed_form_empty_content_warning">내용을 입력해주세요.</string>
     <string name="feed_form_create_success">피드가 등록되었습니다.</string>
     <string name="feed_form_create_error">피드 등록에 실패했습니다.</string>
+    <string name="feed_form_image_upload_error">피드는 등록되었으나 이미지 업로드에 실패했습니다.</string>
     <string name="feed_form_update_success">피드가 수정되었습니다.</string>
     <string name="feed_form_update_error">피드 수정에 실패했습니다.</string>
     <string name="profile_load_error">프로필을 불러오는데 실패했습니다.</string>

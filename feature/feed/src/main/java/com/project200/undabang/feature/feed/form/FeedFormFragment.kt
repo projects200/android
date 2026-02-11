@@ -10,6 +10,7 @@ import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.project200.domain.model.PreferredExercise
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.utils.collectToast
 import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedFormBinding
@@ -21,9 +22,10 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
 
     private val viewModel: FeedFormViewModel by viewModels()
     private val args: FeedFormFragmentArgs by navArgs()
-    private val imageAdapter = FeedFormImageAdapter { uri ->
-        viewModel.removeImage(uri)
-    }
+    private val imageAdapter = FeedFormImageAdapter(
+        onDeleteExistingClick = { imageId -> viewModel.removeExistingImage(imageId) },
+        onDeleteNewClick = { uri -> viewModel.removeImage(uri) }
+    )
 
     private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
         if (uris.isNotEmpty()) {
@@ -36,12 +38,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
     }
 
     override fun setupViews() {
-        viewModel.initData(
-            feedId = args.feedId,
-            feedContent = args.feedContent,
-            feedTypeId = args.feedTypeId,
-            feedTypeName = args.feedTypeName
-        )
+        viewModel.initData(feedId = args.feedId)
         initToolbar()
         initView()
         initObserver()
@@ -82,6 +79,12 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
         viewModel.requestShowDabangSelection()
     }
 
+    private fun updateImageList() {
+        val existingImages = viewModel.registeredImages.value ?: emptyList()
+        val newImages = viewModel.selectedImages.value ?: emptyList()
+        imageAdapter.submitList(existingImages, newImages)
+    }
+
     private fun displayDabangSelection(types: List<PreferredExercise>) {
         val names = types.map { it.name }
         
@@ -104,8 +107,12 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
                 .into(binding.profileIv)
         }
 
-        viewModel.selectedImages.observe(viewLifecycleOwner) { uris ->
-            imageAdapter.submitList(uris)
+        viewModel.selectedImages.observe(viewLifecycleOwner) { _ ->
+            updateImageList()
+        }
+
+        viewModel.registeredImages.observe(viewLifecycleOwner) { _ ->
+            updateImageList()
         }
 
         viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
@@ -126,13 +133,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
             }
         }
 
-        viewModel.event.observe(viewLifecycleOwner) { event ->
-            when (event) {
-                is FeedFormEvent.ShowToast -> {
-                    Toast.makeText(context, event.messageResId, Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
+        collectToast(viewModel.toastEvent)
 
         viewModel.showDabangSelection.observe(viewLifecycleOwner) { types ->
             if (!types.isNullOrEmpty()) {

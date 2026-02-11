@@ -1,6 +1,5 @@
 package com.project200.undabang.feature.feed.list
 
-import androidx.annotation.StringRes
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -12,15 +11,14 @@ import com.project200.domain.usecase.GetFeedsUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
+import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
-sealed class FeedListEvent {
-    data class ShowToast(@StringRes val messageResId: Int) : FeedListEvent()
-    data class FeedDeleted(@StringRes val messageResId: Int) : FeedListEvent()
-}
 
 @HiltViewModel
 class FeedListViewModel @Inject constructor(
@@ -40,8 +38,8 @@ class FeedListViewModel @Inject constructor(
     private val _isLoading = MutableLiveData<Boolean>(false)
     val isLoading: LiveData<Boolean> get() = _isLoading
 
-    private val _event = MutableLiveData<FeedListEvent>()
-    val event: LiveData<FeedListEvent> get() = _event
+    private val _toastEvent = MutableSharedFlow<UiText>()
+    val toastEvent: SharedFlow<UiText> = _toastEvent.asSharedFlow()
 
     private val _isEmpty = MutableLiveData<Boolean>(false)
     val isEmpty: LiveData<Boolean> get() = _isEmpty
@@ -173,7 +171,7 @@ class FeedListViewModel @Inject constructor(
                     updateShowEmptyView()
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedListEvent.ShowToast(R.string.unknown_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.unknown_error))
                     if (allFeeds.isEmpty()) {
                         _isEmpty.value = true
                         _feedList.value = emptyList()
@@ -194,10 +192,10 @@ class FeedListViewModel @Inject constructor(
                     updateFilteredList()
                     _isEmpty.value = allFeeds.isEmpty()
                     updateShowEmptyView()
-                    _event.value = FeedListEvent.FeedDeleted(R.string.feed_deleted)
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_deleted))
                 }
                 is BaseResult.Error -> {
-                    _event.value = FeedListEvent.ShowToast(R.string.feed_delete_error)
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_delete_error))
                 }
             }
         }

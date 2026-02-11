@@ -9,6 +9,7 @@ import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
+import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.dto.EditExercisePlaceDTO
@@ -553,6 +554,24 @@ interface ApiService {
     @AccessTokenApi
     suspend fun deleteComment(
         @Path("commentId") commentId: Long,
+    ): BaseResponse<Unit?>
+
+    /** 피드 이미지 */
+    // 피드 이미지 업로드
+    @Multipart
+    @POST("api/v1/feeds/{feedId}/pictures")
+    @AccessTokenApi
+    suspend fun postFeedImages(
+        @Path("feedId") feedId: Long,
+        @Part pictures: List<MultipartBody.Part>,
+    ): BaseResponse<List<FeedPictureUploadDTO>>
+
+    // 피드 이미지 삭제
+    @DELETE("api/v1/feeds/{feedId}/image/{imageId}")
+    @AccessTokenApi
+    suspend fun deleteFeedImage(
+        @Path("feedId") feedId: Long,
+        @Path("imageId") imageId: Long,
     ): BaseResponse<Unit?>
 
     /** 피드 좋아요 */
