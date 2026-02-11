@@ -83,22 +83,22 @@ class MatchingMapViewModel
         private val _zoomLevelWarning = MutableSharedFlow<Unit>()
         val zoomLevelWarning: SharedFlow<Unit> = _zoomLevelWarning
 
-        private val _redrawMarkersEvent = MutableStateFlow(0L)
+        private val redrawMarkersEvent = MutableStateFlow(0L)
 
         // 마지막으로 가져온 지도 위치 정보
         private var lastFetchedCenter: LatLng? = null
         private var lastFetchedZoom: Int? = null
         private var wasZoomTooLow: Boolean = false
 
-        private val _isZoomTooLow = MutableStateFlow(false)
+        private val isZoomTooLow = MutableStateFlow(false)
 
         val combinedMapData: StateFlow<Pair<List<MatchingMember>, List<ExercisePlace>>> =
             combine(
                 matchingMembers,
                 exercisePlaces,
                 _filterState,
-                _isZoomTooLow,
-                _redrawMarkersEvent,
+                isZoomTooLow,
+                redrawMarkersEvent,
             ) { membersResult, placesResult, filters, isZoomTooLow, _ ->
                 if (isZoomTooLow) {
                     return@combine Pair(emptyList(), emptyList())
@@ -386,8 +386,8 @@ class MatchingMapViewModel
             currentZoom: Int,
         ) {
             val isZoomTooLow = currentZoom < MIN_ZOOM_LEVEL_FOR_MEMBERS
-            _isZoomTooLow.value = isZoomTooLow
-            _redrawMarkersEvent.value = System.currentTimeMillis()
+            this.isZoomTooLow.value = isZoomTooLow
+            redrawMarkersEvent.value = System.currentTimeMillis()
 
             if (isZoomTooLow) {
                 matchingMembers.value = BaseResult.Success(emptyList())
