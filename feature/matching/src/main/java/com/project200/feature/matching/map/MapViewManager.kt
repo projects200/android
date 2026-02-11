@@ -107,7 +107,7 @@ class MapViewManager(
                 LabelOptions.from(LatLng.from(place.latitude, place.longitude))
                     .setStyles(R.drawable.ic_place_marker)
                     .setTag(place)
-            labelManager.layer?.addLabel(options)
+            labelManager.layer?.addLabel(options)?.let { currentLabels.add(it) }
         }
 
         // 클러스터 마커 추가
