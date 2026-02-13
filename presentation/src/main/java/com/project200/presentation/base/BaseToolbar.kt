@@ -49,4 +49,19 @@ class BaseToolbar
                 binding.subBtn.visibility = View.INVISIBLE
             }
         }
+
+        fun setSecondarySubButton(
+            iconRes: Int?,
+            onClick: ((View) -> Unit)? = null,
+        ) {
+            if (iconRes != null) {
+                binding.subBtnSecondary.apply {
+                    setImageResource(iconRes)
+                    visibility = View.VISIBLE
+                    setOnClickListener { clickedView -> onClick?.invoke(clickedView) }
+                }
+            } else {
+                binding.subBtnSecondary.visibility = View.GONE
+            }
+        }
     }

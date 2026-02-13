@@ -88,7 +88,7 @@
     <string name="filter_gender">성별</string>
     <string name="filter_age">나이</string>
     <string name="filter_day">운동 요일</string>
-    <string name="filter_exercise_type">운동 종목</string>
+    <string name="filter_exercise_type">종목</string>
     <string name="filter_skill">숙련도</string>
     <string name="filter_score">운동 점수</string>
 
