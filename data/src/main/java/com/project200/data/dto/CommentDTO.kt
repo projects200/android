@@ -23,6 +23,12 @@ data class CommentDTO(
 )
 
 @JsonClass(generateAdapter = true)
+data class TaggedMemberDTO(
+    val memberId: String,
+    val memberNickname: String,
+)
+
+@JsonClass(generateAdapter = true)
 data class ReplyDTO(
     val commentId: Long,
     val memberId: String,
@@ -33,12 +39,14 @@ data class ReplyDTO(
     val likesCount: Int,
     val isLiked: Boolean = false,
     val createdAt: LocalDateTime,
+    val taggedMember: TaggedMemberDTO? = null,
 )
 
 @JsonClass(generateAdapter = true)
 data class CreateCommentRequestDTO(
     val content: String,
     val parentCommentId: Long?,
+    val taggedMemberId: String? = null,
 )
 
 @JsonClass(generateAdapter = true)

@@ -89,6 +89,7 @@ class FeedRepositoryImpl @Inject constructor(
         feedId: Long,
         content: String,
         parentCommentId: Long?,
+        taggedMemberId: String?,
     ): BaseResult<CreateCommentResult> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
@@ -98,6 +99,7 @@ class FeedRepositoryImpl @Inject constructor(
                     request = CreateCommentRequestDTO(
                         content = content,
                         parentCommentId = parentCommentId,
+                        taggedMemberId = taggedMemberId,
                     ),
                 )
             },

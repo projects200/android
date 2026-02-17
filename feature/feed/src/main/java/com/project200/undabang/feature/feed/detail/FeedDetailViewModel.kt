@@ -155,12 +155,18 @@ class FeedDetailViewModel @Inject constructor(
         if (content.isBlank() || feedId == -1L) return
 
         viewModelScope.launch {
-            val parentCommentId = when (val target = _replyTarget.value) {
+            val target = _replyTarget.value
+            val parentCommentId = when (target) {
                 is CommentItem.CommentData -> target.commentId
                 is CommentItem.ReplyData -> target.parentCommentId
                 null -> null
             }
-            when (createCommentUseCase(feedId, content, parentCommentId)) {
+            // 대댓글에 답글 달 때만 태그 추가 (댓글에 답글 달 때는 태그 X)
+            val taggedMemberId = when (target) {
+                is CommentItem.ReplyData -> target.memberId
+                else -> null
+            }
+            when (createCommentUseCase(feedId, content, parentCommentId, taggedMemberId)) {
                 is BaseResult.Success -> {
                     _toastEvent.emit(UiText.StringResource(R.string.comment_created))
                     _replyTarget.value = null

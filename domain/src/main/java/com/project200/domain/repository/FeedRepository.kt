@@ -27,7 +27,7 @@ interface FeedRepository {
 
     suspend fun getComments(feedId: Long): BaseResult<List<Comment>>
 
-    suspend fun createComment(feedId: Long, content: String, parentCommentId: Long?): BaseResult<CreateCommentResult>
+    suspend fun createComment(feedId: Long, content: String, parentCommentId: Long?, taggedMemberId: String? = null): BaseResult<CreateCommentResult>
 
     suspend fun likeComment(feedId: Long, commentId: Long): BaseResult<Unit>
 

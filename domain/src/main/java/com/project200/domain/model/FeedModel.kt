@@ -58,6 +58,11 @@ data class Comment(
     val children: List<Reply>,
 )
 
+data class TaggedMember(
+    val memberId: String,
+    val memberNickname: String,
+)
+
 data class Reply(
     val commentId: Long,
     val memberId: String,
@@ -68,6 +73,7 @@ data class Reply(
     val likesCount: Int,
     val isLiked: Boolean,
     val createdAt: LocalDateTime,
+    val taggedMember: TaggedMember? = null,
 )
 
 data class CreateCommentResult(

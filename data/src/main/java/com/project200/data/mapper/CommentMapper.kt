@@ -3,9 +3,11 @@ package com.project200.data.mapper
 import com.project200.data.dto.CommentDTO
 import com.project200.data.dto.CreateCommentResponseDTO
 import com.project200.data.dto.ReplyDTO
+import com.project200.data.dto.TaggedMemberDTO
 import com.project200.domain.model.Comment
 import com.project200.domain.model.CreateCommentResult
 import com.project200.domain.model.Reply
+import com.project200.domain.model.TaggedMember
 
 fun CommentDTO.toModel(): Comment {
     return Comment(
@@ -33,6 +35,14 @@ fun ReplyDTO.toModel(): Reply {
         likesCount = likesCount,
         isLiked = isLiked,
         createdAt = createdAt,
+        taggedMember = taggedMember?.toModel(),
+    )
+}
+
+fun TaggedMemberDTO.toModel(): TaggedMember {
+    return TaggedMember(
+        memberId = memberId,
+        memberNickname = memberNickname,
     )
 }
 

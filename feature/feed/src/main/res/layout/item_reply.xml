@@ -65,8 +65,23 @@
         android:textSize="13sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toEndOf="@+id/profile_iv"
-        app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
+        app:layout_constraintTop_toBottomOf="@+id/tagged_member_tv"
         tools:text="저도 같이 운동하고 싶어요!" />
+
+    <TextView
+        android:id="@+id/tagged_member_tv"
+        style="@style/subtext_14"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="10dp"
+        android:layout_marginTop="2dp"
+        android:textColor="@color/tag"
+        android:textSize="13sp"
+        android:visibility="gone"
+        app:layout_constraintStart_toEndOf="@+id/profile_iv"
+        app:layout_constraintTop_toBottomOf="@+id/nickname_tv"
+        tools:text="@홍길동"
+        tools:visibility="visible" />
 
     <ImageView
         android:id="@+id/like_iv"

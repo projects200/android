@@ -110,6 +110,13 @@ class CommentRVAdapter(
                 contentTv.text = item.content
                 likeCountTv.text = item.likesCount.toString()
 
+                if (item.taggedMember != null) {
+                    taggedMemberTv.text = "@${item.taggedMember.memberNickname}"
+                    taggedMemberTv.visibility = View.VISIBLE
+                } else {
+                    taggedMemberTv.visibility = View.GONE
+                }
+
                 val profileUrl = item.memberThumbnailUrl ?: item.memberProfileImageUrl
                 Glide.with(root.context)
                     .load(profileUrl)

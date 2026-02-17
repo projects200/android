@@ -12,7 +12,8 @@ class CreateCommentUseCase @Inject constructor(
         feedId: Long,
         content: String,
         parentCommentId: Long? = null,
+        taggedMemberId: String? = null,
     ): BaseResult<CreateCommentResult> {
-        return feedRepository.createComment(feedId, content, parentCommentId)
+        return feedRepository.createComment(feedId, content, parentCommentId, taggedMemberId)
     }
 }

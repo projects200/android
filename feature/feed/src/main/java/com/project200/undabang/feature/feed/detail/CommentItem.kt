@@ -2,6 +2,7 @@ package com.project200.undabang.feature.feed.detail
 
 import com.project200.domain.model.Comment
 import com.project200.domain.model.Reply
+import com.project200.domain.model.TaggedMember
 import java.time.LocalDateTime
 
 sealed class CommentItem {
@@ -42,6 +43,7 @@ sealed class CommentItem {
         override val likesCount: Int = reply.likesCount
         override val isLiked: Boolean = reply.isLiked
         override val createdAt: LocalDateTime = reply.createdAt
+        val taggedMember: TaggedMember? = reply.taggedMember
     }
 }
 
