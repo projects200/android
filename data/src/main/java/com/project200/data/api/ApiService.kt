@@ -568,10 +568,10 @@ interface ApiService {
     ): BaseResponse<List<FeedPictureUploadDTO>>
 
     // 피드 이미지 삭제
-    @DELETE("api/v1/feeds/{feedId}/image/{imageId}")
+    @DELETE("api/v1/feeds/{feedId}/pictures/{pictureId}")
     @AccessTokenApi
     suspend fun deleteFeedImage(
         @Path("feedId") feedId: Long,
-        @Path("imageId") imageId: Long,
+        @Path("pictureId") pictureId: Long,
     ): BaseResponse<Unit?>
 }
