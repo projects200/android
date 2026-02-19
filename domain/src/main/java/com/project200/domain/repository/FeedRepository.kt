@@ -29,13 +29,9 @@ interface FeedRepository {
 
     suspend fun createComment(feedId: Long, content: String, parentCommentId: Long?, taggedMemberId: String? = null): BaseResult<CreateCommentResult>
 
-    suspend fun likeComment(feedId: Long, commentId: Long): BaseResult<Unit>
-
-    suspend fun unlikeComment(feedId: Long, commentId: Long): BaseResult<Unit>
+    suspend fun likeComment(commentId: Long, liked: Boolean): BaseResult<Unit>
 
     suspend fun deleteComment(commentId: Long): BaseResult<Unit>
 
-    suspend fun likeFeed(feedId: Long): BaseResult<Unit>
-
-    suspend fun unlikeFeed(feedId: Long): BaseResult<Unit>
+    suspend fun likeFeed(feedId: Long, liked: Boolean): BaseResult<Unit>
 }

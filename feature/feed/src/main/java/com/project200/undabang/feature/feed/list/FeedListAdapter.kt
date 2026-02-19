@@ -76,6 +76,12 @@ class FeedListAdapter(
                     imagesRv.visibility = View.GONE
                 }
 
+                likeIv.setImageResource(if (feed.feedIsLiked) {
+                    R.drawable.ic_like_fill
+                } else {
+                    R.drawable.ic_like
+                })
+
                 likeCountTv.text = feed.feedLikesCount.toString()
                 commentCountTv.text = feed.feedCommentsCount.toString()
 

@@ -4,12 +4,15 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Comment
 import com.project200.domain.model.Feed
+import com.project200.domain.model.Reply
 import com.project200.domain.usecase.CreateCommentUseCase
 import com.project200.domain.usecase.DeleteCommentUseCase
 import com.project200.domain.usecase.DeleteFeedUseCase
@@ -18,8 +21,6 @@ import com.project200.domain.usecase.GetFeedDetailUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.LikeCommentUseCase
 import com.project200.domain.usecase.LikeFeedUseCase
-import com.project200.domain.usecase.UnlikeCommentUseCase
-import com.project200.domain.usecase.UnlikeFeedUseCase
 import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,10 +35,8 @@ class FeedDetailViewModel @Inject constructor(
     private val getCommentsUseCase: GetCommentsUseCase,
     private val createCommentUseCase: CreateCommentUseCase,
     private val likeCommentUseCase: LikeCommentUseCase,
-    private val unlikeCommentUseCase: UnlikeCommentUseCase,
     private val deleteCommentUseCase: DeleteCommentUseCase,
     private val likeFeedUseCase: LikeFeedUseCase,
-    private val unlikeFeedUseCase: UnlikeFeedUseCase,
 ) : ViewModel() {
 
     private var feedId: Long = -1L
@@ -71,6 +70,13 @@ class FeedDetailViewModel @Inject constructor(
 
     private val _replyTarget = MutableLiveData<CommentItem?>()
     val replyTarget: LiveData<CommentItem?> get() = _replyTarget
+
+    private val commentLikeJobs = mutableMapOf<Long, Job>()
+    private val pendingCommentLikes = mutableMapOf<Long, Boolean>()
+
+    private var feedLikeJob: Job? = null
+    private var pendingFeedLike: Boolean? = null
+    private var originalFeedLikeState: Boolean? = null
 
     fun setFeedId(feedId: Long) {
         this.feedId = feedId
@@ -184,20 +190,62 @@ class FeedDetailViewModel @Inject constructor(
         _replyTarget.value = target
     }
 
+    // 좋아요 토글 시 로컬 상태 즉시 업데이트 + 1초 딜레이 후 서버 반영 (중복 요청 방지)
     fun toggleCommentLike(item: CommentItem) {
-        viewModelScope.launch {
-            val result = if (item.isLiked) {
-                unlikeCommentUseCase(feedId, item.commentId)
-            } else {
-                likeCommentUseCase(feedId, item.commentId)
+        val commentId = item.commentId
+        val currentLikedState = pendingCommentLikes[commentId] ?: item.isLiked
+        val newLikedState = !currentLikedState
+
+        pendingCommentLikes[commentId] = newLikedState
+        updateCommentLikeLocally(commentId, newLikedState)
+        
+        commentLikeJobs[commentId]?.cancel()
+        commentLikeJobs[commentId] = viewModelScope.launch {
+            delay(LIKE_DEBOUNCE_MS)
+            
+            val finalLikedState = pendingCommentLikes[commentId] ?: return@launch
+            if (finalLikedState == item.isLiked) {
+                pendingCommentLikes.remove(commentId)
+                return@launch
             }
-            when (result) {
-                is BaseResult.Success -> loadComments()
+
+            when (likeCommentUseCase(commentId, finalLikedState)) {
+                is BaseResult.Success -> {
+                    pendingCommentLikes.remove(commentId)
+                }
                 is BaseResult.Error -> {
+                    pendingCommentLikes.remove(commentId)
+                    updateCommentLikeLocally(commentId, item.isLiked)
                     _toastEvent.emit(UiText.StringResource(R.string.like_error))
                 }
             }
         }
+    }
+
+    // 좋아요 상태를 업데이트할 수 있도록 수정
+    private fun updateCommentLikeLocally(commentId: Long, isLiked: Boolean) {
+        val currentComments = _comments.value ?: return
+        val updatedComments = currentComments.map { comment ->
+            if (comment.commentId == commentId) {
+                comment.copy(
+                    isLiked = isLiked,
+                    likesCount = if (isLiked) comment.likesCount + 1 else comment.likesCount - 1
+                )
+            } else {
+                val updatedChildren = comment.children.map { reply ->
+                    if (reply.commentId == commentId) {
+                        reply.copy(
+                            isLiked = isLiked,
+                            likesCount = if (isLiked) reply.likesCount + 1 else reply.likesCount - 1
+                        )
+                    } else {
+                        reply
+                    }
+                }
+                comment.copy(children = updatedChildren)
+            }
+        }
+        _comments.value = updatedComments
     }
 
     fun deleteComment(commentId: Long) {
@@ -226,29 +274,67 @@ class FeedDetailViewModel @Inject constructor(
         }
     }
 
+    // 좋아요 토글 시 로컬 상태 즉시 업데이트 + 1초 딜레이 후 서버 반영 (중복 요청 방지)
     fun toggleFeedLike() {
         val currentFeed = _feed.value ?: return
-        viewModelScope.launch {
-            val result = if (currentFeed.feedIsLiked) {
-                unlikeFeedUseCase(feedId)
-            } else {
-                likeFeedUseCase(feedId)
+        
+        if (originalFeedLikeState == null) {
+            originalFeedLikeState = currentFeed.feedIsLiked
+        }
+        
+        val currentLikedState = pendingFeedLike ?: currentFeed.feedIsLiked
+        val newLikedState = !currentLikedState
+        
+        pendingFeedLike = newLikedState
+        updateFeedLikeLocally(newLikedState)
+        
+        feedLikeJob?.cancel()
+        feedLikeJob = viewModelScope.launch {
+            delay(LIKE_DEBOUNCE_MS)
+            
+            val finalLikedState = pendingFeedLike ?: return@launch
+            val originalState = originalFeedLikeState ?: return@launch
+            
+            if (finalLikedState == originalState) {
+                resetFeedLikePendingState()
+                return@launch
             }
-            when (result) {
+            
+            when (likeFeedUseCase(feedId, finalLikedState)) {
                 is BaseResult.Success -> {
-                    _feed.value = currentFeed.copy(
-                        feedIsLiked = !currentFeed.feedIsLiked,
-                        feedLikesCount = if (currentFeed.feedIsLiked) {
-                            currentFeed.feedLikesCount - 1
-                        } else {
-                            currentFeed.feedLikesCount + 1
-                        }
-                    )
+                    resetFeedLikePendingState()
                 }
                 is BaseResult.Error -> {
+                    resetFeedLikePendingState()
+                    updateFeedLikeLocally(originalState)
                     _toastEvent.emit(UiText.StringResource(R.string.like_error))
                 }
             }
         }
     }
+
+    // 좋아요 상태 변경이 완료되거나 취소된 후에 pending 상태 초기화
+    private fun resetFeedLikePendingState() {
+        pendingFeedLike = null
+        originalFeedLikeState = null
+    }
+    
+    private fun updateFeedLikeLocally(isLiked: Boolean) {
+        val currentFeed = _feed.value ?: return
+        if (currentFeed.feedIsLiked == isLiked) return
+        
+        _feed.value = currentFeed.copy(
+            feedIsLiked = isLiked,
+            feedLikesCount = if (isLiked) {
+                currentFeed.feedLikesCount + 1
+            } else {
+                currentFeed.feedLikesCount - 1
+            }
+        )
+    }
+
+    companion object {
+        private const val LIKE_DEBOUNCE_MS = 1000L
+    }
+
 }
