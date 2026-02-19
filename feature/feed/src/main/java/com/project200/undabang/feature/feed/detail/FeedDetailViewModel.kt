@@ -18,8 +18,6 @@ import com.project200.domain.usecase.GetFeedDetailUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.LikeCommentUseCase
 import com.project200.domain.usecase.LikeFeedUseCase
-import com.project200.domain.usecase.UnlikeCommentUseCase
-import com.project200.domain.usecase.UnlikeFeedUseCase
 import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -34,10 +32,8 @@ class FeedDetailViewModel @Inject constructor(
     private val getCommentsUseCase: GetCommentsUseCase,
     private val createCommentUseCase: CreateCommentUseCase,
     private val likeCommentUseCase: LikeCommentUseCase,
-    private val unlikeCommentUseCase: UnlikeCommentUseCase,
     private val deleteCommentUseCase: DeleteCommentUseCase,
     private val likeFeedUseCase: LikeFeedUseCase,
-    private val unlikeFeedUseCase: UnlikeFeedUseCase,
 ) : ViewModel() {
 
     private var feedId: Long = -1L
@@ -186,12 +182,8 @@ class FeedDetailViewModel @Inject constructor(
 
     fun toggleCommentLike(item: CommentItem) {
         viewModelScope.launch {
-            val result = if (item.isLiked) {
-                unlikeCommentUseCase(feedId, item.commentId)
-            } else {
-                likeCommentUseCase(feedId, item.commentId)
-            }
-            when (result) {
+            val newLikedState = !item.isLiked
+            when (likeCommentUseCase(item.commentId, newLikedState)) {
                 is BaseResult.Success -> loadComments()
                 is BaseResult.Error -> {
                     _toastEvent.emit(UiText.StringResource(R.string.like_error))
@@ -229,19 +221,15 @@ class FeedDetailViewModel @Inject constructor(
     fun toggleFeedLike() {
         val currentFeed = _feed.value ?: return
         viewModelScope.launch {
-            val result = if (currentFeed.feedIsLiked) {
-                unlikeFeedUseCase(feedId)
-            } else {
-                likeFeedUseCase(feedId)
-            }
-            when (result) {
+            val newLikedState = !currentFeed.feedIsLiked
+            when (likeFeedUseCase(feedId, newLikedState)) {
                 is BaseResult.Success -> {
                     _feed.value = currentFeed.copy(
-                        feedIsLiked = !currentFeed.feedIsLiked,
-                        feedLikesCount = if (currentFeed.feedIsLiked) {
-                            currentFeed.feedLikesCount - 1
-                        } else {
+                        feedIsLiked = newLikedState,
+                        feedLikesCount = if (newLikedState) {
                             currentFeed.feedLikesCount + 1
+                        } else {
+                            currentFeed.feedLikesCount - 1
                         }
                     )
                 }
