@@ -50,7 +50,6 @@ class BaseToolbar
             }
         }
 
-
         fun setSecondarySubButton(
             iconRes: Int?,
             onClick: ((View) -> Unit)? = null,
