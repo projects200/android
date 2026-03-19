@@ -10,6 +10,7 @@
         android:name="com.project200.feature.timer.TimerListFragment"
         android:label="TimerListFragment"
         tools:layout="@layout/fragment_timer_list" >
+        <deepLink app:uri="app://timer" />
         <action
             android:id="@+id/action_timerListFragment_to_simpleTimerFragment"
             app:destination="@id/simpleTimerFragment" />

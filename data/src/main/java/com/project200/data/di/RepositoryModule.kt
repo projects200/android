@@ -7,6 +7,7 @@ import com.project200.data.impl.ChatSocketRepositoryImpl
 import com.project200.data.impl.ChattingRepositoryImpl
 import com.project200.data.impl.ExerciseRecordRepositoryImpl
 import com.project200.data.impl.FcmRepositoryImpl
+import com.project200.data.impl.FeedRepositoryImpl
 import com.project200.data.impl.MatchingRepositoryImpl
 import com.project200.data.impl.MemberRepositoryImpl
 import com.project200.data.impl.NotificationRepositoryImpl
@@ -20,6 +21,7 @@ import com.project200.domain.repository.ChatSocketRepository
 import com.project200.domain.repository.ChattingRepository
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.domain.repository.FcmRepository
+import com.project200.domain.repository.FeedRepository
 import com.project200.domain.repository.MatchingRepository
 import com.project200.domain.repository.MemberRepository
 import com.project200.domain.repository.NotificationRepository
@@ -86,4 +88,8 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindNotificationRepository(notificationRepositoryImpl: NotificationRepositoryImpl): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindFeedRepository(feedRepositoryImpl: FeedRepositoryImpl): FeedRepository
 }

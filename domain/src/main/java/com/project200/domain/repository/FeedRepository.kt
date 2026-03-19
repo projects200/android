@@ -1,0 +1,37 @@
+package com.project200.domain.repository
+
+import com.project200.domain.model.BaseResult
+import com.project200.domain.model.Comment
+import com.project200.domain.model.CreateCommentResult
+import com.project200.domain.model.CreateFeedModel
+import com.project200.domain.model.Feed
+import com.project200.domain.model.FeedCreateResult
+import com.project200.domain.model.FeedPicture
+import com.project200.domain.model.FeedListResult
+import com.project200.domain.model.UpdateFeedModel
+
+interface FeedRepository {
+    suspend fun getFeeds(prevFeedId: Long?, size: Int? = null): BaseResult<FeedListResult>
+
+    suspend fun getFeedDetail(feedId: Long): BaseResult<Feed>
+
+    suspend fun createFeed(createFeedModel: CreateFeedModel): BaseResult<FeedCreateResult>
+
+    suspend fun deleteFeed(feedId: Long): BaseResult<Unit>
+
+    suspend fun updateFeed(updateFeedModel: UpdateFeedModel): BaseResult<Unit>
+
+    suspend fun uploadFeedImages(feedId: Long, imageUris: List<String>): BaseResult<List<FeedPicture>>
+
+    suspend fun deleteFeedImage(feedId: Long, imageId: Long): BaseResult<Unit>
+
+    suspend fun getComments(feedId: Long): BaseResult<List<Comment>>
+
+    suspend fun createComment(feedId: Long, content: String, parentCommentId: Long?, taggedMemberId: String? = null): BaseResult<CreateCommentResult>
+
+    suspend fun likeComment(commentId: Long, liked: Boolean): BaseResult<Unit>
+
+    suspend fun deleteComment(commentId: Long): BaseResult<Unit>
+
+    suspend fun likeFeed(feedId: Long, liked: Boolean): BaseResult<Unit>
+}

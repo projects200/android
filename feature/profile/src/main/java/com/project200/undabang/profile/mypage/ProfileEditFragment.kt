@@ -215,8 +215,8 @@ class ProfileEditFragment :
     private fun setupProfileImage(imageUrl: String?) {
         Glide.with(binding.profileImgIv)
             .load(imageUrl)
-            .placeholder(R.drawable.ic_profile_default)
-            .error(R.drawable.ic_profile_default)
+            .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
+            .error(com.project200.undabang.presentation.R.drawable.ic_profile_default)
             .into(binding.profileImgIv)
     }
 

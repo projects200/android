@@ -1,11 +1,18 @@
 package com.project200.data.api
 
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.CommentDTO
+import com.project200.data.dto.CreateCommentRequestDTO
+import com.project200.data.dto.CreateCommentResponseDTO
+import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
+import com.project200.data.dto.FeedCreateResultDTO
+import com.project200.data.dto.FeedDTO
+import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetChattingMessagesDTO
 import com.project200.data.dto.GetChattingRoomsDTO
@@ -15,6 +22,7 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
@@ -27,6 +35,7 @@ import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.LikeRequestDTO
 import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
@@ -46,6 +55,7 @@ import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
 import com.project200.data.dto.SimpleTimerIdDTO
 import com.project200.data.dto.SimpleTimerRequest
+import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi
@@ -473,5 +483,95 @@ interface ApiService {
     suspend fun patchNotiState(
         @Header("X-Fcm-Token") fcmToken: String,
         @Body notiRequest: List<NotificationStateDTO>,
+    ): BaseResponse<Unit?>
+
+    /** 피드 */
+    @GET("api/v1/feeds")
+    @AccessTokenApi
+    suspend fun getFeeds(
+        @Query("prevFeedId") prevFeedId: Long?,
+        @Query("size") size: Int?,
+    ): BaseResponse<GetFeedsDTO?>
+
+    @GET("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun getFeedDetail(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<FeedDTO>
+
+    @POST("api/v1/feeds")
+    @AccessTokenApi
+    suspend fun postFeed(
+        @Body createFeedRequest: CreateFeedRequestDTO,
+    ): BaseResponse<FeedCreateResultDTO>
+
+    @DELETE("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun deleteFeed(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<Unit?>
+
+    @PATCH("api/v1/feeds/{feedId}")
+    @AccessTokenApi
+    suspend fun updateFeed(
+        @Path("feedId") feedId: Long,
+        @Body updateFeedRequest: UpdateFeedRequestDTO,
+    ): BaseResponse<Unit?>
+
+    // 피드 좋아요
+    @POST("api/v1/feeds/{feedId}/like")
+    @AccessTokenApi
+    suspend fun likeFeed(
+        @Path("feedId") feedId: Long,
+        @Body request: LikeRequestDTO,
+    ): BaseResponse<Unit?>
+
+    /** 댓글 */
+    // 댓글 목록 조회
+    @GET("api/v1/feeds/{feedId}/comments")
+    @AccessTokenApi
+    suspend fun getComments(
+        @Path("feedId") feedId: Long,
+    ): BaseResponse<List<CommentDTO>>
+
+    // 댓글 작성
+    @POST("api/v1/feeds/{feedId}/comments")
+    @AccessTokenApi
+    suspend fun createComment(
+        @Path("feedId") feedId: Long,
+        @Body request: CreateCommentRequestDTO,
+    ): BaseResponse<CreateCommentResponseDTO>
+
+    // 댓글 좋아요
+    @POST("api/v1/comments/{commentId}/like")
+    @AccessTokenApi
+    suspend fun likeComment(
+        @Path("commentId") commentId: Long,
+        @Body request: LikeRequestDTO,
+    ): BaseResponse<Unit?>
+
+    // 댓글 삭제
+    @DELETE("api/v1/comments/{commentId}")
+    @AccessTokenApi
+    suspend fun deleteComment(
+        @Path("commentId") commentId: Long,
+    ): BaseResponse<Unit?>
+
+    /** 피드 이미지 */
+    // 피드 이미지 업로드
+    @Multipart
+    @POST("api/v1/feeds/{feedId}/pictures")
+    @AccessTokenApi
+    suspend fun postFeedImages(
+        @Path("feedId") feedId: Long,
+        @Part pictures: List<MultipartBody.Part>,
+    ): BaseResponse<List<FeedPictureUploadDTO>>
+
+    // 피드 이미지 삭제
+    @DELETE("api/v1/feeds/{feedId}/pictures/{pictureId}")
+    @AccessTokenApi
+    suspend fun deleteFeedImage(
+        @Path("feedId") feedId: Long,
+        @Path("pictureId") pictureId: Long,
     ): BaseResponse<Unit?>
 }

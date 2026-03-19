@@ -242,8 +242,8 @@ class MypageFragment : BindingFragment<FragmentMypageBinding>(R.layout.fragment_
 
         Glide.with(binding.mypageProfileIv)
             .load(imageRes)
-            .placeholder(R.drawable.ic_profile_default)
-            .error(R.drawable.ic_profile_default)
+            .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
+            .error(com.project200.undabang.presentation.R.drawable.ic_profile_default)
             .into(binding.mypageProfileIv)
     }
 
