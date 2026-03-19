@@ -14,12 +14,15 @@ import com.project200.domain.usecase.ObserveOpponentStatusUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import timber.log.Timber
 import javax.inject.Inject
 
 @HiltViewModel
@@ -53,6 +56,8 @@ class ChattingRoomViewModel
         private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
+        private var disconnectJob: Job? = null
+
         init {
             viewModelScope.launch {
                 observeSocketMessagesUseCase().collect { chat ->
@@ -80,16 +85,39 @@ class ChattingRoomViewModel
             loadInitialMessages(chatRoomId)
         }
 
-        // 소켓 연결 및 공백 채우기
+        // 소켓 연결 및 공백 채우기 (유예 시간 내 복귀 시 재연결 생략)
         fun connectAndSync() {
             if (chatRoomId == DEFAULT_ID) return
-            // 소켓 연결 시도
-            connectChatRoomUseCase(chatRoomId)
-            // 소켓이 끊겨있던 동안 온 메시지 가져오기
-            syncMissedMessages()
+
+            val wasInGracePeriod = disconnectJob?.isActive == true
+            disconnectJob?.cancel()
+            disconnectJob = null
+
+            if (wasInGracePeriod) {
+                // 유예 시간 내 복귀 → 소켓 연결 유지, 누락 메시지만 동기화
+                Timber.w("[MEASURE] 유예 시간 내 복귀, 재연결 생략")
+                // syncMissedMessages()
+            } else {
+                // 유예 시간 만료 또는 최초 연결 → 전체 재연결
+                Timber.w("[MEASURE] 전체 재연결 수행 (티켓 발급 + 소켓 연결 + 메시지 동기화)")
+                connectChatRoomUseCase(chatRoomId)
+                syncMissedMessages()
+            }
+        }
+
+        fun scheduleDisconnect() {
+            disconnectJob?.cancel()
+            disconnectJob = viewModelScope.launch {
+                Timber.w("[MEASURE] 연결 해제 유예 시작 (${DISCONNECT_GRACE_PERIOD_MS}ms)")
+                delay(DISCONNECT_GRACE_PERIOD_MS)
+                Timber.w("[MEASURE] 유예 시간 만료, 연결 해제")
+                disconnectChatRoomUseCase()
+            }
         }
 
         fun disconnect() {
+            disconnectJob?.cancel()
+            disconnectJob = null
             disconnectChatRoomUseCase()
         }
 
@@ -162,8 +190,11 @@ class ChattingRoomViewModel
         fun syncMissedMessages() {
             if (chatRoomId == DEFAULT_ID) return
             viewModelScope.launch {
+                val startTime = System.currentTimeMillis()
+                Timber.w("[MEASURE] syncMissedMessages 호출, lastChatId=$lastChatId")
                 when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
                     is BaseResult.Success -> {
+                        val totalFetched = result.data.messages.size
                         if (result.data.messages.isNotEmpty()) {
                             // 기존 메시지 리스트에 새로운 메시지를 추가
                             val currentMessages = _messages.value.toMutableList()
@@ -172,15 +203,19 @@ class ChattingRoomViewModel
                                 result.data.messages.filter { newMessage ->
                                     !currentMessages.any { it.chatId == newMessage.chatId }
                                 }
+                            Timber.w("[MEASURE] 누락 메시지 복구: 서버 응답 ${totalFetched}건, 신규 ${uniqueNewMessages.size}건, 소요시간: ${System.currentTimeMillis() - startTime}ms")
                             if (uniqueNewMessages.isNotEmpty()) {
                                 // 마지막 메시지 ID 업데이트
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
                                 updateAndEmitMessages(currentMessages + uniqueNewMessages)
                             }
+                        } else {
+                            Timber.w("[MEASURE] 누락 메시지 없음 (0건), 소요시간: ${System.currentTimeMillis() - startTime}ms")
                         }
                     }
 
                     is BaseResult.Error -> {
+                        Timber.w("[MEASURE] 누락 메시지 복구 실패: ${result.message}, 소요시간: ${System.currentTimeMillis() - startTime}ms")
                         _toast.emit(result.message.toString())
                     }
                 }
@@ -237,5 +272,6 @@ class ChattingRoomViewModel
         companion object {
             const val DEFAULT_ID = -1L
             const val LOAD_SIZE = 30 // 초기 로드 메시지 개수
+            private const val DISCONNECT_GRACE_PERIOD_MS = 5000L
         }
     }

@@ -59,8 +59,8 @@ data class Comment(
 )
 
 data class TaggedMember(
-    val memberId: String,
-    val memberNickname: String,
+    val memberId: String?,
+    val memberNickname: String?,
 )
 
 data class Reply(

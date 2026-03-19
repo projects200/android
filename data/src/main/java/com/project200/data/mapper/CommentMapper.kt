@@ -18,7 +18,7 @@ fun CommentDTO.toModel(): Comment {
         memberThumbnailUrl = memberThumbnailUrl,
         content = content,
         likesCount = likesCount,
-        isLiked = isLiked,
+        isLiked = commentIsLiked,
         createdAt = createdAt,
         children = children.map { it.toModel() },
     )
@@ -33,13 +33,14 @@ fun ReplyDTO.toModel(): Reply {
         memberThumbnailUrl = memberThumbnailUrl,
         content = content,
         likesCount = likesCount,
-        isLiked = isLiked,
+        isLiked = commentIsLiked,
         createdAt = createdAt,
         taggedMember = taggedMember?.toModel(),
     )
 }
 
-fun TaggedMemberDTO.toModel(): TaggedMember {
+fun TaggedMemberDTO.toModel(): TaggedMember? {
+    if (memberId == null || memberNickname == null) return null
     return TaggedMember(
         memberId = memberId,
         memberNickname = memberNickname,

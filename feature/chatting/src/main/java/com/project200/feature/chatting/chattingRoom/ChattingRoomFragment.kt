@@ -391,7 +391,7 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
         if (chatRoomStateRepository.activeChatRoomId.value == args.roomId) {
             chatRoomStateRepository.setActiveChatRoomId(null)
         }
-        viewModel.disconnect()
+        viewModel.scheduleDisconnect()
     }
 
     companion object {

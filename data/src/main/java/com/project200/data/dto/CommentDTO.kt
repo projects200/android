@@ -17,15 +17,16 @@ data class CommentDTO(
     val memberThumbnailUrl: String?,
     val content: String,
     val likesCount: Int,
-    val isLiked: Boolean = false,
+    val taggedMember: TaggedMemberDTO,
+    val commentIsLiked: Boolean = false,
     val createdAt: LocalDateTime,
     val children: List<ReplyDTO>,
 )
 
 @JsonClass(generateAdapter = true)
 data class TaggedMemberDTO(
-    val memberId: String,
-    val memberNickname: String,
+    val memberId: String?,
+    val memberNickname: String?,
 )
 
 @JsonClass(generateAdapter = true)
@@ -37,7 +38,7 @@ data class ReplyDTO(
     val memberThumbnailUrl: String?,
     val content: String,
     val likesCount: Int,
-    val isLiked: Boolean = false,
+    val commentIsLiked: Boolean = false,
     val createdAt: LocalDateTime,
     val taggedMember: TaggedMemberDTO? = null,
 )
