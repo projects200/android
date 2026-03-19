@@ -36,6 +36,7 @@ import com.project200.data.dto.GetProfileDTO
 import com.project200.data.dto.GetProfileImageResponseDto
 import com.project200.data.dto.GetScoreDTO
 import com.project200.data.dto.GetSimpleTimersDTO
+import com.project200.data.dto.LikeRequestDTO
 import com.project200.data.dto.NotificationStateDTO
 import com.project200.data.dto.PatchCustomTimerTitleRequest
 import com.project200.data.dto.PatchExerciseRequestDto
@@ -517,6 +518,14 @@ interface ApiService {
         @Body updateFeedRequest: UpdateFeedRequestDTO,
     ): BaseResponse<Unit?>
 
+    // 피드 좋아요
+    @POST("api/v1/feeds/{feedId}/like")
+    @AccessTokenApi
+    suspend fun likeFeed(
+        @Path("feedId") feedId: Long,
+        @Body request: LikeRequestDTO,
+    ): BaseResponse<Unit?>
+
     /** 댓글 */
     // 댓글 목록 조회
     @GET("api/v1/feeds/{feedId}/comments")
@@ -534,19 +543,11 @@ interface ApiService {
     ): BaseResponse<CreateCommentResponseDTO>
 
     // 댓글 좋아요
-    @POST("api/v1/feeds/{feedId}/comments/{commentId}/likes")
+    @POST("api/v1/comments/{commentId}/like")
     @AccessTokenApi
     suspend fun likeComment(
-        @Path("feedId") feedId: Long,
         @Path("commentId") commentId: Long,
-    ): BaseResponse<Unit?>
-
-    // 댓글 좋아요 취소
-    @DELETE("api/v1/feeds/{feedId}/comments/{commentId}/likes")
-    @AccessTokenApi
-    suspend fun unlikeComment(
-        @Path("feedId") feedId: Long,
-        @Path("commentId") commentId: Long,
+        @Body request: LikeRequestDTO,
     ): BaseResponse<Unit?>
 
     // 댓글 삭제
@@ -572,20 +573,5 @@ interface ApiService {
     suspend fun deleteFeedImage(
         @Path("feedId") feedId: Long,
         @Path("imageId") imageId: Long,
-    ): BaseResponse<Unit?>
-
-    /** 피드 좋아요 */
-    // 피드 좋아요
-    @POST("api/v1/feeds/{feedId}/likes")
-    @AccessTokenApi
-    suspend fun likeFeed(
-        @Path("feedId") feedId: Long,
-    ): BaseResponse<Unit?>
-
-    // 피드 좋아요 취소
-    @DELETE("api/v1/feeds/{feedId}/likes")
-    @AccessTokenApi
-    suspend fun unlikeFeed(
-        @Path("feedId") feedId: Long,
     ): BaseResponse<Unit?>
 }

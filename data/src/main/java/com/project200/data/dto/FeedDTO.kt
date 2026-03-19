@@ -56,3 +56,8 @@ data class FeedPictureUploadDTO(
     val pictureId: Long,
     val pictureUrl: String,
 )
+
+@JsonClass(generateAdapter = true)
+data class LikeRequestDTO(
+    val liked: Boolean,
+)

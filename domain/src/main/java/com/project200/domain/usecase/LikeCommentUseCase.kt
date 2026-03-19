@@ -7,7 +7,7 @@ import javax.inject.Inject
 class LikeCommentUseCase @Inject constructor(
     private val feedRepository: FeedRepository,
 ) {
-    suspend operator fun invoke(feedId: Long, commentId: Long): BaseResult<Unit> {
-        return feedRepository.likeComment(feedId, commentId)
+    suspend operator fun invoke(commentId: Long, liked: Boolean): BaseResult<Unit> {
+        return feedRepository.likeComment(commentId, liked)
     }
 }

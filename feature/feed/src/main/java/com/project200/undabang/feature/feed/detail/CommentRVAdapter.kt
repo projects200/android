@@ -20,11 +20,6 @@ class CommentRVAdapter(
     private val onMoreClick: (CommentItem) -> Unit,
 ) : ListAdapter<CommentItem, RecyclerView.ViewHolder>(CommentDiffCallback()) {
 
-    companion object {
-        private const val VIEW_TYPE_COMMENT = 0
-        private const val VIEW_TYPE_REPLY = 1
-    }
-
     override fun getItemViewType(position: Int): Int {
         return when (getItem(position)) {
             is CommentItem.CommentData -> VIEW_TYPE_COMMENT
@@ -58,6 +53,30 @@ class CommentRVAdapter(
         when (val item = getItem(position)) {
             is CommentItem.CommentData -> (holder as CommentViewHolder).bind(item)
             is CommentItem.ReplyData -> (holder as ReplyViewHolder).bind(item)
+        }
+    }
+
+    override fun onBindViewHolder(
+        holder: RecyclerView.ViewHolder,
+        position: Int,
+        payloads: MutableList<Any>,
+    ) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+
+        val payload = payloads.firstOrNull() as? Set<*> ?: run {
+            super.onBindViewHolder(holder, position, payloads)
+            return
+        }
+
+        if (PAYLOAD_LIKE in payload) {
+            val item = getItem(position)
+            when (holder) {
+                is CommentViewHolder -> holder.bindLike(item)
+                is ReplyViewHolder -> holder.bindLike(item)
+            }
         }
     }
 
@@ -96,6 +115,18 @@ class CommentRVAdapter(
                 moreIv.setOnClickListener { onMoreClick(item) }
             }
         }
+
+        fun bindLike(item: CommentItem) {
+            with(binding) {
+                likeCountTv.text = item.likesCount.toString()
+                val likeIcon = if (item.isLiked) {
+                    R.drawable.ic_like_fill
+                } else {
+                    R.drawable.ic_like
+                }
+                likeIv.setImageResource(likeIcon)
+            }
+        }
     }
 
     inner class ReplyViewHolder(
@@ -125,12 +156,11 @@ class CommentRVAdapter(
                     .circleCrop()
                     .into(profileIv)
 
-                val likeIcon = if (item.isLiked) {
+                likeIv.setImageResource(if (item.isLiked) {
                     R.drawable.ic_like_fill
                 } else {
                     R.drawable.ic_like
-                }
-                likeIv.setImageResource(likeIcon)
+                })
 
                 val isMyComment = currentMemberId != null && item.memberId == currentMemberId
                 moreIv.visibility = if (isMyComment) View.VISIBLE else View.GONE
@@ -138,6 +168,18 @@ class CommentRVAdapter(
                 likeIv.setOnClickListener { onLikeClick(item) }
                 replyBtn.setOnClickListener { onReplyClick(item) }
                 moreIv.setOnClickListener { onMoreClick(item) }
+            }
+        }
+
+        fun bindLike(item: CommentItem) {
+            with(binding) {
+                likeCountTv.text = item.likesCount.toString()
+                val likeIcon = if (item.isLiked) {
+                    R.drawable.ic_like_fill
+                } else {
+                    R.drawable.ic_like
+                }
+                likeIv.setImageResource(likeIcon)
             }
         }
     }
@@ -151,5 +193,19 @@ class CommentRVAdapter(
         override fun areContentsTheSame(oldItem: CommentItem, newItem: CommentItem): Boolean {
             return oldItem == newItem
         }
+
+        override fun getChangePayload(oldItem: CommentItem, newItem: CommentItem): Any? {
+            val payloads = mutableSetOf<String>()
+            if (oldItem.isLiked != newItem.isLiked || oldItem.likesCount != newItem.likesCount) {
+                payloads.add(PAYLOAD_LIKE)
+            }
+            return payloads.ifEmpty { null }
+        }
+    }
+
+    companion object {
+        private const val VIEW_TYPE_COMMENT = 0
+        private const val VIEW_TYPE_REPLY = 1
+        const val PAYLOAD_LIKE = "payload_like"
     }
 }

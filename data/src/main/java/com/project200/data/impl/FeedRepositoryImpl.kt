@@ -11,6 +11,7 @@ import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
 import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetFeedsDTO
+import com.project200.data.dto.LikeRequestDTO
 import com.project200.data.mapper.toDTO
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toMultipartBodyPart
@@ -109,18 +110,10 @@ class FeedRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun likeComment(feedId: Long, commentId: Long): BaseResult<Unit> {
+    override suspend fun likeComment(commentId: Long, liked: Boolean): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.likeComment(feedId, commentId) },
-            mapper = { Unit },
-        )
-    }
-
-    override suspend fun unlikeComment(feedId: Long, commentId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.unlikeComment(feedId, commentId) },
+            apiCall = { apiService.likeComment(commentId, LikeRequestDTO(liked)) },
             mapper = { Unit },
         )
     }
@@ -133,18 +126,10 @@ class FeedRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun likeFeed(feedId: Long): BaseResult<Unit> {
+    override suspend fun likeFeed(feedId: Long, liked: Boolean): BaseResult<Unit> {
         return apiCallBuilder(
             ioDispatcher = ioDispatcher,
-            apiCall = { apiService.likeFeed(feedId) },
-            mapper = { Unit },
-        )
-    }
-
-    override suspend fun unlikeFeed(feedId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.unlikeFeed(feedId) },
+            apiCall = { apiService.likeFeed(feedId, LikeRequestDTO(liked)) },
             mapper = { Unit },
         )
     }
