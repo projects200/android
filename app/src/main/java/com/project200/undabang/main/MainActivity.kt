@@ -129,6 +129,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                 com.project200.undabang.feature.exercise.R.id.exerciseDetailFragment,
                 com.project200.undabang.feature.exercise.R.id.exerciseFormFragment,
                 com.project200.undabang.feature.exercise.R.id.exerciseListFragment,
+                com.project200.undabang.feature.timer.R.id.timerListFragment,
                 com.project200.undabang.feature.timer.R.id.simpleTimerFragment,
                 com.project200.undabang.feature.timer.R.id.customTimerFragment,
                 com.project200.undabang.feature.timer.R.id.customTimerFormFragment,

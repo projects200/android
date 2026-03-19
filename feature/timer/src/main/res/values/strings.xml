@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="timer_title">타이머</string>
     <string name="simple_timer">심플 타이머</string>
     <string name="custom_timer_default">나만의 타이머</string>
     

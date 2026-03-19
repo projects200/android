@@ -1,5 +1,6 @@
 package com.project200.feature.exercise.main
 
+import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
@@ -168,6 +169,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             viewModel.scorePolicy.value?.let {
                 ScorePolicyDialog().show(childFragmentManager, "ScorePolicyDialog")
             }
+        }
+
+        binding.timerBtn.setOnClickListener {
+            findNavController().navigate(Uri.parse("app://timer"))
         }
     }
 
