@@ -64,7 +64,7 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
                     FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment(),
                 )
             }
-            setSubButton2(R.drawable.ic_category) {
+            setSecondarySubButton(R.drawable.ic_category) {
                 showCategoryBottomSheet()
             }
         }
@@ -130,11 +130,11 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             binding.baseToolbar.apply {
                 if (type != null) {
                     setTitle(type)
-                    setSubButton2(null)
+                    setSecondarySubButton(null)
                     showBackButton(true) { viewModel.clearType() }
                 } else {
                     setTitle(getString(R.string.feed_title))
-                    setSubButton2(R.drawable.ic_category) {
+                    setSecondarySubButton(R.drawable.ic_category) {
                         showCategoryBottomSheet()
                     }
                     showBackButton(false)
