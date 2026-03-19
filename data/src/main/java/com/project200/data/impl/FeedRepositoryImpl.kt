@@ -32,154 +32,170 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
-class FeedRepositoryImpl @Inject constructor(
-    private val apiService: ApiService,
-    @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
-    @ApplicationContext private val context: Context,
-) : FeedRepository {
+class FeedRepositoryImpl
+    @Inject
+    constructor(
+        private val apiService: ApiService,
+        @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        @ApplicationContext private val context: Context,
+    ) : FeedRepository {
+        override suspend fun getFeeds(
+            prevFeedId: Long?,
+            size: Int?,
+        ): BaseResult<FeedListResult> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getFeeds(prevFeedId, size) },
+                mapper = { dto: GetFeedsDTO? ->
+                    dto?.toModel() ?: FeedListResult(hasNext = false, feeds = emptyList())
+                },
+            )
+        }
 
-    override suspend fun getFeeds(prevFeedId: Long?, size: Int?): BaseResult<FeedListResult> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getFeeds(prevFeedId, size) },
-            mapper = { dto: GetFeedsDTO? ->
-                dto?.toModel() ?: FeedListResult(hasNext = false, feeds = emptyList())
-            },
-        )
-    }
+        override suspend fun getFeedDetail(feedId: Long): BaseResult<Feed> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getFeedDetail(feedId) },
+                mapper = { dto: FeedDTO? ->
+                    dto?.toModel() ?: throw NoSuchElementException("피드 상세 데이터가 없습니다.")
+                },
+            )
+        }
 
-    override suspend fun getFeedDetail(feedId: Long): BaseResult<Feed> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getFeedDetail(feedId) },
-            mapper = { dto: FeedDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException("피드 상세 데이터가 없습니다.")
-            },
-        )
-    }
+        override suspend fun createFeed(createFeedModel: CreateFeedModel): BaseResult<FeedCreateResult> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postFeed(createFeedModel.toDTO()) },
+                mapper = { dto: FeedCreateResultDTO? ->
+                    dto?.toModel() ?: throw NoSuchElementException("피드 생성 결과 데이터가 없습니다.")
+                },
+            )
+        }
 
-    override suspend fun createFeed(createFeedModel: CreateFeedModel): BaseResult<FeedCreateResult> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postFeed(createFeedModel.toDTO()) },
-            mapper = { dto: FeedCreateResultDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException("피드 생성 결과 데이터가 없습니다.")
-            },
-        )
-    }
+        override suspend fun deleteFeed(feedId: Long): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deleteFeed(feedId) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun deleteFeed(feedId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteFeed(feedId) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun getComments(feedId: Long): BaseResult<List<Comment>> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.getComments(feedId) },
+                mapper = { dtoList: List<CommentDTO>? ->
+                    dtoList?.map { it.toModel() } ?: emptyList()
+                },
+            )
+        }
 
-    override suspend fun getComments(feedId: Long): BaseResult<List<Comment>> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.getComments(feedId) },
-            mapper = { dtoList: List<CommentDTO>? ->
-                dtoList?.map { it.toModel() } ?: emptyList()
-            },
-        )
-    }
+        override suspend fun createComment(
+            feedId: Long,
+            content: String,
+            parentCommentId: Long?,
+            taggedMemberId: String?,
+        ): BaseResult<CreateCommentResult> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = {
+                    apiService.createComment(
+                        feedId = feedId,
+                        request =
+                            CreateCommentRequestDTO(
+                                content = content,
+                                parentCommentId = parentCommentId,
+                                taggedMemberId = taggedMemberId,
+                            ),
+                    )
+                },
+                mapper = { dto: CreateCommentResponseDTO? ->
+                    dto?.toModel() ?: throw NoSuchElementException("댓글 생성 결과 데이터가 없습니다.")
+                },
+            )
+        }
 
-    override suspend fun createComment(
-        feedId: Long,
-        content: String,
-        parentCommentId: Long?,
-        taggedMemberId: String?,
-    ): BaseResult<CreateCommentResult> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = {
-                apiService.createComment(
-                    feedId = feedId,
-                    request = CreateCommentRequestDTO(
-                        content = content,
-                        parentCommentId = parentCommentId,
-                        taggedMemberId = taggedMemberId,
-                    ),
-                )
-            },
-            mapper = { dto: CreateCommentResponseDTO? ->
-                dto?.toModel() ?: throw NoSuchElementException("댓글 생성 결과 데이터가 없습니다.")
-            },
-        )
-    }
+        override suspend fun likeComment(
+            commentId: Long,
+            liked: Boolean,
+        ): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.likeComment(commentId, LikeRequestDTO(liked)) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun likeComment(commentId: Long, liked: Boolean): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.likeComment(commentId, LikeRequestDTO(liked)) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun deleteComment(commentId: Long): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deleteComment(commentId) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun deleteComment(commentId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteComment(commentId) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun likeFeed(
+            feedId: Long,
+            liked: Boolean,
+        ): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.likeFeed(feedId, LikeRequestDTO(liked)) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun likeFeed(feedId: Long, liked: Boolean): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.likeFeed(feedId, LikeRequestDTO(liked)) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun updateFeed(updateFeedModel: UpdateFeedModel): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.updateFeed(updateFeedModel.feedId, updateFeedModel.toDTO()) },
+                mapper = { Unit },
+            )
+        }
 
-    override suspend fun updateFeed(updateFeedModel: UpdateFeedModel): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.updateFeed(updateFeedModel.feedId, updateFeedModel.toDTO()) },
-            mapper = { Unit },
-        )
-    }
+        override suspend fun uploadFeedImages(
+            feedId: Long,
+            imageUris: List<String>,
+        ): BaseResult<List<FeedPicture>> {
+            val uris =
+                imageUris.mapNotNull {
+                    try {
+                        it.toUri()
+                    } catch (e: CancellationException) {
+                        Timber.w(e, "CancellationException: $it")
+                        throw e
+                    } catch (e: Exception) {
+                        Timber.w(e, "Invalid URI string: $it")
+                        null
+                    }
+                }
 
-    override suspend fun uploadFeedImages(
-        feedId: Long,
-        imageUris: List<String>,
-    ): BaseResult<List<FeedPicture>> {
-        val uris = imageUris.mapNotNull {
-            try {
-                it.toUri()
-            } catch (e: CancellationException) {
-                Timber.w(e, "CancellationException: $it")
-                throw e
-            } catch (e: Exception) {
-                Timber.w(e, "Invalid URI string: $it")
-                null
+            val imageParts =
+                uris.mapNotNull { uri ->
+                    uri.toMultipartBodyPart(context, "pictures")
+                }
+
+            if (imageParts.isEmpty() && uris.isNotEmpty()) {
+                return BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
             }
+
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.postFeedImages(feedId, imageParts) },
+                mapper = { dtoList: List<FeedPictureUploadDTO>? ->
+                    dtoList?.map { it.toModel() } ?: emptyList()
+                },
+            )
         }
 
-        val imageParts = uris.mapNotNull { uri ->
-            uri.toMultipartBodyPart(context, "pictures")
+        override suspend fun deleteFeedImage(
+            feedId: Long,
+            imageId: Long,
+        ): BaseResult<Unit> {
+            return apiCallBuilder(
+                ioDispatcher = ioDispatcher,
+                apiCall = { apiService.deleteFeedImage(feedId, imageId) },
+                mapper = { Unit },
+            )
         }
-
-        if (imageParts.isEmpty() && uris.isNotEmpty()) {
-            return BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
-        }
-
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.postFeedImages(feedId, imageParts) },
-            mapper = { dtoList: List<FeedPictureUploadDTO>? ->
-                dtoList?.map { it.toModel() } ?: emptyList()
-            },
-        )
     }
-
-    override suspend fun deleteFeedImage(feedId: Long, imageId: Long): BaseResult<Unit> {
-        return apiCallBuilder(
-            ioDispatcher = ioDispatcher,
-            apiCall = { apiService.deleteFeedImage(feedId, imageId) },
-            mapper = { Unit },
-        )
-    }
-}

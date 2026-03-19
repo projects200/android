@@ -5,7 +5,6 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
 object RelativeTimeUtil {
-
     fun getRelativeTime(localDateTime: LocalDateTime?): String {
         if (localDateTime == null) return ""
 

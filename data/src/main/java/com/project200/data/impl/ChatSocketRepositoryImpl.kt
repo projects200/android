@@ -116,7 +116,9 @@ class ChatSocketRepositoryImpl
             }
             if (reconnectCount.get() > 0) {
                 Timber.w("[MEASURE] 재연결 성공률: ${reconnectSuccessCount.get() * 100 / reconnectCount.get()}%")
-                Timber.w("[MEASURE] 평균 복구 시간: ${if (reconnectSuccessCount.get() > 0) totalDowntimeMs / reconnectSuccessCount.get() else 0}ms")
+                Timber.w(
+                    "[MEASURE] 평균 복구 시간: ${if (reconnectSuccessCount.get() > 0) totalDowntimeMs / reconnectSuccessCount.get() else 0}ms",
+                )
             }
             Timber.w("[MEASURE] ================")
 
@@ -190,8 +192,10 @@ class ChatSocketRepositoryImpl
                         val downtimeMs = System.currentTimeMillis() - lastDisconnectTime
                         totalDowntimeMs += downtimeMs
                         reconnectSuccessCount.incrementAndGet()
-                        Timber.w("[MEASURE] 재연결 성공! 복구 소요시간: ${downtimeMs}ms, " +
-                            "재연결 성공: ${reconnectSuccessCount.get()}/${reconnectCount.get()}")
+                        Timber.w(
+                            "[MEASURE] 재연결 성공! 복구 소요시간: ${downtimeMs}ms, " +
+                                "재연결 성공: ${reconnectSuccessCount.get()}/${reconnectCount.get()}",
+                        )
                         lastDisconnectTime = 0L
                     }
                     Timber.w("[MEASURE] 연결 성공 (${connectionSuccessCount.get()}/${connectionAttemptCount.get()})")

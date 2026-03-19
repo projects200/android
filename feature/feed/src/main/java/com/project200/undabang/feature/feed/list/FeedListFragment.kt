@@ -15,7 +15,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragment_feed_list) {
-
     private val viewModel: FeedListViewModel by viewModels()
     private lateinit var feedAdapter: FeedListAdapter
 
@@ -23,7 +22,10 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         return FragmentFeedListBinding.bind(view)
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         initAdapter()
         initToolbar()
@@ -43,13 +45,14 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
     }
 
     private fun initAdapter() {
-        feedAdapter = FeedListAdapter(
-            onItemClick = { feed ->
-                findNavController().navigate(
-                    FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feed.feedId)
-                )
-            },
-        )
+        feedAdapter =
+            FeedListAdapter(
+                onItemClick = { feed ->
+                    findNavController().navigate(
+                        FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feed.feedId),
+                    )
+                },
+            )
     }
 
     private fun initToolbar() {
@@ -58,7 +61,7 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             showBackButton(false)
             setSubButton(R.drawable.ic_feed_add) {
                 findNavController().navigate(
-                    FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment()
+                    FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment(),
                 )
             }
             setSubButton2(R.drawable.ic_category) {
@@ -86,19 +89,25 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         binding.feedListRv.apply {
             adapter = feedAdapter
             layoutManager = LinearLayoutManager(context)
-            addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                    super.onScrolled(recyclerView, dx, dy)
-                    
-                    val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                    val totalItemCount = layoutManager.itemCount
-                    val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+            addOnScrollListener(
+                object : RecyclerView.OnScrollListener() {
+                    override fun onScrolled(
+                        recyclerView: RecyclerView,
+                        dx: Int,
+                        dy: Int,
+                    ) {
+                        super.onScrolled(recyclerView, dx, dy)
 
-                    if (viewModel.canLoadMore() && totalItemCount <= (lastVisibleItem + 5)) {
-                        viewModel.loadFeeds()
+                        val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+                        val totalItemCount = layoutManager.itemCount
+                        val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
+
+                        if (viewModel.canLoadMore() && totalItemCount <= (lastVisibleItem + 5)) {
+                            viewModel.loadFeeds()
+                        }
                     }
-                }
-            })
+                },
+            )
         }
     }
 

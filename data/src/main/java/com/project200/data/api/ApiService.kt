@@ -7,14 +7,12 @@ import com.project200.data.dto.CreateCommentResponseDTO
 import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
-import com.project200.data.dto.FeedCreateResultDTO
-import com.project200.data.dto.FeedDTO
-import com.project200.data.dto.FeedPictureUploadDTO
-import com.project200.data.dto.GetFeedsDTO
-import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
+import com.project200.data.dto.FeedCreateResultDTO
+import com.project200.data.dto.FeedDTO
+import com.project200.data.dto.FeedPictureUploadDTO
 import com.project200.data.dto.GetBlockedMemberDTO
 import com.project200.data.dto.GetChattingMessagesDTO
 import com.project200.data.dto.GetChattingRoomsDTO
@@ -24,6 +22,7 @@ import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExercisePlaceDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.dto.GetFeedsDTO
 import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.GetMatchingMembersDto
@@ -56,6 +55,7 @@ import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
 import com.project200.data.dto.SimpleTimerIdDTO
 import com.project200.data.dto.SimpleTimerRequest
+import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
 import com.project200.data.utils.IdTokenApi

@@ -19,19 +19,20 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragment_feed_form) {
-
     private val viewModel: FeedFormViewModel by viewModels()
     private val args: FeedFormFragmentArgs by navArgs()
-    private val imageAdapter = FeedFormImageAdapter(
-        onDeleteExistingClick = { imageId -> viewModel.removeExistingImage(imageId) },
-        onDeleteNewClick = { uri -> viewModel.removeImage(uri) }
-    )
+    private val imageAdapter =
+        FeedFormImageAdapter(
+            onDeleteExistingClick = { imageId -> viewModel.removeExistingImage(imageId) },
+            onDeleteNewClick = { uri -> viewModel.removeImage(uri) },
+        )
 
-    private val pickImagesLauncher = registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
-        if (uris.isNotEmpty()) {
-            viewModel.addImages(uris)
+    private val pickImagesLauncher =
+        registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
+            if (uris.isNotEmpty()) {
+                viewModel.addImages(uris)
+            }
         }
-    }
 
     override fun getViewBinding(view: View): FragmentFeedFormBinding {
         return FragmentFeedFormBinding.bind(view)
@@ -46,11 +47,12 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
 
     private fun initToolbar() {
         viewModel.isEditMode.observe(viewLifecycleOwner) { isEditMode ->
-            val title = if (isEditMode) {
-                getString(R.string.feed_form_edit_title)
-            } else {
-                getString(R.string.feed_form_title)
-            }
+            val title =
+                if (isEditMode) {
+                    getString(R.string.feed_form_edit_title)
+                } else {
+                    getString(R.string.feed_form_title)
+                }
             binding.baseToolbar.setTitle(title)
         }
         binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
@@ -69,7 +71,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
         binding.dabangSelectionTv.setOnClickListener {
             showDabangSelection()
         }
-        
+
         binding.arrowIv.setOnClickListener {
             showDabangSelection()
         }
@@ -87,7 +89,7 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
 
     private fun displayDabangSelection(types: List<PreferredExercise>) {
         val names = types.map { it.name }
-        
+
         SelectionBottomSheetDialog(names) { selectedName ->
             val selected = types.find { it.name == selectedName }
             viewModel.selectType(selected)

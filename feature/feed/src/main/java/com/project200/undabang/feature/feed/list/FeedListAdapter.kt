@@ -6,14 +6,13 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.domain.model.Feed
+import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.ItemFeedBinding
-import com.project200.presentation.utils.RelativeTimeUtil
 
 class FeedListAdapter(
     private val onItemClick: (Feed) -> Unit,
 ) : RecyclerView.Adapter<FeedListAdapter.FeedViewHolder>() {
-
     private val items = mutableListOf<Feed>()
     private var currentMemberId: String? = null
 
@@ -28,16 +27,23 @@ class FeedListAdapter(
         notifyDataSetChanged()
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FeedViewHolder {
-        val binding = ItemFeedBinding.inflate(
-            LayoutInflater.from(parent.context),
-            parent,
-            false
-        )
+    override fun onCreateViewHolder(
+        parent: ViewGroup,
+        viewType: Int,
+    ): FeedViewHolder {
+        val binding =
+            ItemFeedBinding.inflate(
+                LayoutInflater.from(parent.context),
+                parent,
+                false,
+            )
         return FeedViewHolder(binding)
     }
 
-    override fun onBindViewHolder(holder: FeedViewHolder, position: Int) {
+    override fun onBindViewHolder(
+        holder: FeedViewHolder,
+        position: Int,
+    ) {
         holder.bind(items[position])
     }
 
@@ -45,12 +51,11 @@ class FeedListAdapter(
 
     inner class FeedViewHolder(private val binding: ItemFeedBinding) :
         RecyclerView.ViewHolder(binding.root) {
-
         fun bind(feed: Feed) {
             with(binding) {
                 nicknameTv.text = feed.nickname
                 timeTv.text = RelativeTimeUtil.getRelativeTime(feed.feedCreatedAt)
-                
+
                 val hasType = !feed.feedTypeName.isNullOrBlank()
                 arrowIv.visibility = if (hasType) View.VISIBLE else View.GONE
                 feedTypeTv.visibility = if (hasType) View.VISIBLE else View.GONE
@@ -69,18 +74,20 @@ class FeedListAdapter(
 
                 if (feed.feedPictures.isNotEmpty()) {
                     imagesRv.visibility = View.VISIBLE
-                    
+
                     val imageAdapter = ImageRVAdapter(feed.feedPictures)
                     imagesRv.adapter = imageAdapter
                 } else {
                     imagesRv.visibility = View.GONE
                 }
 
-                likeIv.setImageResource(if (feed.feedIsLiked) {
-                    R.drawable.ic_like_fill
-                } else {
-                    R.drawable.ic_like
-                })
+                likeIv.setImageResource(
+                    if (feed.feedIsLiked) {
+                        R.drawable.ic_like_fill
+                    } else {
+                        R.drawable.ic_like
+                    },
+                )
 
                 likeCountTv.text = feed.feedLikesCount.toString()
                 commentCountTv.text = feed.feedCommentsCount.toString()

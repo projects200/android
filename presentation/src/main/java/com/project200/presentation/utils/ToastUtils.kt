@@ -10,7 +10,7 @@ import kotlinx.coroutines.launch
 
 fun Fragment.collectToast(
     toastFlow: Flow<UiText>,
-    duration: Int = Toast.LENGTH_SHORT
+    duration: Int = Toast.LENGTH_SHORT,
 ) {
     viewLifecycleOwner.lifecycleScope.launch {
         viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {

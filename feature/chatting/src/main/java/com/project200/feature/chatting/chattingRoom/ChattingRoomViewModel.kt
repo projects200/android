@@ -107,12 +107,13 @@ class ChattingRoomViewModel
 
         fun scheduleDisconnect() {
             disconnectJob?.cancel()
-            disconnectJob = viewModelScope.launch {
-                Timber.w("[MEASURE] 연결 해제 유예 시작 (${DISCONNECT_GRACE_PERIOD_MS}ms)")
-                delay(DISCONNECT_GRACE_PERIOD_MS)
-                Timber.w("[MEASURE] 유예 시간 만료, 연결 해제")
-                disconnectChatRoomUseCase()
-            }
+            disconnectJob =
+                viewModelScope.launch {
+                    Timber.w("[MEASURE] 연결 해제 유예 시작 (${DISCONNECT_GRACE_PERIOD_MS}ms)")
+                    delay(DISCONNECT_GRACE_PERIOD_MS)
+                    Timber.w("[MEASURE] 유예 시간 만료, 연결 해제")
+                    disconnectChatRoomUseCase()
+                }
         }
 
         fun disconnect() {
@@ -203,7 +204,9 @@ class ChattingRoomViewModel
                                 result.data.messages.filter { newMessage ->
                                     !currentMessages.any { it.chatId == newMessage.chatId }
                                 }
-                            Timber.w("[MEASURE] 누락 메시지 복구: 서버 응답 ${totalFetched}건, 신규 ${uniqueNewMessages.size}건, 소요시간: ${System.currentTimeMillis() - startTime}ms")
+                            Timber.w(
+                                "[MEASURE] 누락 메시지 복구: 서버 응답 ${totalFetched}건, 신규 ${uniqueNewMessages.size}건, 소요시간: ${System.currentTimeMillis() - startTime}ms",
+                            )
                             if (uniqueNewMessages.isNotEmpty()) {
                                 // 마지막 메시지 ID 업데이트
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId

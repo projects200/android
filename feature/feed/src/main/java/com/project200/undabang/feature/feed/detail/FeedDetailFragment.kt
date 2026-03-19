@@ -23,7 +23,6 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.fragment_feed_detail) {
-
     private val viewModel: FeedDetailViewModel by viewModels()
     private val args: FeedDetailFragmentArgs by navArgs()
     private var commentRVAdapter: CommentRVAdapter? = null
@@ -60,19 +59,34 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
 
     private fun initCommentInput() {
         with(binding.commentInputLayout) {
-            commentInputEt.addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    val hasText = !s.isNullOrBlank()
-                    val sendIcon = if (hasText) {
-                        R.drawable.ic_send
-                    } else {
-                        R.drawable.ic_send_unable
+            commentInputEt.addTextChangedListener(
+                object : TextWatcher {
+                    override fun beforeTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        count: Int,
+                        after: Int,
+                    ) {}
+
+                    override fun onTextChanged(
+                        s: CharSequence?,
+                        start: Int,
+                        before: Int,
+                        count: Int,
+                    ) {}
+
+                    override fun afterTextChanged(s: Editable?) {
+                        val hasText = !s.isNullOrBlank()
+                        val sendIcon =
+                            if (hasText) {
+                                R.drawable.ic_send
+                            } else {
+                                R.drawable.ic_send_unable
+                            }
+                        sendBtn.setImageResource(sendIcon)
                     }
-                    sendBtn.setImageResource(sendIcon)
-                }
-            })
+                },
+            )
 
             sendBtn.setOnClickListener {
                 val content = commentInputEt.text.toString()
@@ -148,12 +162,13 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
         if (commentRVAdapter != null) return
 
         val currentMemberId = viewModel.currentMemberId.value
-        commentRVAdapter = CommentRVAdapter(
-            currentMemberId = currentMemberId,
-            onLikeClick = { item -> viewModel.toggleCommentLike(item) },
-            onReplyClick = { item -> viewModel.setReplyTarget(item) },
-            onMoreClick = { item -> showCommentMenuBottomSheet(item) }
-        )
+        commentRVAdapter =
+            CommentRVAdapter(
+                currentMemberId = currentMemberId,
+                onLikeClick = { item -> viewModel.toggleCommentLike(item) },
+                onReplyClick = { item -> viewModel.setReplyTarget(item) },
+                onMoreClick = { item -> showCommentMenuBottomSheet(item) },
+            )
         binding.commentsRv.adapter = commentRVAdapter
     }
 
@@ -162,7 +177,7 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             onDeleteClicked = {
                 viewModel.deleteComment(item.commentId)
             },
-            showEditButton = false
+            showEditButton = false,
         ).show(parentFragmentManager, "CommentMenu")
     }
 
@@ -174,11 +189,12 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             likeCountTv.text = feed.feedLikesCount.toString()
             commentCountTv.text = feed.feedCommentsCount.toString()
 
-            val likeIcon = if (feed.feedIsLiked) {
-                R.drawable.ic_like_fill
-            } else {
-                R.drawable.ic_like
-            }
+            val likeIcon =
+                if (feed.feedIsLiked) {
+                    R.drawable.ic_like_fill
+                } else {
+                    R.drawable.ic_like
+                }
             likeIv.setImageResource(likeIcon)
 
             likeIv.setOnClickListener {
@@ -201,11 +217,12 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
 
             if (feed.feedPictures.isNotEmpty()) {
                 imagesRv.visibility = View.VISIBLE
-                imagesRv.layoutManager = LinearLayoutManager(
-                    context,
-                    LinearLayoutManager.HORIZONTAL,
-                    false
-                )
+                imagesRv.layoutManager =
+                    LinearLayoutManager(
+                        context,
+                        LinearLayoutManager.HORIZONTAL,
+                        false,
+                    )
                 imagesRv.adapter = ImageRVAdapter(feed.feedPictures)
             } else {
                 imagesRv.visibility = View.GONE
@@ -224,15 +241,16 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             },
             onDeleteClicked = {
                 viewModel.deleteFeed()
-            }
+            },
         ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
     }
 
     private fun navigateToEditFeed() {
         val feed = viewModel.feed.value ?: return
-        val action = FeedDetailFragmentDirections.actionFeedDetailFragmentToFeedFormFragment(
-            feedId = feed.feedId
-        )
+        val action =
+            FeedDetailFragmentDirections.actionFeedDetailFragmentToFeedFormFragment(
+                feedId = feed.feedId,
+            )
         findNavController().navigate(action)
     }
 

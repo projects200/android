@@ -13,8 +13,6 @@ import com.project200.domain.model.FeedCreateResult
 import com.project200.domain.model.FeedListResult
 import com.project200.domain.model.FeedPicture
 import com.project200.domain.model.UpdateFeedModel
-import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
 
 fun GetFeedsDTO.toModel(): FeedListResult {
     return FeedListResult(
