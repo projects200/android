@@ -69,6 +69,15 @@ class ChatSocketRepositoryImpl
         private var heartbeatJob: Job? = null
         private var retryJob: Job? = null
 
+        // [MEASURE] 측정용 변수
+        private val connectionAttemptCount = AtomicInteger(0)
+        private val connectionSuccessCount = AtomicInteger(0)
+        private val connectionFailCount = AtomicInteger(0)
+        private val reconnectCount = AtomicInteger(0)
+        private val reconnectSuccessCount = AtomicInteger(0)
+        private var lastDisconnectTime: Long = 0L
+        private var totalDowntimeMs: Long = 0L
+
         // 네트워크 복구 감지
         init {
             CoroutineScope(Dispatchers.IO).launch {
@@ -94,6 +103,25 @@ class ChatSocketRepositoryImpl
          * 채팅방 소켓 연결 해제
          */
         override fun disconnect() {
+            // [MEASURE] 세션 통계 출력
+            Timber.w("[MEASURE] === 세션 통계 ===")
+            Timber.w("[MEASURE] 연결 시도: ${connectionAttemptCount.get()}")
+            Timber.w("[MEASURE] 연결 성공: ${connectionSuccessCount.get()}")
+            Timber.w("[MEASURE] 연결 실패: ${connectionFailCount.get()}")
+            Timber.w("[MEASURE] 연결 끊김(재연결 시도): ${reconnectCount.get()}")
+            Timber.w("[MEASURE] 재연결 성공: ${reconnectSuccessCount.get()}")
+            Timber.w("[MEASURE] 총 다운타임: ${totalDowntimeMs}ms")
+            if (connectionAttemptCount.get() > 0) {
+                Timber.w("[MEASURE] 연결 성공률: ${connectionSuccessCount.get() * 100 / connectionAttemptCount.get()}%")
+            }
+            if (reconnectCount.get() > 0) {
+                Timber.w("[MEASURE] 재연결 성공률: ${reconnectSuccessCount.get() * 100 / reconnectCount.get()}%")
+                Timber.w(
+                    "[MEASURE] 평균 복구 시간: ${if (reconnectSuccessCount.get() > 0) totalDowntimeMs / reconnectSuccessCount.get() else 0}ms",
+                )
+            }
+            Timber.w("[MEASURE] ================")
+
             isUserInChatRoom = false
             stopHeartbeat()
             retryJob?.cancel()
@@ -122,6 +150,8 @@ class ChatSocketRepositoryImpl
                         Timber.d("WebSocket already connected.")
                         return@withLock
                     }
+                    connectionAttemptCount.incrementAndGet()
+                    Timber.w("[MEASURE] 연결 시도 #${connectionAttemptCount.get()}")
                     try {
                         // 티켓 발급
                         val response = chatApi.getChatTicket(chatRoomId)
@@ -134,11 +164,14 @@ class ChatSocketRepositoryImpl
                             if (BuildConfig.DEBUG) {
                                 "$BASE_URL_DEBUG$ticket"
                             } else {
-                                "$BASE_URL_RELEASE$ticket"
+                                // "$BASE_URL_RELEASE$ticket"
+                                "$BASE_URL_DEBUG$ticket"
                             }
                         val request = Request.Builder().url(wsUrl).build()
                         webSocket = okHttpClient.newWebSocket(request, socketListener)
                     } catch (e: Exception) {
+                        connectionFailCount.incrementAndGet()
+                        Timber.w("[MEASURE] 연결 실패 #${connectionFailCount.get()}: ${e.message}")
                         handleConnectionFailure(e)
                     }
                 }
@@ -154,6 +187,18 @@ class ChatSocketRepositoryImpl
                     webSocket: WebSocket,
                     response: Response,
                 ) {
+                    connectionSuccessCount.incrementAndGet()
+                    if (lastDisconnectTime > 0L) {
+                        val downtimeMs = System.currentTimeMillis() - lastDisconnectTime
+                        totalDowntimeMs += downtimeMs
+                        reconnectSuccessCount.incrementAndGet()
+                        Timber.w(
+                            "[MEASURE] 재연결 성공! 복구 소요시간: ${downtimeMs}ms, " +
+                                "재연결 성공: ${reconnectSuccessCount.get()}/${reconnectCount.get()}",
+                        )
+                        lastDisconnectTime = 0L
+                    }
+                    Timber.w("[MEASURE] 연결 성공 (${connectionSuccessCount.get()}/${connectionAttemptCount.get()})")
                     retryCount.set(0)
                     startApplicationHeartbeat()
                 }
@@ -233,6 +278,9 @@ class ChatSocketRepositoryImpl
             }
 
         private fun cleanupAndRetry(t: Throwable) {
+            reconnectCount.incrementAndGet()
+            lastDisconnectTime = System.currentTimeMillis()
+            Timber.w("[MEASURE] 연결 끊김 #${reconnectCount.get()}: ${t.message}")
             stopHeartbeat()
             webSocket = null
             handleConnectionFailure(t)
