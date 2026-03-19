@@ -93,13 +93,8 @@ class ChattingRoomViewModel
             disconnectJob?.cancel()
             disconnectJob = null
 
-            if (wasInGracePeriod) {
-                // 유예 시간 내 복귀 → 소켓 연결 유지, 누락 메시지만 동기화
-                Timber.w("[MEASURE] 유예 시간 내 복귀, 재연결 생략")
-                // syncMissedMessages()
-            } else {
+            if (!wasInGracePeriod) {
                 // 유예 시간 만료 또는 최초 연결 → 전체 재연결
-                Timber.w("[MEASURE] 전체 재연결 수행 (티켓 발급 + 소켓 연결 + 메시지 동기화)")
                 connectChatRoomUseCase(chatRoomId)
                 syncMissedMessages()
             }
@@ -192,10 +187,8 @@ class ChattingRoomViewModel
             if (chatRoomId == DEFAULT_ID) return
             viewModelScope.launch {
                 val startTime = System.currentTimeMillis()
-                Timber.w("[MEASURE] syncMissedMessages 호출, lastChatId=$lastChatId")
                 when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
                     is BaseResult.Success -> {
-                        val totalFetched = result.data.messages.size
                         if (result.data.messages.isNotEmpty()) {
                             // 기존 메시지 리스트에 새로운 메시지를 추가
                             val currentMessages = _messages.value.toMutableList()
@@ -204,9 +197,6 @@ class ChattingRoomViewModel
                                 result.data.messages.filter { newMessage ->
                                     !currentMessages.any { it.chatId == newMessage.chatId }
                                 }
-                            Timber.w(
-                                "[MEASURE] 누락 메시지 복구: 서버 응답 ${totalFetched}건, 신규 ${uniqueNewMessages.size}건, 소요시간: ${System.currentTimeMillis() - startTime}ms",
-                            )
                             if (uniqueNewMessages.isNotEmpty()) {
                                 // 마지막 메시지 ID 업데이트
                                 lastChatId = uniqueNewMessages.lastOrNull()?.chatId
@@ -218,7 +208,6 @@ class ChattingRoomViewModel
                     }
 
                     is BaseResult.Error -> {
-                        Timber.w("[MEASURE] 누락 메시지 복구 실패: ${result.message}, 소요시간: ${System.currentTimeMillis() - startTime}ms")
                         _toast.emit(result.message.toString())
                     }
                 }
