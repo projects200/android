@@ -32,7 +32,7 @@ class FilterOptionRVAdapter(
     inner class ViewHolder(private val binding: ItemFilterOptionBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: FilterOptionUiModel) {
             val context = binding.root.context
-            binding.optionTv.text = context.getString(item.labelResId)
+            binding.optionTv.text = item.labelText ?: item.labelResId?.let { context.getString(it) } ?: ""
             binding.checkIv.isVisible = item.isSelected
             TextViewCompat.setTextAppearance(binding.optionTv, if (item.isSelected) R.style.content_bold else R.style.content_regular)
             binding.filterOptionLl.setOnClickListener { onClick(item.originalData) }
@@ -46,7 +46,7 @@ class FilterOptionRVAdapter(
                     oldItem: FilterOptionUiModel,
                     newItem: FilterOptionUiModel,
                 ): Boolean {
-                    return oldItem.labelResId == newItem.labelResId
+                    return oldItem.labelResId == newItem.labelResId && oldItem.labelText == newItem.labelText
                 }
 
                 override fun areContentsTheSame(

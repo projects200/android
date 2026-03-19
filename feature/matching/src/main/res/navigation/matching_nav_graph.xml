@@ -26,9 +26,7 @@
             app:destination="@id/exercisePlaceFragment" />
         <action
             android:id="@+id/action_matchingMapFragment_to_matchingGuideFragment"
-            app:destination="@id/matchingGuideFragment"
-            app:popUpTo="@id/matchingMapFragment"
-            app:popUpToInclusive="true" />
+            app:destination="@id/matchingGuideFragment" />
     </fragment>
     <fragment
         android:id="@+id/matchingProfileFragment"

@@ -30,7 +30,6 @@ import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
 import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
-import com.project200.feature.matching.utils.FilterUiMapper
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.matching.R
@@ -147,9 +146,6 @@ class MatchingMapFragment :
             currentCenter = cameraPosition.position,
             currentZoom = cameraPosition.zoomLevel,
         )
-
-        // 카메라 위치가 바뀌면 클러스터도 변경됨 -> 마커 redraw
-        mapViewManager?.redrawMarkers(myPlaces = viewModel.combinedMapData.value.second, clusterCalculator)
     }
 
     /**
@@ -315,13 +311,6 @@ class MatchingMapFragment :
     }
 
     private fun showFilterBottomSheet(type: MatchingFilterType) {
-        // 필터 옵션들을 UI 모델로 매핑
-        val options =
-            FilterUiMapper.mapToUiModels(
-                type = type,
-                currentState = viewModel.filterState.value,
-            )
-
         val bottomSheet =
             FilterBottomSheetDialog(
                 filterType = type,
@@ -371,6 +360,7 @@ class MatchingMapFragment :
     override fun onResume() {
         super.onResume()
         binding.mapView.resume()
+        viewModel.refreshExercisePlaces()
     }
 
     override fun onPause() {

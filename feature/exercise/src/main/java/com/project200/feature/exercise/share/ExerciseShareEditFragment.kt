@@ -1,0 +1,149 @@
+package com.project200.feature.exercise.share
+
+import android.graphics.Bitmap
+import android.view.View
+import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
+import androidx.navigation.fragment.navArgs
+import com.bumptech.glide.Glide
+import com.project200.domain.model.ExerciseRecord
+import com.project200.feature.exercise.utils.ExerciseRecordStickerGenerator
+import com.project200.feature.exercise.utils.ExerciseShareHelper
+import com.project200.feature.exercise.utils.ShareEventData
+import com.project200.presentation.base.BindingFragment
+import com.project200.undabang.feature.exercise.R
+import com.project200.undabang.feature.exercise.databinding.FragmentExerciseShareEditBinding
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+
+@AndroidEntryPoint
+class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBinding>(R.layout.fragment_exercise_share_edit) {
+    private val viewModel: ExerciseShareEditViewModel by viewModels()
+    private val args: ExerciseShareEditFragmentArgs by navArgs()
+
+    private var currentStickerBitmap: Bitmap? = null
+
+    override fun getViewBinding(view: View): FragmentExerciseShareEditBinding {
+        return FragmentExerciseShareEditBinding.bind(view)
+    }
+
+    override fun setupViews() {
+        viewModel.loadExerciseRecord(args.recordId)
+
+        binding.themeDarkBtn.setOnClickListener {
+            viewModel.selectTheme(StickerTheme.DARK)
+        }
+        binding.themeLightBtn.setOnClickListener {
+            viewModel.selectTheme(StickerTheme.LIGHT)
+        }
+        binding.themeMinimalBtn.setOnClickListener {
+            viewModel.selectTheme(StickerTheme.MINIMAL)
+        }
+
+        binding.cancelBtn.setOnClickListener {
+            findNavController().navigateUp()
+        }
+        binding.shareBtn.setOnClickListener {
+            viewModel.requestShare(binding.stickerPreview.getTransformInfo())
+        }
+    }
+
+    override fun setupObservers() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.backgroundImageUrl.collect { url ->
+                        url?.let { loadBackgroundImage(it) }
+                    }
+                }
+
+                launch {
+                    viewModel.selectedTheme.collect { theme ->
+                        updateThemeButtonSelection(theme)
+                    }
+                }
+
+                launch {
+                    viewModel.stickerState.collect { state ->
+                        updateStickerPreview(state.record, state.theme)
+                    }
+                }
+
+                launch {
+                    viewModel.isLoading.collect { isLoading ->
+                        binding.loadingOverlay.visibility = if (isLoading) View.VISIBLE else View.GONE
+                    }
+                }
+
+                launch {
+                    viewModel.shareEvent.collect { data ->
+                        shareImage(data)
+                    }
+                }
+            }
+        }
+    }
+
+    private fun loadBackgroundImage(url: String) {
+        Glide.with(this)
+            .load(url)
+            .centerCrop()
+            .into(binding.backgroundImage)
+    }
+
+    private fun updateThemeButtonSelection(theme: StickerTheme) {
+        val selectedAlpha = 1.0f
+        val unselectedAlpha = 0.4f
+
+        binding.themeDarkBtn.alpha = if (theme == StickerTheme.DARK) selectedAlpha else unselectedAlpha
+        binding.themeLightBtn.alpha = if (theme == StickerTheme.LIGHT) selectedAlpha else unselectedAlpha
+        binding.themeMinimalBtn.alpha = if (theme == StickerTheme.MINIMAL) selectedAlpha else unselectedAlpha
+    }
+
+    private fun updateStickerPreview(
+        record: ExerciseRecord,
+        theme: StickerTheme,
+    ) {
+        val currentTransform = binding.stickerPreview.getTransformInfo()
+        val hasUserTransform = binding.stickerPreview.hasUserInteracted()
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            currentStickerBitmap?.recycle()
+            currentStickerBitmap =
+                ExerciseRecordStickerGenerator.generateStickerBitmap(
+                    requireContext(),
+                    record,
+                    theme,
+                )
+
+            if (hasUserTransform) {
+                binding.stickerPreview.setPendingTransform(currentTransform)
+            }
+            binding.stickerPreview.setImageBitmap(currentStickerBitmap)
+        }
+    }
+
+    private fun shareImage(data: ShareEventData) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                ExerciseShareHelper.shareExerciseRecord(
+                    requireContext(),
+                    data.record,
+                    data.theme,
+                    data.transformInfo,
+                )
+            } finally {
+                viewModel.onShareCompleted()
+            }
+        }
+    }
+
+    override fun onDestroyView() {
+        currentStickerBitmap?.recycle()
+        currentStickerBitmap = null
+        super.onDestroyView()
+    }
+}
