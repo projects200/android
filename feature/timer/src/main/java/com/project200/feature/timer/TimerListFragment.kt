@@ -26,8 +26,16 @@ class TimerListFragment : BindingFragment<FragmentTimerListBinding>(R.layout.fra
 
     override fun setupViews() {
         super.setupViews()
+        initToolbar()
         initClickListeners()
         initRecyclerView()
+    }
+
+    private fun initToolbar() {
+        binding.baseToolbar.apply {
+            setTitle(getString(R.string.timer_title))
+            showBackButton(true) { findNavController().navigateUp() }
+        }
     }
 
     private fun initClickListeners() {
