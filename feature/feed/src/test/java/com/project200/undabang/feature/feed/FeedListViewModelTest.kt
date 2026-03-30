@@ -4,9 +4,11 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.Feed
-import com.project200.domain.model.FeedList
+import com.project200.domain.model.FeedListResult
 import com.project200.domain.model.PreferredExercise
+import java.time.LocalDateTime
 import com.project200.domain.usecase.DeleteFeedUseCase
 import com.project200.domain.usecase.GetFeedsUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
@@ -55,22 +57,31 @@ class FeedListViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
+    private val sampleExerciseType = ExerciseType(
+        id = 1L,
+        name = "헬스",
+        imageUrl = null
+    )
+
     private val sampleFeed = Feed(
         feedId = 1L,
         memberId = "member1",
         nickname = "테스터",
         feedTypeName = "헬스",
         feedTypeId = 1L,
+        feedTypeDesc = "헬스 운동",
         feedContent = "테스트 피드",
         feedPictures = emptyList(),
         feedLikesCount = 0,
         feedCommentsCount = 0,
         feedIsLiked = false,
-        createdAt = "2025-01-01T10:00:00",
-        thumbnailUrl = null
+        feedCreatedAt = LocalDateTime.of(2025, 1, 1, 10, 0, 0),
+        feedHasCommented = false,
+        thumbnailUrl = null,
+        profileUrl = null
     )
 
-    private val sampleFeedList = FeedList(
+    private val sampleFeedListResult = FeedListResult(
         feeds = listOf(sampleFeed),
         hasNext = false
     )
@@ -95,7 +106,7 @@ class FeedListViewModelTest {
     }
 
     private fun createViewModel(): FeedListViewModel {
-        coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Success(sampleFeedList)
+        coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Success(sampleFeedListResult)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
         coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
         coEvery { getMemberIdUseCase() } returns "member1"
@@ -150,10 +161,39 @@ class FeedListViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When
-        viewModel.selectType("헬스")
+        viewModel.selectType(sampleExerciseType)
 
         // Then
-        assertThat(viewModel.selectedType.value).isEqualTo("헬스")
+        assertThat(viewModel.selectedType.value).isEqualTo(sampleExerciseType)
+    }
+
+    @Test
+    fun `selectType - feedTypeId로 필터링하여 목록을 반환한다`() = runTest {
+        // Given
+        val feed1 = sampleFeed.copy(feedId = 1L, feedTypeId = 1L)
+        val feed2 = sampleFeed.copy(feedId = 2L, feedTypeId = 2L)
+        coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Success(
+            FeedListResult(feeds = listOf(feed1, feed2), hasNext = false)
+        )
+        coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
+        coEvery { getMemberIdUseCase() } returns "member1"
+
+        viewModel = FeedListViewModel(
+            getFeedsUseCase,
+            getPreferredExerciseUseCase,
+            getPreferredExerciseTypesUseCase,
+            getMemberIdUseCase,
+            deleteFeedUseCase
+        )
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // When
+        viewModel.selectType(sampleExerciseType)
+
+        // Then
+        assertThat(viewModel.feedList.value).hasSize(1)
+        assertThat(viewModel.feedList.value?.first()?.feedTypeId).isEqualTo(1L)
     }
 
     @Test
@@ -161,7 +201,7 @@ class FeedListViewModelTest {
         // Given
         viewModel = createViewModel()
         testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.selectType("헬스")
+        viewModel.selectType(sampleExerciseType)
 
         // When
         viewModel.clearType()
@@ -173,10 +213,19 @@ class FeedListViewModelTest {
     @Test
     fun `canLoadMore - 로딩 중이 아니고 다음 페이지가 있으면 true`() = runTest {
         // Given
+        coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(listOf(samplePreferredExercise))
+        coEvery { getMemberIdUseCase() } returns "member1"
         coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Success(
-            FeedList(feeds = listOf(sampleFeed), hasNext = true)
+            FeedListResult(feeds = listOf(sampleFeed), hasNext = true)
         )
-        viewModel = createViewModel()
+        viewModel = FeedListViewModel(
+            getFeedsUseCase,
+            getPreferredExerciseUseCase,
+            getPreferredExerciseTypesUseCase,
+            getMemberIdUseCase,
+            deleteFeedUseCase
+        )
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When & Then
@@ -190,7 +239,7 @@ class FeedListViewModelTest {
         testDispatcher.scheduler.advanceUntilIdle()
 
         // When
-        viewModel.selectType("헬스")
+        viewModel.selectType(sampleExerciseType)
 
         // Then
         assertThat(viewModel.canLoadMore()).isFalse()
@@ -215,7 +264,7 @@ class FeedListViewModelTest {
         // Given
         coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Error("ERROR", "Failed")
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         coEvery { getMemberIdUseCase() } returns "member1"
 
         // When

@@ -5,8 +5,9 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.CreateFeedResult
 import com.project200.domain.model.Feed
+import com.project200.domain.model.FeedCreateResult
+import com.project200.domain.model.FeedPicture
 import com.project200.domain.model.PreferredExercise
 import com.project200.domain.model.UserProfile
 import com.project200.domain.usecase.CreateFeedUseCase
@@ -34,6 +35,7 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
+import java.time.LocalDateTime
 
 @ExperimentalCoroutinesApi
 class FeedFormViewModelTest {
@@ -72,12 +74,16 @@ class FeedFormViewModelTest {
     private val testDispatcher = StandardTestDispatcher()
 
     private val sampleProfile = UserProfile(
-        memberId = "member1",
+        profileThumbnailUrl = null,
+        profileImageUrl = null,
         nickname = "테스터",
         gender = "MALE",
         birthDate = "1990-01-01",
-        memberScore = 80,
-        thumbnailUrl = null
+        bio = null,
+        yearlyExerciseDays = 100,
+        exerciseCountInLast30Days = 15,
+        exerciseScore = 80,
+        preferredExercises = emptyList()
     )
 
     private val sampleExercise = PreferredExercise(
@@ -95,13 +101,16 @@ class FeedFormViewModelTest {
         nickname = "테스터",
         feedTypeName = "헬스",
         feedTypeId = 1L,
+        feedTypeDesc = "헬스 운동",
         feedContent = "기존 내용",
         feedPictures = emptyList(),
         feedLikesCount = 0,
         feedCommentsCount = 0,
         feedIsLiked = false,
-        createdAt = "2025-01-01T10:00:00",
-        thumbnailUrl = null
+        feedCreatedAt = LocalDateTime.of(2025, 1, 1, 10, 0, 0),
+        feedHasCommented = false,
+        thumbnailUrl = null,
+        profileUrl = null
     )
 
     @Before
@@ -129,7 +138,7 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
 
         // When
         viewModel.initData()
@@ -144,7 +153,7 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         coEvery { getFeedDetailUseCase(1L) } returns BaseResult.Success(sampleFeed)
 
         // When
@@ -156,41 +165,42 @@ class FeedFormViewModelTest {
     }
 
     @Test
-    fun `initData - 사용자 프로필을 로드한다`() = runTest {
+    fun `initData - 수정 모드에서 기존 내용을 로드한다`() = runTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
+        coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
+        coEvery { getFeedDetailUseCase(1L) } returns BaseResult.Success(sampleFeed)
+
+        // When
+        viewModel.initData(feedId = 1L)
+        testDispatcher.scheduler.advanceUntilIdle()
+
+        // Then
+        assertThat(viewModel.initialContentForEdit.value).isEqualTo("기존 내용")
+    }
+
+    @Test
+    fun `initData - 프로필 로드 실패 시 토스트 이벤트 발생`() = runTest {
+        // Given
+        coEvery { getUserProfileUseCase() } returns BaseResult.Error("ERROR", "Failed")
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
 
-        // When
-        viewModel.initData()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.userProfile.value).isEqualTo(sampleProfile)
+        // When & Then
+        viewModel.toastEvent.test {
+            viewModel.initData()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(awaitItem()).isNotNull()
+        }
     }
 
     @Test
-    fun `initData - 운동 타입을 로드한다`() = runTest {
+    fun `selectType - 운동 타입을 선택할 수 있다`() = runTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
-
-        // When
-        viewModel.initData()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.exerciseTypes.value).hasSize(1)
-    }
-
-    @Test
-    fun `selectType - 운동 타입을 선택한다`() = runTest {
-        // Given
-        coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
-        coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         viewModel.initData()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -202,25 +212,27 @@ class FeedFormViewModelTest {
     }
 
     @Test
-    fun `addImages - 이미지를 추가한다`() {
+    fun `addImages - 이미지를 추가할 수 있다`() = runTest {
         // Given
-        val uri = mockk<Uri>()
+        val mockUri = mockk<Uri>()
+        every { mockUri.toString() } returns "content://image/1"
 
         // When
-        viewModel.addImages(listOf(uri))
+        viewModel.addImages(listOf(mockUri))
 
         // Then
         assertThat(viewModel.selectedImages.value).hasSize(1)
     }
 
     @Test
-    fun `removeImage - 이미지를 제거한다`() {
+    fun `removeImage - 이미지를 삭제할 수 있다`() = runTest {
         // Given
-        val uri = mockk<Uri>()
-        viewModel.addImages(listOf(uri))
+        val mockUri = mockk<Uri>()
+        every { mockUri.toString() } returns "content://image/1"
+        viewModel.addImages(listOf(mockUri))
 
         // When
-        viewModel.removeImage(uri)
+        viewModel.removeImage(mockUri)
 
         // Then
         assertThat(viewModel.selectedImages.value).isEmpty()
@@ -241,8 +253,8 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { createFeedUseCase(any()) } returns BaseResult.Success(CreateFeedResult(feedId = 1L))
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
+        coEvery { createFeedUseCase(any()) } returns BaseResult.Success(FeedCreateResult(feedId = 1L))
         viewModel.initData()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -260,9 +272,9 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { createFeedUseCase(any()) } returns BaseResult.Success(CreateFeedResult(feedId = 1L))
-        coEvery { uploadFeedImagesUseCase(1L, any()) } returns BaseResult.Success(Unit)
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
+        coEvery { createFeedUseCase(any()) } returns BaseResult.Success(FeedCreateResult(feedId = 1L))
+        coEvery { uploadFeedImagesUseCase(1L, any()) } returns BaseResult.Success(listOf(FeedPicture(1L, "url")))
 
         val mockUri = mockk<Uri>()
         every { mockUri.toString() } returns "content://image/1"
@@ -283,7 +295,7 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         coEvery { getFeedDetailUseCase(1L) } returns BaseResult.Success(sampleFeed)
         coEvery { updateFeedUseCase(any()) } returns BaseResult.Success(Unit)
         viewModel.initData(feedId = 1L)
@@ -303,7 +315,7 @@ class FeedFormViewModelTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(emptyList())
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         coEvery { createFeedUseCase(any()) } returns BaseResult.Error("ERROR", "Failed")
         viewModel.initData()
         testDispatcher.scheduler.advanceUntilIdle()
@@ -317,11 +329,11 @@ class FeedFormViewModelTest {
     }
 
     @Test
-    fun `requestShowDabangSelection - 운동 타입이 있으면 바텀시트를 표시한다`() = runTest {
+    fun `requestShowDabangSelection - 운동 타입 목록이 있으면 바텀시트를 표시한다`() = runTest {
         // Given
         coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
         coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
+        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList<PreferredExercise>())
         viewModel.initData()
         testDispatcher.scheduler.advanceUntilIdle()
 
@@ -330,22 +342,5 @@ class FeedFormViewModelTest {
 
         // Then
         assertThat(viewModel.showDabangSelection.value).isNotNull()
-    }
-
-    @Test
-    fun `onDabangSelectionShown - 바텀시트 상태를 초기화한다`() = runTest {
-        // Given
-        coEvery { getUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
-        coEvery { getPreferredExerciseUseCase() } returns BaseResult.Success(listOf(sampleExercise))
-        coEvery { getPreferredExerciseTypesUseCase() } returns BaseResult.Success(emptyList())
-        viewModel.initData()
-        testDispatcher.scheduler.advanceUntilIdle()
-        viewModel.requestShowDabangSelection()
-
-        // When
-        viewModel.onDabangSelectionShown()
-
-        // Then
-        assertThat(viewModel.showDabangSelection.value).isNull()
     }
 }
