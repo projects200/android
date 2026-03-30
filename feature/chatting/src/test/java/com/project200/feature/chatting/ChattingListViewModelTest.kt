@@ -43,12 +43,13 @@ class ChattingListViewModelTest {
 
     private val sampleChattingRoom =
         ChattingRoom(
-            chatRoomId = 1L,
+            id = 1L,
             opponentMemberId = "opponent1",
-            opponentNickname = "상대방",
-            opponentProfileUrl = null,
-            latestMessage = "안녕하세요",
-            latestMessageTime = LocalDateTime.of(2025, 1, 1, 10, 0),
+            nickname = "상대방",
+            profileImageUrl = null,
+            thumbnailImageUrl = null,
+            lastMessage = "안녕하세요",
+            lastChattedAt = LocalDateTime.of(2025, 1, 1, 10, 0),
             unreadCount = 3,
         )
 
@@ -77,7 +78,7 @@ class ChattingListViewModelTest {
             viewModel.chattingRooms.test {
                 val rooms = awaitItem()
                 assertThat(rooms).hasSize(1)
-                assertThat(rooms[0].chatRoomId).isEqualTo(1L)
+                assertThat(rooms[0].id).isEqualTo(1L)
             }
             coVerify { getChattingRoomsUseCase() }
         }

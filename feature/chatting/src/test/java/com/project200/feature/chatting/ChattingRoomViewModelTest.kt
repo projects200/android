@@ -5,7 +5,8 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ChattingMessage
-import com.project200.domain.model.ChattingMessageList
+import com.project200.domain.model.ChattingModel
+import com.project200.domain.model.OpponentStatus
 import com.project200.domain.usecase.ConnectChatRoomUseCase
 import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
@@ -24,7 +25,7 @@ import io.mockk.just
 import io.mockk.runs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -78,23 +79,27 @@ class ChattingRoomViewModelTest {
             sentAt = LocalDateTime.of(2025, 1, 1, 10, 0),
             isMine = false,
             chatType = "NORMAL",
-            senderNickname = "상대방",
-            senderProfileUrl = null,
+            senderId = "opponent1",
+            nickname = "상대방",
+            profileUrl = null,
+            thumbnailImageUrl = null,
             showProfile = true,
             showTime = true,
         )
 
     private val sampleMessageList =
-        ChattingMessageList(
+        ChattingModel(
             messages = listOf(sampleMessage),
             hasNext = false,
+            opponentActive = true,
+            blockActive = false,
         )
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
-        every { observeSocketMessagesUseCase() } returns emptyFlow()
-        every { observeOpponentStatusUseCase() } returns emptyFlow()
+        every { observeSocketMessagesUseCase() } returns MutableSharedFlow<ChattingMessage>()
+        every { observeOpponentStatusUseCase() } returns MutableSharedFlow<OpponentStatus>()
         viewModel =
             ChattingRoomViewModel(
                 getChatMessagesUseCase,
@@ -202,7 +207,12 @@ class ChattingRoomViewModelTest {
             every { connectChatRoomUseCase(1L) } just runs
             coEvery { getNewChatMessagesUseCase(1L, 1L) } returns
                 BaseResult.Success(
-                    ChattingMessageList(emptyList(), false),
+                    ChattingModel(
+                        hasNext = false,
+                        opponentActive = true,
+                        blockActive = false,
+                        messages = emptyList()
+                    ),
                 )
             viewModel.setId(1L, "opponent1")
             testDispatcher.scheduler.advanceUntilIdle()
