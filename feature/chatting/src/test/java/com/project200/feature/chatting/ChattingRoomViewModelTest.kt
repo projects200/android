@@ -211,7 +211,7 @@ class ChattingRoomViewModelTest {
                         hasNext = false,
                         opponentActive = true,
                         blockActive = false,
-                        messages = emptyList()
+                        messages = emptyList(),
                     ),
                 )
             viewModel.setId(1L, "opponent1")
