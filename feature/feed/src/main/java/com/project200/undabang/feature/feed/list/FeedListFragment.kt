@@ -6,6 +6,7 @@ import androidx.fragment.app.viewModels
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.project200.domain.model.ExerciseType
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.collectToast
 import com.project200.presentation.view.SelectionBottomSheetDialog
@@ -74,8 +75,10 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
         viewModel.requestShowCategoryBottomSheet()
     }
 
-    private fun displayCategoryBottomSheet(items: List<String>) {
-        SelectionBottomSheetDialog(items) { selectedType ->
+    private fun displayCategoryBottomSheet(exerciseTypes: List<ExerciseType>) {
+        val names = exerciseTypes.map { it.name }
+        SelectionBottomSheetDialog(names) { selectedName ->
+            val selectedType = exerciseTypes.find { it.name == selectedName }
             viewModel.selectType(selectedType)
         }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
         viewModel.onCategoryBottomSheetShown()
@@ -120,16 +123,16 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
             binding.emptyTv.visibility = if (showEmpty) View.VISIBLE else View.GONE
         }
 
-        viewModel.showCategoryBottomSheet.observe(viewLifecycleOwner) { items ->
-            if (!items.isNullOrEmpty()) {
-                displayCategoryBottomSheet(items)
+        viewModel.showCategoryBottomSheet.observe(viewLifecycleOwner) { exerciseTypes ->
+            if (!exerciseTypes.isNullOrEmpty()) {
+                displayCategoryBottomSheet(exerciseTypes)
             }
         }
 
         viewModel.selectedType.observe(viewLifecycleOwner) { type ->
             binding.baseToolbar.apply {
                 if (type != null) {
-                    setTitle(type)
+                    setTitle(type.name)
                     setSecondarySubButton(null)
                     showBackButton(true) { viewModel.clearType() }
                 } else {
