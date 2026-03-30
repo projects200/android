@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseType
 import com.project200.domain.model.Feed
 import com.project200.domain.usecase.DeleteFeedUseCase
 import com.project200.domain.usecase.GetFeedsUseCase
@@ -33,8 +34,8 @@ class FeedListViewModel
         private val _feedList = MutableLiveData<List<Feed>>()
         val feedList: LiveData<List<Feed>> get() = _feedList
 
-        private val _selectedType = MutableLiveData<String?>(null)
-        val selectedType: LiveData<String?> = _selectedType
+        private val _selectedType = MutableLiveData<ExerciseType?>(null)
+        val selectedType: LiveData<ExerciseType?> = _selectedType
 
         private val _isLoading = MutableLiveData<Boolean>(false)
         val isLoading: LiveData<Boolean> get() = _isLoading
@@ -45,8 +46,8 @@ class FeedListViewModel
         private val _isEmpty = MutableLiveData<Boolean>(false)
         val isEmpty: LiveData<Boolean> get() = _isEmpty
 
-        private val _exerciseTypeList = MutableLiveData<List<String>>()
-        val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
+        private val _exerciseTypeList = MutableLiveData<List<ExerciseType>>()
+        val exerciseTypeList: LiveData<List<ExerciseType>> = _exerciseTypeList
 
         private val _currentMemberId = MutableLiveData<String>()
         val currentMemberId: LiveData<String> get() = _currentMemberId
@@ -54,8 +55,8 @@ class FeedListViewModel
         private val _showEmptyView = MutableLiveData<Boolean>(false)
         val showEmptyView: LiveData<Boolean> get() = _showEmptyView
 
-        private val _showCategoryBottomSheet = MutableLiveData<List<String>?>()
-        val showCategoryBottomSheet: LiveData<List<String>?> get() = _showCategoryBottomSheet
+        private val _showCategoryBottomSheet = MutableLiveData<List<ExerciseType>?>()
+        val showCategoryBottomSheet: LiveData<List<ExerciseType>?> get() = _showCategoryBottomSheet
 
         private var hasNext: Boolean = true
         private var lastFeedId: Long? = null
@@ -77,7 +78,7 @@ class FeedListViewModel
             }
         }
 
-        fun selectType(type: String?) {
+        fun selectType(type: ExerciseType?) {
             _selectedType.value = type
             updateFilteredList()
         }
@@ -109,11 +110,11 @@ class FeedListViewModel
         }
 
         private fun updateFilteredList() {
-            val type = _selectedType.value
-            if (type == null) {
+            val selectedTypeId = _selectedType.value?.id
+            if (selectedTypeId == null) {
                 _feedList.value = allFeeds.toList()
             } else {
-                _feedList.value = allFeeds.filter { it.feedTypeName == type }
+                _feedList.value = allFeeds.filter { it.feedTypeId == selectedTypeId }
             }
         }
 
@@ -121,25 +122,26 @@ class FeedListViewModel
             if (!_exerciseTypeList.value.isNullOrEmpty()) return
             viewModelScope.launch {
                 val preferredResult = getPreferredExerciseUseCase()
-                val preferredNames =
+                val preferredTypes =
                     if (preferredResult is BaseResult.Success) {
-                        preferredResult.data.map { it.name }
+                        preferredResult.data.map { ExerciseType(it.exerciseTypeId, it.name, it.imageUrl) }
                     } else {
                         emptyList()
                     }
 
                 val allTypesResult = getPreferredExerciseTypesUseCase()
-                val allNames =
+                val allTypes =
                     if (allTypesResult is BaseResult.Success) {
-                        allTypesResult.data.map { it.name }
+                        allTypesResult.data.map { ExerciseType(it.exerciseTypeId, it.name, it.imageUrl) }
                     } else {
                         emptyList()
                     }
 
+                val preferredIds = preferredTypes.map { it.id }.toSet()
                 val combinedList =
-                    mutableListOf<String>().apply {
-                        addAll(preferredNames)
-                        addAll(allNames.filterNot { preferredNames.contains(it) })
+                    mutableListOf<ExerciseType>().apply {
+                        addAll(preferredTypes)
+                        addAll(allTypes.filterNot { preferredIds.contains(it.id) })
                     }
 
                 _exerciseTypeList.value = combinedList
