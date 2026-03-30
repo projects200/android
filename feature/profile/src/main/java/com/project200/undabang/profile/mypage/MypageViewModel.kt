@@ -107,10 +107,10 @@ class MypageViewModel
         }
 
         fun onNextMonthClicked() {
-            val currentMonth = _selectedMonth.value ?: YearMonth.now()
+            val currentMonth = _selectedMonth.value ?: clockProvider.yearMonthNow()
             val newMonth = currentMonth.plusMonths(1)
 
-            if (newMonth.isAfter(YearMonth.now())) {
+            if (newMonth.isAfter(clockProvider.yearMonthNow())) {
                 return
             }
 

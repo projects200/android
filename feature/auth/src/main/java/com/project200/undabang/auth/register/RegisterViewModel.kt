@@ -39,6 +39,7 @@ class RegisterViewModel
                 addSource(_nickname) { validateFormInputs() }
                 addSource(_birth) { validateFormInputs() }
                 addSource(_gender) { validateFormInputs() }
+                validateFormInputs()
             }
 
         private val _signUpResult = MutableLiveData<BaseResult<Unit>>()
