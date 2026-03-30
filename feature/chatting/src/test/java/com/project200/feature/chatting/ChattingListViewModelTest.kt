@@ -41,15 +41,16 @@ class ChattingListViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val sampleChattingRoom = ChattingRoom(
-        chatRoomId = 1L,
-        opponentMemberId = "opponent1",
-        opponentNickname = "상대방",
-        opponentProfileUrl = null,
-        latestMessage = "안녕하세요",
-        latestMessageTime = LocalDateTime.of(2025, 1, 1, 10, 0),
-        unreadCount = 3
-    )
+    private val sampleChattingRoom =
+        ChattingRoom(
+            chatRoomId = 1L,
+            opponentMemberId = "opponent1",
+            opponentNickname = "상대방",
+            opponentProfileUrl = null,
+            latestMessage = "안녕하세요",
+            latestMessageTime = LocalDateTime.of(2025, 1, 1, 10, 0),
+            unreadCount = 3,
+        )
 
     @Before
     fun setUp() {
@@ -63,54 +64,57 @@ class ChattingListViewModelTest {
     }
 
     @Test
-    fun `fetchChattingRooms - 성공 시 채팅방 목록을 업데이트한다`() = runTest {
-        // Given
-        coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(listOf(sampleChattingRoom))
+    fun `fetchChattingRooms - 성공 시 채팅방 목록을 업데이트한다`() =
+        runTest {
+            // Given
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(listOf(sampleChattingRoom))
 
-        // When
-        viewModel.fetchChattingRooms()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        viewModel.chattingRooms.test {
-            val rooms = awaitItem()
-            assertThat(rooms).hasSize(1)
-            assertThat(rooms[0].chatRoomId).isEqualTo(1L)
+            // Then
+            viewModel.chattingRooms.test {
+                val rooms = awaitItem()
+                assertThat(rooms).hasSize(1)
+                assertThat(rooms[0].chatRoomId).isEqualTo(1L)
+            }
+            coVerify { getChattingRoomsUseCase() }
         }
-        coVerify { getChattingRoomsUseCase() }
-    }
 
     @Test
-    fun `fetchChattingRooms - 빈 목록도 정상 처리한다`() = runTest {
-        // Given
-        coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(emptyList())
+    fun `fetchChattingRooms - 빈 목록도 정상 처리한다`() =
+        runTest {
+            // Given
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(emptyList())
 
-        // When
-        viewModel.fetchChattingRooms()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        viewModel.chattingRooms.test {
-            assertThat(awaitItem()).isEmpty()
+            // Then
+            viewModel.chattingRooms.test {
+                assertThat(awaitItem()).isEmpty()
+            }
         }
-    }
 
     @Test
-    fun `fetchChattingRooms - 에러 발생 시 기존 목록 유지`() = runTest {
-        // Given
-        coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(listOf(sampleChattingRoom))
-        viewModel.fetchChattingRooms()
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `fetchChattingRooms - 에러 발생 시 기존 목록 유지`() =
+        runTest {
+            // Given
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(listOf(sampleChattingRoom))
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        coEvery { getChattingRoomsUseCase() } returns BaseResult.Error("ERROR", "Failed")
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Error("ERROR", "Failed")
 
-        // When
-        viewModel.fetchChattingRooms()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        viewModel.chattingRooms.test {
-            assertThat(awaitItem()).hasSize(1)
+            // Then
+            viewModel.chattingRooms.test {
+                assertThat(awaitItem()).hasSize(1)
+            }
         }
-    }
 }

@@ -54,66 +54,70 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `checkIsRegistered - 로그인 성공 시 Success 결과를 반환한다`() = runTest {
-        // Given
-        coEvery { loginUseCase() } returns BaseResult.Success(Unit)
-        viewModel = createViewModel()
+    fun `checkIsRegistered - 로그인 성공 시 Success 결과를 반환한다`() =
+        runTest {
+            // Given
+            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
+            viewModel = createViewModel()
 
-        // When
-        viewModel.checkIsRegistered()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkIsRegistered()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
-        coVerify(exactly = 1) { loginUseCase() }
-    }
-
-    @Test
-    fun `checkIsRegistered - 로그인 실패 시 Error 결과를 반환한다`() = runTest {
-        // Given
-        coEvery { loginUseCase() } returns BaseResult.Error("ERROR", "Login failed")
-        viewModel = createViewModel()
-
-        // When
-        viewModel.checkIsRegistered()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        val result = viewModel.loginResult.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo("ERROR")
-    }
+            // Then
+            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
+            coVerify(exactly = 1) { loginUseCase() }
+        }
 
     @Test
-    fun `sendFcmToken - FCM 토큰 전송 성공 시 Success 이벤트를 발생시킨다`() = runTest {
-        // Given
-        coEvery { loginUseCase() } returns BaseResult.Success(Unit)
-        coEvery { sendFcmTokenUseCase() } returns BaseResult.Success(Unit)
-        viewModel = createViewModel()
+    fun `checkIsRegistered - 로그인 실패 시 Error 결과를 반환한다`() =
+        runTest {
+            // Given
+            coEvery { loginUseCase() } returns BaseResult.Error("ERROR", "Login failed")
+            viewModel = createViewModel()
 
-        // When
-        viewModel.sendFcmToken()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkIsRegistered()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.fcmTokenEvent.value).isInstanceOf(BaseResult.Success::class.java)
-        coVerify(exactly = 1) { sendFcmTokenUseCase() }
-    }
+            // Then
+            val result = viewModel.loginResult.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo("ERROR")
+        }
 
     @Test
-    fun `sendFcmToken - FCM 토큰 전송 실패 시 Error 이벤트를 발생시킨다`() = runTest {
-        // Given
-        coEvery { loginUseCase() } returns BaseResult.Success(Unit)
-        coEvery { sendFcmTokenUseCase() } returns BaseResult.Error("FCM_ERROR", "FCM token send failed")
-        viewModel = createViewModel()
+    fun `sendFcmToken - FCM 토큰 전송 성공 시 Success 이벤트를 발생시킨다`() =
+        runTest {
+            // Given
+            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { sendFcmTokenUseCase() } returns BaseResult.Success(Unit)
+            viewModel = createViewModel()
 
-        // When
-        viewModel.sendFcmToken()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.sendFcmToken()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        val result = viewModel.fcmTokenEvent.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo("FCM_ERROR")
-    }
+            // Then
+            assertThat(viewModel.fcmTokenEvent.value).isInstanceOf(BaseResult.Success::class.java)
+            coVerify(exactly = 1) { sendFcmTokenUseCase() }
+        }
+
+    @Test
+    fun `sendFcmToken - FCM 토큰 전송 실패 시 Error 이벤트를 발생시킨다`() =
+        runTest {
+            // Given
+            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { sendFcmTokenUseCase() } returns BaseResult.Error("FCM_ERROR", "FCM token send failed")
+            viewModel = createViewModel()
+
+            // When
+            viewModel.sendFcmToken()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            val result = viewModel.fcmTokenEvent.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo("FCM_ERROR")
+        }
 }

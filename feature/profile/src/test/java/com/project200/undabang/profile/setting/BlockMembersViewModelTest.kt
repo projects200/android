@@ -40,10 +40,23 @@ class BlockMembersViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val sampleBlockedMembers = listOf(
-        BlockedMember(memberBlockId = 1L, memberId = "member1", nickname = "차단유저1", profileImageUrl = "https://example.com/1.jpg", thumbnailImageUrl = "https://example.com/thumb1.jpg"),
-        BlockedMember(memberBlockId = 2L, memberId = "member2", nickname = "차단유저2", profileImageUrl = "https://example.com/2.jpg", thumbnailImageUrl = "https://example.com/thumb2.jpg")
-    )
+    private val sampleBlockedMembers =
+        listOf(
+            BlockedMember(
+                memberBlockId = 1L,
+                memberId = "member1",
+                nickname = "차단유저1",
+                profileImageUrl = "https://example.com/1.jpg",
+                thumbnailImageUrl = "https://example.com/thumb1.jpg",
+            ),
+            BlockedMember(
+                memberBlockId = 2L,
+                memberId = "member2",
+                nickname = "차단유저2",
+                profileImageUrl = "https://example.com/2.jpg",
+                thumbnailImageUrl = "https://example.com/thumb2.jpg",
+            ),
+        )
 
     @Before
     fun setUp() {
@@ -56,95 +69,109 @@ class BlockMembersViewModelTest {
     }
 
     private fun createViewModel() {
-        viewModel = BlockMembersViewModel(
-            getBlockedMembersUseCase = mockGetBlockedMembersUseCase,
-            unblockMemberUseCase = mockUnblockMemberUseCase
-        )
+        viewModel =
+            BlockMembersViewModel(
+                getBlockedMembersUseCase = mockGetBlockedMembersUseCase,
+                unblockMemberUseCase = mockUnblockMemberUseCase,
+            )
     }
 
     @Test
-    fun `init - ViewModel 초기화 시 fetchBlockedMembers가 호출된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
+    fun `init - ViewModel 초기화 시 fetchBlockedMembers가 호출된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
 
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 1) { mockGetBlockedMembersUseCase() }
-    }
-
-    @Test
-    fun `fetchBlockedMembers - 성공 시 blockedMembers가 업데이트된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
-
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        assertThat(viewModel.blockedMembers.value).isEqualTo(sampleBlockedMembers)
-    }
-
-    @Test
-    fun `fetchBlockedMembers - 실패 시 errorEvent가 emit된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
-
-        createViewModel()
-
-        viewModel.errorEvent.test {
+            createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertThat(awaitItem()).isEqualTo("로드 실패")
+            coVerify(exactly = 1) { mockGetBlockedMembersUseCase() }
         }
-    }
 
     @Test
-    fun `unblockMember - 성공 시 목록이 새로고침된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
-        coEvery { mockUnblockMemberUseCase(any()) } returns BaseResult.Success(Unit)
+    fun `fetchBlockedMembers - 성공 시 blockedMembers가 업데이트된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
 
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        val updatedList = listOf(sampleBlockedMembers[1])
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(updatedList)
-
-        viewModel.unblockMember(sampleBlockedMembers[0])
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify(exactly = 2) { mockGetBlockedMembersUseCase() }
-        assertThat(viewModel.blockedMembers.value).isEqualTo(updatedList)
-    }
+            assertThat(viewModel.blockedMembers.value).isEqualTo(sampleBlockedMembers)
+        }
 
     @Test
-    fun `unblockMember - 실패 시 errorEvent가 emit된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
-        coEvery { mockUnblockMemberUseCase(any()) } returns BaseResult.Error("ERROR", "차단 해제 실패")
+    fun `fetchBlockedMembers - 실패 시 errorEvent가 emit된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
 
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
+            createViewModel()
 
-        viewModel.errorEvent.test {
+            viewModel.errorEvent.test {
+                testDispatcher.scheduler.advanceUntilIdle()
+
+                assertThat(awaitItem()).isEqualTo("로드 실패")
+            }
+        }
+
+    @Test
+    fun `unblockMember - 성공 시 목록이 새로고침된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
+            coEvery { mockUnblockMemberUseCase(any()) } returns BaseResult.Success(Unit)
+
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val updatedList = listOf(sampleBlockedMembers[1])
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(updatedList)
+
             viewModel.unblockMember(sampleBlockedMembers[0])
             testDispatcher.scheduler.advanceUntilIdle()
 
-            assertThat(awaitItem()).isEqualTo("차단 해제 실패")
+            coVerify(exactly = 2) { mockGetBlockedMembersUseCase() }
+            assertThat(viewModel.blockedMembers.value).isEqualTo(updatedList)
         }
-    }
 
     @Test
-    fun `fetchBlockedMembers - 수동 호출 시 목록이 다시 로드된다`() = runTest {
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
+    fun `unblockMember - 실패 시 errorEvent가 emit된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
+            coEvery { mockUnblockMemberUseCase(any()) } returns BaseResult.Error("ERROR", "차단 해제 실패")
 
-        createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        val newList = listOf(
-            BlockedMember(memberBlockId = 3L, memberId = "member3", nickname = "새유저", profileImageUrl = "https://example.com/3.jpg", thumbnailImageUrl = "https://example.com/thumb3.jpg")
-        )
-        coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(newList)
+            viewModel.errorEvent.test {
+                viewModel.unblockMember(sampleBlockedMembers[0])
+                testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.fetchBlockedMembers()
-        testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo("차단 해제 실패")
+            }
+        }
 
-        assertThat(viewModel.blockedMembers.value).isEqualTo(newList)
-        coVerify(exactly = 2) { mockGetBlockedMembersUseCase() }
-    }
+    @Test
+    fun `fetchBlockedMembers - 수동 호출 시 목록이 다시 로드된다`() =
+        runTest {
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(sampleBlockedMembers)
+
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            val newList =
+                listOf(
+                    BlockedMember(
+                        memberBlockId = 3L,
+                        memberId = "member3",
+                        nickname = "새유저",
+                        profileImageUrl = "https://example.com/3.jpg",
+                        thumbnailImageUrl = "https://example.com/thumb3.jpg",
+                    ),
+                )
+            coEvery { mockGetBlockedMembersUseCase() } returns BaseResult.Success(newList)
+
+            viewModel.fetchBlockedMembers()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.blockedMembers.value).isEqualTo(newList)
+            coVerify(exactly = 2) { mockGetBlockedMembersUseCase() }
+        }
 }

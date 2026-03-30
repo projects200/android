@@ -57,163 +57,173 @@ class MainViewModelTest {
         return MainViewModel(
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
             checkIsRegisteredUseCase = mockCheckIsRegisteredUseCase,
-            loginUseCase = mockLoginUseCase
+            loginUseCase = mockLoginUseCase,
         )
     }
 
     @Test
-    fun `checkForUpdate - 업데이트가 필요하면 UpdateAvailable 결과를 반환한다`() = runTest {
-        // Given
-        val updateResult = UpdateCheckResult.UpdateAvailable(isForceUpdate = false)
-        coEvery { mockCheckForUpdateUseCase() } returns Result.success(updateResult)
+    fun `checkForUpdate - 업데이트가 필요하면 UpdateAvailable 결과를 반환한다`() =
+        runTest {
+            // Given
+            val updateResult = UpdateCheckResult.UpdateAvailable(isForceUpdate = false)
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(updateResult)
 
-        viewModel = createViewModel()
+            viewModel = createViewModel()
 
-        // When
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.updateCheckResult.value).isEqualTo(updateResult)
-        coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
-    }
-
-    @Test
-    fun `checkForUpdate - 강제 업데이트가 필요하면 isForceUpdate가 true인 결과를 반환한다`() = runTest {
-        // Given
-        val updateResult = UpdateCheckResult.UpdateAvailable(isForceUpdate = true)
-        coEvery { mockCheckForUpdateUseCase() } returns Result.success(updateResult)
-
-        viewModel = createViewModel()
-
-        // When
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        val result = viewModel.updateCheckResult.value
-        assertThat(result).isInstanceOf(UpdateCheckResult.UpdateAvailable::class.java)
-        assertThat((result as UpdateCheckResult.UpdateAvailable).isForceUpdate).isTrue()
-    }
+            // Then
+            assertThat(viewModel.updateCheckResult.value).isEqualTo(updateResult)
+            coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
+        }
 
     @Test
-    fun `checkForUpdate - 업데이트가 불필요하면 NoUpdateNeeded 결과를 반환한다`() = runTest {
-        // Given
-        coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
+    fun `checkForUpdate - 강제 업데이트가 필요하면 isForceUpdate가 true인 결과를 반환한다`() =
+        runTest {
+            // Given
+            val updateResult = UpdateCheckResult.UpdateAvailable(isForceUpdate = true)
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(updateResult)
 
-        viewModel = createViewModel()
+            viewModel = createViewModel()
 
-        // When
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.updateCheckResult.value).isEqualTo(UpdateCheckResult.NoUpdateNeeded)
-    }
-
-    @Test
-    fun `checkForUpdate - 이미 체크했으면 다시 호출하지 않는다`() = runTest {
-        // Given
-        coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
-
-        viewModel = createViewModel()
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // When
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
-    }
+            // Then
+            val result = viewModel.updateCheckResult.value
+            assertThat(result).isInstanceOf(UpdateCheckResult.UpdateAvailable::class.java)
+            assertThat((result as UpdateCheckResult.UpdateAvailable).isForceUpdate).isTrue()
+        }
 
     @Test
-    fun `checkForUpdate - 실패해도 크래시하지 않는다`() = runTest {
-        // Given
-        coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
+    fun `checkForUpdate - 업데이트가 불필요하면 NoUpdateNeeded 결과를 반환한다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
 
-        viewModel = createViewModel()
+            viewModel = createViewModel()
 
-        // When
-        viewModel.checkForUpdate()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.updateCheckResult.value).isNull()
-    }
-
-    @Test
-    fun `login - 성공하면 Success 결과를 반환한다`() = runTest {
-        // Given
-        coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
-        coEvery { mockCheckIsRegisteredUseCase() } returns true
-
-        viewModel = createViewModel()
-
-        // When
-        viewModel.login()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
-        coVerify { mockLoginUseCase() }
-        coVerify { mockCheckIsRegisteredUseCase() }
-    }
+            // Then
+            assertThat(viewModel.updateCheckResult.value).isEqualTo(UpdateCheckResult.NoUpdateNeeded)
+        }
 
     @Test
-    fun `login - 실패하면 Error 결과를 반환한다`() = runTest {
-        // Given
-        coEvery { mockLoginUseCase() } returns BaseResult.Error("ERROR", "로그인 실패")
-        coEvery { mockCheckIsRegisteredUseCase() } returns false
+    fun `checkForUpdate - 이미 체크했으면 다시 호출하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
 
-        viewModel = createViewModel()
+            viewModel = createViewModel()
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // When
-        viewModel.login()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Error::class.java)
-    }
-
-    @Test
-    fun `showBottomNavigation - 호출하면 true가 설정된다`() = runTest {
-        // Given
-        viewModel = createViewModel()
-
-        // When
-        viewModel.showBottomNavigation()
-
-        // Then
-        assertThat(viewModel.showBottomNavigation.value).isTrue()
-    }
+            // Then
+            coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
+        }
 
     @Test
-    fun `hideBottomNavigation - 호출하면 false가 설정된다`() = runTest {
-        // Given
-        viewModel = createViewModel()
+    fun `checkForUpdate - 실패해도 크래시하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
 
-        // When
-        viewModel.hideBottomNavigation()
+            viewModel = createViewModel()
 
-        // Then
-        assertThat(viewModel.showBottomNavigation.value).isFalse()
-    }
+            // When
+            viewModel.checkForUpdate()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.updateCheckResult.value).isNull()
+        }
 
     @Test
-    fun `showBottomNavigation과 hideBottomNavigation - 토글이 정상 동작한다`() = runTest {
-        // Given
-        viewModel = createViewModel()
+    fun `login - 성공하면 Success 결과를 반환한다`() =
+        runTest {
+            // Given
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockCheckIsRegisteredUseCase() } returns true
 
-        // When & Then
-        viewModel.showBottomNavigation()
-        assertThat(viewModel.showBottomNavigation.value).isTrue()
+            viewModel = createViewModel()
 
-        viewModel.hideBottomNavigation()
-        assertThat(viewModel.showBottomNavigation.value).isFalse()
+            // When
+            viewModel.login()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.showBottomNavigation()
-        assertThat(viewModel.showBottomNavigation.value).isTrue()
-    }
+            // Then
+            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
+            coVerify { mockLoginUseCase() }
+            coVerify { mockCheckIsRegisteredUseCase() }
+        }
+
+    @Test
+    fun `login - 실패하면 Error 결과를 반환한다`() =
+        runTest {
+            // Given
+            coEvery { mockLoginUseCase() } returns BaseResult.Error("ERROR", "로그인 실패")
+            coEvery { mockCheckIsRegisteredUseCase() } returns false
+
+            viewModel = createViewModel()
+
+            // When
+            viewModel.login()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Error::class.java)
+        }
+
+    @Test
+    fun `showBottomNavigation - 호출하면 true가 설정된다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.showBottomNavigation()
+
+            // Then
+            assertThat(viewModel.showBottomNavigation.value).isTrue()
+        }
+
+    @Test
+    fun `hideBottomNavigation - 호출하면 false가 설정된다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.hideBottomNavigation()
+
+            // Then
+            assertThat(viewModel.showBottomNavigation.value).isFalse()
+        }
+
+    @Test
+    fun `showBottomNavigation과 hideBottomNavigation - 토글이 정상 동작한다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When & Then
+            viewModel.showBottomNavigation()
+            assertThat(viewModel.showBottomNavigation.value).isTrue()
+
+            viewModel.hideBottomNavigation()
+            assertThat(viewModel.showBottomNavigation.value).isFalse()
+
+            viewModel.showBottomNavigation()
+            assertThat(viewModel.showBottomNavigation.value).isTrue()
+        }
 }

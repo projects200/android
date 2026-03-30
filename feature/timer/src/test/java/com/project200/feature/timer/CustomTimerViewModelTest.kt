@@ -48,17 +48,19 @@ class CustomTimerViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val sampleSteps = listOf(
-        Step(id = 1L, order = 1, time = 30, name = "준비"),
-        Step(id = 2L, order = 2, time = 60, name = "운동"),
-        Step(id = 3L, order = 3, time = 15, name = "휴식")
-    )
+    private val sampleSteps =
+        listOf(
+            Step(id = 1L, order = 1, time = 30, name = "준비"),
+            Step(id = 2L, order = 2, time = 60, name = "운동"),
+            Step(id = 3L, order = 3, time = 15, name = "휴식"),
+        )
 
-    private val sampleTimer = CustomTimer(
-        id = 1L,
-        name = "테스트 타이머",
-        steps = sampleSteps
-    )
+    private val sampleTimer =
+        CustomTimer(
+            id = 1L,
+            name = "테스트 타이머",
+            steps = sampleSteps,
+        )
 
     @Before
     fun setUp() {
@@ -77,200 +79,214 @@ class CustomTimerViewModelTest {
         return CustomTimerViewModel(
             timerServiceManager = mockTimerServiceManager,
             getCustomTimerUseCase = mockGetCustomTimerUseCase,
-            deleteCustomTimerUseCase = mockDeleteCustomTimerUseCase
+            deleteCustomTimerUseCase = mockDeleteCustomTimerUseCase,
         )
     }
 
     @Test
-    fun `init - ViewModel 생성 시 서비스가 바인딩된다`() = runTest {
-        // When
-        viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `init - ViewModel 생성 시 서비스가 바인딩된다`() =
+        runTest {
+            // When
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        verify { mockTimerServiceManager.bindService() }
-    }
-
-    @Test
-    fun `setTimerId - 타이머 ID가 설정된다`() = runTest {
-        // Given
-        viewModel = createViewModel()
-
-        // When
-        viewModel.setTimerId(123L)
-
-        // Then - loadTimerData에서 올바른 ID로 조회되는지 확인
-        coEvery { mockGetCustomTimerUseCase(123L) } returns BaseResult.Success(sampleTimer)
-        viewModel.loadTimerData()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        coVerify { mockGetCustomTimerUseCase(123L) }
-    }
+            // Then
+            verify { mockTimerServiceManager.bindService() }
+        }
 
     @Test
-    fun `loadTimerData - 성공하면 title과 steps가 설정된다`() = runTest {
-        // Given
-        coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
+    fun `setTimerId - 타이머 ID가 설정된다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
 
-        viewModel = createViewModel()
-        viewModel.setTimerId(1L)
+            // When
+            viewModel.setTimerId(123L)
 
-        // When
-        viewModel.loadTimerData()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.title.value).isEqualTo("테스트 타이머")
-        assertThat(viewModel.steps.value).hasSize(3)
-    }
-
-    @Test
-    fun `loadTimerData - 실패하면 errorEvent가 발생한다`() = runTest {
-        // Given
-        coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "로드 실패")
-
-        viewModel = createViewModel()
-        viewModel.setTimerId(1L)
-
-        // When & Then
-        viewModel.errorEvent.test {
+            // Then - loadTimerData에서 올바른 ID로 조회되는지 확인
+            coEvery { mockGetCustomTimerUseCase(123L) } returns BaseResult.Success(sampleTimer)
             viewModel.loadTimerData()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            awaitItem()
+            coVerify { mockGetCustomTimerUseCase(123L) }
         }
-    }
 
     @Test
-    fun `loadTimerData - steps 순서가 유지된다`() = runTest {
-        // Given
-        coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
+    fun `loadTimerData - 성공하면 title과 steps가 설정된다`() =
+        runTest {
+            // Given
+            coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
 
-        viewModel = createViewModel()
-        viewModel.setTimerId(1L)
+            viewModel = createViewModel()
+            viewModel.setTimerId(1L)
 
-        // When
-        viewModel.loadTimerData()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.loadTimerData()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        val steps = viewModel.steps.value!!
-        assertThat(steps[0].name).isEqualTo("준비")
-        assertThat(steps[1].name).isEqualTo("운동")
-        assertThat(steps[2].name).isEqualTo("휴식")
-    }
-
-    @Test
-    fun `deleteTimer - 성공하면 Success 결과가 설정된다`() = runTest {
-        // Given
-        coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
-
-        viewModel = createViewModel()
-        viewModel.setTimerId(1L)
-
-        // When
-        viewModel.deleteTimer()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Success::class.java)
-    }
+            // Then
+            assertThat(viewModel.title.value).isEqualTo("테스트 타이머")
+            assertThat(viewModel.steps.value).hasSize(3)
+        }
 
     @Test
-    fun `deleteTimer - 실패하면 Error 결과가 설정된다`() = runTest {
-        // Given
-        coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "삭제 실패")
+    fun `loadTimerData - 실패하면 errorEvent가 발생한다`() =
+        runTest {
+            // Given
+            coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "로드 실패")
 
-        viewModel = createViewModel()
-        viewModel.setTimerId(1L)
+            viewModel = createViewModel()
+            viewModel.setTimerId(1L)
 
-        // When
-        viewModel.deleteTimer()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When & Then
+            viewModel.errorEvent.test {
+                viewModel.loadTimerData()
+                testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Error::class.java)
-    }
-
-    @Test
-    fun `deleteTimer - 올바른 타이머 ID로 UseCase가 호출된다`() = runTest {
-        // Given
-        coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
-
-        viewModel = createViewModel()
-        viewModel.setTimerId(456L)
-
-        // When
-        viewModel.deleteTimer()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        coVerify { mockDeleteCustomTimerUseCase(456L) }
-    }
+                awaitItem()
+            }
+        }
 
     @Test
-    fun `startTimer - 서비스가 없으면 아무 동작도 하지 않는다`() = runTest {
-        // Given
-        viewModel = createViewModel()
+    fun `loadTimerData - steps 순서가 유지된다`() =
+        runTest {
+            // Given
+            coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
 
-        // When
-        viewModel.startTimer()
+            viewModel = createViewModel()
+            viewModel.setTimerId(1L)
 
-        // Then - no crash
-    }
+            // When
+            viewModel.loadTimerData()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-    @Test
-    fun `pauseTimer - 서비스가 없으면 아무 동작도 하지 않는다`() = runTest {
-        // Given
-        viewModel = createViewModel()
-
-        // When
-        viewModel.pauseTimer()
-
-        // Then - no crash
-    }
+            // Then
+            val steps = viewModel.steps.value!!
+            assertThat(steps[0].name).isEqualTo("준비")
+            assertThat(steps[1].name).isEqualTo("운동")
+            assertThat(steps[2].name).isEqualTo("휴식")
+        }
 
     @Test
-    fun `resetTimer - 서비스가 없으면 아무 동작도 하지 않는다`() = runTest {
-        // Given
-        viewModel = createViewModel()
+    fun `deleteTimer - 성공하면 Success 결과가 설정된다`() =
+        runTest {
+            // Given
+            coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
 
-        // When
-        viewModel.resetTimer(isUserAction = true)
+            viewModel = createViewModel()
+            viewModel.setTimerId(1L)
 
-        // Then - no crash
-    }
+            // When
+            viewModel.deleteTimer()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-    @Test
-    fun `jumpToStep - 서비스가 없으면 아무 동작도 하지 않는다`() = runTest {
-        // Given
-        viewModel = createViewModel()
-
-        // When
-        viewModel.jumpToStep(0)
-
-        // Then - no crash
-    }
+            // Then
+            assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Success::class.java)
+        }
 
     @Test
-    fun `toggleRepeat - 서비스가 없으면 아무 동작도 하지 않는다`() = runTest {
-        // Given
-        viewModel = createViewModel()
+    fun `deleteTimer - 실패하면 Error 결과가 설정된다`() =
+        runTest {
+            // Given
+            coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "삭제 실패")
 
-        // When
-        viewModel.toggleRepeat()
+            viewModel = createViewModel()
+            viewModel.setTimerId(1L)
 
-        // Then - no crash
-    }
+            // When
+            viewModel.deleteTimer()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Error::class.java)
+        }
 
     @Test
-    fun `unbindService - 서비스 매니저의 unbindService가 호출된다`() = runTest {
-        // Given
-        viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `deleteTimer - 올바른 타이머 ID로 UseCase가 호출된다`() =
+        runTest {
+            // Given
+            coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
 
-        // When - onCleared is called internally when ViewModel is destroyed
-        // We verify that unbindService is configured
-        verify { mockTimerServiceManager.bindService() }
-    }
+            viewModel = createViewModel()
+            viewModel.setTimerId(456L)
+
+            // When
+            viewModel.deleteTimer()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            coVerify { mockDeleteCustomTimerUseCase(456L) }
+        }
+
+    @Test
+    fun `startTimer - 서비스가 없으면 아무 동작도 하지 않는다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.startTimer()
+
+            // Then - no crash
+        }
+
+    @Test
+    fun `pauseTimer - 서비스가 없으면 아무 동작도 하지 않는다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.pauseTimer()
+
+            // Then - no crash
+        }
+
+    @Test
+    fun `resetTimer - 서비스가 없으면 아무 동작도 하지 않는다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.resetTimer(isUserAction = true)
+
+            // Then - no crash
+        }
+
+    @Test
+    fun `jumpToStep - 서비스가 없으면 아무 동작도 하지 않는다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.jumpToStep(0)
+
+            // Then - no crash
+        }
+
+    @Test
+    fun `toggleRepeat - 서비스가 없으면 아무 동작도 하지 않는다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+
+            // When
+            viewModel.toggleRepeat()
+
+            // Then - no crash
+        }
+
+    @Test
+    fun `unbindService - 서비스 매니저의 unbindService가 호출된다`() =
+        runTest {
+            // Given
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When - onCleared is called internally when ViewModel is destroyed
+            // We verify that unbindService is configured
+            verify { mockTimerServiceManager.bindService() }
+        }
 }

@@ -131,93 +131,98 @@ class RegisterViewModelTest {
     }
 
     @Test
-    fun `signUp - 닉네임 유효성 검사 실패 시 INVALID_NICKNAME 에러를 반환한다`() = runTest {
-        // Given
-        every { validateNicknameUseCase(any()) } returns false
-        viewModel.updateNickname("잘못된닉네임")
-        viewModel.updateBirth("1990-01-01")
-        viewModel.selectGender("MALE")
+    fun `signUp - 닉네임 유효성 검사 실패 시 INVALID_NICKNAME 에러를 반환한다`() =
+        runTest {
+            // Given
+            every { validateNicknameUseCase(any()) } returns false
+            viewModel.updateNickname("잘못된닉네임")
+            viewModel.updateBirth("1990-01-01")
+            viewModel.selectGender("MALE")
 
-        // When
-        viewModel.signUp()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.signUp()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        val result = viewModel.signUpResult.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.ERROR_CODE_INVALID_NICKNAME)
-    }
-
-    @Test
-    fun `signUp - 성별이 null이면 FORM_INCOMPLETE 에러를 반환한다`() = runTest {
-        // Given
-        every { validateNicknameUseCase(any()) } returns true
-        viewModel.updateNickname("테스트닉네임")
-        viewModel.updateBirth("1990-01-01")
-        // gender is not set
-
-        // When
-        viewModel.signUp()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        val result = viewModel.signUpResult.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.FORM_INCOMPLETE)
-    }
+            // Then
+            val result = viewModel.signUpResult.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.ERROR_CODE_INVALID_NICKNAME)
+        }
 
     @Test
-    fun `signUp - 생년월일이 null이면 FORM_INCOMPLETE 에러를 반환한다`() = runTest {
-        // Given
-        every { validateNicknameUseCase(any()) } returns true
-        viewModel.updateNickname("테스트닉네임")
-        viewModel.selectGender("MALE")
-        // birth is not set
+    fun `signUp - 성별이 null이면 FORM_INCOMPLETE 에러를 반환한다`() =
+        runTest {
+            // Given
+            every { validateNicknameUseCase(any()) } returns true
+            viewModel.updateNickname("테스트닉네임")
+            viewModel.updateBirth("1990-01-01")
+            // gender is not set
 
-        // When
-        viewModel.signUp()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.signUp()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        val result = viewModel.signUpResult.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.FORM_INCOMPLETE)
-    }
-
-    @Test
-    fun `signUp - 회원가입 성공 시 Success 결과를 반환한다`() = runTest {
-        // Given
-        every { validateNicknameUseCase(any()) } returns true
-        coEvery { signUpUseCase(any(), any(), any()) } returns BaseResult.Success(Unit)
-        viewModel.updateNickname("테스트닉네임")
-        viewModel.updateBirth("1990-01-01")
-        viewModel.selectGender("MALE")
-
-        // When
-        viewModel.signUp()
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.signUpResult.value).isInstanceOf(BaseResult.Success::class.java)
-        coVerify(exactly = 1) { signUpUseCase("MALE", "테스트닉네임", LocalDate.of(1990, 1, 1)) }
-    }
+            // Then
+            val result = viewModel.signUpResult.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.FORM_INCOMPLETE)
+        }
 
     @Test
-    fun `signUp - 회원가입 실패 시 Error 결과를 반환한다`() = runTest {
-        // Given
-        every { validateNicknameUseCase(any()) } returns true
-        coEvery { signUpUseCase(any(), any(), any()) } returns BaseResult.Error("SIGNUP_ERROR", "SignUp failed")
-        viewModel.updateNickname("테스트닉네임")
-        viewModel.updateBirth("1990-01-01")
-        viewModel.selectGender("MALE")
+    fun `signUp - 생년월일이 null이면 FORM_INCOMPLETE 에러를 반환한다`() =
+        runTest {
+            // Given
+            every { validateNicknameUseCase(any()) } returns true
+            viewModel.updateNickname("테스트닉네임")
+            viewModel.selectGender("MALE")
+            // birth is not set
 
-        // When
-        viewModel.signUp()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel.signUp()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        val result = viewModel.signUpResult.value
-        assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-        assertThat((result as BaseResult.Error).errorCode).isEqualTo("SIGNUP_ERROR")
-    }
+            // Then
+            val result = viewModel.signUpResult.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo(RegisterViewModel.FORM_INCOMPLETE)
+        }
+
+    @Test
+    fun `signUp - 회원가입 성공 시 Success 결과를 반환한다`() =
+        runTest {
+            // Given
+            every { validateNicknameUseCase(any()) } returns true
+            coEvery { signUpUseCase(any(), any(), any()) } returns BaseResult.Success(Unit)
+            viewModel.updateNickname("테스트닉네임")
+            viewModel.updateBirth("1990-01-01")
+            viewModel.selectGender("MALE")
+
+            // When
+            viewModel.signUp()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.signUpResult.value).isInstanceOf(BaseResult.Success::class.java)
+            coVerify(exactly = 1) { signUpUseCase("MALE", "테스트닉네임", LocalDate.of(1990, 1, 1)) }
+        }
+
+    @Test
+    fun `signUp - 회원가입 실패 시 Error 결과를 반환한다`() =
+        runTest {
+            // Given
+            every { validateNicknameUseCase(any()) } returns true
+            coEvery { signUpUseCase(any(), any(), any()) } returns BaseResult.Error("SIGNUP_ERROR", "SignUp failed")
+            viewModel.updateNickname("테스트닉네임")
+            viewModel.updateBirth("1990-01-01")
+            viewModel.selectGender("MALE")
+
+            // When
+            viewModel.signUp()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            val result = viewModel.signUpResult.value
+            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
+            assertThat((result as BaseResult.Error).errorCode).isEqualTo("SIGNUP_ERROR")
+        }
 }

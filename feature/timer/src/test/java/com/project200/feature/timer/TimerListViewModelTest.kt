@@ -36,11 +36,12 @@ class TimerListViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
 
-    private val sampleTimer = CustomTimer(
-        id = 1L,
-        name = "테스트 타이머",
-        steps = emptyList()
-    )
+    private val sampleTimer =
+        CustomTimer(
+            id = 1L,
+            name = "테스트 타이머",
+            steps = emptyList(),
+        )
 
     @Before
     fun setUp() {
@@ -53,60 +54,64 @@ class TimerListViewModelTest {
     }
 
     @Test
-    fun `init - ViewModel 생성 시 커스텀 타이머 목록을 로드한다`() = runTest {
-        // Given
-        coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(listOf(sampleTimer))
+    fun `init - ViewModel 생성 시 커스텀 타이머 목록을 로드한다`() =
+        runTest {
+            // Given
+            coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(listOf(sampleTimer))
 
-        // When
-        viewModel = TimerListViewModel(getCustomTimerListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.customTimerList.value).hasSize(1)
-        coVerify { getCustomTimerListUseCase() }
-    }
-
-    @Test
-    fun `init - 빈 목록도 정상 처리한다`() = runTest {
-        // Given
-        coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(emptyList())
-
-        // When
-        viewModel = TimerListViewModel(getCustomTimerListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
-
-        // Then
-        assertThat(viewModel.customTimerList.value).isEmpty()
-    }
-
-    @Test
-    fun `init - 에러 발생 시 errorToast 이벤트를 발생시킨다`() = runTest {
-        // Given
-        val error = BaseResult.Error("ERROR", "Failed to load")
-        coEvery { getCustomTimerListUseCase() } returns error
-
-        // When
-        viewModel = TimerListViewModel(getCustomTimerListUseCase)
-
-        viewModel.errorToast.test {
+            // When
+            viewModel = TimerListViewModel(getCustomTimerListUseCase)
             testDispatcher.scheduler.advanceUntilIdle()
-            val result = awaitItem()
-            assertThat(result.errorCode).isEqualTo("ERROR")
+
+            // Then
+            assertThat(viewModel.customTimerList.value).hasSize(1)
+            coVerify { getCustomTimerListUseCase() }
         }
-    }
 
     @Test
-    fun `loadCustomTimers - 타이머 목록을 다시 로드한다`() = runTest {
-        // Given
-        coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(listOf(sampleTimer))
-        viewModel = TimerListViewModel(getCustomTimerListUseCase)
-        testDispatcher.scheduler.advanceUntilIdle()
+    fun `init - 빈 목록도 정상 처리한다`() =
+        runTest {
+            // Given
+            coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(emptyList())
 
-        // When
-        viewModel.loadCustomTimers()
-        testDispatcher.scheduler.advanceUntilIdle()
+            // When
+            viewModel = TimerListViewModel(getCustomTimerListUseCase)
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        // Then
-        coVerify(exactly = 2) { getCustomTimerListUseCase() }
-    }
+            // Then
+            assertThat(viewModel.customTimerList.value).isEmpty()
+        }
+
+    @Test
+    fun `init - 에러 발생 시 errorToast 이벤트를 발생시킨다`() =
+        runTest {
+            // Given
+            val error = BaseResult.Error("ERROR", "Failed to load")
+            coEvery { getCustomTimerListUseCase() } returns error
+
+            // When
+            viewModel = TimerListViewModel(getCustomTimerListUseCase)
+
+            viewModel.errorToast.test {
+                testDispatcher.scheduler.advanceUntilIdle()
+                val result = awaitItem()
+                assertThat(result.errorCode).isEqualTo("ERROR")
+            }
+        }
+
+    @Test
+    fun `loadCustomTimers - 타이머 목록을 다시 로드한다`() =
+        runTest {
+            // Given
+            coEvery { getCustomTimerListUseCase() } returns BaseResult.Success(listOf(sampleTimer))
+            viewModel = TimerListViewModel(getCustomTimerListUseCase)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When
+            viewModel.loadCustomTimers()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            coVerify(exactly = 2) { getCustomTimerListUseCase() }
+        }
 }

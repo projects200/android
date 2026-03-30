@@ -40,20 +40,22 @@ class SettingViewModelTest {
     }
 
     private fun createViewModel() {
-        viewModel = SettingViewModel(
-            logoutUseCase = mockLogoutUseCase
-        )
+        viewModel =
+            SettingViewModel(
+                logoutUseCase = mockLogoutUseCase,
+            )
     }
 
     @Test
-    fun `logout - logoutUseCase가 호출된다`() = runTest {
-        coEvery { mockLogoutUseCase() } returns BaseResult.Success(Unit)
+    fun `logout - logoutUseCase가 호출된다`() =
+        runTest {
+            coEvery { mockLogoutUseCase() } returns BaseResult.Success(Unit)
 
-        createViewModel()
+            createViewModel()
 
-        viewModel.logout()
-        testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.logout()
+            testDispatcher.scheduler.advanceUntilIdle()
 
-        coVerify(exactly = 1) { mockLogoutUseCase() }
-    }
+            coVerify(exactly = 1) { mockLogoutUseCase() }
+        }
 }
