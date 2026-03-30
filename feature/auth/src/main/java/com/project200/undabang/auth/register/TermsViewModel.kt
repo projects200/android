@@ -34,6 +34,7 @@ class TermsViewModel
 
                 addSource(_serviceChecked) { update() }
                 addSource(_privacyChecked) { update() }
+                update()
             }
 
         fun toggleService() {

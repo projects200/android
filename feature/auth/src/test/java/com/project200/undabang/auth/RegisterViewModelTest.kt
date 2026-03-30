@@ -90,7 +90,10 @@ class RegisterViewModelTest {
 
     @Test
     fun `isFormValid - 모든 필드가 입력되면 true를 반환한다`() {
-        // Given & When
+        // Given - observe to activate MediatorLiveData
+        viewModel.isFormValid.observeForever {}
+
+        // When
         viewModel.updateNickname("테스트")
         viewModel.updateBirth("1990-01-01")
         viewModel.selectGender("MALE")

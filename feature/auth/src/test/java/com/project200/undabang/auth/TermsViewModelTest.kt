@@ -100,6 +100,9 @@ class TermsViewModelTest {
 
     @Test
     fun `isAllRequiredChecked - 모든 필수 약관 체크 시 true`() {
+        // Given
+        viewModel.isAllRequiredChecked.observeForever {}
+
         // When
         viewModel.toggleService()
         viewModel.togglePrivacy()
@@ -111,6 +114,7 @@ class TermsViewModelTest {
     @Test
     fun `isAllRequiredChecked - 모든 약관 체크 후 하나 해제하면 false`() {
         // Given
+        viewModel.isAllRequiredChecked.observeForever {}
         viewModel.toggleService()
         viewModel.togglePrivacy()
         assertThat(viewModel.isAllRequiredChecked.value).isTrue()
