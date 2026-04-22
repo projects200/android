@@ -12,10 +12,10 @@ android {
 
     buildTypes {
 /*        getByName("debug") {
-            buildConfigField("String", "BASE_URL", "\"https://api.undabang.store/dev/\"") // Debug용 URL
+            buildConfigField("String", "BASE_URL", "\"https://api.undabang.site/dev/\"") // Debug용 URL
         }
         getByName("release") {
-            buildConfigField("String", "BASE_URL", "\"https://api.undabang.store/\"") // Release용 URL
+            buildConfigField("String", "BASE_URL", "\"https://api.undabang.site/\"") // Release용 URL
         }*/
     }
 }

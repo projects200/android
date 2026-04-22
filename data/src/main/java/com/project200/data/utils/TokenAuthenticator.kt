@@ -47,15 +47,17 @@ class TokenAuthenticator
             val originalAccessToken = response.request.header("Authorization")?.substringAfter("Bearer ")
 
             // 동시에 여러 요청이 401을 받아 이 메소드로 진입하는 것을 방지하기 위한 동기화 블록
+            // 주의: Cognito V2 access token 호환 문제로 ID token 을 사용한다.
+            //       (TokenInterceptor 의 동일 주석 참고)
             synchronized(this) {
-                val currentAccessToken = authStateManager.getCurrent().accessToken
+                val currentIdToken = authStateManager.getCurrent().idToken
 
                 // 토큰이 다른 스레드에 의해 갱신되었는지 확인
                 // 이전에 실패했던 토큰과 현재 저장된 토큰이 다르다면, 이미 토큰이 갱신 완료
-                if (originalAccessToken != null && originalAccessToken != currentAccessToken) {
+                if (originalAccessToken != null && originalAccessToken != currentIdToken) {
                     Timber.tag("TokenAuthenticator").d("이미 토큰 재발급완료")
                     return response.request.newBuilder()
-                        .header("Authorization", "Bearer $currentAccessToken")
+                        .header("Authorization", "Bearer $currentIdToken")
                         .build()
                 }
 
@@ -69,7 +71,7 @@ class TokenAuthenticator
                 return when (refreshResult) {
                     is TokenRefreshResult.Success -> {
                         // 갱신을 했는데도 이전과 동일한 토큰을 받았다면, 문제가 해결되지 않은 것이므로 루프를 중단합니다.
-                        if (originalAccessToken == refreshResult.tokenResponse.accessToken) {
+                        if (originalAccessToken == refreshResult.tokenResponse.idToken) {
                             Timber.tag("TokenAuthenticator").e("토큰 갱신 후에도 토큰이 동일하여 루프 방지를 위해 인증을 중단합니다.")
                             return null
                         }
@@ -77,7 +79,7 @@ class TokenAuthenticator
                         // 토큰 갱신 성공: 새 토큰으로 새 요청 생성
                         Timber.tag("TokenAuthenticator").i("토큰 갱신 성공, api 요청 재시도")
                         response.request.newBuilder()
-                            .header("Authorization", "Bearer ${refreshResult.tokenResponse.accessToken}")
+                            .header("Authorization", "Bearer ${refreshResult.tokenResponse.idToken}")
                             .build()
                     }
                     else -> {

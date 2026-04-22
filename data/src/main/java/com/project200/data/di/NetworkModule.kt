@@ -85,9 +85,9 @@ object NetworkModule {
     ): Retrofit {
         val baseUrl =
             if (BuildConfig.DEBUG) {
-                "https://api.undabang.store/dev/"
+                "https://api.undabang.site/dev/"
             } else {
-                "https://api.undabang.store/"
+                "https://api.undabang.site/"
             }
 
         return Retrofit.Builder()
