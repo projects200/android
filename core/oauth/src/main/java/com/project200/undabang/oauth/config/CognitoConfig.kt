@@ -10,6 +10,7 @@ class CognitoConfig
     constructor() {
         val redirectUri: String = "com.project200.undabang://callback"
         val logoutRedirectUri: String = "com.project200.undabang://logout"
+
         // DEBUG 에서도 Resource Server 커스텀 스코프를 요청해야 V1 access token 이 발급되어
         // API Gateway Cognito User Pool Authorizer 를 통과한다.
         val scopes: String = "com.undabang.user/user email openid phone profile"
