@@ -36,11 +36,16 @@ class TokenInterceptor
 
             // 토큰 타입에 따라 헤더 추가
             val requestBuilder = originalRequest.newBuilder()
+            //
+            // 주의: 새 Cognito 사용자 풀(2026-04 이후 생성)이 발급하는 V2 access token 은
+            // API Gateway Cognito User Pool Authorizer 와 호환 문제가 있어 401 을 반환한다.
+            // 따라서 ACCESS / ACCESS_WITH_FCM 도 실제로는 ID token 을 헤더에 실어 보낸다.
+            // (백엔드는 sub/email 만 사용하므로 동작에 영향 없음)
             when (tokenType) {
                 TokenType.ACCESS -> {
-                    authStateManager.getCurrent().accessToken?.let { accessToken ->
-                        requestBuilder.header("Authorization", "Bearer $accessToken")
-                    } ?: Timber.w("Access Token is null for $httpMethod ${originalRequest.url}")
+                    authStateManager.getCurrent().idToken?.let { idToken ->
+                        requestBuilder.header("Authorization", "Bearer $idToken")
+                    } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
                 }
                 TokenType.ID -> {
                     authStateManager.getCurrent().idToken?.let { idToken ->
@@ -48,9 +53,9 @@ class TokenInterceptor
                     } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
                 }
                 TokenType.ACCESS_WITH_FCM -> {
-                    authStateManager.getCurrent().accessToken?.let { accessToken ->
-                        requestBuilder.header("Authorization", "Bearer $accessToken")
-                    }
+                    authStateManager.getCurrent().idToken?.let { idToken ->
+                        requestBuilder.header("Authorization", "Bearer $idToken")
+                    } ?: Timber.w("ID Token is null for $httpMethod ${originalRequest.url}")
                     fcmTokenProvider.getFcmToken()?.let { fcmToken ->
                         requestBuilder.header("X-Fcm-Token", fcmToken)
                     }

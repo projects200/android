@@ -164,8 +164,7 @@ class ChatSocketRepositoryImpl
                             if (BuildConfig.DEBUG) {
                                 "$BASE_URL_DEBUG$ticket"
                             } else {
-                                // "$BASE_URL_RELEASE$ticket"
-                                "$BASE_URL_DEBUG$ticket"
+                                "$BASE_URL_RELEASE$ticket"
                             }
                         val request = Request.Builder().url(wsUrl).build()
                         webSocket = okHttpClient.newWebSocket(request, socketListener)
@@ -330,7 +329,7 @@ class ChatSocketRepositoryImpl
         companion object {
             private const val PING_INTERVAL_MS = 30_000L
             private const val MAX_RETRY_DELAY_MS = 10_000L
-            private const val BASE_URL_DEBUG = "wss://dev-chat.undabang.store/ws/chat?chatTicket="
-            private const val BASE_URL_RELEASE = "wss://chat.undabang.store/ws/chat?chatTicket="
+            private const val BASE_URL_DEBUG = "wss://dev-chat.undabang.site/ws/chat?chatTicket="
+            private const val BASE_URL_RELEASE = "wss://chat.undabang.site/ws/chat?chatTicket="
         }
     }
