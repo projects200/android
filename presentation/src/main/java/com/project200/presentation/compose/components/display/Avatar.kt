@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,21 +20,28 @@ import coil.compose.AsyncImage
 import com.project200.presentation.compose.theme.ColorGray200
 import com.project200.presentation.compose.theme.ColorGray300
 import com.project200.presentation.compose.theme.ColorMain
-import com.project200.presentation.compose.theme.ColorWhite300
 
+/**
+ * 원형 프로필 아바타. 이미지 로드 실패·URL 부재를 내부에서 폴백 처리한다.
+ *
+ * [imageUrl] 이 null 또는 blank 면 Person 아이콘 placeholder 를 보여주므로,
+ * 호출부가 "프로필 설정 여부" 로 분기하지 않아도 된다. 크기·테두리 색은 목록·상세 등 상황에 맞게 조절.
+ */
 @Composable
 fun UndabangAvatar(
-    imageUrl: String,
+    imageUrl: String?,
     modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     borderColor: Color = ColorMain,
     borderWidth: Dp = 2.dp,
+    placeholderBackground: Color = ColorGray300,
     contentDescription: String = "프로필 이미지",
 ) {
     Box(
         modifier = modifier
             .size(size)
             .clip(CircleShape)
+            .background(color = placeholderBackground, shape = CircleShape)
             .border(
                 width = borderWidth,
                 color = borderColor,
@@ -45,65 +49,22 @@ fun UndabangAvatar(
             ),
         contentAlignment = Alignment.Center,
     ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = contentDescription,
-            modifier = Modifier
-                .size(size - borderWidth * 2)
-                .clip(CircleShape),
-            contentScale = ContentScale.Crop,
-            placeholder = null,
-            error = null,
-            fallback = null,
-        )
-    }
-}
-
-@Composable
-fun UndabangPlaceholderAvatar(
-    modifier: Modifier = Modifier,
-    size: Dp = 48.dp,
-    backgroundColor: Color = ColorGray300,
-    borderColor: Color = ColorMain,
-    borderWidth: Dp = 2.dp,
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(color = backgroundColor, shape = CircleShape)
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = CircleShape,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Default.Person,
-            contentDescription = "기본 프로필",
-            modifier = Modifier.size(size * 0.5f),
-            tint = ColorGray200,
-        )
-    }
-}
-
-@Composable
-fun UndabangCard(
-    modifier: Modifier = Modifier,
-    backgroundColor: Color = ColorWhite300,
-    content: @Composable () -> Unit,
-) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor,
-        ),
-        shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
-        ),
-    ) {
-        content()
+        if (imageUrl.isNullOrBlank()) {
+            Icon(
+                imageVector = Icons.Default.Person,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(size * 0.5f),
+                tint = ColorGray200,
+            )
+        } else {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = contentDescription,
+                modifier = Modifier
+                    .size(size - borderWidth * 2)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
 }

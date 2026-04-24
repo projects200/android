@@ -19,143 +19,99 @@ import com.project200.presentation.compose.components.button.PrimaryButton
 import com.project200.presentation.compose.components.button.SecondaryButton
 import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorWhite300
-import com.project200.presentation.compose.theme.mediumBold
-import com.project200.presentation.compose.theme.subtext14
+import com.project200.presentation.compose.theme.contentBold
 
+/** XML `dialog_base_alert` 기준 다이얼로그 버튼 높이 (XML 45dp). */
+private val DialogButtonHeight = 45.dp
+
+/**
+ * 제목 + 메시지 + 액션 버튼으로 구성된 공통 확인 다이얼로그.
+ *
+ * 기존 XML `dialog_base_alert` 비주얼을 그대로 이식 — 제목/메시지 모두 content_bold(15sp bold),
+ * 섹션 간 간격 32dp, 버튼 높이 45dp.
+ * [onCancel] 을 주면 취소/확인 두 버튼이 나란히 표시되고, null 이면 확인 버튼 하나만 전체 폭으로 표시된다.
+ * [isCancelable] = false 면 뒤로가기·바깥 탭으로 닫히지 않아 네트워크 오류 같은 블로킹 안내에 쓴다.
+ */
 @Composable
 fun UndabangAlertDialog(
     title: String,
     message: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     confirmText: String = "확인",
     cancelText: String = "취소",
-    onConfirm: () -> Unit,
     onCancel: (() -> Unit)? = null,
-    onDismiss: () -> Unit,
-    isCancelable: Boolean = true
+    isCancelable: Boolean = true,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(
             dismissOnBackPress = isCancelable,
-            dismissOnClickOutside = isCancelable
-        )
+            dismissOnClickOutside = isCancelable,
+        ),
     ) {
         Surface(
-            modifier = modifier
-                .fillMaxWidth(0.85f),
+            modifier = modifier.fillMaxWidth(0.85f),
             shape = MaterialTheme.shapes.large,
-            color = ColorWhite300
+            color = ColorWhite300,
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(32.dp),
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.mediumBold,
+                    style = MaterialTheme.typography.contentBold,
                     color = ColorBlack,
                     textAlign = TextAlign.Center,
                 )
 
                 Text(
                     text = message,
-                    style = MaterialTheme.typography.subtext14,
+                    style = MaterialTheme.typography.contentBold,
                     color = ColorBlack,
                     textAlign = TextAlign.Center,
                 )
 
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (onCancel != null) {
+                if (onCancel != null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
                         SecondaryButton(
                             text = cancelText,
-                            modifier = Modifier.weight(1f),
                             onClick = {
                                 onCancel()
                                 onDismiss()
                             },
-                            isCompact = true
+                            modifier = Modifier.weight(1f),
+                            height = DialogButtonHeight,
+                        )
+                        PrimaryButton(
+                            text = confirmText,
+                            onClick = {
+                                onConfirm()
+                                onDismiss()
+                            },
+                            modifier = Modifier.weight(1f),
+                            height = DialogButtonHeight,
                         )
                     }
-
+                } else {
                     PrimaryButton(
                         text = confirmText,
-                        modifier = Modifier.weight(1f),
                         onClick = {
                             onConfirm()
                             onDismiss()
                         },
-                        isCompact = true
+                        modifier = Modifier.fillMaxWidth(),
+                        height = DialogButtonHeight,
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-fun UndabangConfirmDialog(
-    title: String,
-    message: String,
-    modifier: Modifier = Modifier,
-    confirmText: String = "확인",
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    isCancelable: Boolean = true
-) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = isCancelable,
-            dismissOnClickOutside = isCancelable
-        )
-    ) {
-        Surface(
-            modifier = modifier
-                .fillMaxWidth(0.85f),
-            shape = MaterialTheme.shapes.large,
-            color = ColorWhite300
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.mediumBold,
-                    color = ColorBlack,
-                    textAlign = TextAlign.Center,
-                )
-
-                Text(
-                    text = message,
-                    style = MaterialTheme.typography.subtext14,
-                    color = ColorBlack,
-                    textAlign = TextAlign.Center,
-                )
-
-                PrimaryButton(
-                    text = confirmText,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 12.dp),
-                    onClick = {
-                        onConfirm()
-                        onDismiss()
-                    },
-                    isCompact = true
-                )
             }
         }
     }

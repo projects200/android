@@ -22,7 +22,7 @@ fun AlertDialogPreview() {
                 cancelText = "취소",
                 onConfirm = { showDialog = false },
                 onCancel = { showDialog = false },
-                onDismiss = { showDialog = false }
+                onDismiss = { showDialog = false },
             )
         }
     }
@@ -39,28 +39,8 @@ fun AlertDialogConfirmOnlyPreview() {
                 title = "완료",
                 message = "피드가 성공적으로 업로드되었습니다!",
                 confirmText = "확인",
-                cancelText = "",
                 onConfirm = { showDialog = false },
                 onDismiss = { showDialog = false },
-                isCancelable = true
-            )
-        }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 400, heightDp = 600)
-@Composable
-fun ConfirmDialogPreview() {
-    AppTheme {
-        var showDialog by remember { mutableStateOf(true) }
-
-        if (showDialog) {
-            UndabangConfirmDialog(
-                title = "완료",
-                message = "변경사항이 저장되었습니다.",
-                confirmText = "확인",
-                onConfirm = { showDialog = false },
-                onDismiss = { showDialog = false }
             )
         }
     }
@@ -79,7 +59,7 @@ fun AlertDialogNotCancelablePreview() {
                 confirmText = "확인",
                 onConfirm = { showDialog = false },
                 onDismiss = { showDialog = false },
-                isCancelable = false
+                isCancelable = false,
             )
         }
     }

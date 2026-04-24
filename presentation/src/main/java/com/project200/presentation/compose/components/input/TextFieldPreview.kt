@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -125,7 +126,7 @@ fun TextFieldNumericPreview() {
                 hint = "분",
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
-                keyboardType = KeyboardType.Number,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 maxLength = 2
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -135,7 +136,7 @@ fun TextFieldNumericPreview() {
                 hint = "초",
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
-                keyboardType = KeyboardType.Number,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 maxLength = 2
             )
         }

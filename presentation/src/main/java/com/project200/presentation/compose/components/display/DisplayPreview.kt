@@ -41,9 +41,9 @@ fun AvatarPreview() {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                UndabangPlaceholderAvatar(size = 32.dp)
-                UndabangPlaceholderAvatar(size = 48.dp)
-                UndabangPlaceholderAvatar(size = 64.dp)
+                UndabangAvatar(imageUrl = null, size = 32.dp)
+                UndabangAvatar(imageUrl = null, size = 48.dp)
+                UndabangAvatar(imageUrl = null, size = 64.dp)
             }
 
             Text("다양한 크기", fontWeight = FontWeight.Bold, fontSize = 14.sp)
@@ -189,7 +189,7 @@ fun DisplayComponentsGroupPreview() {
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                UndabangPlaceholderAvatar(size = 48.dp)
+                UndabangAvatar(imageUrl = null, size = 48.dp)
 
                 Column(
                     modifier = Modifier.weight(1f)

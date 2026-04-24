@@ -4,9 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -17,11 +21,20 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorWhite300
-import com.project200.presentation.compose.theme.mediumBold
+import com.project200.presentation.compose.theme.contentBold
 
+/**
+ * 화면 상단 앱바. 왼쪽 네비게이션 아이콘, 가운데 제목, 오른쪽 액션 슬롯 구조.
+ *
+ * 흰색 배경 + 검정 글자 + 중앙 정렬 제목 — 기존 XML `view_base_toolbar` 디자인을 그대로 옮긴 것.
+ * 액션 버튼은 [actions] 슬롯에 [IconButton] 등을 직접 넣어 원하는 개수만큼 배치한다.
+ * 홈/루트 화면처럼 뒤로가기가 필요 없으면 [navigationIconVisible] = false 로 자리만 남기고 숨긴다.
+ */
 @Composable
 fun UndabangTopBar(
     title: String,
@@ -29,75 +42,55 @@ fun UndabangTopBar(
     onNavigationClick: (() -> Unit)? = null,
     navigationIcon: ImageVector = Icons.AutoMirrored.Filled.ArrowBack,
     navigationIconVisible: Boolean = true,
-    actionIcon1: ImageVector? = null,
-    actionIcon1Description: String = "",
-    onAction1Click: (() -> Unit)? = null,
-    actionIcon2: ImageVector? = null,
-    actionIcon2Description: String = "",
-    onAction2Click: (() -> Unit)? = null,
-    actions: @Composable () -> Unit = {}
+    actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Row(
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .height(65.dp)
-            .background(color = MaterialTheme.colorScheme.primary)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .background(color = ColorWhite300),
     ) {
-        if (navigationIconVisible) {
-            IconButton(
-                onClick = { onNavigationClick?.invoke() },
-                modifier = Modifier.weight(0.1f)
-            ) {
-                Icon(
-                    imageVector = navigationIcon,
-                    contentDescription = "뒤로가기",
-                    tint = ColorWhite300
-                )
-            }
-        } else {
-            Box(modifier = Modifier.weight(0.1f))
-        }
-
         Text(
             text = title,
             modifier = Modifier
-                .weight(1f)
-                .padding(horizontal = 16.dp),
-            style = MaterialTheme.typography.mediumBold,
-            color = ColorWhite300,
+                .align(Alignment.Center)
+                .padding(horizontal = 64.dp),
+            style = MaterialTheme.typography.contentBold,
+            color = ColorBlack,
+            textAlign = TextAlign.Center,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
         )
 
         Row(
-            modifier = Modifier.weight(0.25f),
-            horizontalArrangement = Arrangement.End,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (actionIcon2 != null && onAction2Click != null) {
-                IconButton(onClick = onAction2Click) {
+            if (navigationIconVisible) {
+                IconButton(
+                    onClick = { onNavigationClick?.invoke() },
+                    modifier = Modifier.size(48.dp),
+                ) {
                     Icon(
-                        imageVector = actionIcon2,
-                        contentDescription = actionIcon2Description,
-                        tint = ColorWhite300,
+                        imageVector = navigationIcon,
+                        contentDescription = "뒤로가기",
+                        tint = ColorBlack,
                     )
                 }
+            } else {
+                Box(modifier = Modifier.size(48.dp))
             }
 
-            if (actionIcon1 != null && onAction1Click != null) {
-                IconButton(onClick = onAction1Click) {
-                    Icon(
-                        imageVector = actionIcon1,
-                        contentDescription = actionIcon1Description,
-                        tint = ColorWhite300,
-                    )
-                }
-            }
-
-            actions()
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .wrapContentWidth(align = Alignment.End),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
         }
     }
 }
