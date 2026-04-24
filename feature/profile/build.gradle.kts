@@ -10,6 +10,14 @@ android {
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
     }
+
+    buildFeatures {
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = libs.versions.composeCompiler.get()
+    }
 }
 
 dependencies {
@@ -17,6 +25,18 @@ dependencies {
     implementation(projects.common)
     implementation(projects.presentation)
     implementation(projects.core.oauth)
+
+    // Compose
+    implementation(platform(libs.compose.bom))
+    implementation(libs.compose.ui)
+    implementation(libs.compose.ui.graphics)
+    implementation(libs.compose.ui.tooling.preview)
+    implementation(libs.compose.foundation)
+    implementation(libs.compose.material3)
+    implementation(libs.activity.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
+    debugImplementation(libs.compose.ui.tooling)
 
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
