@@ -46,10 +46,11 @@ fun UndabangAlertDialog(
 ) {
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(
-            dismissOnBackPress = isCancelable,
-            dismissOnClickOutside = isCancelable,
-        ),
+        properties =
+            DialogProperties(
+                dismissOnBackPress = isCancelable,
+                dismissOnClickOutside = isCancelable,
+            ),
     ) {
         Surface(
             modifier = modifier.fillMaxWidth(0.85f),
@@ -57,9 +58,10 @@ fun UndabangAlertDialog(
             color = ColorWhite300,
         ) {
             Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(32.dp),
             ) {

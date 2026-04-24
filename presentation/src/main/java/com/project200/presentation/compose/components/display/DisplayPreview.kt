@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -28,18 +27,19 @@ import com.project200.presentation.compose.theme.ColorWhite300
 fun AvatarPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("프로필 아바타", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 UndabangAvatar(imageUrl = null, size = 32.dp)
                 UndabangAvatar(imageUrl = null, size = 48.dp)
@@ -56,54 +56,57 @@ fun AvatarPreview() {
 fun CardPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("카드 컴포넌트", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
             UndabangCard(
-                backgroundColor = ColorWhite300
+                backgroundColor = ColorWhite300,
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                 ) {
                     Text(
                         text = "운동 종류",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "헬스",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Color.Gray,
                     )
                 }
             }
 
             UndabangCard(
-                backgroundColor = ColorMain.copy(alpha = 0.1f)
+                backgroundColor = ColorMain.copy(alpha = 0.1f),
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
                 ) {
                     Text(
                         text = "점수",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "85점",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = ColorMain
+                        color = ColorMain,
                     )
                 }
             }
@@ -116,18 +119,19 @@ fun CardPreview() {
 fun BadgePreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("뱃지 컴포넌트", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 UndabangBadge(count = 1)
                 UndabangBadge(count = 5)
@@ -145,18 +149,19 @@ fun BadgePreview() {
 fun DotPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Text("도트 표시기", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 UndabangDot(size = 8.dp)
                 UndabangDot(size = 12.dp)
@@ -173,36 +178,38 @@ fun DotPreview() {
 fun DisplayComponentsGroupPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(ColorGray300)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .background(ColorGray300)
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text("Display 컴포넌트 조합", fontWeight = FontWeight.Bold, fontSize = 16.sp)
 
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(ColorWhite300, shape = androidx.compose.material3.MaterialTheme.shapes.medium)
-                    .padding(12.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .background(ColorWhite300, shape = androidx.compose.material3.MaterialTheme.shapes.medium)
+                        .padding(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 UndabangAvatar(imageUrl = null, size = 48.dp)
 
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
                 ) {
                     Text(
                         text = "사용자 이름",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp
+                        fontSize = 14.sp,
                     )
                     Text(
                         text = "최근 활동: 30분 전",
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = Color.Gray,
                     )
                 }
 

@@ -38,15 +38,16 @@ fun UndabangAvatar(
     contentDescription: String = "프로필 이미지",
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .clip(CircleShape)
-            .background(color = placeholderBackground, shape = CircleShape)
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = CircleShape,
-            ),
+        modifier =
+            modifier
+                .size(size)
+                .clip(CircleShape)
+                .background(color = placeholderBackground, shape = CircleShape)
+                .border(
+                    width = borderWidth,
+                    color = borderColor,
+                    shape = CircleShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         if (imageUrl.isNullOrBlank()) {
@@ -60,9 +61,10 @@ fun UndabangAvatar(
             AsyncImage(
                 model = imageUrl,
                 contentDescription = contentDescription,
-                modifier = Modifier
-                    .size(size - borderWidth * 2)
-                    .clip(CircleShape),
+                modifier =
+                    Modifier
+                        .size(size - borderWidth * 2)
+                        .clip(CircleShape),
                 contentScale = ContentScale.Crop,
             )
         }

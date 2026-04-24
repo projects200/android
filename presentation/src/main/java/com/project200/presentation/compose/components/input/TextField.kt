@@ -71,59 +71,64 @@ fun UndabangTextField(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val style = when (variant) {
-        TextFieldVariant.FilledSmall -> TextFieldStyle(
-            backgroundColor = ColorWhite100,
-            cornerRadius = 8.dp,
-            borderColor = null,
-            borderWidth = null,
-            padding = 12.dp,
-            minHeight = 48.dp,
-            hintColor = ColorGray200,
-        )
-        TextFieldVariant.FilledLarge -> TextFieldStyle(
-            backgroundColor = ColorWhite100,
-            cornerRadius = 8.dp,
-            borderColor = null,
-            borderWidth = null,
-            padding = 16.dp,
-            minHeight = 0.dp,
-            hintColor = ColorGray200,
-        )
-        TextFieldVariant.Outlined -> TextFieldStyle(
-            backgroundColor = ColorWhite100,
-            cornerRadius = 8.dp,
-            borderColor = if (isError) ColorErrorRed else ColorGray200,
-            borderWidth = 1.dp,
-            padding = 12.dp,
-            minHeight = 48.dp,
-            hintColor = ColorGray200,
-        )
-    }
+    val style =
+        when (variant) {
+            TextFieldVariant.FilledSmall ->
+                TextFieldStyle(
+                    backgroundColor = ColorWhite100,
+                    cornerRadius = 8.dp,
+                    borderColor = null,
+                    borderWidth = null,
+                    padding = 12.dp,
+                    minHeight = 48.dp,
+                    hintColor = ColorGray200,
+                )
+            TextFieldVariant.FilledLarge ->
+                TextFieldStyle(
+                    backgroundColor = ColorWhite100,
+                    cornerRadius = 8.dp,
+                    borderColor = null,
+                    borderWidth = null,
+                    padding = 16.dp,
+                    minHeight = 0.dp,
+                    hintColor = ColorGray200,
+                )
+            TextFieldVariant.Outlined ->
+                TextFieldStyle(
+                    backgroundColor = ColorWhite100,
+                    cornerRadius = 8.dp,
+                    borderColor = if (isError) ColorErrorRed else ColorGray200,
+                    borderWidth = 1.dp,
+                    padding = 12.dp,
+                    minHeight = 48.dp,
+                    hintColor = ColorGray200,
+                )
+        }
 
     Column(modifier = modifier) {
         Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .then(
-                    if (style.minHeight > 0.dp) Modifier.height(style.minHeight) else Modifier,
-                )
-                .background(
-                    color = if (enabled) style.backgroundColor else ColorGray300,
-                    shape = RoundedCornerShape(style.cornerRadius),
-                )
-                .then(
-                    if (style.borderColor != null && style.borderWidth != null) {
-                        Modifier.border(
-                            width = style.borderWidth,
-                            color = style.borderColor,
-                            shape = RoundedCornerShape(style.cornerRadius),
-                        )
-                    } else {
-                        Modifier
-                    },
-                )
-                .padding(style.padding),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .then(
+                        if (style.minHeight > 0.dp) Modifier.height(style.minHeight) else Modifier,
+                    )
+                    .background(
+                        color = if (enabled) style.backgroundColor else ColorGray300,
+                        shape = RoundedCornerShape(style.cornerRadius),
+                    )
+                    .then(
+                        if (style.borderColor != null && style.borderWidth != null) {
+                            Modifier.border(
+                                width = style.borderWidth,
+                                color = style.borderColor,
+                                shape = RoundedCornerShape(style.cornerRadius),
+                            )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .padding(style.padding),
             contentAlignment = Alignment.CenterStart,
         ) {
             BasicTextField(
@@ -132,20 +137,22 @@ fun UndabangTextField(
                     val next = if (maxLength != null) newValue.take(maxLength) else newValue
                     if (next != value) onValueChange(next)
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { focusState -> onFocusChange(focusState.isFocused) }
-                    .then(
-                        if (style.minHeight > 0.dp) Modifier else Modifier.defaultMinSize(minHeight = 56.dp),
-                    ),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState -> onFocusChange(focusState.isFocused) }
+                        .then(
+                            if (style.minHeight > 0.dp) Modifier else Modifier.defaultMinSize(minHeight = 56.dp),
+                        ),
                 singleLine = singleLine,
                 maxLines = maxLines,
                 minLines = minLines,
                 keyboardOptions = keyboardOptions,
-                textStyle = LocalTextStyle.current.copy(
-                    fontSize = 14.sp,
-                    color = if (enabled) ColorBlack else ColorGray200,
-                ),
+                textStyle =
+                    LocalTextStyle.current.copy(
+                        fontSize = 14.sp,
+                        color = if (enabled) ColorBlack else ColorGray200,
+                    ),
                 enabled = enabled && !readOnly,
                 readOnly = readOnly,
                 visualTransformation = visualTransformation,
@@ -168,9 +175,10 @@ fun UndabangTextField(
         if (supportingText.isNotEmpty()) {
             Text(
                 text = supportingText,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, start = style.padding, end = style.padding),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp, start = style.padding, end = style.padding),
                 color = if (isError) ColorErrorRed else ColorMain,
                 fontSize = 12.sp,
             )

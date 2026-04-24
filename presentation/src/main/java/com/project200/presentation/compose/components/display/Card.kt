@@ -23,13 +23,15 @@ fun UndabangCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = backgroundColor,
-        ),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = backgroundColor,
+            ),
         shape = MaterialTheme.shapes.medium,
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp,
-        ),
+        elevation =
+            CardDefaults.cardElevation(
+                defaultElevation = 4.dp,
+            ),
     ) {
         content()
     }

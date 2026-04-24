@@ -23,16 +23,17 @@ fun TextFieldFilledSmallPreview() {
     AppTheme {
         var value by remember { mutableStateOf("") }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             UndabangTextField(
                 value = value,
                 onValueChange = { value = it },
                 hint = "닉네임을 입력하세요",
                 variant = TextFieldVariant.FilledSmall,
-                singleLine = true
+                singleLine = true,
             )
             Spacer(modifier = Modifier.height(12.dp))
             UndabangTextField(
@@ -41,7 +42,7 @@ fun TextFieldFilledSmallPreview() {
                 hint = "닉네임을 입력하세요",
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -53,9 +54,10 @@ fun TextFieldFilledLargePreview() {
     AppTheme {
         var value by remember { mutableStateOf("") }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             UndabangTextField(
                 value = value,
@@ -63,7 +65,7 @@ fun TextFieldFilledLargePreview() {
                 hint = "긴 내용을 입력하세요",
                 variant = TextFieldVariant.FilledLarge,
                 singleLine = false,
-                maxLines = 5
+                maxLines = 5,
             )
             Spacer(modifier = Modifier.height(12.dp))
             UndabangTextField(
@@ -72,7 +74,7 @@ fun TextFieldFilledLargePreview() {
                 hint = "긴 내용을 입력하세요",
                 variant = TextFieldVariant.FilledLarge,
                 singleLine = false,
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -84,16 +86,17 @@ fun TextFieldOutlinedPreview() {
     AppTheme {
         var value by remember { mutableStateOf("") }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             UndabangTextField(
                 value = value,
                 onValueChange = { value = it },
                 hint = "장소명을 입력하세요",
                 variant = TextFieldVariant.Outlined,
-                singleLine = true
+                singleLine = true,
             )
             Spacer(modifier = Modifier.height(12.dp))
             UndabangTextField(
@@ -103,7 +106,7 @@ fun TextFieldOutlinedPreview() {
                 variant = TextFieldVariant.Outlined,
                 singleLine = true,
                 isError = true,
-                supportingText = "중복된 장소입니다"
+                supportingText = "중복된 장소입니다",
             )
         }
     }
@@ -116,9 +119,10 @@ fun TextFieldNumericPreview() {
         var minute by remember { mutableStateOf("10") }
         var second by remember { mutableStateOf("30") }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             UndabangTextField(
                 value = minute,
@@ -127,7 +131,7 @@ fun TextFieldNumericPreview() {
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                maxLength = 2
+                maxLength = 2,
             )
             Spacer(modifier = Modifier.height(12.dp))
             UndabangTextField(
@@ -137,7 +141,7 @@ fun TextFieldNumericPreview() {
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                maxLength = 2
+                maxLength = 2,
             )
         }
     }
@@ -149,9 +153,10 @@ fun TextFieldWithSupportingTextPreview() {
     AppTheme {
         var value by remember { mutableStateOf("undabang2024") }
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             UndabangTextField(
                 value = value,
@@ -159,7 +164,7 @@ fun TextFieldWithSupportingTextPreview() {
                 hint = "닉네임",
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
-                supportingText = "사용 가능한 닉네임입니다"
+                supportingText = "사용 가능한 닉네임입니다",
             )
             Spacer(modifier = Modifier.height(16.dp))
             UndabangTextField(
@@ -169,7 +174,7 @@ fun TextFieldWithSupportingTextPreview() {
                 variant = TextFieldVariant.FilledSmall,
                 singleLine = true,
                 isError = true,
-                supportingText = "이미 사용 중인 닉네임입니다"
+                supportingText = "이미 사용 중인 닉네임입니다",
             )
         }
     }

@@ -29,12 +29,13 @@ fun UndabangBadge(
     size: Dp = 24.dp,
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .background(
-                color = backgroundColor,
-                shape = CircleShape,
-            ),
+        modifier =
+            modifier
+                .size(size)
+                .background(
+                    color = backgroundColor,
+                    shape = CircleShape,
+                ),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -58,11 +59,12 @@ fun UndabangDot(
     size: Dp = 12.dp,
 ) {
     Box(
-        modifier = modifier
-            .size(size)
-            .background(
-                color = color,
-                shape = CircleShape,
-            ),
+        modifier =
+            modifier
+                .size(size)
+                .background(
+                    color = color,
+                    shape = CircleShape,
+                ),
     )
 }

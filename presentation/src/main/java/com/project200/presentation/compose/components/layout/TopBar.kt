@@ -45,16 +45,18 @@ fun UndabangTopBar(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(65.dp)
-            .background(color = ColorWhite300),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(65.dp)
+                .background(color = ColorWhite300),
     ) {
         Text(
             text = title,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 64.dp),
+            modifier =
+                Modifier
+                    .align(Alignment.Center)
+                    .padding(horizontal = 64.dp),
             style = MaterialTheme.typography.contentBold,
             color = ColorBlack,
             textAlign = TextAlign.Center,
@@ -63,9 +65,10 @@ fun UndabangTopBar(
         )
 
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 4.dp),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (navigationIconVisible) {
@@ -84,9 +87,10 @@ fun UndabangTopBar(
             }
 
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .wrapContentWidth(align = Alignment.End),
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .wrapContentWidth(align = Alignment.End),
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
                 content = actions,

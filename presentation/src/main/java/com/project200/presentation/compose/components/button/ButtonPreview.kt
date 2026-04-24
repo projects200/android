@@ -16,19 +16,20 @@ import com.project200.presentation.compose.theme.AppTheme
 fun PrimaryButtonPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             PrimaryButton(
                 text = "완료",
-                onClick = {}
+                onClick = {},
             )
             Spacer(modifier = Modifier.height(12.dp))
             PrimaryButton(
                 text = "완료",
                 onClick = {},
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -39,21 +40,22 @@ fun PrimaryButtonPreview() {
 fun PrimaryButtonCompactPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             PrimaryButton(
                 text = "완료",
                 onClick = {},
-                isCompact = true
+                isCompact = true,
             )
             Spacer(modifier = Modifier.height(12.dp))
             PrimaryButton(
                 text = "완료",
                 onClick = {},
                 isCompact = true,
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -64,19 +66,20 @@ fun PrimaryButtonCompactPreview() {
 fun SecondaryButtonPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             SecondaryButton(
                 text = "취소",
-                onClick = {}
+                onClick = {},
             )
             Spacer(modifier = Modifier.height(12.dp))
             SecondaryButton(
                 text = "취소",
                 onClick = {},
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -87,19 +90,20 @@ fun SecondaryButtonPreview() {
 fun TextButtonPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             TextButton(
                 text = "중복 확인",
-                onClick = {}
+                onClick = {},
             )
             Spacer(modifier = Modifier.height(12.dp))
             TextButton(
                 text = "중복 확인",
                 onClick = {},
-                enabled = false
+                enabled = false,
             )
         }
     }
@@ -110,9 +114,10 @@ fun TextButtonPreview() {
 fun ButtonGroupPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
         ) {
             PrimaryButton(text = "확인", onClick = {})
             Spacer(modifier = Modifier.height(8.dp))

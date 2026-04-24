@@ -26,15 +26,16 @@ import androidx.compose.ui.unit.sp
 fun ColorPalettePreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = "컬러 팔레트",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
             )
 
             ColorRow("Main Color", ColorMain)
@@ -52,7 +53,7 @@ fun ColorPalettePreview() {
             Text(
                 text = "점수 레벨",
                 fontWeight = FontWeight.Bold,
-                fontSize = 16.sp
+                fontSize = 16.sp,
             )
             ColorRow("High Level", ColorScoreHighLevel)
             ColorRow("Middle Level", ColorScoreMiddleLevel)
@@ -62,27 +63,31 @@ fun ColorPalettePreview() {
 }
 
 @Composable
-private fun ColorRow(label: String, color: Color) {
+private fun ColorRow(
+    label: String,
+    color: Color,
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                color = color,
-                shape = RoundedCornerShape(8.dp)
-            )
-            .padding(12.dp),
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .background(
+                    color = color,
+                    shape = RoundedCornerShape(8.dp),
+                )
+                .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(
             text = label,
             color = Color.White,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
         )
         Text(
             text = "#${color.toArgb().toUInt().toString(16).uppercase().takeLast(6)}",
             color = Color.White,
-            fontSize = 12.sp
+            fontSize = 12.sp,
         )
     }
 }
@@ -92,45 +97,46 @@ private fun ColorRow(label: String, color: Color) {
 fun TypographyPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
                 text = "타이포그래피",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
             )
 
             Text(
                 text = "Display Large (22sp, Bold)",
-                style = AppTypography.displayLarge
+                style = AppTypography.displayLarge,
             )
 
             Text(
                 text = "Display Medium (18sp, Bold)",
-                style = AppTypography.displayMedium
+                style = AppTypography.displayMedium,
             )
 
             Text(
                 text = "Body Large (15sp, Normal)",
-                style = AppTypography.bodyLarge
+                style = AppTypography.bodyLarge,
             )
 
             Text(
                 text = "Body Medium (14sp, Normal)",
-                style = AppTypography.bodyMedium
+                style = AppTypography.bodyMedium,
             )
 
             Text(
                 text = "Body Small (12sp, Normal)",
-                style = AppTypography.bodySmall
+                style = AppTypography.bodySmall,
             )
 
             Text(
                 text = "Label Large (15sp, SemiBold)",
-                style = AppTypography.labelLarge
+                style = AppTypography.labelLarge,
             )
         }
     }
@@ -141,29 +147,31 @@ fun TypographyPreview() {
 fun ShapesPreview() {
     AppTheme {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
                 text = "쉐이프/코너",
                 fontWeight = FontWeight.Bold,
-                fontSize = 18.sp
+                fontSize = 18.sp,
             )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            color = ColorMain,
-                            shape = AppShapes.small
-                        )
+                    modifier =
+                        Modifier
+                            .size(60.dp)
+                            .background(
+                                color = ColorMain,
+                                shape = AppShapes.small,
+                            ),
                 )
                 Text("Small (5dp)")
             }
@@ -171,15 +179,16 @@ fun ShapesPreview() {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            color = ColorMain,
-                            shape = AppShapes.medium
-                        )
+                    modifier =
+                        Modifier
+                            .size(60.dp)
+                            .background(
+                                color = ColorMain,
+                                shape = AppShapes.medium,
+                            ),
                 )
                 Text("Medium (8dp)")
             }
@@ -187,15 +196,16 @@ fun ShapesPreview() {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            color = ColorMain,
-                            shape = AppShapes.large
-                        )
+                    modifier =
+                        Modifier
+                            .size(60.dp)
+                            .background(
+                                color = ColorMain,
+                                shape = AppShapes.large,
+                            ),
                 )
                 Text("Large (12dp)")
             }
@@ -203,15 +213,16 @@ fun ShapesPreview() {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .background(
-                            color = ColorMain,
-                            shape = AppShapes.extraLarge
-                        )
+                    modifier =
+                        Modifier
+                            .size(60.dp)
+                            .background(
+                                color = ColorMain,
+                                shape = AppShapes.extraLarge,
+                            ),
                 )
                 Text("ExtraLarge (16dp)")
             }

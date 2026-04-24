@@ -35,12 +35,13 @@ fun PrimaryButton(
     Button(
         onClick = onClick,
         modifier = modifier.height(height),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-            disabledContainerColor = ColorGray200,
-            disabledContentColor = ColorWhite300,
-        ),
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                disabledContainerColor = ColorGray200,
+                disabledContentColor = ColorWhite300,
+            ),
         shape = MaterialTheme.shapes.large,
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = if (isCompact) 8.dp else 12.dp),
@@ -70,12 +71,13 @@ fun SecondaryButton(
     Button(
         onClick = onClick,
         modifier = modifier.height(height),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = ColorGray300,
-            contentColor = ColorWhite300,
-            disabledContainerColor = ColorGray200,
-            disabledContentColor = ColorWhite300,
-        ),
+        colors =
+            ButtonDefaults.buttonColors(
+                containerColor = ColorGray300,
+                contentColor = ColorWhite300,
+                disabledContainerColor = ColorGray200,
+                disabledContentColor = ColorWhite300,
+            ),
         shape = MaterialTheme.shapes.large,
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = if (isCompact) 8.dp else 12.dp),
@@ -104,11 +106,12 @@ fun TextButton(
     OutlinedButton(
         onClick = onClick,
         modifier = modifier.height(if (isCompact) 32.dp else 48.dp),
-        colors = ButtonDefaults.outlinedButtonColors(
-            containerColor = ColorWhite100,
-            contentColor = MaterialTheme.colorScheme.primary,
-            disabledContentColor = ColorGray200,
-        ),
+        colors =
+            ButtonDefaults.outlinedButtonColors(
+                containerColor = ColorWhite100,
+                contentColor = MaterialTheme.colorScheme.primary,
+                disabledContentColor = ColorGray200,
+            ),
         shape = MaterialTheme.shapes.small,
         enabled = enabled,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = if (isCompact) 4.dp else 8.dp),
