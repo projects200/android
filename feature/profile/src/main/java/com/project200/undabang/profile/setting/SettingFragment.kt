@@ -2,21 +2,24 @@ package com.project200.undabang.profile.setting
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.ComposeView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.project200.presentation.base.BaseAlertDialog
-import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.terms.TermsDialogFragment
 import com.project200.presentation.terms.TermsDialogFragment.Companion.PRIVACY
 import com.project200.presentation.terms.TermsDialogFragment.Companion.TERMS
 import com.project200.undabang.feature.profile.R
-import com.project200.undabang.feature.profile.databinding.FragmentSettingBinding
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.LogoutResultCallback
 import dagger.hilt.android.AndroidEntryPoint
@@ -26,18 +29,13 @@ import timber.log.Timber
 import javax.inject.Inject
 
 @AndroidEntryPoint
-class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragment_setting) {
-    override fun getViewBinding(view: View): FragmentSettingBinding {
-        return FragmentSettingBinding.bind(view)
-    }
-
+class SettingFragment : Fragment() {
     @Inject lateinit var appNavigator: ActivityNavigator
 
     @Inject lateinit var authManager: AuthManager
     private lateinit var authService: AuthorizationService
     private val viewModel: SettingViewModel by viewModels()
 
-    // Cognito 로그아웃 페이지를 열기 위한 ActivityResultLauncher
     private val logoutPageLauncher: ActivityResultLauncher<Intent> =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             Timber.d("로그아웃: ${result.resultCode}")
@@ -49,34 +47,54 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
         authService = AuthorizationService(requireContext())
     }
 
-    override fun setupViews() =
-        with(binding) {
-            versionInfoTv.text = requireActivity().packageManager.getPackageInfo(requireContext().packageName, 0).versionName
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View {
+        val versionName =
+            requireActivity().packageManager
+                .getPackageInfo(requireContext().packageName, 0)
+                .versionName
+                .orEmpty()
 
-            backBtnIv.setOnClickListener { findNavController().popBackStack() }
-            logoutLl.setOnClickListener {
-                BaseAlertDialog(getString(R.string.alert_logout), null) {
-                    performLogout()
-                }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
-            }
-            blockMembersLl.setOnClickListener {
-                findNavController().navigate(R.id.action_settingFragment_to_blockMembersFragment)
-            }
-            withdrawLl.setOnClickListener { // 회원탈퇴 웹 페이지로 이동
-                appNavigator.navigateToWeb(requireContext(), getString(R.string.withdraw_url))
-            }
-            customerServiceLl.setOnClickListener { // 고객센터 웹 페이지로 이동
-                appNavigator.navigateToWeb(requireContext(), getString(R.string.customer_service_url))
-            }
-            termsLl.setOnClickListener { showTermsDialog(TERMS) }
-            privacyLl.setOnClickListener { showTermsDialog(PRIVACY) }
-            notificationLl.setOnClickListener {
-                findNavController().navigate(R.id.action_settingFragment_to_notificationFragment)
+        return ComposeView(requireContext()).apply {
+            applyAppTheme {
+                SettingScreen(
+                    versionName = versionName,
+                    onNavigateBack = { findNavController().popBackStack() },
+                    onCustomerServiceClick = {
+                        appNavigator.navigateToWeb(
+                            requireContext(),
+                            getString(R.string.customer_service_url),
+                        )
+                    },
+                    onLogoutClick = {
+                        BaseAlertDialog(getString(R.string.alert_logout), null) {
+                            performLogout()
+                        }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+                    },
+                    onWithdrawClick = {
+                        appNavigator.navigateToWeb(
+                            requireContext(),
+                            getString(R.string.withdraw_url),
+                        )
+                    },
+                    onBlockMembersClick = {
+                        findNavController().navigate(R.id.action_settingFragment_to_blockMembersFragment)
+                    },
+                    onTermsClick = { showTermsDialog(TERMS) },
+                    onPrivacyClick = { showTermsDialog(PRIVACY) },
+                    onNotificationClick = {
+                        findNavController().navigate(R.id.action_settingFragment_to_notificationFragment)
+                    },
+                )
             }
         }
+    }
 
     private fun performLogout() {
-        viewLifecycleOwner.lifecycleScope.launch { // Fragment의 viewLifecycleOwner 사용
+        viewLifecycleOwner.lifecycleScope.launch {
             try {
                 viewModel.logout()
             } catch (e: Exception) {
@@ -97,7 +115,6 @@ class SettingFragment : BindingFragment<FragmentSettingBinding>(R.layout.fragmen
                     override fun onLogoutProcessError(exception: Exception) {
                         Timber.e(exception, "로그아웃 에러: ${exception.message}")
                         Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
-                        // 오류 발생 시에도 로컬 상태는 AuthManager에서 정리 시도됨. 로그인 화면으로 이동.
                         appNavigator.navigateToLogin(requireContext())
                     }
                 },
