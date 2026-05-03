@@ -22,6 +22,7 @@ import com.project200.feature.exercise.detail.ExerciseDetailFragment
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.ImageUtils.compressImage
 import com.project200.presentation.utils.ImageValidator
 import com.project200.presentation.utils.ImageValidator.FAIL_TO_READ
@@ -31,7 +32,6 @@ import com.project200.presentation.utils.KeyboardAdjustHelper.applyEdgeToEdgeIns
 import com.project200.presentation.utils.TimeEditTextLimiter.addRangeLimit
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.presentation.utils.UiUtils.getScreenWidthPx
-import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseFormBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -142,7 +142,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 return@setOnClickListener
             }
 
-            SelectionBottomSheetDialog(items, binding.recordTypeSelectBtn.text.toString()) { selectedType ->
+            UndabangBottomSheet.showSelection(
+                fragmentManager = parentFragmentManager,
+                items = items,
+                selectedItem = binding.recordTypeSelectBtn.text.toString(),
+            ) { selectedType ->
                 if (selectedType == ExerciseFormViewModel.DIRECT_INPUT) {
                     // 직접 입력 선택
                     binding.recordTypeSelectBtn.setText(R.string.exercise_record_type_direct)
@@ -155,7 +159,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                     binding.recordTypeSelectBtn.setText(selectedType)
                     binding.recordTypeEt.visibility = View.GONE
                 }
-            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+            }
         }
 
         // 시간/날짜 버튼 클릭 리스너 설정
@@ -192,7 +196,11 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 return@setOnClickListener
             }
 
-            SelectionBottomSheetDialog(items, binding.recordLocationSelectBtn.text.toString()) { selectedLocation ->
+            UndabangBottomSheet.showSelection(
+                fragmentManager = parentFragmentManager,
+                items = items,
+                selectedItem = binding.recordLocationSelectBtn.text.toString(),
+            ) { selectedLocation ->
                 if (selectedLocation == ExerciseFormViewModel.DIRECT_INPUT) {
                     // 직접 입력 선택
                     findNavController().navigate(
@@ -201,7 +209,7 @@ class ExerciseFormFragment : BindingFragment<FragmentExerciseFormBinding>(R.layo
                 } else {
                     binding.recordLocationSelectBtn.setText(selectedLocation)
                 }
-            }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+            }
         }
 
         // 기록 완료 버튼
