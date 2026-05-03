@@ -10,8 +10,8 @@ import androidx.navigation.fragment.navArgs
 import com.bumptech.glide.Glide
 import com.project200.domain.model.PreferredExercise
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.collectToast
-import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedFormBinding
 import com.project200.undabang.feature.feed.list.FeedListFragment
@@ -90,12 +90,15 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
     private fun displayDabangSelection(types: List<PreferredExercise>) {
         val names = types.map { it.name }
 
-        SelectionBottomSheetDialog(names) { selectedName ->
+        UndabangBottomSheet.showSelection(
+            fragmentManager = parentFragmentManager,
+            items = names,
+        ) { selectedName ->
             val selected = types.find { it.name == selectedName }
             viewModel.selectType(selected)
             binding.dabangSelectionTv.text = selectedName
             binding.dabangSelectionTv.setTextColor(resources.getColor(com.project200.undabang.presentation.R.color.black, null))
-        }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
         viewModel.onDabangSelectionShown()
     }
 

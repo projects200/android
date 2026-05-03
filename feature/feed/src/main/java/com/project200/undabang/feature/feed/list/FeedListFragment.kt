@@ -8,8 +8,8 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.ExerciseType
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.collectToast
-import com.project200.presentation.view.SelectionBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedListBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -77,10 +77,13 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
 
     private fun displayCategoryBottomSheet(exerciseTypes: List<ExerciseType>) {
         val names = exerciseTypes.map { it.name }
-        SelectionBottomSheetDialog(names) { selectedName ->
+        UndabangBottomSheet.showSelection(
+            fragmentManager = parentFragmentManager,
+            items = names,
+        ) { selectedName ->
             val selectedType = exerciseTypes.find { it.name == selectedName }
             viewModel.selectType(selectedType)
-        }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
+        }
         viewModel.onCategoryBottomSheetShown()
     }
 
