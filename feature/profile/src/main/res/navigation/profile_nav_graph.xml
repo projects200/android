@@ -56,8 +56,7 @@
     <fragment
         android:id="@+id/notificationFragment"
         android:name="com.project200.undabang.profile.setting.NotificationFragment"
-        android:label="notification"
-        tools:layout="@layout/fragment_notification" />
+        android:label="notification" />
 
     <fragment
         android:id="@+id/profileEditFragment"
