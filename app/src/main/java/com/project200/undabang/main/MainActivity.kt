@@ -250,7 +250,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
     private fun showUpdateDialog(isForceUpdate: Boolean) {
         if (supportFragmentManager.findFragmentByTag(UpdateDialogFragment::class.java.simpleName) == null) {
-            val dialog = UpdateDialogFragment(isForceUpdate)
+            val dialog = UpdateDialogFragment.newInstance(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
         }
     }

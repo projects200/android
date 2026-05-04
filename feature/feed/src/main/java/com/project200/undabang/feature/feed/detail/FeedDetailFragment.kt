@@ -10,10 +10,10 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.bumptech.glide.Glide
 import com.project200.domain.model.Feed
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.presentation.utils.collectFlow
 import com.project200.presentation.utils.collectToast
-import com.project200.presentation.view.MenuBottomSheetDialog
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.feature.feed.databinding.FragmentFeedDetailBinding
 import com.project200.undabang.feature.feed.form.FeedFormFragment
@@ -173,12 +173,13 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
     }
 
     private fun showCommentMenuBottomSheet(item: CommentItem) {
-        MenuBottomSheetDialog(
-            onDeleteClicked = {
+        UndabangBottomSheet.showMenu(
+            fragmentManager = parentFragmentManager,
+            showEdit = false,
+            onDeleteClick = {
                 viewModel.deleteComment(item.commentId)
             },
-            showEditButton = false,
-        ).show(parentFragmentManager, "CommentMenu")
+        )
     }
 
     private fun bindFeedData(feed: Feed) {
@@ -235,14 +236,11 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
     }
 
     private fun showMenuBottomSheet() {
-        MenuBottomSheetDialog(
-            onEditClicked = {
-                navigateToEditFeed()
-            },
-            onDeleteClicked = {
-                viewModel.deleteFeed()
-            },
-        ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
+        UndabangBottomSheet.showMenu(
+            fragmentManager = parentFragmentManager,
+            onEditClick = { navigateToEditFeed() },
+            onDeleteClick = { viewModel.deleteFeed() },
+        )
     }
 
     private fun navigateToEditFeed() {

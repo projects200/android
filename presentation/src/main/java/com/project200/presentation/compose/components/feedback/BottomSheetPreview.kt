@@ -29,3 +29,28 @@ fun SelectionBottomSheetContentNoSelectionPreview() {
         )
     }
 }
+
+@Preview(showBackground = true, widthDp = 400)
+@Composable
+fun MenuBottomSheetContentPreview() {
+    AppTheme {
+        MenuBottomSheetContent(
+            showEdit = true,
+            onEditClick = {},
+            onDeleteClick = {},
+            onClose = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 400)
+@Composable
+fun MenuBottomSheetContentDeleteOnlyPreview() {
+    AppTheme {
+        MenuBottomSheetContent(
+            showEdit = false,
+            onDeleteClick = {},
+            onClose = {},
+        )
+    }
+}

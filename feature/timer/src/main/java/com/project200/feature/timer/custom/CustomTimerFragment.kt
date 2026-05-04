@@ -19,7 +19,7 @@ import com.project200.feature.timer.custom.adapter.StepRVAdapter
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.view.MenuBottomSheetDialog
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -201,16 +201,17 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
     }
 
     private fun showMenu() {
-        MenuBottomSheetDialog(
-            onEditClicked = {
+        UndabangBottomSheet.showMenu(
+            fragmentManager = parentFragmentManager,
+            onEditClick = {
                 findNavController().navigate(
                     CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
                         args.customTimerId,
                     ),
                 )
             },
-            onDeleteClicked = { showDeleteConfirmationDialog() },
-        ).show(parentFragmentManager, MenuBottomSheetDialog::class.java.simpleName)
+            onDeleteClick = { showDeleteConfirmationDialog() },
+        )
     }
 
     private fun showDeleteConfirmationDialog() {
