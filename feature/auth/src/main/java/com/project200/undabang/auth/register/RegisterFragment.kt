@@ -40,14 +40,13 @@ class RegisterFragment : BindingFragment<FragmentRegisterBinding>(R.layout.fragm
             }
 
             birthDayTv.setOnClickListener {
-                val datePicker =
-                    DatePickerDialogFragment(
-                        initialDateString = viewModel.birth.value,
-                        maxDate = clockProvider.now().minusDays(1),
-                    ) { selectedDate ->
-                        viewModel.updateBirth(selectedDate)
-                    }
-                datePicker.show(parentFragmentManager, DatePickerDialogFragment::class.java.simpleName)
+                DatePickerDialogFragment.show(
+                    fragmentManager = parentFragmentManager,
+                    initialDateString = viewModel.birth.value,
+                    maxDate = clockProvider.now().minusDays(1),
+                ) { selectedDate ->
+                    viewModel.updateBirth(selectedDate)
+                }
             }
 
             genderMaleLl.setOnClickListener {
