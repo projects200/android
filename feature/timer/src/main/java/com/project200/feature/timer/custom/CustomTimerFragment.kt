@@ -17,8 +17,8 @@ import com.project200.feature.timer.TimerListFragment
 import com.project200.feature.timer.custom.adapter.StepItemDecoration
 import com.project200.feature.timer.custom.adapter.StepRVAdapter
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
-import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangAlertDialogFragment
 import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.undabang.feature.timer.R
 import com.project200.undabang.feature.timer.databinding.FragmentCustomTimerBinding
@@ -215,13 +215,12 @@ class CustomTimerFragment : BindingFragment<FragmentCustomTimerBinding>(R.layout
     }
 
     private fun showDeleteConfirmationDialog() {
-        BaseAlertDialog(
+        UndabangAlertDialogFragment.show(
+            fragmentManager = parentFragmentManager,
             title = getString(R.string.custom_timer_delete_alert),
-            desc = null,
-            onConfirmClicked = {
-                viewModel.deleteTimer()
-            },
-        ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+            onCancel = {},
+            onConfirm = { viewModel.deleteTimer() },
+        )
     }
 
     companion object {
