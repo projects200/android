@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,11 +24,13 @@ import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.compose.theme.ColorBlack
+import com.project200.presentation.compose.theme.ColorErrorRed
 import com.project200.presentation.compose.theme.ColorGray300
 import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.contentRegular
@@ -36,7 +39,7 @@ import com.project200.undabang.presentation.R
 /**
  * Compose 콘텐츠를 담는 공용 BottomSheetDialogFragment.
  *
- * 구체 콘텐츠는 [setContent] 또는 companion 팩토리(예: [showSelection])로 주입한다.
+ * 구체 콘텐츠는 [setContent] 또는 companion 팩토리(예: [showSelection], [showMenu])로 주입한다.
  * 호출 측은 직접 인스턴스를 만들기보다 팩토리를 사용하는 편이 안전하다.
  */
 class UndabangBottomSheet : BottomSheetDialogFragment() {
@@ -81,6 +84,35 @@ class UndabangBottomSheet : BottomSheetDialogFragment() {
                     selectedItem = selectedItem,
                     onItemSelected = {
                         onItemSelected(it)
+                        onDismiss()
+                    },
+                    onClose = onDismiss,
+                )
+            }
+            sheet.show(fragmentManager, UndabangBottomSheet::class.java.name)
+        }
+
+        /**
+         * 수정 / 삭제 메뉴 BottomSheet 표시.
+         *
+         * 기존 `MenuBottomSheetDialog` 의 대체. [showEdit] = false 면 수정 항목 숨김.
+         */
+        fun showMenu(
+            fragmentManager: FragmentManager,
+            showEdit: Boolean = true,
+            onEditClick: () -> Unit = {},
+            onDeleteClick: () -> Unit,
+        ) {
+            val sheet = UndabangBottomSheet()
+            sheet.setContent { onDismiss ->
+                MenuBottomSheetContent(
+                    showEdit = showEdit,
+                    onEditClick = {
+                        onEditClick()
+                        onDismiss()
+                    },
+                    onDeleteClick = {
+                        onDeleteClick()
                         onDismiss()
                     },
                     onClose = onDismiss,
@@ -147,6 +179,84 @@ fun SelectionBottomSheetContent(
             textAlign = TextAlign.Center,
             style = MaterialTheme.typography.contentBold,
             color = ColorBlack,
+        )
+    }
+}
+
+/**
+ * 수정 / 삭제 + 닫기 버튼 형태의 BottomSheet 콘텐츠.
+ *
+ * 기존 XML `bottom_sheet_dialog_menu` 디자인 그대로 이식. [showEdit] 으로 수정 항목 노출 제어.
+ */
+@Composable
+fun MenuBottomSheetContent(
+    showEdit: Boolean = true,
+    onEditClick: () -> Unit = {},
+    onDeleteClick: () -> Unit,
+    onClose: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        if (showEdit) {
+            MenuRow(
+                iconRes = R.drawable.ic_edit,
+                text = stringResource(R.string.bottom_sheet_edit),
+                textColor = ColorBlack,
+                paddingTop = 20.dp,
+                paddingBottom = 15.dp,
+                onClick = onEditClick,
+            )
+        }
+        MenuRow(
+            iconRes = R.drawable.ic_trash,
+            text = stringResource(R.string.bottom_sheet_delete),
+            textColor = ColorErrorRed,
+            paddingTop = 15.dp,
+            paddingBottom = 20.dp,
+            onClick = onDeleteClick,
+        )
+        HorizontalDivider(color = ColorGray300, thickness = 1.dp)
+        Text(
+            text = stringResource(R.string.close),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .clickable { onClose() }
+                    .padding(vertical = 20.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.contentBold,
+            color = ColorBlack,
+        )
+    }
+}
+
+@Composable
+private fun MenuRow(
+    @DrawableRes iconRes: Int,
+    text: String,
+    textColor: Color,
+    paddingTop: Dp,
+    paddingBottom: Dp,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable { onClick() }
+                .padding(start = 20.dp, top = paddingTop, bottom = paddingBottom),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = Color.Unspecified,
+            modifier = Modifier.size(24.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.contentRegular,
+            color = textColor,
         )
     }
 }
