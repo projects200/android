@@ -64,6 +64,6 @@ class TermsFragment : BindingFragment<FragmentTermsBinding>(R.layout.fragment_te
     }
 
     private fun showTermsDialog(termsType: String) {
-        TermsDialogFragment(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
+        TermsDialogFragment.newInstance(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
     }
 }

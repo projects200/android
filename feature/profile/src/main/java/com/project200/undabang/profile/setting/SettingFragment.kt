@@ -13,8 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
-import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.compose.applyAppTheme
+import com.project200.presentation.compose.components.feedback.UndabangAlertDialogFragment
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.terms.TermsDialogFragment
 import com.project200.presentation.terms.TermsDialogFragment.Companion.PRIVACY
@@ -70,9 +70,12 @@ class SettingFragment : Fragment() {
                         )
                     },
                     onLogoutClick = {
-                        BaseAlertDialog(getString(R.string.alert_logout), null) {
-                            performLogout()
-                        }.show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+                        UndabangAlertDialogFragment.show(
+                            fragmentManager = parentFragmentManager,
+                            title = getString(R.string.alert_logout),
+                            onCancel = {},
+                            onConfirm = { performLogout() },
+                        )
                     },
                     onWithdrawClick = {
                         appNavigator.navigateToWeb(
@@ -123,7 +126,7 @@ class SettingFragment : Fragment() {
     }
 
     private fun showTermsDialog(termsType: String) {
-        TermsDialogFragment(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
+        TermsDialogFragment.newInstance(termsType).show(parentFragmentManager, TermsDialogFragment::class.java.simpleName)
     }
 
     override fun onDestroy() {

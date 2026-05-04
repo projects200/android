@@ -12,8 +12,8 @@ import androidx.navigation.fragment.navArgs
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
-import com.project200.presentation.base.BaseAlertDialog
 import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.components.feedback.UndabangAlertDialogFragment
 import com.project200.presentation.utils.UiState
 import com.project200.presentation.utils.mapFailureToString
 import com.project200.undabang.feature.exercise.R
@@ -161,13 +161,12 @@ class ExerciseDetailFragment : BindingFragment<FragmentExerciseDetailBinding>(R.
     }
 
     private fun showDeleteConfirmationDialog() {
-        BaseAlertDialog(
+        UndabangAlertDialogFragment.show(
+            fragmentManager = parentFragmentManager,
             title = getString(R.string.exercise_record_delete_alert),
-            desc = null,
-            onConfirmClicked = {
-                viewModel.deleteExerciseRecord(args.recordId)
-            },
-        ).show(parentFragmentManager, BaseAlertDialog::class.java.simpleName)
+            onCancel = {},
+            onConfirm = { viewModel.deleteExerciseRecord(args.recordId) },
+        )
     }
 
     companion object {
