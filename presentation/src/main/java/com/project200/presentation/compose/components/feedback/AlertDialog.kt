@@ -21,16 +21,13 @@ import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 
-/** XML `dialog_base_alert` 기준 다이얼로그 버튼 높이 (XML 45dp). */
+/** 다이얼로그 버튼 높이 (XML dialog_base_alert 기준 45dp) */
 private val DialogButtonHeight = 45.dp
 
 /**
- * 제목 + 메시지 + 액션 버튼으로 구성된 공통 확인 다이얼로그 (Compose `Dialog` 기반).
- *
- * Compose 화면에서 직접 띄우는 경우에 사용. Fragment 컨텍스트에서는 [UndabangAlertDialogFragment] 활용.
- *
- * [onCancel] 을 주면 취소/확인 두 버튼이 나란히 표시되고, null 이면 확인 버튼 하나만 전체 폭으로 표시된다.
- * [isCancelable] = false 면 뒤로가기·바깥 탭으로 닫히지 않아 네트워크 오류 같은 블로킹 안내에 쓴다.
+ * 공통 확인 다이얼로그 (Compose Dialog 기반)
+ * Compose 화면에서 직접 띄울 때 사용하고, Fragment 컨텍스트에서는 UndabangAlertDialogFragment를 사용합니다
+ * onCancel이 null이면 확인 버튼만 전체 폭으로 표시됩니다
  */
 @Composable
 fun UndabangAlertDialog(
@@ -74,13 +71,9 @@ fun UndabangAlertDialog(
 }
 
 /**
- * 제목 + 메시지 + 액션 버튼 콘텐츠 (Dialog 래핑 없음).
- *
- * 기존 XML `dialog_base_alert` 비주얼 그대로 — 제목/메시지 모두 content_bold(15sp bold),
- * 섹션 간 간격 32dp, 버튼 높이 45dp. [message] 가 빈 문자열이면 메시지 영역을 그리지 않는다.
- *
- * Compose `Dialog` 가 아닌 다른 호스트 (예: [UndabangAlertDialogFragment] 의 ComposeView) 에서
- * 다이얼로그 콘텐츠만 띄울 때 사용.
+ * UndabangAlertDialog의 콘텐츠만 분리한 Composable (Dialog 래핑 없음)
+ * Compose Dialog가 아닌 다른 호스트(UndabangAlertDialogFragment의 ComposeView 등)에서 콘텐츠만 띄울 때 사용합니다
+ * message가 빈 문자열이면 메시지 영역을 그리지 않습니다
  */
 @Composable
 fun UndabangAlertDialogContent(

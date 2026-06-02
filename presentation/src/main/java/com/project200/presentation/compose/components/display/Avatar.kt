@@ -22,10 +22,8 @@ import com.project200.presentation.compose.theme.ColorGray300
 import com.project200.presentation.compose.theme.ColorMain
 
 /**
- * 원형 프로필 아바타. 이미지 로드 실패·URL 부재를 내부에서 폴백 처리한다.
- *
- * [imageUrl] 이 null 또는 blank 면 Person 아이콘 placeholder 를 보여주므로,
- * 호출부가 "프로필 설정 여부" 로 분기하지 않아도 된다. 크기·테두리 색은 목록·상세 등 상황에 맞게 조절.
+ * 원형 프로필 아바타
+ * imageUrl이 null/blank면 Person 아이콘 placeholder를 표시합니다
  */
 @Composable
 fun UndabangAvatar(

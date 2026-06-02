@@ -18,10 +18,8 @@ import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.subtext14
 
 /**
- * 주 액션 (완료·확인·제출) 에 쓰는 메인 버튼.
- *
- * 브랜드 primary 색 배경 + onPrimary 글자. 기본 높이 55dp, [isCompact] = true 면 36dp.
- * 화면 폭을 꽉 채우려면 호출부에서 `modifier = Modifier.fillMaxWidth()` 를 전달한다.
+ * 주 액션 버튼 (완료/확인/제출 등)
+ * 기본 높이 55dp, isCompact = true면 36dp
  */
 @Composable
 fun PrimaryButton(
@@ -54,10 +52,8 @@ fun PrimaryButton(
 }
 
 /**
- * 보조 액션 (취소·뒤로) 에 쓰는 버튼. Primary 와 짝으로 배치되는 경우가 많다.
- *
- * 회색 배경 + 흰 글자. 크기·shape 는 [PrimaryButton] 과 동일하게 유지해 같은 줄에 놓아도 어울린다.
- * 색 조합은 XML 시절 디자인을 그대로 따르고 있어 ColorScheme slot 매핑 대신 raw 색을 쓴다.
+ * 보조 액션 버튼 (취소/뒤로 등)
+ * PrimaryButton과 짝으로 배치되며, 크기와 shape는 동일하게 유지됩니다
  */
 @Composable
 fun SecondaryButton(
@@ -90,10 +86,8 @@ fun SecondaryButton(
 }
 
 /**
- * 텍스트성 보조 액션 (중복 확인·재전송·더보기 등) 에 쓰는 가벼운 버튼.
- *
- * 연회색 배경 + primary 글자로, 다른 입력 요소 옆에 붙여 써도 시선을 덜 뺏는다.
- * 기본은 compact (32dp) — 인라인 입력 필드 옆에 붙이는 용도로 최적화되어 있다.
+ * 인라인 텍스트 버튼 (중복 확인/재전송/더보기 등)
+ * 기본은 compact (32dp)로, 입력 필드 옆에 붙이는 용도입니다
  */
 @Composable
 fun TextButton(

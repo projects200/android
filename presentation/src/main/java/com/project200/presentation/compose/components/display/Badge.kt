@@ -16,9 +16,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 /**
- * 숫자 표시용 원형 뱃지. 탭바 아이콘·프로필 썸네일 위에 올려 알림 개수 등을 노출한다.
- *
- * 100 이상이면 "99+" 로 표기해 폭이 폭발하지 않는다. 기본 색은 error (빨강) — 중요 알림용.
+ * 숫자 표시용 원형 뱃지
+ * 100 이상은 "99+"로 표기합니다
  */
 @Composable
 fun UndabangBadge(
@@ -47,11 +46,7 @@ fun UndabangBadge(
     }
 }
 
-/**
- * 숫자 없는 작은 상태 점. "읽지 않음" 표시처럼 존재 여부만 알리고 싶을 때 쓴다.
- *
- * [UndabangBadge] 와 달리 카운트를 보여주지 않아 화면 지저분함을 줄인다.
- */
+/** 숫자 없는 작은 상태 점 (읽지 않음 표시 등) */
 @Composable
 fun UndabangDot(
     modifier: Modifier = Modifier,

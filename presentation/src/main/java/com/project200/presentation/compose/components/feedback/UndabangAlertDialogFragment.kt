@@ -13,11 +13,9 @@ import androidx.fragment.app.FragmentManager
 import com.project200.presentation.compose.applyAppTheme
 
 /**
- * Fragment 컨텍스트에서 [UndabangAlertDialogContent] 를 띄우는 DialogFragment.
- *
- * 기존 `BaseAlertDialog` 의 대체. companion [show] 팩토리로 호출한다.
- * 콜백은 인스턴스 변수로 보관되어 configuration change 시 사라질 수 있는데, 이는 기존 `BaseAlertDialog`
- * 와 동일한 한계.
+ * UndabangAlertDialogContent를 띄우는 DialogFragment
+ * companion show() 팩토리로 호출합니다
+ * 콜백은 인스턴스 변수로 보관되어 configuration change 시 사라질 수 있는 한계가 있습니다
  */
 class UndabangAlertDialogFragment : DialogFragment() {
     private val title: String get() = arguments?.getString(ARG_TITLE).orEmpty()

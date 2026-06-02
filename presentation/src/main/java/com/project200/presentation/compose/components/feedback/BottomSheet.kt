@@ -37,10 +37,8 @@ import com.project200.presentation.compose.theme.contentRegular
 import com.project200.undabang.presentation.R
 
 /**
- * Compose 콘텐츠를 담는 공용 BottomSheetDialogFragment.
- *
- * 구체 콘텐츠는 [setContent] 또는 companion 팩토리(예: [showSelection], [showMenu])로 주입한다.
- * 호출 측은 직접 인스턴스를 만들기보다 팩토리를 사용하는 편이 안전하다.
+ * Compose 콘텐츠를 담는 공용 BottomSheetDialogFragment
+ * setContent로 콘텐츠를 주입하거나 companion 팩토리(showSelection, showMenu)를 사용합니다
  */
 class UndabangBottomSheet : BottomSheetDialogFragment() {
     private var content: (@Composable (onDismiss: () -> Unit) -> Unit)? = null
@@ -67,9 +65,8 @@ class UndabangBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         /**
-         * 항목 리스트에서 하나를 선택하는 BottomSheet 표시.
-         *
-         * 기존 `SelectionBottomSheetDialog` 의 대체. 선택 시 [onItemSelected] 호출 후 자동 dismiss.
+         * 항목 리스트에서 하나를 선택하는 BottomSheet를 표시합니다
+         * 선택 시 onItemSelected 호출 후 자동 dismiss됩니다
          */
         fun showSelection(
             fragmentManager: FragmentManager,
@@ -93,9 +90,8 @@ class UndabangBottomSheet : BottomSheetDialogFragment() {
         }
 
         /**
-         * 수정 / 삭제 메뉴 BottomSheet 표시.
-         *
-         * 기존 `MenuBottomSheetDialog` 의 대체. [showEdit] = false 면 수정 항목 숨김.
+         * 수정/삭제 메뉴 BottomSheet를 표시합니다
+         * showEdit이 false면 수정 항목을 숨깁니다
          */
         fun showMenu(
             fragmentManager: FragmentManager,
@@ -123,11 +119,7 @@ class UndabangBottomSheet : BottomSheetDialogFragment() {
     }
 }
 
-/**
- * 항목 리스트 + 선택 표시 + 닫기 버튼 형태의 BottomSheet 콘텐츠.
- *
- * 기존 XML `bottom_sheet_dialog_select` + `item_select` 디자인 그대로 이식.
- */
+/** 항목 리스트 + 선택 표시 + 닫기 버튼 형태의 BottomSheet 콘텐츠 */
 @Composable
 fun SelectionBottomSheetContent(
     items: List<String>,
@@ -184,9 +176,8 @@ fun SelectionBottomSheetContent(
 }
 
 /**
- * 수정 / 삭제 + 닫기 버튼 형태의 BottomSheet 콘텐츠.
- *
- * 기존 XML `bottom_sheet_dialog_menu` 디자인 그대로 이식. [showEdit] 으로 수정 항목 노출 제어.
+ * 수정/삭제 + 닫기 버튼 형태의 BottomSheet 콘텐츠
+ * showEdit이 false면 수정 항목을 숨깁니다
  */
 @Composable
 fun MenuBottomSheetContent(

@@ -29,11 +29,9 @@ import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 
 /**
- * 화면 상단 앱바. 왼쪽 네비게이션 아이콘, 가운데 제목, 오른쪽 액션 슬롯 구조.
- *
- * 흰색 배경 + 검정 글자 + 중앙 정렬 제목 — 기존 XML `view_base_toolbar` 디자인을 그대로 옮긴 것.
- * 액션 버튼은 [actions] 슬롯에 [IconButton] 등을 직접 넣어 원하는 개수만큼 배치한다.
- * 홈/루트 화면처럼 뒤로가기가 필요 없으면 [navigationIconVisible] = false 로 자리만 남기고 숨긴다.
+ * 화면 상단 앱바 (좌측 네비 아이콘 / 가운데 제목 / 우측 액션 슬롯 구조)
+ * 액션 버튼은 actions 슬롯에 IconButton 등을 직접 넣어 배치합니다
+ * navigationIconVisible = false면 자리만 남기고 숨깁니다
  */
 @Composable
 fun UndabangTopBar(

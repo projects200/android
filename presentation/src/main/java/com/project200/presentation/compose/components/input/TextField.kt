@@ -32,11 +32,10 @@ import com.project200.presentation.compose.theme.ColorMain
 import com.project200.presentation.compose.theme.ColorWhite100
 
 /**
- * [UndabangTextField] 의 시각 변형.
- *
- * - [FilledSmall]: 한 줄 입력 (닉네임, 검색어 등). 연회색 배경, 48dp 고정 높이
- * - [FilledLarge]: 여러 줄 입력 (본문, 소개글 등). 연회색 배경, 높이 제한 없음
- * - [Outlined]: 에러/검증 상태를 테두리로 강조하는 입력 (장소명, 이메일 등)
+ * UndabangTextField의 스타일 변형
+ * - FilledSmall: 한 줄 입력, 48dp 고정 높이
+ * - FilledLarge: 여러 줄 입력, 높이 제한 없음
+ * - Outlined: 테두리로 에러/검증 상태 강조
  */
 enum class TextFieldVariant {
     FilledSmall,
@@ -45,10 +44,9 @@ enum class TextFieldVariant {
 }
 
 /**
- * 기본 텍스트 입력 필드. 상태 hoisting 패턴으로 [value] / [onValueChange] 를 호출부가 관리한다.
- *
- * [variant] 로 한 줄/여러 줄/아웃라인 중 선택. [maxLength] 를 주면 붙여넣기로 초과 입력 시 잘라서 반영한다.
- * 에러 안내는 [isError] + [supportingText] 로, 도움말 텍스트는 [supportingText] (에러 아닐 때) 로 표시한다.
+ * 공통 텍스트 입력 필드
+ * value/onValueChange를 호출부에서 hoisting하고, variant로 한 줄/여러 줄/아웃라인 중 선택합니다
+ * maxLength 지정 시 초과 입력은 잘라서 반영되고, 에러 상태는 isError + supportingText로 표시합니다
  */
 @Composable
 fun UndabangTextField(
