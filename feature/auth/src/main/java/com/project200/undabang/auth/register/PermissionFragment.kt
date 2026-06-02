@@ -4,17 +4,20 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.ComposeView
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
-import com.project200.presentation.base.BindingFragment // BaseFragment 경로 확인 및 수정 필요
+import com.project200.presentation.compose.applyAppTheme
 import com.project200.undabang.feature.auth.R
-import com.project200.undabang.feature.auth.databinding.FragmentPermissionBinding
 import timber.log.Timber
 
-class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.fragment_permission) {
+class PermissionFragment : Fragment() {
     private lateinit var requestMultiplePermissionsLauncher: ActivityResultLauncher<Array<String>>
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
 
@@ -51,9 +54,22 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
         }
     }
 
-    override fun getViewBinding(view: View): FragmentPermissionBinding {
-        return FragmentPermissionBinding.bind(view)
-    }
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        ComposeView(requireContext()).apply {
+            applyAppTheme {
+                PermissionScreen(
+                    onNextClick = {
+                        if (isAdded && findNavController().currentDestination?.id == R.id.permissionFragment) {
+                            findNavController().navigate(R.id.action_permissionFragment_to_termsFragment)
+                        }
+                    },
+                )
+            }
+        }
 
     override fun onViewCreated(
         view: View,
@@ -62,14 +78,6 @@ class PermissionFragment : BindingFragment<FragmentPermissionBinding>(R.layout.f
         super.onViewCreated(view, savedInstanceState)
         // 화면이 생성된 후 필요한 권한 요청
         requestNeededPermissions()
-    }
-
-    override fun setupViews() {
-        binding.permissionNextBtn.setOnClickListener {
-            if (isAdded && findNavController().currentDestination?.id == R.id.permissionFragment) {
-                findNavController().navigate(R.id.action_permissionFragment_to_termsFragment)
-            }
-        }
     }
 
     private fun requestNeededPermissions() {

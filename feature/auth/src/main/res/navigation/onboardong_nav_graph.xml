@@ -8,8 +8,7 @@
     <fragment
         android:id="@+id/permissionFragment"
         android:name="com.project200.undabang.auth.register.PermissionFragment"
-        android:label="fragment_permission"
-        tools:layout="@layout/fragment_permission" >
+        android:label="fragment_permission" >
         <action
             android:id="@+id/action_permissionFragment_to_termsFragment"
             app:destination="@id/termsFragment" />
