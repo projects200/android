@@ -24,7 +24,7 @@ class TermsViewModel
         val isAllRequiredChecked: StateFlow<Boolean> =
             combine(_serviceChecked, _privacyChecked) { service, privacy ->
                 service && privacy
-            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+            }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
         fun toggleService() {
             _serviceChecked.value = !_serviceChecked.value
