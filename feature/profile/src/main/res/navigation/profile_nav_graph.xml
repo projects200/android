@@ -61,10 +61,7 @@
     <fragment
         android:id="@+id/profileEditFragment"
         android:name="com.project200.undabang.profile.mypage.ProfileEditFragment"
-        android:label="profileEdit"
-        tools:layout="@layout/fragment_profile_edit">
-
-    </fragment>
+        android:label="profileEdit" />
 
     <fragment
         android:id="@+id/profileImageDetailFragment"
