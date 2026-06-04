@@ -92,8 +92,7 @@
     <fragment
         android:id="@+id/preferredExerciseFragment"
         android:name="com.project200.undabang.profile.mypage.preferredExercise.PreferredExerciseFragment"
-        android:label="preferredExercise"
-        tools:layout="@layout/fragment_preferred_exercise" >
+        android:label="preferredExercise" >
         <argument
             android:name="nickname"
             app:argType="string" />
