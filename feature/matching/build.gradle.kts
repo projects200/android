@@ -1,6 +1,7 @@
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
+    id("convention.android.compose")
     alias(libs.plugins.navigation.safeargs)
     id("convention.android.jacoco")
 }
