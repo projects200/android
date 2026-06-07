@@ -1,6 +1,7 @@
 package com.project200.feature.matching.place
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.usecase.EditExercisePlaceUseCase
@@ -133,10 +134,12 @@ class ExercisePlaceRegisterViewModelTest {
             viewModel = createViewModel()
             viewModel.initializePlaceInfo(-1L, "새 장소", "서울시 강남구", 37.5, 127.0)
 
-            viewModel.confirmExercisePlace()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertThat(viewModel.registrationResult.value).isInstanceOf(BaseResult.Success::class.java)
+            viewModel.registrationResult.test {
+                viewModel.confirmExercisePlace()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isInstanceOf(BaseResult.Success::class.java)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -147,10 +150,12 @@ class ExercisePlaceRegisterViewModelTest {
             viewModel = createViewModel()
             viewModel.initializePlaceInfo(100L, "기존 장소", "서울시 강남구", 37.5, 127.0)
 
-            viewModel.confirmExercisePlace()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertThat(viewModel.editResult.value).isInstanceOf(BaseResult.Success::class.java)
+            viewModel.editResult.test {
+                viewModel.confirmExercisePlace()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isInstanceOf(BaseResult.Success::class.java)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -161,10 +166,12 @@ class ExercisePlaceRegisterViewModelTest {
             viewModel = createViewModel()
             viewModel.initializePlaceInfo(-1L, "새 장소", "서울시 강남구", 37.5, 127.0)
 
-            viewModel.confirmExercisePlace()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertThat(viewModel.registrationResult.value).isInstanceOf(BaseResult.Error::class.java)
+            viewModel.registrationResult.test {
+                viewModel.confirmExercisePlace()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isInstanceOf(BaseResult.Error::class.java)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
