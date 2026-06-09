@@ -1,6 +1,7 @@
 package com.project200.feature.matching.place
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExercisePlace
@@ -81,10 +82,13 @@ class ExercisePlaceViewModelTest {
             coEvery { mockGetExercisePlaceUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
 
             viewModel = createViewModel()
-            viewModel.getExercisePlaces()
-            testDispatcher.scheduler.advanceUntilIdle()
 
-            assertThat(viewModel.errorToast.value).isEqualTo(ExercisePlaceErrorType.LOAD_FAILED)
+            viewModel.errorToast.test {
+                viewModel.getExercisePlaces()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ExercisePlaceErrorType.LOAD_FAILED)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -101,7 +105,7 @@ class ExercisePlaceViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.places.value).hasSize(1)
-            assertThat(viewModel.places.value?.none { it.id == 1L }).isTrue()
+            assertThat(viewModel.places.value.none { it.id == 1L }).isTrue()
         }
 
     @Test
@@ -114,10 +118,12 @@ class ExercisePlaceViewModelTest {
             viewModel.getExercisePlaces()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            viewModel.deleteExercisePlace(1L)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertThat(viewModel.errorToast.value).isEqualTo(ExercisePlaceErrorType.DELETE_FAILED)
+            viewModel.errorToast.test {
+                viewModel.deleteExercisePlace(1L)
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ExercisePlaceErrorType.DELETE_FAILED)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
