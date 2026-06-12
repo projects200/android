@@ -1,10 +1,6 @@
 package com.project200.undabang.profile.mypage.preferredExercise
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MediatorLiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.map
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PreferredExercise
@@ -20,6 +16,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -36,26 +38,25 @@ class PreferredExerciseViewModel
         var nickname: String = ""
 
         // 전체 운동 종류 목록
-        private val exerciseTypes = MutableLiveData<List<PreferredExercise>>()
+        private val exerciseTypes = MutableStateFlow<List<PreferredExercise>>(emptyList())
 
         // 선택한 운동 종류
-        private val preferredExercise = MutableLiveData<List<PreferredExercise>>()
+        private val preferredExercise = MutableStateFlow<List<PreferredExercise>>(emptyList())
 
         private var initialPreferredExercises: List<PreferredExercise> = emptyList()
 
-        private val _completionState = MutableLiveData<CompletionState>(CompletionState.Idle)
-        val completionState: LiveData<CompletionState> = _completionState
+        private val _completionState = MutableStateFlow<CompletionState>(CompletionState.Idle)
+        val completionState: StateFlow<CompletionState> = _completionState.asStateFlow()
 
-        val exerciseUiModels = MediatorLiveData<List<PreferredExerciseUiModel>>()
+        private val _exerciseUiModels = MutableStateFlow<List<PreferredExerciseUiModel>>(emptyList())
+        val exerciseUiModels: StateFlow<List<PreferredExerciseUiModel>> = _exerciseUiModels.asStateFlow()
 
-        val selectedExerciseUiModels: LiveData<List<PreferredExerciseUiModel>> =
-            exerciseUiModels.map { list ->
-                list.filter { it.isSelected }
-            }
+        val selectedExerciseUiModels: StateFlow<List<PreferredExerciseUiModel>> =
+            _exerciseUiModels
+                .map { list -> list.filter { it.isSelected } }
+                .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
         init {
-            exerciseUiModels.addSource(exerciseTypes) { updateUiModels() }
-            exerciseUiModels.addSource(preferredExercise) { updateUiModels() }
             fetchInitialData()
         }
 
@@ -78,21 +79,23 @@ class PreferredExerciseViewModel
                     initialPreferredExercises = exerciseResult.data
                     exerciseTypes.value = allTypesResult.data
                     preferredExercise.value = exerciseResult.data
+                    updateUiModels()
                 }
             }
         }
 
         /**
-         * _exerciseTypes 또는 _preferredExercise가 변경될 때마다 호출되어 UiModel을 설정합니다.
+         * exerciseTypes 또는 preferredExercise가 변경될 때 호출되어 UiModel을 갱신합니다.
          */
         private fun updateUiModels() {
-            val allTypes = exerciseTypes.value ?: return
-            val selected = preferredExercise.value ?: emptyList()
+            val allTypes = exerciseTypes.value
+            val selected = preferredExercise.value
             val selectedTypeIds = selected.map { it.exerciseTypeId }.toSet()
+            val currentUiModels = _exerciseUiModels.value
 
             val uiList =
                 allTypes.map { exercise ->
-                    val existingUiModel = exerciseUiModels.value?.find { it.exercise.exerciseTypeId == exercise.exerciseTypeId }
+                    val existingUiModel = currentUiModels.find { it.exercise.exerciseTypeId == exercise.exerciseTypeId }
                     val serverData = initialPreferredExercises.find { it.exerciseTypeId == exercise.exerciseTypeId }
 
                     PreferredExerciseUiModel(
@@ -118,7 +121,7 @@ class PreferredExerciseViewModel
                         }
                     }
                 }
-            exerciseUiModels.value = uiList
+            _exerciseUiModels.value = uiList
         }
 
         /**
@@ -128,9 +131,8 @@ class PreferredExerciseViewModel
             exerciseTypeId: Long,
             dayIndex: Int,
         ) {
-            val currentModels = exerciseUiModels.value ?: return
             val newModels =
-                currentModels.map { uiModel ->
+                _exerciseUiModels.value.map { uiModel ->
                     if (uiModel.exercise.exerciseTypeId == exerciseTypeId) {
                         uiModel.copy(
                             selectedDays =
@@ -142,7 +144,7 @@ class PreferredExerciseViewModel
                         uiModel
                     }
                 }
-            exerciseUiModels.value = newModels
+            _exerciseUiModels.value = newModels
         }
 
         /**
@@ -152,28 +154,27 @@ class PreferredExerciseViewModel
             exerciseTypeId: Long,
             skill: SkillLevel,
         ) {
-            val currentModels = exerciseUiModels.value ?: return
             val newModels =
-                currentModels.map { uiModel ->
+                _exerciseUiModels.value.map { uiModel ->
                     if (uiModel.exercise.exerciseTypeId == exerciseTypeId) {
                         uiModel.copy(skillLevel = if (uiModel.skillLevel == skill) null else skill)
                     } else {
                         uiModel
                     }
                 }
-            exerciseUiModels.value = newModels
+            _exerciseUiModels.value = newModels
         }
 
         /**
          * 운동 종류 선택/해제
          */
         fun updateSelectedExercise(exercise: PreferredExercise) {
-            val list = preferredExercise.value?.toMutableList() ?: mutableListOf()
+            val list = preferredExercise.value.toMutableList()
             if (!list.removeAll { it.exerciseTypeId == exercise.exerciseTypeId }) {
                 list.add(exercise)
             }
-
             preferredExercise.value = list
+            updateUiModels()
         }
 
         /**
@@ -182,7 +183,7 @@ class PreferredExerciseViewModel
         fun completePreferredExerciseChanges() {
             _completionState.value = CompletionState.Loading
 
-            val selectedUiModels = exerciseUiModels.value?.filter { it.isSelected } ?: emptyList()
+            val selectedUiModels = _exerciseUiModels.value.filter { it.isSelected }
             val currentPreferredExercises = selectedUiModels.map { it.toModel() }
 
             if (validateComplete(selectedUiModels)) return
