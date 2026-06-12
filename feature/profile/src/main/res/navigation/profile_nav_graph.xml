@@ -87,7 +87,7 @@
         android:id="@+id/blockMembersFragment"
         android:name="com.project200.undabang.profile.setting.BlockMembersFragment"
         android:label="blockMembers"
-        tools:layout="@layout/fragment_block_members" />
+        />
 
     <fragment
         android:id="@+id/preferredExerciseFragment"

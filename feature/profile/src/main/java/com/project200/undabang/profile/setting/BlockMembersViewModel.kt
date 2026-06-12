@@ -1,7 +1,5 @@
 package com.project200.undabang.profile.setting
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -10,7 +8,10 @@ import com.project200.domain.usecase.GetBlockedMembersUseCase
 import com.project200.domain.usecase.UnblockMemberUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,8 +22,8 @@ class BlockMembersViewModel
         private val getBlockedMembersUseCase: GetBlockedMembersUseCase,
         private val unblockMemberUseCase: UnblockMemberUseCase,
     ) : ViewModel() {
-        private val _blockedMembers = MutableLiveData<List<BlockedMember>>()
-        val blockedMembers: LiveData<List<BlockedMember>> = _blockedMembers
+        private val _blockedMembers = MutableStateFlow<List<BlockedMember>>(emptyList())
+        val blockedMembers: StateFlow<List<BlockedMember>> = _blockedMembers.asStateFlow()
 
         private val _errorEvent = MutableSharedFlow<String?>()
         val errorEvent: SharedFlow<String?> = _errorEvent
