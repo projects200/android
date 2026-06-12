@@ -69,10 +69,7 @@
     <fragment
         android:id="@+id/profileImageDetailFragment"
         android:name="com.project200.undabang.profile.mypage.ProfileImageDetailFragment"
-        android:label="profileImageDetail"
-        tools:layout="@layout/fragment_profile_image_detail">
-
-    </fragment>
+        android:label="profileImageDetail" />
 
     <fragment
         android:id="@+id/urlFormFragment"

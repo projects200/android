@@ -4,8 +4,6 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.provider.MediaStore
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bumptech.glide.Glide
@@ -19,7 +17,10 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.io.IOException
 import javax.inject.Inject
@@ -33,8 +34,8 @@ class ProfileImageDetailViewModel
         @ApplicationContext private val context: Context,
         private val changeThumbnailUseCase: ChangeThumbnailUseCase,
     ) : ViewModel() {
-        private val _profileImages = MutableLiveData<List<ProfileImage>>()
-        val profileImages: LiveData<List<ProfileImage>> = _profileImages
+        private val _profileImages = MutableStateFlow<List<ProfileImage>>(emptyList())
+        val profileImages: StateFlow<List<ProfileImage>> = _profileImages.asStateFlow()
 
         private val _getProfileImageErrorToast = MutableSharedFlow<ProfileImageErrorType>()
         val getProfileImageErrorToast: SharedFlow<ProfileImageErrorType> = _getProfileImageErrorToast
@@ -84,7 +85,6 @@ class ProfileImageDetailViewModel
 
         /**
          * URL로부터 이미지를 다운로드하여 갤러리에 저장합니다.
-         * @param context ContentResolver를 사용하기 위해 필요합니다.
          * @param imageUrl 저장할 이미지의 URL
          */
         fun saveImageToGallery(imageUrl: String) {
@@ -142,7 +142,7 @@ class ProfileImageDetailViewModel
                 val result = deleteProfileImageUseCase(pictureId)
 
                 if (result is BaseResult.Success) {
-                    val currentList = _profileImages.value ?: return@launch
+                    val currentList = _profileImages.value
 
                     var updatedList = currentList.filter { it.id != pictureId }
 
@@ -158,7 +158,7 @@ class ProfileImageDetailViewModel
 
         fun changeThumbnail(pictureId: Long) {
             viewModelScope.launch {
-                val currentList = _profileImages.value ?: return@launch
+                val currentList = _profileImages.value
                 val result = changeThumbnailUseCase(pictureId)
 
                 if (result is BaseResult.Success) {

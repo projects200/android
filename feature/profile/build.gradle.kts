@@ -48,6 +48,9 @@ dependencies {
     // Glide
     implementation(libs.glide)
 
+    // Coil (Compose 이미지 로딩)
+    implementation(libs.coil.compose)
+
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)
 
