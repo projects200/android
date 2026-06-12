@@ -100,8 +100,7 @@
     <fragment
         android:id="@+id/exercisePlaceRegisterFragment"
         android:name="com.project200.feature.matching.place.ExercisePlaceRegisterFragment"
-        android:label="exercisePlaceRegister"
-        tools:layout="@layout/fragment_exercise_place_register">
+        android:label="exercisePlaceRegister">
         <argument
             android:name="placeId"
             app:argType="long"
