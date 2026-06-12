@@ -1,8 +1,6 @@
 package com.project200.undabang.profile.mypage
 
 import android.net.Uri
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -16,7 +14,10 @@ import com.project200.undabang.profile.utils.NicknameValidationState
 import com.project200.undabang.profile.utils.ProfileEditErrorType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -30,27 +31,29 @@ class ProfileEditViewModel
         private val editProfileUseCase: EditProfileUseCase,
         private val addProfileImageUseCase: AddProfileImageUseCase,
     ) : ViewModel() {
-        private val _initProfile = MutableLiveData<UserProfile>()
-        val initProfile: LiveData<UserProfile> = _initProfile
+        private val _initProfile = MutableStateFlow<UserProfile?>(null)
+        val initProfile: StateFlow<UserProfile?> = _initProfile.asStateFlow()
 
-        private val nickname = MutableLiveData("")
+        private val _nickname = MutableStateFlow("")
+        val nickname: StateFlow<String> = _nickname.asStateFlow()
 
-        private val _gender = MutableLiveData<String>()
-        val gender: LiveData<String> = _gender
+        private val _gender = MutableStateFlow<String?>(null)
+        val gender: StateFlow<String?> = _gender.asStateFlow()
 
-        private val introduction = MutableLiveData<String>("")
+        private val _introduction = MutableStateFlow("")
+        val introduction: StateFlow<String> = _introduction.asStateFlow()
 
-        private val _newProfileImageUri = MutableLiveData<Uri?>()
-        val newProfileImageUri: LiveData<Uri?> get() = _newProfileImageUri
+        private val _newProfileImageUri = MutableStateFlow<Uri?>(null)
+        val newProfileImageUri: StateFlow<Uri?> = _newProfileImageUri.asStateFlow()
 
-        // 닉네임 유효성 검사 결과를 UI에 전달하기 위한 LiveData
+        // 닉네임 유효성 검사 결과를 UI에 전달
         private val _nicknameValidationState =
-            MutableLiveData<NicknameValidationState>(NicknameValidationState.INVISIBLE)
-        val nicknameValidationState: LiveData<NicknameValidationState> = _nicknameValidationState
+            MutableStateFlow(NicknameValidationState.INVISIBLE)
+        val nicknameValidationState: StateFlow<NicknameValidationState> = _nicknameValidationState.asStateFlow()
 
         // 중복 확인 버튼 활성화 여부 및 중복 체크 완료 상태를 관리
-        private val _isNicknameChecked = MutableLiveData(false)
-        val isNicknameChecked: LiveData<Boolean> = _isNicknameChecked
+        private val _isNicknameChecked = MutableStateFlow(false)
+        val isNicknameChecked: StateFlow<Boolean> = _isNicknameChecked.asStateFlow()
 
         private val _errorType = MutableSharedFlow<ProfileEditErrorType>()
         val errorType: SharedFlow<ProfileEditErrorType> = _errorType
@@ -66,7 +69,11 @@ class ProfileEditViewModel
             viewModelScope.launch {
                 when (val result = getUserProfileUseCase()) {
                     is BaseResult.Success -> {
-                        _initProfile.value = result.data
+                        val profile = result.data
+                        _initProfile.value = profile
+                        _nickname.value = profile.nickname
+                        _gender.value = profile.gender
+                        _introduction.value = profile.bio.orEmpty()
                     }
 
                     is BaseResult.Error -> {
@@ -77,15 +84,15 @@ class ProfileEditViewModel
         }
 
         fun updateNickname(value: String) {
-            if (nickname.value != value) {
-                nickname.value = value
+            if (_nickname.value != value) {
+                _nickname.value = value
                 _isNicknameChecked.value = false
                 _nicknameValidationState.value = NicknameValidationState.INVISIBLE
             }
         }
 
         fun updateIntroduction(value: String) {
-            introduction.value = value
+            _introduction.value = value
         }
 
         fun updateProfileImageUri(uri: Uri?) {
@@ -98,9 +105,9 @@ class ProfileEditViewModel
 
         fun completeEditProfile() {
             viewModelScope.launch {
-                val currentNickname = nickname.value ?: return@launch
+                val currentNickname = _nickname.value
                 val currentGender = _gender.value ?: return@launch
-                val currentIntroduction = introduction.value.orEmpty()
+                val currentIntroduction = _introduction.value
 
                 val isProfileChanged =
                     checkProfileChanged(currentNickname, currentGender, currentIntroduction)
@@ -112,7 +119,7 @@ class ProfileEditViewModel
                 }
 
                 // 중복 확인이 됐는지 체크
-                if (_initProfile.value?.nickname != currentNickname && _isNicknameChecked.value == false) {
+                if (_initProfile.value?.nickname != currentNickname && !_isNicknameChecked.value) {
                     _errorType.emit(ProfileEditErrorType.NO_DUPLICATE_CHECKED)
                     return@launch
                 }
@@ -123,9 +130,7 @@ class ProfileEditViewModel
                     if (_newProfileImageUri.value != null) {
                         addProfileImageUseCase(_newProfileImageUri.value.toString())
                     } else {
-                        BaseResult.Success(
-                            Unit,
-                        )
+                        BaseResult.Success(Unit)
                     }
                 val editProfileResult =
                     if (isProfileChanged) {
@@ -143,7 +148,7 @@ class ProfileEditViewModel
         }
 
         fun checkIsNicknameDuplicated() {
-            val currentNickname = nickname.value.orEmpty()
+            val currentNickname = _nickname.value
 
             // 기존 닉네임과 동일한지 체크
             if (currentNickname == _initProfile.value?.nickname) {

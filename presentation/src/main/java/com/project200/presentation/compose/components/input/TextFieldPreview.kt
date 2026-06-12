@@ -149,6 +149,46 @@ fun TextFieldNumericPreview() {
 
 @Preview(showBackground = true)
 @Composable
+fun TextFieldUnderlinePreview() {
+    AppTheme {
+        var value by remember { mutableStateOf("운다방테스터") }
+        var empty by remember { mutableStateOf("") }
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+        ) {
+            UndabangTextField(
+                value = value,
+                onValueChange = { value = it },
+                hint = "닉네임",
+                variant = TextFieldVariant.Underline,
+                singleLine = true,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            UndabangTextField(
+                value = empty,
+                onValueChange = { empty = it },
+                hint = "닉네임을 입력하세요",
+                variant = TextFieldVariant.Underline,
+                singleLine = true,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            UndabangTextField(
+                value = value,
+                onValueChange = { value = it },
+                hint = "닉네임",
+                variant = TextFieldVariant.Underline,
+                singleLine = true,
+                isError = true,
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
 fun TextFieldWithSupportingTextPreview() {
     AppTheme {
         var value by remember { mutableStateOf("undabang2024") }

@@ -18,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
@@ -33,14 +35,16 @@ import com.project200.presentation.compose.theme.ColorWhite100
 
 /**
  * UndabangTextField의 스타일 변형
- * - FilledSmall: 한 줄 입력, 48dp 고정 높이
- * - FilledLarge: 여러 줄 입력, 높이 제한 없음
+ * - FilledSmall: 한 줄 입력, 48dp 고정 높이, 연회색 배경
+ * - FilledLarge: 여러 줄 입력, 높이 제한 없음, 연회색 배경
  * - Outlined: 테두리로 에러/검증 상태 강조
+ * - Underline: 배경 없이 하단 밑줄만 (기본 Android EditText 스타일)
  */
 enum class TextFieldVariant {
     FilledSmall,
     FilledLarge,
     Outlined,
+    Underline,
 }
 
 /**
@@ -101,6 +105,18 @@ fun UndabangTextField(
                     minHeight = 48.dp,
                     hintColor = ColorGray200,
                 )
+            TextFieldVariant.Underline ->
+                TextFieldStyle(
+                    backgroundColor = Color.Transparent,
+                    cornerRadius = 0.dp,
+                    borderColor = null,
+                    borderWidth = null,
+                    padding = 4.dp,
+                    minHeight = 40.dp,
+                    hintColor = ColorGray200,
+                    underlineColor = if (isError) ColorErrorRed else ColorBlack,
+                    underlineWidth = 1.dp,
+                )
         }
 
     Column(modifier = modifier) {
@@ -122,6 +138,23 @@ fun UndabangTextField(
                                 color = style.borderColor,
                                 shape = RoundedCornerShape(style.cornerRadius),
                             )
+                        } else {
+                            Modifier
+                        },
+                    )
+                    .then(
+                        if (style.underlineColor != null && style.underlineWidth != null) {
+                            val underlineColor = style.underlineColor
+                            val underlineWidth = style.underlineWidth
+                            Modifier.drawBehind {
+                                val strokePx = underlineWidth.toPx()
+                                drawLine(
+                                    color = underlineColor,
+                                    start = Offset(0f, size.height - strokePx / 2),
+                                    end = Offset(size.width, size.height - strokePx / 2),
+                                    strokeWidth = strokePx,
+                                )
+                            }
                         } else {
                             Modifier
                         },
@@ -192,4 +225,6 @@ private data class TextFieldStyle(
     val padding: Dp,
     val minHeight: Dp,
     val hintColor: Color,
+    val underlineColor: Color? = null,
+    val underlineWidth: Dp? = null,
 )
