@@ -24,6 +24,5 @@
     <fragment
         android:id="@+id/registerFragment"
         android:name="com.project200.undabang.auth.register.RegisterFragment"
-        android:label="fragment_sign_up"
-        tools:layout="@layout/fragment_register" />
+        android:label="fragment_sign_up" />
 </navigation>
