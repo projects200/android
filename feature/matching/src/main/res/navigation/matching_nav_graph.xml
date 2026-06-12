@@ -49,8 +49,7 @@
     <fragment
         android:id="@+id/exercisePlaceFragment"
         android:name="com.project200.feature.matching.place.ExercisePlaceFragment"
-        android:label="exercisePlace"
-        tools:layout="@layout/fragment_exercise_place">
+        android:label="exercisePlace">
         <action
             android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceSearchFragment"
             app:destination="@id/exercisePlaceSearchFragment" />
