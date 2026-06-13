@@ -2,15 +2,15 @@ package com.project200.undabang.profile.setting
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -22,10 +22,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.project200.presentation.compose.components.layout.UndabangScaffold
+import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorGray200
-import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentRegular
 import com.project200.undabang.feature.profile.R
 import com.project200.undabang.presentation.R as PresentationR
@@ -43,58 +44,63 @@ fun SettingScreen(
     onNotificationClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(ColorWhite300),
-    ) {
-        com.project200.presentation.compose.components.layout.UndabangTopBar(
-            title = stringResource(R.string.setting),
-            onNavigationClick = onNavigateBack,
-        )
-
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_customer_service,
-            labelRes = R.string.customer_service,
-            onClick = onCustomerServiceClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_logout,
-            labelRes = R.string.logout,
-            onClick = onLogoutClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_withdraw,
-            labelRes = R.string.withdraw,
-            onClick = onWithdrawClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_block,
-            labelRes = R.string.block_members,
-            onClick = onBlockMembersClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_document,
-            labelRes = R.string.terms,
-            onClick = onTermsClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_document,
-            labelRes = R.string.privacy,
-            onClick = onPrivacyClick,
-        )
-        SettingMenuItem(
-            iconRes = R.drawable.ic_notification,
-            labelRes = R.string.notification,
-            onClick = onNotificationClick,
-        )
-        SettingMenuItem(
-            iconRes = PresentationR.drawable.ic_version_info,
-            labelRes = R.string.version_info,
-            trailingText = versionName,
-            showDivider = false,
-        )
+    UndabangScaffold(
+        modifier = modifier,
+        topBar = {
+            UndabangTopBar(
+                title = stringResource(R.string.setting),
+                onNavigationClick = onNavigateBack,
+            )
+        },
+    ) { innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState()),
+        ) {
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_customer_service,
+                labelRes = R.string.customer_service,
+                onClick = onCustomerServiceClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_logout,
+                labelRes = R.string.logout,
+                onClick = onLogoutClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_withdraw,
+                labelRes = R.string.withdraw,
+                onClick = onWithdrawClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_block,
+                labelRes = R.string.block_members,
+                onClick = onBlockMembersClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_document,
+                labelRes = R.string.terms,
+                onClick = onTermsClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_document,
+                labelRes = R.string.privacy,
+                onClick = onPrivacyClick,
+            )
+            SettingMenuItem(
+                iconRes = R.drawable.ic_notification,
+                labelRes = R.string.notification,
+                onClick = onNotificationClick,
+            )
+            SettingMenuItem(
+                iconRes = PresentationR.drawable.ic_version_info,
+                labelRes = R.string.version_info,
+                trailingText = versionName,
+                showDivider = false,
+            )
+        }
     }
 }
 

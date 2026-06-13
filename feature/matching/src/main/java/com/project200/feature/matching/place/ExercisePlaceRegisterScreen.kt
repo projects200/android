@@ -1,16 +1,16 @@
 package com.project200.feature.matching.place
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,11 +28,11 @@ import androidx.compose.ui.unit.sp
 import com.project200.presentation.compose.components.button.PrimaryButton
 import com.project200.presentation.compose.components.input.TextFieldVariant
 import com.project200.presentation.compose.components.input.UndabangTextField
+import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorGray200
-import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.contentRegular
 import com.project200.undabang.feature.matching.R
@@ -47,61 +47,64 @@ fun ExercisePlaceRegisterScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(ColorWhite300),
-    ) {
-        UndabangTopBar(
-            title = stringResource(R.string.exercise_place_register_title),
-            onNavigationClick = onBackClick,
-        )
-
-        PlaceInfoSection(
-            placeName = placeName,
-            placeAddress = placeAddress,
-        )
-
-        Spacer(Modifier.height(30.dp))
-
-        Text(
-            text = stringResource(R.string.place_name_title),
-            style = MaterialTheme.typography.contentBold,
-            color = ColorBlack,
-            modifier = Modifier.padding(horizontal = 20.dp),
-        )
-
-        Spacer(Modifier.height(4.dp))
-
-        UndabangTextField(
-            value = placeNameInput,
-            onValueChange = onPlaceNameChange,
-            hint = stringResource(R.string.place_name_hint),
-            variant = TextFieldVariant.Outlined,
+    UndabangScaffold(
+        modifier = modifier,
+        topBar = {
+            UndabangTopBar(
+                title = stringResource(R.string.exercise_place_register_title),
+                onNavigationClick = onBackClick,
+            )
+        },
+        bottomBar = {
+            PrimaryButton(
+                text = stringResource(R.string.exercise_place_register_complete),
+                onClick = onRegisterClick,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .padding(bottom = 40.dp),
+            )
+        },
+    ) { innerPadding ->
+        Column(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .height(50.dp),
-        )
+                    .padding(innerPadding)
+                    .verticalScroll(rememberScrollState()),
+        ) {
+            PlaceInfoSection(
+                placeName = placeName,
+                placeAddress = placeAddress,
+            )
 
-        Spacer(Modifier.height(30.dp))
+            Spacer(Modifier.height(30.dp))
 
-        NoticeSection()
+            Text(
+                text = stringResource(R.string.place_name_title),
+                style = MaterialTheme.typography.contentBold,
+                color = ColorBlack,
+                modifier = Modifier.padding(horizontal = 20.dp),
+            )
 
-        Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(4.dp))
 
-        PrimaryButton(
-            text = stringResource(R.string.exercise_place_register_complete),
-            onClick = onRegisterClick,
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 20.dp),
-        )
+            UndabangTextField(
+                value = placeNameInput,
+                onValueChange = onPlaceNameChange,
+                hint = stringResource(R.string.place_name_hint),
+                variant = TextFieldVariant.Outlined,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp)
+                        .height(50.dp),
+            )
 
-        Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(30.dp))
+
+            NoticeSection()
+        }
     }
 }
 
