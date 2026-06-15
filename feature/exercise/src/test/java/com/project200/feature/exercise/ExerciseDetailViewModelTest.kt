@@ -132,7 +132,7 @@ class ExerciseDetailViewModelTest {
 
             // Then
             coVerify(exactly = 1) { mockDeleteExerciseUseCase.invoke(recordId) }
-            val actualResult = viewModel.deleteResult.value
+            val actualResult = viewModel.deleteResult.replayCache.firstOrNull()
             assertThat(actualResult).isEqualTo(successResult)
             assertThat(actualResult).isInstanceOf(BaseResult.Success::class.java)
         }
@@ -150,7 +150,7 @@ class ExerciseDetailViewModelTest {
 
             // Then
             coVerify(exactly = 1) { mockDeleteExerciseUseCase.invoke(recordId) }
-            val actualResult = viewModel.deleteResult.value
+            val actualResult = viewModel.deleteResult.replayCache.firstOrNull()
             assertThat(actualResult).isEqualTo(errorResult)
             assertThat((actualResult as BaseResult.Error).message).isEqualTo("삭제 실패")
         }
