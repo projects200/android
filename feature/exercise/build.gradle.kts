@@ -1,6 +1,7 @@
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
+    id("convention.android.compose")
     alias(libs.plugins.navigation.safeargs)
     id("convention.android.jacoco")
 }
@@ -42,6 +43,9 @@ dependencies {
     // Glide
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
+
+    // Coil (Compose)
+    implementation(libs.coil.compose)
 
     // CirlceIndicator
     implementation(libs.circleindicator)
