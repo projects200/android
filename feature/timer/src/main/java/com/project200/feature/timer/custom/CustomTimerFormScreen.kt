@@ -147,7 +147,8 @@ fun CustomTimerFormScreen(
                 state = lazyListState,
                 modifier =
                     Modifier
-                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .weight(1f)
                         .background(ColorBackground),
                 contentPadding = PaddingValues(vertical = 14.dp),
             ) {
