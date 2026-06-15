@@ -36,4 +36,7 @@ dependencies {
     androidTestImplementation(libs.androidx.navigation.testing)
 
     implementation(libs.androidx.media)
+
+    // Compose Drag/Drop
+    implementation(libs.reorderable)
 }

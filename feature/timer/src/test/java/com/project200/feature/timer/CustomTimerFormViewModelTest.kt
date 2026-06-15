@@ -1,6 +1,6 @@
 package com.project200.feature.timer
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.CustomTimer
@@ -32,9 +32,6 @@ import org.junit.Test
 class CustomTimerFormViewModelTest {
     @get:Rule
     val mockkRule = MockKRule(this)
-
-    @get:Rule
-    val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @MockK
     private lateinit var validateCustomTimerUseCase: ValidateCustomTimerUseCase
@@ -87,7 +84,7 @@ class CustomTimerFormViewModelTest {
     @Test
     fun `init - 초기 상태에서 Footer 아이템만 존재한다`() {
         // Then
-        assertThat(viewModel.uiState.value?.listItems).hasSize(1)
+        assertThat(viewModel.uiState.value.listItems).hasSize(1)
     }
 
     @Test
@@ -108,7 +105,7 @@ class CustomTimerFormViewModelTest {
 
             // Then
             assertThat(viewModel.isEditMode).isTrue()
-            assertThat(viewModel.uiState.value?.title).isEqualTo("테스트 타이머")
+            assertThat(viewModel.uiState.value.title).isEqualTo("테스트 타이머")
         }
 
     @Test
@@ -117,12 +114,13 @@ class CustomTimerFormViewModelTest {
             // Given
             coEvery { getCustomTimerUseCase(1L) } returns BaseResult.Error("ERROR", "Failed")
 
-            // When
-            viewModel.loadData(1L)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.toast.value).isEqualTo(ToastMessageType.GET_ERROR)
+            // When & Then
+            viewModel.toast.test {
+                viewModel.loadData(1L)
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ToastMessageType.GET_ERROR)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -131,7 +129,7 @@ class CustomTimerFormViewModelTest {
         viewModel.updateTimerTitle("새 타이머")
 
         // Then
-        assertThat(viewModel.uiState.value?.title).isEqualTo("새 타이머")
+        assertThat(viewModel.uiState.value.title).isEqualTo("새 타이머")
     }
 
     @Test
@@ -140,7 +138,7 @@ class CustomTimerFormViewModelTest {
         viewModel.updateNewStepName("스텝 이름")
 
         // Then
-        val footer = viewModel.uiState.value?.listItems?.lastOrNull()
+        val footer = viewModel.uiState.value.listItems.lastOrNull()
         assertThat(footer).isNotNull()
     }
 
@@ -150,7 +148,7 @@ class CustomTimerFormViewModelTest {
         viewModel.updateNewStepTime(120)
 
         // Then
-        val footer = viewModel.uiState.value?.listItems?.lastOrNull()
+        val footer = viewModel.uiState.value.listItems.lastOrNull()
         assertThat(footer).isNotNull()
     }
 
@@ -163,7 +161,7 @@ class CustomTimerFormViewModelTest {
         viewModel.addStep()
 
         // Then
-        assertThat(viewModel.uiState.value?.listItems).hasSize(2)
+        assertThat(viewModel.uiState.value.listItems).hasSize(2)
     }
 
     @Test
@@ -177,7 +175,7 @@ class CustomTimerFormViewModelTest {
         viewModel.removeStep(stepId)
 
         // Then
-        assertThat(viewModel.uiState.value?.listItems).hasSize(1)
+        assertThat(viewModel.uiState.value.listItems).hasSize(1)
     }
 
     @Test
@@ -186,12 +184,13 @@ class CustomTimerFormViewModelTest {
             // Given
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.EmptyTitle
 
-            // When
-            viewModel.submitCustomTimer()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.toast.value).isEqualTo(ToastMessageType.EMPTY_TITLE)
+            // When & Then
+            viewModel.toast.test {
+                viewModel.submitCustomTimer()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ToastMessageType.EMPTY_TITLE)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -201,12 +200,13 @@ class CustomTimerFormViewModelTest {
             viewModel.updateTimerTitle("타이머")
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.NoSteps
 
-            // When
-            viewModel.submitCustomTimer()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.toast.value).isEqualTo(ToastMessageType.NO_STEPS)
+            // When & Then
+            viewModel.toast.test {
+                viewModel.submitCustomTimer()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ToastMessageType.NO_STEPS)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -219,12 +219,13 @@ class CustomTimerFormViewModelTest {
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.Success
             coEvery { createCustomTimerUseCase(any(), any()) } returns BaseResult.Success(1L)
 
-            // When
-            viewModel.submitCustomTimer()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.submitResult.value).isEqualTo(1L)
+            // When & Then
+            viewModel.submitResult.test {
+                viewModel.submitCustomTimer()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(1L)
+                cancelAndIgnoreRemainingEvents()
+            }
             coVerify { createCustomTimerUseCase(any(), any()) }
         }
 
@@ -238,12 +239,13 @@ class CustomTimerFormViewModelTest {
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.Success
             coEvery { createCustomTimerUseCase(any(), any()) } returns BaseResult.Error("ERROR", "Failed")
 
-            // When
-            viewModel.submitCustomTimer()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.toast.value).isEqualTo(ToastMessageType.CREATE_ERROR)
+            // When & Then
+            viewModel.toast.test {
+                viewModel.submitCustomTimer()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ToastMessageType.CREATE_ERROR)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test
@@ -255,12 +257,13 @@ class CustomTimerFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.Success
 
-            // When
-            viewModel.submitCustomTimer()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.toast.value).isEqualTo(ToastMessageType.NO_CHANGES)
+            // When & Then
+            viewModel.toast.test {
+                viewModel.submitCustomTimer()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(ToastMessageType.NO_CHANGES)
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 
     @Test

@@ -1,7 +1,5 @@
 package com.project200.feature.timer.custom
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -12,6 +10,13 @@ import com.project200.domain.usecase.EditCustomTimerUseCase
 import com.project200.domain.usecase.GetCustomTimerUseCase
 import com.project200.domain.usecase.ValidateCustomTimerUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.Collections
@@ -26,14 +31,19 @@ class CustomTimerFormViewModel
         private val createCustomTimerUseCase: CreateCustomTimerUseCase,
         private val editCustomTimerUseCase: EditCustomTimerUseCase,
     ) : ViewModel() {
-        private val _uiState = MutableLiveData<CustomTimerFormUiState>()
-        val uiState: LiveData<CustomTimerFormUiState> = _uiState
+        private val _uiState =
+            MutableStateFlow(
+                CustomTimerFormUiState(
+                    listItems = listOf(TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME)),
+                ),
+            )
+        val uiState: StateFlow<CustomTimerFormUiState> = _uiState.asStateFlow()
 
-        private val _toast = MutableLiveData<ToastMessageType>()
-        val toast: LiveData<ToastMessageType> = _toast
+        private val _toast = MutableSharedFlow<ToastMessageType>()
+        val toast: SharedFlow<ToastMessageType> = _toast.asSharedFlow()
 
-        private val _submitResult = MutableLiveData<Long>()
-        val submitResult: LiveData<Long> = _submitResult
+        private val _submitResult = MutableSharedFlow<Long>()
+        val submitResult: SharedFlow<Long> = _submitResult.asSharedFlow()
 
         // 원본 데이터 저장 (수정 모드에서 변경 사항 취소 시 사용)
         private var originalTitle: String = ""
@@ -47,25 +57,15 @@ class CustomTimerFormViewModel
         // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
         private var localIdCounter = DEFAULT_DUMMY_ID
 
-        init {
-            // 초기 상태: 푸터 아이템만 있는 리스트
-            _uiState.value =
-                CustomTimerFormUiState(
-                    listItems = listOf(TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME)),
-                )
-        }
-
         fun loadData(timerId: Long) {
             if (timerId != DEFAULT_DUMMY_ID) {
                 customTimerId = timerId
-                // 수정 모드: 조회 api
                 viewModelScope.launch {
                     when (val result = getCustomTimerUseCase(timerId)) {
                         is BaseResult.Success -> {
                             originalTitle = result.data.name
                             originalSteps = result.data.steps
 
-                            // 리스트에 푸터 아이템 추가하고 아이템화합니다.
                             _uiState.value =
                                 CustomTimerFormUiState(
                                     title = result.data.name,
@@ -75,12 +75,11 @@ class CustomTimerFormViewModel
                                 )
                         }
                         is BaseResult.Error -> {
-                            _toast.value = ToastMessageType.GET_ERROR
+                            _toast.emit(ToastMessageType.GET_ERROR)
                         }
                     }
                 }
             } else {
-                // 생성 모드: 기존 초기 상태 설정
                 _uiState.value =
                     CustomTimerFormUiState(
                         listItems = listOf(TimerFormListItem.FooterItem(name = "", time = DEFAULT_TIME)),
@@ -89,136 +88,136 @@ class CustomTimerFormViewModel
         }
 
         fun updateTimerTitle(title: String) {
-            // 현재 상태를 가져와 title만 변경한 새 객체로 값을 업데이트
-            _uiState.value = _uiState.value?.copy(title = title)
+            _uiState.update { it.copy(title = title) }
         }
 
         fun updateNewStepName(name: String) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val updatedList =
-                        currentState.listItems.map {
+            _uiState.update { current ->
+                current.copy(
+                    listItems =
+                        current.listItems.map {
                             if (it is TimerFormListItem.FooterItem) it.copy(name = name) else it
-                        }
-                    currentState.copy(listItems = updatedList)
-                }
+                        },
+                )
+            }
         }
 
         fun updateNewStepTime(time: Int) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val updatedList =
-                        currentState.listItems.map {
+            _uiState.update { current ->
+                current.copy(
+                    listItems =
+                        current.listItems.map {
                             if (it is TimerFormListItem.FooterItem) it.copy(time = time) else it
-                        }
-                    currentState.copy(listItems = updatedList)
-                }
+                        },
+                )
+            }
         }
 
         fun addStep() {
-            val currentState = _uiState.value ?: return
-            if (currentState.listItems.size >= MAX_STEP_SIZE) {
-                _toast.value = ToastMessageType.MAX_STEPS
+            val current = _uiState.value
+            if (current.listItems.size >= MAX_STEP_SIZE) {
+                viewModelScope.launch { _toast.emit(ToastMessageType.MAX_STEPS) }
                 return
             }
-            val footer = currentState.listItems.last() as? TimerFormListItem.FooterItem ?: return
+            val footer = current.listItems.last() as? TimerFormListItem.FooterItem ?: return
 
             val newStep =
                 Step(
-                    id = localIdCounter--, // 음수 ID 할당
-                    order = 0, // order는 마지막에 일괄 부여하므로 임시값 사용
+                    id = localIdCounter--,
+                    order = 0,
                     time = footer.time,
                     name = if (footer.name.isBlank()) "Step" else footer.name,
                 )
 
-            val newStepItem = TimerFormListItem.StepItem(newStep)
-            val newList = currentState.listItems.dropLast(1) + newStepItem + footer.copy(name = "", time = DEFAULT_TIME)
-            _uiState.value = currentState.copy(listItems = newList)
+            val newList =
+                current.listItems.dropLast(1) +
+                    TimerFormListItem.StepItem(newStep) +
+                    footer.copy(name = "", time = DEFAULT_TIME)
+            _uiState.value = current.copy(listItems = newList)
         }
 
         fun removeStep(id: Long) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val updatedList =
-                        currentState.listItems.filterNot { item ->
+            _uiState.update { current ->
+                current.copy(
+                    listItems =
+                        current.listItems.filterNot { item ->
                             item is TimerFormListItem.StepItem && item.step.id == id
-                        }
-                    currentState.copy(listItems = updatedList)
-                }
+                        },
+                )
+            }
         }
 
         fun updateStepName(
             id: Long,
             name: String,
         ) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val updatedList =
-                        currentState.listItems.map { item ->
+            _uiState.update { current ->
+                current.copy(
+                    listItems =
+                        current.listItems.map { item ->
                             if (item is TimerFormListItem.StepItem && item.step.id == id) {
                                 item.copy(step = item.step.copy(name = name))
                             } else {
                                 item
                             }
-                        }
-                    currentState.copy(listItems = updatedList)
-                }
+                        },
+                )
+            }
         }
 
         fun updateStepTime(
             id: Long,
             time: Int,
         ) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val updatedList =
-                        currentState.listItems.map { item ->
+            _uiState.update { current ->
+                current.copy(
+                    listItems =
+                        current.listItems.map { item ->
                             if (item is TimerFormListItem.StepItem && item.step.id == id) {
                                 item.copy(step = item.step.copy(time = time))
                             } else {
                                 item
                             }
-                        }
-                    currentState.copy(listItems = updatedList)
-                }
+                        },
+                )
+            }
         }
 
         fun moveStep(
             fromPosition: Int,
             toPosition: Int,
         ) {
-            _uiState.value =
-                _uiState.value?.let { currentState ->
-                    val mutableList = currentState.listItems.toMutableList()
-                    // Footer는 항상 마지막에 있어야 하므로, Footer가 아닌 아이템만 스왑 대상으로 간주
-                    if (fromPosition < mutableList.size - 1 && toPosition < mutableList.size - 1) {
-                        Collections.swap(mutableList, fromPosition, toPosition)
-                    }
-                    currentState.copy(listItems = mutableList)
+            _uiState.update { current ->
+                val mutableList = current.listItems.toMutableList()
+                // Footer는 항상 마지막에 있어야 하므로, Footer가 아닌 아이템만 스왑 대상
+                if (fromPosition < mutableList.size - 1 && toPosition < mutableList.size - 1) {
+                    Collections.swap(mutableList, fromPosition, toPosition)
                 }
+                current.copy(listItems = mutableList)
+            }
         }
 
         fun getStepsWithFinalOrder(): List<Step> {
-            val currentSteps = _uiState.value?.listItems?.mapNotNull { it as? TimerFormListItem.StepItem } ?: emptyList()
+            val currentSteps = _uiState.value.listItems.mapNotNull { it as? TimerFormListItem.StepItem }
             return currentSteps.mapIndexed { index, stepItem ->
                 stepItem.step.copy(order = index)
             }
         }
 
         fun submitCustomTimer() {
-            val currentState = _uiState.value ?: return
-            val currentSteps = currentState.listItems.mapNotNull { (it as? TimerFormListItem.StepItem)?.step }
-            val validationResult = validateCustomTimerUseCase(currentState.title, currentSteps)
+            val current = _uiState.value
+            val currentSteps = current.listItems.mapNotNull { (it as? TimerFormListItem.StepItem)?.step }
+            val validationResult = validateCustomTimerUseCase(current.title, currentSteps)
 
             if (validationResult is CustomTimerValidationResult.Success) {
                 Timber.d("Validation passed, creating timer")
                 if (isEditMode) {
-                    editCustomTimer(currentState.title, getStepsWithFinalOrder())
+                    editCustomTimer(current.title, getStepsWithFinalOrder())
                 } else {
-                    createCustomTimer(currentState.title, getStepsWithFinalOrder())
+                    createCustomTimer(current.title, getStepsWithFinalOrder())
                 }
             } else {
-                _toast.value =
+                val errorType =
                     when (validationResult) {
                         is CustomTimerValidationResult.EmptyTitle -> ToastMessageType.EMPTY_TITLE
                         is CustomTimerValidationResult.NoSteps -> ToastMessageType.NO_STEPS
@@ -226,6 +225,9 @@ class CustomTimerFormViewModel
                         is CustomTimerValidationResult.EmptyStepName -> ToastMessageType.EMPTY_STEP_NAME
                         else -> null
                     }
+                if (errorType != null) {
+                    viewModelScope.launch { _toast.emit(errorType) }
+                }
             }
         }
 
@@ -235,12 +237,8 @@ class CustomTimerFormViewModel
         ) {
             viewModelScope.launch {
                 when (val result = createCustomTimerUseCase(title, steps)) {
-                    is BaseResult.Success -> {
-                        _submitResult.value = result.data
-                    }
-                    is BaseResult.Error -> {
-                        _toast.value = ToastMessageType.CREATE_ERROR
-                    }
+                    is BaseResult.Success -> _submitResult.emit(result.data)
+                    is BaseResult.Error -> _toast.emit(ToastMessageType.CREATE_ERROR)
                 }
             }
         }
@@ -253,18 +251,13 @@ class CustomTimerFormViewModel
             val hasTitleChanged = originalTitle != title
             val hasStepsChanged = originalSteps != steps
             if (!hasTitleChanged && !hasStepsChanged) {
-                // 변경 사항이 없으면 api 호출 없이 토스트 메세지 출력
-                _toast.value = ToastMessageType.NO_CHANGES
+                viewModelScope.launch { _toast.emit(ToastMessageType.NO_CHANGES) }
                 return
             }
             viewModelScope.launch {
                 when (editCustomTimerUseCase(hasTitleChanged, hasStepsChanged, timerId, title, steps)) {
-                    is BaseResult.Success -> {
-                        _submitResult.value = customTimerId
-                    }
-                    is BaseResult.Error -> {
-                        _toast.value = ToastMessageType.EDIT_ERROR
-                    }
+                    is BaseResult.Success -> _submitResult.emit(customTimerId)
+                    is BaseResult.Error -> _toast.emit(ToastMessageType.EDIT_ERROR)
                 }
             }
         }
