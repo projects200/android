@@ -1,46 +1,102 @@
 package com.project200.undabang.feature.feed.detail
 
-import android.text.Editable
-import android.text.TextWatcher
+import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.bumptech.glide.Glide
-import com.project200.domain.model.Feed
-import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
-import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.presentation.utils.collectFlow
 import com.project200.presentation.utils.collectToast
-import com.project200.undabang.feature.feed.R
-import com.project200.undabang.feature.feed.databinding.FragmentFeedDetailBinding
 import com.project200.undabang.feature.feed.form.FeedFormFragment
 import com.project200.undabang.feature.feed.list.FeedListFragment
-import com.project200.undabang.feature.feed.list.ImageRVAdapter
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
-class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.fragment_feed_detail) {
+class FeedDetailFragment : Fragment() {
     private val viewModel: FeedDetailViewModel by viewModels()
     private val args: FeedDetailFragmentArgs by navArgs()
-    private var commentRVAdapter: CommentRVAdapter? = null
 
-    override fun getViewBinding(view: View): FragmentFeedDetailBinding {
-        return FragmentFeedDetailBinding.bind(view)
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        viewModel.setFeedId(args.feedId)
     }
 
-    override fun setupViews() {
-        viewModel.setFeedId(args.feedId)
-        initToolbar()
-        initCommentInput()
-        initObserver()
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        ComposeView(requireContext()).apply {
+            applyAppTheme {
+                val feed by viewModel.feed.collectAsStateWithLifecycle()
+                val comments by viewModel.comments.collectAsStateWithLifecycle()
+                val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+                val isMyFeed by viewModel.isMyFeed.collectAsStateWithLifecycle()
+                val currentMemberId by viewModel.currentMemberId.collectAsStateWithLifecycle()
+                val replyTarget by viewModel.replyTarget.collectAsStateWithLifecycle()
+
+                // 댓글 입력 텍스트는 화면 회전 시에도 유지되도록 rememberSaveable로 저장
+                var commentInput by rememberSaveable { mutableStateOf("") }
+                // 첫 로드 실패를 한 번 감지하면 토스트 + 에러 UI 표시
+                val isLoadError = remember { mutableStateOf(false) }
+                LaunchedFeedLoadErrorCollector(viewModel) { isLoadError.value = true }
+
+                FeedDetailScreen(
+                    feed = feed,
+                    commentItems = comments.toCommentItems(),
+                    isLoading = isLoading,
+                    isLoadError = isLoadError.value,
+                    isMyFeed = isMyFeed,
+                    currentMemberId = currentMemberId,
+                    replyTarget = replyTarget,
+                    commentInput = commentInput,
+                    onCommentInputChange = { commentInput = it },
+                    onSendComment = {
+                        if (commentInput.isNotBlank()) {
+                            viewModel.createComment(commentInput)
+                            commentInput = ""
+                        }
+                    },
+                    onCancelReply = { viewModel.setReplyTarget(null) },
+                    onReplyClick = viewModel::setReplyTarget,
+                    onCommentLikeClick = viewModel::toggleCommentLike,
+                    onCommentMoreClick = ::showCommentMenuBottomSheet,
+                    onFeedLikeClick = viewModel::toggleFeedLike,
+                    onFeedMoreClick = ::showFeedMenuBottomSheet,
+                    onBackClick = { findNavController().navigateUp() },
+                )
+            }
+        }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
         observeFeedUpdated()
+        collectToast(viewModel.toastEvent)
+        collectFlow(viewModel.feedDeleted) {
+            findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
+            findNavController().navigateUp()
+        }
     }
 
     private fun observeFeedUpdated() {
-        findNavController().currentBackStackEntry?.savedStateHandle?.getLiveData<Boolean>(FeedFormFragment.FEED_UPDATED_KEY)
+        // 작성/수정 화면에서 돌아왔을 때 갱신 시그널 처리
+        findNavController().currentBackStackEntry?.savedStateHandle
+            ?.getLiveData<Boolean>(FeedFormFragment.FEED_UPDATED_KEY)
             ?.observe(viewLifecycleOwner) { updated ->
                 if (updated) {
                     viewModel.refreshFeed()
@@ -50,192 +106,15 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             }
     }
 
-    private fun initToolbar() {
-        binding.baseToolbar.apply {
-            setTitle("")
-            showBackButton(true) { findNavController().navigateUp() }
-        }
-    }
-
-    private fun initCommentInput() {
-        with(binding.commentInputLayout) {
-            commentInputEt.addTextChangedListener(
-                object : TextWatcher {
-                    override fun beforeTextChanged(
-                        s: CharSequence?,
-                        start: Int,
-                        count: Int,
-                        after: Int,
-                    ) {}
-
-                    override fun onTextChanged(
-                        s: CharSequence?,
-                        start: Int,
-                        before: Int,
-                        count: Int,
-                    ) {}
-
-                    override fun afterTextChanged(s: Editable?) {
-                        val hasText = !s.isNullOrBlank()
-                        val sendIcon =
-                            if (hasText) {
-                                R.drawable.ic_send
-                            } else {
-                                R.drawable.ic_send_unable
-                            }
-                        sendBtn.setImageResource(sendIcon)
-                    }
-                },
-            )
-
-            sendBtn.setOnClickListener {
-                val content = commentInputEt.text.toString()
-                if (content.isNotBlank()) {
-                    viewModel.createComment(content)
-                    commentInputEt.text.clear()
-                }
-            }
-
-            cancelReplyIv.setOnClickListener {
-                viewModel.setReplyTarget(null)
-            }
-        }
-    }
-
-    private fun initObserver() {
-        viewModel.feed.observe(viewLifecycleOwner) { feed ->
-            bindFeedData(feed)
-        }
-
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            if (isLoading) {
-                binding.shimmerLayout.visibility = View.VISIBLE
-                binding.shimmerLayout.startShimmer()
-                binding.scrollView.visibility = View.GONE
-            } else {
-                binding.shimmerLayout.stopShimmer()
-                binding.shimmerLayout.visibility = View.GONE
-                binding.scrollView.visibility = View.VISIBLE
-            }
-        }
-
-        collectToast(viewModel.toastEvent)
-
-        collectFlow(viewModel.feedDeleted) {
-            findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
-            findNavController().navigateUp()
-        }
-
-        collectFlow(viewModel.feedLoadError) {
-            binding.errorTv.visibility = View.VISIBLE
-            binding.scrollView.visibility = View.GONE
-        }
-
-        viewModel.isMyFeed.observe(viewLifecycleOwner) { isMyFeed ->
-            binding.moreIv.visibility = if (isMyFeed) View.VISIBLE else View.GONE
-        }
-
-        viewModel.comments.observe(viewLifecycleOwner) { comments ->
-            setupCommentAdapter()
-            val items = comments.toCommentItems()
-            commentRVAdapter?.submitList(items)
-
-            binding.noCommentsTv.visibility = if (comments.isEmpty()) View.VISIBLE else View.GONE
-            binding.commentsRv.visibility = if (comments.isEmpty()) View.GONE else View.VISIBLE
-        }
-
-        viewModel.replyTarget.observe(viewLifecycleOwner) { target ->
-            with(binding.commentInputLayout) {
-                if (target != null) {
-                    replyTargetTv.text = getString(R.string.feed_reply_writing, target.memberNickname)
-                    replyTargetTv.visibility = View.VISIBLE
-                    cancelReplyIv.visibility = View.VISIBLE
-                } else {
-                    replyTargetTv.visibility = View.GONE
-                    cancelReplyIv.visibility = View.GONE
-                }
-            }
-        }
-    }
-
-    private fun setupCommentAdapter() {
-        if (commentRVAdapter != null) return
-
-        val currentMemberId = viewModel.currentMemberId.value
-        commentRVAdapter =
-            CommentRVAdapter(
-                currentMemberId = currentMemberId,
-                onLikeClick = { item -> viewModel.toggleCommentLike(item) },
-                onReplyClick = { item -> viewModel.setReplyTarget(item) },
-                onMoreClick = { item -> showCommentMenuBottomSheet(item) },
-            )
-        binding.commentsRv.adapter = commentRVAdapter
-    }
-
     private fun showCommentMenuBottomSheet(item: CommentItem) {
         UndabangBottomSheet.showMenu(
             fragmentManager = parentFragmentManager,
             showEdit = false,
-            onDeleteClick = {
-                viewModel.deleteComment(item.commentId)
-            },
+            onDeleteClick = { viewModel.deleteComment(item.commentId) },
         )
     }
 
-    private fun bindFeedData(feed: Feed) {
-        with(binding) {
-            nicknameTv.text = feed.nickname
-            timeTv.text = RelativeTimeUtil.getRelativeTime(feed.feedCreatedAt)
-            contentTv.text = feed.feedContent
-            likeCountTv.text = feed.feedLikesCount.toString()
-            commentCountTv.text = feed.feedCommentsCount.toString()
-
-            val likeIcon =
-                if (feed.feedIsLiked) {
-                    R.drawable.ic_like_fill
-                } else {
-                    R.drawable.ic_like
-                }
-            likeIv.setImageResource(likeIcon)
-
-            likeIv.setOnClickListener {
-                viewModel.toggleFeedLike()
-            }
-
-            val hasType = !feed.feedTypeName.isNullOrBlank()
-            arrowIv.visibility = if (hasType) View.VISIBLE else View.GONE
-            feedTypeTv.visibility = if (hasType) View.VISIBLE else View.GONE
-            if (hasType) {
-                feedTypeTv.text = feed.feedTypeName
-            }
-
-            Glide.with(profileIv.context)
-                .load(feed.profileUrl)
-                .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
-                .error(com.project200.undabang.presentation.R.drawable.ic_profile_default)
-                .circleCrop()
-                .into(profileIv)
-
-            if (feed.feedPictures.isNotEmpty()) {
-                imagesRv.visibility = View.VISIBLE
-                imagesRv.layoutManager =
-                    LinearLayoutManager(
-                        context,
-                        LinearLayoutManager.HORIZONTAL,
-                        false,
-                    )
-                imagesRv.adapter = ImageRVAdapter(feed.feedPictures)
-            } else {
-                imagesRv.visibility = View.GONE
-            }
-
-            moreIv.setOnClickListener {
-                showMenuBottomSheet()
-            }
-        }
-    }
-
-    private fun showMenuBottomSheet() {
+    private fun showFeedMenuBottomSheet() {
         UndabangBottomSheet.showMenu(
             fragmentManager = parentFragmentManager,
             onEditClick = { navigateToEditFeed() },
@@ -251,9 +130,14 @@ class FeedDetailFragment : BindingFragment<FragmentFeedDetailBinding>(R.layout.f
             )
         findNavController().navigate(action)
     }
+}
 
-    override fun onDestroyView() {
-        commentRVAdapter = null
-        super.onDestroyView()
+@androidx.compose.runtime.Composable
+private fun LaunchedFeedLoadErrorCollector(
+    viewModel: FeedDetailViewModel,
+    onError: () -> Unit,
+) {
+    androidx.compose.runtime.LaunchedEffect(viewModel) {
+        viewModel.feedLoadError.collect { onError() }
     }
 }
