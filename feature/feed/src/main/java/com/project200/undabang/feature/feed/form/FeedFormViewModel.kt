@@ -1,8 +1,6 @@
 package com.project200.undabang.feature.feed.form
 
 import android.net.Uri
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -22,8 +20,11 @@ import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -42,43 +43,42 @@ class FeedFormViewModel
     ) : ViewModel() {
         private var feedId: Long = -1L
 
-        private val _isEditMode = MutableLiveData(false)
-        val isEditMode: LiveData<Boolean> get() = _isEditMode
+        private val _isEditMode = MutableStateFlow(false)
+        val isEditMode: StateFlow<Boolean> = _isEditMode.asStateFlow()
 
-        private val _userProfile = MutableLiveData<UserProfile>()
-        val userProfile: LiveData<UserProfile> get() = _userProfile
+        private val _userProfile = MutableStateFlow<UserProfile?>(null)
+        val userProfile: StateFlow<UserProfile?> = _userProfile.asStateFlow()
 
-        private val _exerciseTypes = MutableLiveData<List<PreferredExercise>>()
-        val exerciseTypes: LiveData<List<PreferredExercise>> get() = _exerciseTypes
+        private val exerciseTypesFlow = MutableStateFlow<List<PreferredExercise>>(emptyList())
 
-        private val _selectedType = MutableLiveData<PreferredExercise?>()
-        val selectedType: LiveData<PreferredExercise?> get() = _selectedType
+        private val _selectedType = MutableStateFlow<PreferredExercise?>(null)
+        val selectedType: StateFlow<PreferredExercise?> = _selectedType.asStateFlow()
 
-        private val _selectedImages = MutableLiveData<List<Uri>>(emptyList())
-        val selectedImages: LiveData<List<Uri>> get() = _selectedImages
+        private val _selectedImages = MutableStateFlow<List<Uri>>(emptyList())
+        val selectedImages: StateFlow<List<Uri>> = _selectedImages.asStateFlow()
 
-        private val _registeredImages = MutableLiveData<List<RegisteredImage>>(emptyList())
-        val registeredImages: LiveData<List<RegisteredImage>> get() = _registeredImages
+        private val _registeredImages = MutableStateFlow<List<RegisteredImage>>(emptyList())
+        val registeredImages: StateFlow<List<RegisteredImage>> = _registeredImages.asStateFlow()
+
+        private val _content = MutableStateFlow("")
+        val content: StateFlow<String> = _content.asStateFlow()
 
         private val deletedImageIds = mutableListOf<Long>()
 
-        private val _isLoading = MutableLiveData<Boolean>()
-        val isLoading: LiveData<Boolean> get() = _isLoading
+        private val _isLoading = MutableStateFlow(false)
+        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-        private val _createSuccess = MutableLiveData<Long>()
-        val createSuccess: LiveData<Long> get() = _createSuccess
+        private val _createSuccess = MutableSharedFlow<Long>()
+        val createSuccess: SharedFlow<Long> = _createSuccess.asSharedFlow()
 
-        private val _updateSuccess = MutableLiveData<Boolean>()
-        val updateSuccess: LiveData<Boolean> get() = _updateSuccess
+        private val _updateSuccess = MutableSharedFlow<Unit>()
+        val updateSuccess: SharedFlow<Unit> = _updateSuccess.asSharedFlow()
 
         private val _toastEvent = MutableSharedFlow<UiText>()
         val toastEvent: SharedFlow<UiText> = _toastEvent.asSharedFlow()
 
-        private val _showDabangSelection = MutableLiveData<List<PreferredExercise>?>()
-        val showDabangSelection: LiveData<List<PreferredExercise>?> get() = _showDabangSelection
-
-        private val _initialContentForEdit = MutableLiveData<String?>()
-        val initialContentForEdit: LiveData<String?> get() = _initialContentForEdit
+        private val _showDabangSelection = MutableSharedFlow<List<PreferredExercise>>()
+        val showDabangSelection: SharedFlow<List<PreferredExercise>> = _showDabangSelection.asSharedFlow()
 
         fun initData(feedId: Long = -1L) {
             this.feedId = feedId
@@ -100,9 +100,9 @@ class FeedFormViewModel
                 val allList = if (allTypesResult is BaseResult.Success) allTypesResult.data else emptyList()
 
                 val combined = (preferredList + allList).distinctBy { it.exerciseTypeId }
-                _exerciseTypes.value = combined
+                exerciseTypesFlow.value = combined
 
-                if (_isEditMode.value == true) {
+                if (_isEditMode.value) {
                     loadFeedForEdit(combined)
                 }
             }
@@ -112,7 +112,7 @@ class FeedFormViewModel
             when (val result = getFeedDetailUseCase(feedId)) {
                 is BaseResult.Success -> {
                     val feed = result.data
-                    _initialContentForEdit.value = feed.feedContent
+                    _content.value = feed.feedContent.orEmpty()
 
                     val existingList =
                         feed.feedPictures.map { picture ->
@@ -142,39 +142,39 @@ class FeedFormViewModel
             }
         }
 
+        fun updateContent(value: String) {
+            _content.value = value
+        }
+
         fun selectType(exercise: PreferredExercise?) {
             _selectedType.value = exercise
         }
 
         fun requestShowDabangSelection() {
-            val types = _exerciseTypes.value
-            if (!types.isNullOrEmpty()) {
-                _showDabangSelection.value = types
+            val types = exerciseTypesFlow.value
+            if (types.isNotEmpty()) {
+                viewModelScope.launch {
+                    _showDabangSelection.emit(types)
+                }
             }
         }
 
-        fun onDabangSelectionShown() {
-            _showDabangSelection.value = null
-        }
-
         fun addImages(uris: List<Uri>) {
-            val current = _selectedImages.value ?: emptyList()
-            _selectedImages.value = current + uris
+            _selectedImages.value = _selectedImages.value + uris
         }
 
         fun removeImage(uri: Uri) {
-            val current = _selectedImages.value ?: emptyList()
-            _selectedImages.value = current.filter { it != uri }
+            _selectedImages.value = _selectedImages.value.filter { it != uri }
         }
 
         fun removeExistingImage(imageId: Long) {
             deletedImageIds.add(imageId)
-            val current = _registeredImages.value ?: emptyList()
-            _registeredImages.value = current.filter { it.imageId != imageId }
+            _registeredImages.value = _registeredImages.value.filter { it.imageId != imageId }
         }
 
-        fun submitFeed(content: String) {
-            if (content.isBlank()) {
+        fun submitFeed() {
+            val text = _content.value
+            if (text.isBlank()) {
                 viewModelScope.launch {
                     _toastEvent.emit(UiText.StringResource(R.string.feed_form_empty_content_warning))
                 }
@@ -183,73 +183,79 @@ class FeedFormViewModel
 
             _isLoading.value = true
             viewModelScope.launch {
-                if (_isEditMode.value == true) {
-                    val model =
-                        UpdateFeedModel(
-                            feedId = feedId,
-                            feedContent = content,
-                            feedTypeId = _selectedType.value?.exerciseTypeId,
-                        )
-                    when (updateFeedUseCase(model)) {
-                        is BaseResult.Success -> {
-                            var hasImageError = false
-
-                            deletedImageIds.forEach { imageId ->
-                                when (deleteFeedImageUseCase(feedId, imageId)) {
-                                    is BaseResult.Error -> hasImageError = true
-                                    is BaseResult.Success -> {}
-                                }
-                            }
-
-                            val newImages = _selectedImages.value ?: emptyList()
-                            if (newImages.isNotEmpty()) {
-                                val imageUriStrings = newImages.map { it.toString() }
-                                when (uploadFeedImagesUseCase(feedId, imageUriStrings)) {
-                                    is BaseResult.Error -> hasImageError = true
-                                    is BaseResult.Success -> {}
-                                }
-                            }
-
-                            if (hasImageError) {
-                                _toastEvent.emit(UiText.StringResource(R.string.feed_form_image_upload_error))
-                            }
-                            _updateSuccess.value = true
-                        }
-                        is BaseResult.Error -> {
-                            _toastEvent.emit(UiText.StringResource(R.string.feed_form_update_error))
-                        }
-                    }
+                if (_isEditMode.value) {
+                    submitEdit(text)
                 } else {
-                    val model =
-                        CreateFeedModel(
-                            feedContent = content,
-                            feedTypeId = _selectedType.value?.exerciseTypeId,
-                        )
-                    when (val result = createFeedUseCase(model)) {
-                        is BaseResult.Success -> {
-                            val createdFeedId = result.data.feedId
-                            val images = _selectedImages.value ?: emptyList()
-                            if (images.isNotEmpty()) {
-                                val imageUriStrings = images.map { it.toString() }
-                                when (uploadFeedImagesUseCase(createdFeedId, imageUriStrings)) {
-                                    is BaseResult.Success -> {
-                                        _createSuccess.value = createdFeedId
-                                    }
-                                    is BaseResult.Error -> {
-                                        _createSuccess.value = createdFeedId
-                                        _toastEvent.emit(UiText.StringResource(R.string.feed_form_image_upload_error))
-                                    }
-                                }
-                            } else {
-                                _createSuccess.value = createdFeedId
-                            }
-                        }
-                        is BaseResult.Error -> {
-                            _toastEvent.emit(UiText.StringResource(R.string.feed_form_create_error))
-                        }
-                    }
+                    submitCreate(text)
                 }
                 _isLoading.value = false
+            }
+        }
+
+        private suspend fun submitEdit(text: String) {
+            val model =
+                UpdateFeedModel(
+                    feedId = feedId,
+                    feedContent = text,
+                    feedTypeId = _selectedType.value?.exerciseTypeId,
+                )
+            when (updateFeedUseCase(model)) {
+                is BaseResult.Success -> {
+                    var hasImageError = false
+
+                    deletedImageIds.forEach { imageId ->
+                        when (deleteFeedImageUseCase(feedId, imageId)) {
+                            is BaseResult.Error -> hasImageError = true
+                            is BaseResult.Success -> {}
+                        }
+                    }
+
+                    val newImages = _selectedImages.value
+                    if (newImages.isNotEmpty()) {
+                        val imageUriStrings = newImages.map { it.toString() }
+                        when (uploadFeedImagesUseCase(feedId, imageUriStrings)) {
+                            is BaseResult.Error -> hasImageError = true
+                            is BaseResult.Success -> {}
+                        }
+                    }
+
+                    if (hasImageError) {
+                        _toastEvent.emit(UiText.StringResource(R.string.feed_form_image_upload_error))
+                    }
+                    _updateSuccess.emit(Unit)
+                }
+                is BaseResult.Error -> {
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_form_update_error))
+                }
+            }
+        }
+
+        private suspend fun submitCreate(text: String) {
+            val model =
+                CreateFeedModel(
+                    feedContent = text,
+                    feedTypeId = _selectedType.value?.exerciseTypeId,
+                )
+            when (val result = createFeedUseCase(model)) {
+                is BaseResult.Success -> {
+                    val createdFeedId = result.data.feedId
+                    val images = _selectedImages.value
+                    if (images.isNotEmpty()) {
+                        val imageUriStrings = images.map { it.toString() }
+                        when (uploadFeedImagesUseCase(createdFeedId, imageUriStrings)) {
+                            is BaseResult.Success -> _createSuccess.emit(createdFeedId)
+                            is BaseResult.Error -> {
+                                _createSuccess.emit(createdFeedId)
+                                _toastEvent.emit(UiText.StringResource(R.string.feed_form_image_upload_error))
+                            }
+                        }
+                    } else {
+                        _createSuccess.emit(createdFeedId)
+                    }
+                }
+                is BaseResult.Error -> {
+                    _toastEvent.emit(UiText.StringResource(R.string.feed_form_create_error))
+                }
             }
         }
     }
