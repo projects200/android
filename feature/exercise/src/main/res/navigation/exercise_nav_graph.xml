@@ -31,7 +31,7 @@
         android:id="@+id/exerciseDetailFragment"
         android:name="com.project200.feature.exercise.detail.ExerciseDetailFragment"
         android:label="exerciseDetail"
-        tools:layout="@layout/fragment_exercise_detail">
+       >
         <argument
             android:name="recordId"
             app:argType="long" />
