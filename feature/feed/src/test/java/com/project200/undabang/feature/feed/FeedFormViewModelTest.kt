@@ -1,7 +1,6 @@
 package com.project200.undabang.feature.feed
 
 import android.net.Uri
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
@@ -41,9 +40,6 @@ import java.time.LocalDateTime
 class FeedFormViewModelTest {
     @get:Rule
     val mockkRule = MockKRule(this)
-
-    @get:Rule
-    val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @MockK
     private lateinit var getUserProfileUseCase: GetUserProfileUseCase
@@ -184,7 +180,7 @@ class FeedFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.initialContentForEdit.value).isEqualTo("기존 내용")
+            assertThat(viewModel.content.value).isEqualTo("기존 내용")
         }
 
     @Test
@@ -254,7 +250,7 @@ class FeedFormViewModelTest {
         runTest {
             // When & Then
             viewModel.toastEvent.test {
-                viewModel.submitFeed("")
+                viewModel.submitFeed()
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isNotNull()
             }
@@ -270,13 +266,15 @@ class FeedFormViewModelTest {
             coEvery { createFeedUseCase(any()) } returns BaseResult.Success(FeedCreateResult(feedId = 1L))
             viewModel.initData()
             testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.updateContent("테스트 내용")
 
-            // When
-            viewModel.submitFeed("테스트 내용")
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.createSuccess.value).isEqualTo(1L)
+            // When & Then
+            viewModel.createSuccess.test {
+                viewModel.submitFeed()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isEqualTo(1L)
+                cancelAndIgnoreRemainingEvents()
+            }
             coVerify { createFeedUseCase(any()) }
         }
 
@@ -295,9 +293,10 @@ class FeedFormViewModelTest {
             viewModel.initData()
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.addImages(listOf(mockUri))
+            viewModel.updateContent("테스트 내용")
 
             // When
-            viewModel.submitFeed("테스트 내용")
+            viewModel.submitFeed()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -315,13 +314,15 @@ class FeedFormViewModelTest {
             coEvery { updateFeedUseCase(any()) } returns BaseResult.Success(Unit)
             viewModel.initData(feedId = 1L)
             testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.updateContent("수정된 내용")
 
-            // When
-            viewModel.submitFeed("수정된 내용")
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            assertThat(viewModel.updateSuccess.value).isTrue()
+            // When & Then
+            viewModel.updateSuccess.test {
+                viewModel.submitFeed()
+                testDispatcher.scheduler.advanceUntilIdle()
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
             coVerify { updateFeedUseCase(any()) }
         }
 
@@ -335,10 +336,11 @@ class FeedFormViewModelTest {
             coEvery { createFeedUseCase(any()) } returns BaseResult.Error("ERROR", "Failed")
             viewModel.initData()
             testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.updateContent("테스트 내용")
 
             // When & Then
             viewModel.toastEvent.test {
-                viewModel.submitFeed("테스트 내용")
+                viewModel.submitFeed()
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isNotNull()
             }
@@ -354,10 +356,12 @@ class FeedFormViewModelTest {
             viewModel.initData()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // When
-            viewModel.requestShowDabangSelection()
-
-            // Then
-            assertThat(viewModel.showDabangSelection.value).isNotNull()
+            // When & Then
+            viewModel.showDabangSelection.test {
+                viewModel.requestShowDabangSelection()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isNotEmpty()
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 }
