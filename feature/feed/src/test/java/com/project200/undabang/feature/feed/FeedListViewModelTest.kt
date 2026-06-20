@@ -145,7 +145,6 @@ class FeedListViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.exerciseTypeList.value).isNotNull()
             coVerify { getPreferredExerciseUseCase() }
             coVerify { getPreferredExerciseTypesUseCase() }
         }
@@ -341,25 +340,12 @@ class FeedListViewModelTest {
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // When
-            viewModel.requestShowCategoryBottomSheet()
-
-            // Then
-            assertThat(viewModel.showCategoryBottomSheet.value).isNotNull()
-        }
-
-    @Test
-    fun `onCategoryBottomSheetShown - 바텀시트 표시 후 상태를 초기화한다`() =
-        runTest {
-            // Given
-            viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
-            viewModel.requestShowCategoryBottomSheet()
-
-            // When
-            viewModel.onCategoryBottomSheetShown()
-
-            // Then
-            assertThat(viewModel.showCategoryBottomSheet.value).isNull()
+            // When & Then
+            viewModel.showCategoryBottomSheet.test {
+                viewModel.requestShowCategoryBottomSheet()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isNotEmpty()
+                cancelAndIgnoreRemainingEvents()
+            }
         }
 }

@@ -1,38 +1,87 @@
 package com.project200.undabang.feature.feed.list
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
-import com.project200.domain.model.ExerciseType
-import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.collectToast
-import com.project200.undabang.feature.feed.R
-import com.project200.undabang.feature.feed.databinding.FragmentFeedListBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragment_feed_list) {
+class FeedListFragment : Fragment() {
     private val viewModel: FeedListViewModel by viewModels()
-    private lateinit var feedAdapter: FeedListAdapter
 
-    override fun getViewBinding(view: View): FragmentFeedListBinding {
-        return FragmentFeedListBinding.bind(view)
-    }
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        ComposeView(requireContext()).apply {
+            applyAppTheme {
+                val feeds by viewModel.feedList.collectAsStateWithLifecycle()
+                val selectedType by viewModel.selectedType.collectAsStateWithLifecycle()
+                val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
+                val isEmpty by viewModel.isEmpty.collectAsStateWithLifecycle()
+
+                FeedListScreen(
+                    feeds = feeds,
+                    selectedTypeName = selectedType?.name,
+                    isLoading = isLoading,
+                    isEmpty = isEmpty,
+                    onFeedClick = { feedId ->
+                        findNavController().navigate(
+                            FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feedId),
+                        )
+                    },
+                    onAddClick = {
+                        findNavController().navigate(
+                            FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment(),
+                        )
+                    },
+                    onCategoryClick = viewModel::requestShowCategoryBottomSheet,
+                    onClearCategory = viewModel::clearType,
+                    onLoadMore = {
+                        if (viewModel.canLoadMore()) {
+                            viewModel.loadFeeds()
+                        }
+                    },
+                )
+            }
+        }
 
     override fun onViewCreated(
         view: View,
         savedInstanceState: Bundle?,
     ) {
         super.onViewCreated(view, savedInstanceState)
-        initAdapter()
-        initToolbar()
-        initView()
-        initObserver()
         observeRefreshSignal()
+        collectToast(viewModel.toastEvent)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.showCategoryBottomSheet.collect { types ->
+                    UndabangBottomSheet.showSelection(
+                        fragmentManager = parentFragmentManager,
+                        items = types.map { it.name },
+                    ) { selectedName ->
+                        val selected = types.find { it.name == selectedName }
+                        viewModel.selectType(selected)
+                    }
+                }
+            }
+        }
     }
 
     private fun observeRefreshSignal() {
@@ -42,131 +91,6 @@ class FeedListFragment : BindingFragment<FragmentFeedListBinding>(R.layout.fragm
                 viewModel.loadFeeds(isRefresh = true)
                 savedStateHandle.remove<Boolean>(REFRESH_KEY)
             }
-        }
-    }
-
-    private fun initAdapter() {
-        feedAdapter =
-            FeedListAdapter(
-                onItemClick = { feed ->
-                    findNavController().navigate(
-                        FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feed.feedId),
-                    )
-                },
-            )
-    }
-
-    private fun initToolbar() {
-        binding.baseToolbar.apply {
-            setTitle(getString(R.string.feed_title))
-            showBackButton(false)
-            setSubButton(R.drawable.ic_feed_add) {
-                findNavController().navigate(
-                    FeedListFragmentDirections.actionFeedListFragmentToFeedFormFragment(),
-                )
-            }
-            setSecondarySubButton(R.drawable.ic_category) {
-                showCategoryBottomSheet()
-            }
-        }
-    }
-
-    private fun showCategoryBottomSheet() {
-        viewModel.requestShowCategoryBottomSheet()
-    }
-
-    private fun displayCategoryBottomSheet(exerciseTypes: List<ExerciseType>) {
-        val names = exerciseTypes.map { it.name }
-        UndabangBottomSheet.showSelection(
-            fragmentManager = parentFragmentManager,
-            items = names,
-        ) { selectedName ->
-            val selectedType = exerciseTypes.find { it.name == selectedName }
-            viewModel.selectType(selectedType)
-        }
-        viewModel.onCategoryBottomSheetShown()
-    }
-
-    private fun initView() {
-        binding.swipeRefreshLayout.setOnRefreshListener {
-            viewModel.loadFeeds(isRefresh = true)
-        }
-
-        binding.feedListRv.apply {
-            adapter = feedAdapter
-            layoutManager = LinearLayoutManager(context)
-            addOnScrollListener(
-                object : RecyclerView.OnScrollListener() {
-                    override fun onScrolled(
-                        recyclerView: RecyclerView,
-                        dx: Int,
-                        dy: Int,
-                    ) {
-                        super.onScrolled(recyclerView, dx, dy)
-
-                        val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-                        val totalItemCount = layoutManager.itemCount
-                        val lastVisibleItem = layoutManager.findLastVisibleItemPosition()
-
-                        if (viewModel.canLoadMore() && totalItemCount <= (lastVisibleItem + 5)) {
-                            viewModel.loadFeeds()
-                        }
-                    }
-                },
-            )
-        }
-    }
-
-    private fun initObserver() {
-        viewModel.feedList.observe(viewLifecycleOwner) { feeds ->
-            feedAdapter.submitList(feeds)
-        }
-
-        viewModel.showEmptyView.observe(viewLifecycleOwner) { showEmpty ->
-            binding.emptyTv.visibility = if (showEmpty) View.VISIBLE else View.GONE
-        }
-
-        viewModel.showCategoryBottomSheet.observe(viewLifecycleOwner) { exerciseTypes ->
-            if (!exerciseTypes.isNullOrEmpty()) {
-                displayCategoryBottomSheet(exerciseTypes)
-            }
-        }
-
-        viewModel.selectedType.observe(viewLifecycleOwner) { type ->
-            binding.baseToolbar.apply {
-                if (type != null) {
-                    setTitle(type.name)
-                    setSecondarySubButton(null)
-                    showBackButton(true) { viewModel.clearType() }
-                } else {
-                    setTitle(getString(R.string.feed_title))
-                    setSecondarySubButton(R.drawable.ic_category) {
-                        showCategoryBottomSheet()
-                    }
-                    showBackButton(false)
-                }
-            }
-        }
-
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            val isInitialLoading = isLoading && feedAdapter.itemCount == 0
-            if (isInitialLoading) {
-                binding.shimmerLayout.visibility = View.VISIBLE
-                binding.shimmerLayout.startShimmer()
-                binding.swipeRefreshLayout.visibility = View.GONE
-                binding.emptyTv.visibility = View.GONE
-            } else {
-                binding.shimmerLayout.stopShimmer()
-                binding.shimmerLayout.visibility = View.GONE
-                binding.swipeRefreshLayout.visibility = View.VISIBLE
-                binding.swipeRefreshLayout.isRefreshing = false
-            }
-        }
-
-        collectToast(viewModel.toastEvent)
-
-        viewModel.currentMemberId.observe(viewLifecycleOwner) { memberId ->
-            feedAdapter.setCurrentMemberId(memberId)
         }
     }
 

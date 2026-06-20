@@ -9,7 +9,7 @@
         android:id="@+id/feedListFragment"
         android:name="com.project200.undabang.feature.feed.list.FeedListFragment"
         android:label="FeedListFragment"
-        tools:layout="@layout/fragment_feed_list" >
+        >
         <action
             android:id="@+id/action_feedListFragment_to_feedFormFragment"
             app:destination="@id/feedFormFragment" />
