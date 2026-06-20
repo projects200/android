@@ -1,7 +1,5 @@
 package com.project200.undabang.feature.feed.detail
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -21,8 +19,11 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,11 +42,11 @@ class FeedDetailViewModel
     ) : ViewModel() {
         private var feedId: Long = -1L
 
-        private val _feed = MutableLiveData<Feed>()
-        val feed: LiveData<Feed> get() = _feed
+        private val _feed = MutableStateFlow<Feed?>(null)
+        val feed: StateFlow<Feed?> = _feed.asStateFlow()
 
-        private val _isLoading = MutableLiveData<Boolean>(false)
-        val isLoading: LiveData<Boolean> get() = _isLoading
+        private val _isLoading = MutableStateFlow(false)
+        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
         private val _toastEvent = MutableSharedFlow<UiText>()
         val toastEvent: SharedFlow<UiText> = _toastEvent.asSharedFlow()
@@ -56,21 +57,19 @@ class FeedDetailViewModel
         private val _feedLoadError = MutableSharedFlow<Unit>()
         val feedLoadError: SharedFlow<Unit> = _feedLoadError.asSharedFlow()
 
-        private val _currentMemberId = MutableLiveData<String>()
-        val currentMemberId: LiveData<String> get() = _currentMemberId
+        private val _currentMemberId = MutableStateFlow<String?>(null)
+        val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
 
-        private val _isMyFeed = MutableLiveData<Boolean>(false)
-        val isMyFeed: LiveData<Boolean> get() = _isMyFeed
+        private val _isMyFeed = MutableStateFlow(false)
+        val isMyFeed: StateFlow<Boolean> = _isMyFeed.asStateFlow()
 
-        private val _comments = MutableLiveData<List<Comment>>()
-        val comments: LiveData<List<Comment>> get() = _comments
+        private val _comments = MutableStateFlow<List<Comment>>(emptyList())
+        val comments: StateFlow<List<Comment>> = _comments.asStateFlow()
 
-        private val _commentsLoading = MutableLiveData<Boolean>(false)
-        val commentsLoading: LiveData<Boolean> get() = _commentsLoading
+        private val _replyTarget = MutableStateFlow<CommentItem?>(null)
+        val replyTarget: StateFlow<CommentItem?> = _replyTarget.asStateFlow()
 
-        private val _replyTarget = MutableLiveData<CommentItem?>()
-        val replyTarget: LiveData<CommentItem?> get() = _replyTarget
-
+        // 댓글별 좋아요 토글 디바운스 처리용 (서버 중복 호출 방지)
         private val commentLikeJobs = mutableMapOf<Long, Job>()
         private val pendingCommentLikes = mutableMapOf<Long, Boolean>()
 
@@ -143,7 +142,6 @@ class FeedDetailViewModel
         fun loadComments() {
             if (feedId == -1L) return
 
-            _commentsLoading.value = true
             viewModelScope.launch {
                 when (val result = getCommentsUseCase(feedId)) {
                     is BaseResult.Success -> {
@@ -153,7 +151,6 @@ class FeedDetailViewModel
                         _toastEvent.emit(UiText.StringResource(R.string.comment_load_error))
                     }
                 }
-                _commentsLoading.value = false
             }
         }
 
@@ -230,7 +227,7 @@ class FeedDetailViewModel
             commentId: Long,
             isLiked: Boolean,
         ) {
-            val currentComments = _comments.value ?: return
+            val currentComments = _comments.value
             val updatedComments =
                 currentComments.map { comment ->
                     if (comment.commentId == commentId) {

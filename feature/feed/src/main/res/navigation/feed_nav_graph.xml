@@ -31,7 +31,7 @@
         android:id="@+id/feedDetailFragment"
         android:name="com.project200.undabang.feature.feed.detail.FeedDetailFragment"
         android:label="FeedDetailFragment"
-        tools:layout="@layout/fragment_feed_detail" >
+        >
         <argument
             android:name="feedId"
             app:argType="long" />
