@@ -1,16 +1,16 @@
 package com.project200.undabang.auth.register
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,9 +27,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.project200.presentation.compose.components.button.PrimaryButton
+import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorGray100
-import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.header
 import com.project200.presentation.compose.theme.subtext14
 import com.project200.undabang.feature.auth.R
@@ -47,48 +47,48 @@ fun TermsScreen(
     onNextClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .background(ColorWhite300)
-                .padding(horizontal = 20.dp),
-    ) {
-        Spacer(Modifier.height(114.dp))
+    UndabangScaffold(
+        modifier = modifier,
+        bottomBar = {
+            Column(modifier = Modifier.padding(horizontal = 20.dp)) {
+                TermsRow(
+                    title = stringResource(R.string.terms_required_service),
+                    checked = serviceChecked,
+                    onTitleClick = onServiceClick,
+                    onToggle = onToggleService,
+                )
+                Spacer(Modifier.height(16.dp))
+                TermsRow(
+                    title = stringResource(R.string.terms_required_privacy),
+                    checked = privacyChecked,
+                    onTitleClick = onPrivacyClick,
+                    onToggle = onTogglePrivacy,
+                )
+                Spacer(Modifier.height(77.dp))
+                PrimaryButton(
+                    text = stringResource(PresentationR.string.confirm),
+                    onClick = onNextClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = isAllRequiredChecked,
+                )
+                Spacer(Modifier.height(32.dp))
+            }
+        },
+    ) { innerPadding ->
+        Column(
+            modifier =
+                Modifier
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp)
+                    .verticalScroll(rememberScrollState()),
+        ) {
+            Spacer(Modifier.height(114.dp))
 
-        Text(
-            text = stringResource(R.string.terms_title),
-            style = MaterialTheme.typography.header,
-        )
-
-        Spacer(Modifier.weight(1f))
-
-        TermsRow(
-            title = stringResource(R.string.terms_required_service),
-            checked = serviceChecked,
-            onTitleClick = onServiceClick,
-            onToggle = onToggleService,
-        )
-
-        Spacer(Modifier.height(16.dp))
-
-        TermsRow(
-            title = stringResource(R.string.terms_required_privacy),
-            checked = privacyChecked,
-            onTitleClick = onPrivacyClick,
-            onToggle = onTogglePrivacy,
-        )
-
-        Spacer(Modifier.height(77.dp))
-
-        PrimaryButton(
-            text = stringResource(PresentationR.string.confirm),
-            onClick = onNextClick,
-            modifier = Modifier.fillMaxWidth(),
-            enabled = isAllRequiredChecked,
-        )
-
-        Spacer(Modifier.height(32.dp))
+            Text(
+                text = stringResource(R.string.terms_title),
+                style = MaterialTheme.typography.header,
+            )
+        }
     }
 }
 
