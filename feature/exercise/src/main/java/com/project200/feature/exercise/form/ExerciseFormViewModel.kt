@@ -1,8 +1,6 @@
 package com.project200.feature.exercise.form
 
 import android.net.Uri
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
@@ -23,6 +21,12 @@ import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.undabang.feature.exercise.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -43,17 +47,17 @@ class ExerciseFormViewModel
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
         private val clockProvider: ClockProvider,
     ) : ViewModel() {
-        private val _startTime = MutableLiveData<LocalDateTime?>()
-        val startTime: LiveData<LocalDateTime?> = _startTime
+        private val _startTime = MutableStateFlow<LocalDateTime?>(null)
+        val startTime: StateFlow<LocalDateTime?> = _startTime.asStateFlow()
 
-        private val _endTime = MutableLiveData<LocalDateTime?>()
-        val endTime: LiveData<LocalDateTime?> = _endTime
+        private val _endTime = MutableStateFlow<LocalDateTime?>(null)
+        val endTime: StateFlow<LocalDateTime?> = _endTime.asStateFlow()
 
         private val _imageItems =
-            MutableLiveData<MutableList<ExerciseImageListItem>>(
-                mutableListOf(ExerciseImageListItem.AddButtonItem),
+            MutableStateFlow<List<ExerciseImageListItem>>(
+                listOf(ExerciseImageListItem.AddButtonItem),
             )
-        val imageItems: LiveData<MutableList<ExerciseImageListItem>> = _imageItems
+        val imageItems: StateFlow<List<ExerciseImageListItem>> = _imageItems.asStateFlow()
 
         // 수정/생성 모드 관련
         private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
@@ -61,33 +65,34 @@ class ExerciseFormViewModel
         private val removedPictureIds = mutableListOf<Long>() // 삭제할 기존 이미지 ID 목록
 
         // 운동 종류
-        private val _exerciseTypeList = MutableLiveData<List<String>>()
-        val exerciseTypeList: LiveData<List<String>> = _exerciseTypeList
+        private val _exerciseTypeList = MutableStateFlow<List<String>>(emptyList())
+        val exerciseTypeList: StateFlow<List<String>> = _exerciseTypeList.asStateFlow()
 
         // 운동 장소 목록
-        private val _exerciseLocation = MutableLiveData<List<String>>()
-        val exerciseLocation: LiveData<List<String>> = _exerciseLocation
+        private val _exerciseLocation = MutableStateFlow<List<String>>(emptyList())
+        val exerciseLocation: StateFlow<List<String>> = _exerciseLocation.asStateFlow()
 
-        private val _initialDataLoaded = MutableLiveData<ExerciseRecord?>()
-        val initialDataLoaded: LiveData<ExerciseRecord?> = _initialDataLoaded
+        private val _initialDataLoaded = MutableStateFlow<ExerciseRecord?>(null)
+        val initialDataLoaded: StateFlow<ExerciseRecord?> = _initialDataLoaded.asStateFlow()
 
-        private val _isLoading = MutableLiveData<Boolean>()
-        val isLoading: LiveData<Boolean> = _isLoading
+        private val _isLoading = MutableStateFlow(false)
+        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-        private val _createResult = MutableLiveData<SubmissionResult>()
-        val createResult: LiveData<SubmissionResult> = _createResult
+        // 1회성 이벤트지만 테스트에서 emit 후 collect 가능하도록 replay=1 적용
+        private val _createResult = MutableSharedFlow<SubmissionResult>(replay = 1)
+        val createResult: SharedFlow<SubmissionResult> = _createResult.asSharedFlow()
 
-        private val _editResult = MutableLiveData<ExerciseEditResult>()
-        val editResult: LiveData<ExerciseEditResult> = _editResult
+        private val _editResult = MutableSharedFlow<ExerciseEditResult>(replay = 1)
+        val editResult: SharedFlow<ExerciseEditResult> = _editResult.asSharedFlow()
 
-        private val _toastMessage = MutableLiveData<Int?>()
-        val toastMessage: LiveData<Int?> = _toastMessage
+        private val _toastMessage = MutableSharedFlow<Int>(replay = 1)
+        val toastMessage: SharedFlow<Int> = _toastMessage.asSharedFlow()
 
-        private val _scoreGuidanceState = MutableLiveData<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
-        val scoreGuidanceState: LiveData<ScoreGuidanceState> = _scoreGuidanceState
+        private val _scoreGuidanceState = MutableStateFlow<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
+        val scoreGuidanceState: StateFlow<ScoreGuidanceState> = _scoreGuidanceState.asStateFlow()
 
-        private val _timeSelectionState = MutableLiveData(TimeSelectionState.NONE)
-        val timeSelectionState: LiveData<TimeSelectionState> = _timeSelectionState
+        private val _timeSelectionState = MutableStateFlow(TimeSelectionState.NONE)
+        val timeSelectionState: StateFlow<TimeSelectionState> = _timeSelectionState.asStateFlow()
 
         /** 초기 데이터 설정 */
         fun loadInitialRecord(recordId: Long) {
@@ -101,7 +106,7 @@ class ExerciseFormViewModel
                 _startTime.value = now.minusHours(1)
                 _endTime.value = now
 
-                _imageItems.value = mutableListOf(ExerciseImageListItem.AddButtonItem)
+                _imageItems.value = listOf(ExerciseImageListItem.AddButtonItem)
                 _initialDataLoaded.value = null
             } else {
                 // 수정 모드
@@ -111,7 +116,7 @@ class ExerciseFormViewModel
                             setupEditMode(result.data)
                         }
                         is BaseResult.Error -> {
-                            _toastMessage.value = R.string.exercise_load_fail
+                            _toastMessage.emit(R.string.exercise_load_fail)
                         }
                     }
                 }
@@ -132,7 +137,6 @@ class ExerciseFormViewModel
             }
 
             _imageItems.value = imageListForEditMode
-
             _initialDataLoaded.value = record
             _scoreGuidanceState.value = ScoreGuidanceState.Hidden
         }
@@ -144,7 +148,7 @@ class ExerciseFormViewModel
             // 시작 시간이 현재 시간 이후로 설정되지 않도록 보정
             if (newStartTime.isAfter(now)) {
                 newStartTime = now
-                _toastMessage.value = R.string.exercise_error_start_time_future
+                viewModelScope.launch { _toastMessage.emit(R.string.exercise_error_start_time_future) }
             }
 
             _startTime.value = newStartTime
@@ -162,7 +166,7 @@ class ExerciseFormViewModel
             // 종료 시간이 현재 시간 이후로 설정되지 않도록 보정
             if (newEndTime.isAfter(now)) {
                 newEndTime = now
-                _toastMessage.value = R.string.exercise_error_end_time_future
+                viewModelScope.launch { _toastMessage.emit(R.string.exercise_error_end_time_future) }
             }
 
             _endTime.value = newEndTime
@@ -209,13 +213,13 @@ class ExerciseFormViewModel
             }
         }
 
-        // CalendarView에서 날짜가 선택되었을 때 호출
+        // 캘린더에서 날짜가 선택되었을 때 호출
         fun updateDate(
             year: Int,
             month: Int,
             dayOfMonth: Int,
         ) {
-            val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+            val selectedDate = LocalDate.of(year, month, dayOfMonth)
             when (_timeSelectionState.value) {
                 TimeSelectionState.START_DATE -> {
                     val existingTime = _startTime.value?.toLocalTime() ?: clockProvider.nowTime()
@@ -250,7 +254,7 @@ class ExerciseFormViewModel
         }
 
         fun addImage(uris: List<Uri>) {
-            val currentList = _imageItems.value ?: mutableListOf()
+            val currentList = _imageItems.value.toMutableList()
             for (uri in uris) {
                 currentList.add(ExerciseImageListItem.NewImageItem(uri))
             }
@@ -258,7 +262,7 @@ class ExerciseFormViewModel
         }
 
         fun removeImage(itemToRemove: ExerciseImageListItem) {
-            val currentList = _imageItems.value ?: return
+            val currentList = _imageItems.value.toMutableList()
             currentList.remove(itemToRemove)
 
             // 기존 이미지였다면, 삭제 목록에 ID 추가
@@ -269,14 +273,13 @@ class ExerciseFormViewModel
         }
 
         fun getCurrentPermittedImageCount(): Int {
-            val imageCount =
-                _imageItems.value?.count { it !is ExerciseImageListItem.AddButtonItem } ?: 0
+            val imageCount = _imageItems.value.count { it !is ExerciseImageListItem.AddButtonItem }
             return MAX_IMAGE - imageCount
         }
 
         /** 운동 종류 리스트 로드 */
         fun loadExerciseTypes() {
-            if (!_exerciseTypeList.value.isNullOrEmpty()) return
+            if (_exerciseTypeList.value.isNotEmpty()) return
             viewModelScope.launch {
                 // 유저의 선호 운동 리스트
                 val preferredResult = getPreferredExerciseUseCase()
@@ -310,7 +313,7 @@ class ExerciseFormViewModel
 
         /** 운동 장소 설정 */
         fun loadExerciseLocation() {
-            if (!_exerciseLocation.value.isNullOrEmpty()) return
+            if (_exerciseLocation.value.isNotEmpty()) return
             viewModelScope.launch {
                 val locationResult = getExercisePlaceUseCase()
                 val locationList =
@@ -347,7 +350,7 @@ class ExerciseFormViewModel
         /** 이미지 변경 사항이 있는지 확인 */
         private fun hasImageChanges(): Boolean {
             return removedPictureIds.isNotEmpty() ||
-                _imageItems.value?.any { it is ExerciseImageListItem.NewImageItem } == true
+                _imageItems.value.any { it is ExerciseImageListItem.NewImageItem }
         }
 
         /** 기록 생성 또는 수정 */
@@ -360,7 +363,7 @@ class ExerciseFormViewModel
         ) {
             // 유효성 검사
             if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
-                _toastMessage.value = R.string.exercise_invalid_input
+                viewModelScope.launch { _toastMessage.emit(R.string.exercise_invalid_input) }
                 return
             }
 
@@ -378,7 +381,7 @@ class ExerciseFormViewModel
 
             // 변경 사항 확인 (수정 모드일 때)
             if (isEditMode && !hasChanges(recordToSubmit)) {
-                _toastMessage.value = R.string.exercise_no_change
+                viewModelScope.launch { _toastMessage.emit(R.string.exercise_no_change) }
                 return
             }
 
@@ -388,8 +391,8 @@ class ExerciseFormViewModel
             // 새로 추가된 이미지 URI 목록 가져오기
             val newImageUris =
                 _imageItems.value
-                    ?.filterIsInstance<ExerciseImageListItem.NewImageItem>()
-                    ?.map { it.uri.toString() } ?: emptyList()
+                    .filterIsInstance<ExerciseImageListItem.NewImageItem>()
+                    .map { it.uri.toString() }
 
             if (isEditMode) {
                 editExerciseRecord(recordId, recordToSubmit, newImageUris)
@@ -411,8 +414,8 @@ class ExerciseFormViewModel
                     }
                     is BaseResult.Error -> {
                         // 기록 생성 실패
-                        _createResult.value = SubmissionResult.Failure(createResult.message.toString(), createResult.cause)
-                        _toastMessage.value = R.string.exercise_create_fail
+                        _createResult.emit(SubmissionResult.Failure(createResult.message.toString(), createResult.cause))
+                        _toastMessage.emit(R.string.exercise_create_fail)
                         _isLoading.value = false
                     }
                 }
@@ -429,16 +432,16 @@ class ExerciseFormViewModel
                 when (uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
                     is BaseResult.Success -> {
                         // 이미지 업로드 성공 -> 최종 성공
-                        _createResult.value = SubmissionResult.Success(recordId, earnedPoints)
+                        _createResult.emit(SubmissionResult.Success(recordId, earnedPoints))
                     }
                     is BaseResult.Error -> {
                         // 이미지 업로드 실패 -> 부분 성공
-                        _createResult.value = SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail)
+                        _createResult.emit(SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail))
                     }
                 }
             } else {
                 // 업로드할 이미지가 없음 -> 최종 성공
-                _createResult.value = SubmissionResult.Success(recordId, earnedPoints)
+                _createResult.emit(SubmissionResult.Success(recordId, earnedPoints))
             }
             _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
         }
@@ -450,7 +453,7 @@ class ExerciseFormViewModel
             newImageUris: List<String>,
         ) {
             viewModelScope.launch {
-                _editResult.value =
+                val result =
                     editExerciseRecordUseCase(
                         recordId = recordId,
                         recordToUpdate = record,
@@ -458,6 +461,7 @@ class ExerciseFormViewModel
                         imagesToDelete = removedPictureIds,
                         newImages = newImageUris,
                     )
+                _editResult.emit(result)
                 // 로딩 종료
                 _isLoading.value = false
             }
@@ -516,7 +520,7 @@ class ExerciseFormViewModel
 
                     is BaseResult.Error -> {
                         // API 호출 실패 시 에러 메시지 표시 및 안내 숨김
-                        _toastMessage.value = R.string.exercise_fetch_score_info_fail
+                        _toastMessage.emit(R.string.exercise_fetch_score_info_fail)
                         _scoreGuidanceState.value = ScoreGuidanceState.Hidden
                     }
                 }

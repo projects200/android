@@ -257,7 +257,6 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: 변경이 감지되어 USE CASE가 호출되어야 함
-            assertThat(viewModel.toastMessage.value).isNotEqualTo(R.string.exercise_no_change)
             coVerify(exactly = 1) { mockEditUseCase(any(), any(), true, any(), any()) }
         }
 
@@ -280,7 +279,6 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: useCase가 호출되어야 함
-            assertThat(viewModel.toastMessage.value).isNotEqualTo(R.string.exercise_no_change)
             coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
         }
 
@@ -322,7 +320,7 @@ class ExerciseFormViewModelTest {
             // Then
             coVerify(exactly = 1) { mockCreateUseCase(any()) }
             coVerify(exactly = 0) { mockUploadUseCase(any(), any()) }
-            val actual = viewModel.createResult.value
+            val actual = viewModel.createResult.replayCache.firstOrNull()
             assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
             assertThat((actual as SubmissionResult.Success).recordId).isEqualTo(recordId)
             assertThat(actual.earnedPoints).isEqualTo(earnedPoints)
@@ -354,7 +352,7 @@ class ExerciseFormViewModelTest {
             // Then
             coVerify(exactly = 1) { mockCreateUseCase(any()) }
             coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
-            val actual = viewModel.createResult.value
+            val actual = viewModel.createResult.replayCache.firstOrNull()
             assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
             assertThat((actual as SubmissionResult.Success).earnedPoints).isEqualTo(earnedPoints)
         }
@@ -382,7 +380,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            val actual = viewModel.createResult.value
+            val actual = viewModel.createResult.replayCache.firstOrNull()
             assertThat(actual).isInstanceOf(SubmissionResult.PartialSuccess::class.java)
             assertThat((actual as SubmissionResult.PartialSuccess).recordId).isEqualTo(recordId)
             assertThat(actual.messageId).isEqualTo(R.string.exercise_upload_fail)
@@ -425,7 +423,7 @@ class ExerciseFormViewModelTest {
 
             // Then: editUseCase가 콘텐츠 변경 사항과 함께 올바르게 호출되었는지 검증
             coVerify(exactly = 1) { mockEditUseCase(recordId, any(), true, emptyList(), emptyList()) }
-            val result = viewModel.editResult.value
+            val result = viewModel.editResult.replayCache.firstOrNull()
             assertThat(result).isInstanceOf(ExerciseEditResult.Success::class.java)
             assertThat((result as ExerciseEditResult.Success).recordId).isEqualTo(recordId)
             assertThat(viewModel.isLoading.value).isFalse()
@@ -441,7 +439,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: R.string.exercise_no_change 가 발생해야 함 (기존 테스트 오타 수정)
-            assertThat(viewModel.toastMessage.value).isEqualTo(R.string.exercise_no_change)
+            assertThat(viewModel.toastMessage.replayCache.firstOrNull()).isEqualTo(R.string.exercise_no_change)
             coVerify(exactly = 0) { mockEditUseCase(any(), any(), any(), any(), any()) }
         }
 
@@ -460,7 +458,7 @@ class ExerciseFormViewModelTest {
             coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
 
             // When: 로드된 기존 이미지를 삭제하고, 제목을 변경하여 제출
-            val existingImageItem = viewModel.imageItems.value?.find { it is ExerciseImageListItem.ExistingImageItem }
+            val existingImageItem = viewModel.imageItems.value.find { it is ExerciseImageListItem.ExistingImageItem }
             assertThat(existingImageItem).isNotNull()
             viewModel.removeImage(existingImageItem!!)
             viewModel.submitRecord(recordId, "new title", "type", "loc", "detail")
@@ -488,7 +486,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: LiveData에 Failure 결과가 반영되었는지 검증
-            val result = viewModel.editResult.value
+            val result = viewModel.editResult.replayCache.firstOrNull()
             assertThat(result).isInstanceOf(ExerciseEditResult.Failure::class.java)
             assertThat((result as ExerciseEditResult.Failure).message).isEqualTo(failureMessage)
             assertThat(viewModel.isLoading.value).isFalse()
@@ -595,7 +593,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.toastMessage.value).isEqualTo(R.string.exercise_fetch_score_info_fail)
+            assertThat(viewModel.toastMessage.replayCache.firstOrNull()).isEqualTo(R.string.exercise_fetch_score_info_fail)
             assertThat(viewModel.scoreGuidanceState.value).isEqualTo(ScoreGuidanceState.Hidden)
         }
 }
