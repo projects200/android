@@ -91,6 +91,9 @@ playServicesLocation = "21.3.0"
 # TED Clustring
 tedClustering = "1.0.2"
 
+# Compose Drag/Drop Reorderable
+reorderable = "2.4.0"
+
 [libraries]
 
 # Compose BOM & Core
@@ -233,6 +236,9 @@ ted-clustering = { group = "io.github.ParkSangGwon", name = "tedclustering", ver
 
 # Flexbox
 flexbox = { group = "com.google.android.flexbox", name = "flexbox", version.ref = "flexbox" }
+
+# Compose Drag/Drop Reorderable
+reorderable = { group = "sh.calvin.reorderable", name = "reorderable", version.ref = "reorderable" }
 
 [plugins]
 # Android Gradle Plugins
