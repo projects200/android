@@ -1,9 +1,7 @@
 package com.project200.feature.timer.simple
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.switchMap
+import androidx.lifecycle.asFlow
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.SimpleTimer
@@ -13,11 +11,21 @@ import com.project200.domain.usecase.EditSimpleTimerUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
 import com.project200.feature.timer.utils.SimpleTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SimpleTimerViewModel
     @Inject
@@ -28,32 +36,41 @@ class SimpleTimerViewModel
         private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
         private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase,
     ) : ViewModel() {
-        private val service = MutableLiveData<SimpleTimerService?>()
+        // Service 인스턴스는 StateFlow로 유지 (Service 자체는 LiveData 노출 그대로)
+        private val service = MutableStateFlow<SimpleTimerService?>(null)
 
-        val remainingTime: LiveData<Long> = service.switchMap { it?.remainingTime ?: MutableLiveData(0L) }
-        val isTimerRunning: LiveData<Boolean> = service.switchMap { it?.isTimerRunning ?: MutableLiveData(false) }
+        val remainingTime: StateFlow<Long> =
+            service
+                .flatMapLatest { it?.remainingTime?.asFlow() ?: flowOf(0L) }
+                .stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+
+        val isTimerRunning: StateFlow<Boolean> =
+            service
+                .flatMapLatest { it?.isTimerRunning?.asFlow() ?: flowOf(false) }
+                .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
         val totalTime: Long
             get() = service.value?.totalTime ?: 0L
 
         // 타이머 아이템 리스트
-        private val _timerItems = MutableLiveData<List<SimpleTimer>>()
-        val timerItems: LiveData<List<SimpleTimer>> = _timerItems
+        private val _timerItems = MutableStateFlow<List<SimpleTimer>>(emptyList())
+        val timerItems: StateFlow<List<SimpleTimer>> = _timerItems.asStateFlow()
 
         private var isAscending = true
+
+        // 이벤트를 전달할 SharedFlow 생성
+        private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
+        val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage.asSharedFlow()
 
         init {
             simpleTimerServiceManager.bindService()
             viewModelScope.launch {
                 simpleTimerServiceManager.service.collect { serviceInstance ->
-                    service.postValue(serviceInstance)
+                    service.value = serviceInstance
                 }
             }
             loadTimerItems()
         }
-
-        // 이벤트를 전달할 SharedFlow 생성
-        private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
-        val toastMessage: SharedFlow<SimpleTimerToastMessage> = _toastMessage
 
         fun setAndStartTimer(timeInSeconds: Int) {
             service.value?.setAndStartTimer(timeInSeconds)
@@ -63,7 +80,7 @@ class SimpleTimerViewModel
             viewModelScope.launch {
                 when (val result = getSimpleTimersUseCase()) {
                     is BaseResult.Success -> {
-                        _timerItems.value = result.data.toMutableList()
+                        _timerItems.value = result.data
                     }
                     is BaseResult.Error -> {
                         _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
@@ -74,9 +91,7 @@ class SimpleTimerViewModel
 
         fun changeSortOrder() {
             isAscending = !isAscending
-            _timerItems.value?.let { currentList ->
-                _timerItems.value = sortTimers(currentList, isAscending)
-            }
+            _timerItems.value = sortTimers(_timerItems.value, isAscending)
         }
 
         private fun sortTimers(
@@ -91,7 +106,7 @@ class SimpleTimerViewModel
         }
 
         fun addTimerItem(time: Int) {
-            val currentItems = _timerItems.value ?: emptyList()
+            val currentItems = _timerItems.value
             if (currentItems.size >= MAX_TIMER_COUNT) return
 
             viewModelScope.launch {
@@ -109,8 +124,7 @@ class SimpleTimerViewModel
             viewModelScope.launch {
                 when (deleteSimpleTimerUseCase(timerId)) {
                     is BaseResult.Success -> {
-                        val currentItems = _timerItems.value ?: return@launch
-                        _timerItems.value = currentItems.filterNot { it.id == timerId }
+                        _timerItems.value = _timerItems.value.filterNot { it.id == timerId }
                     }
                     is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.DELETE_ERROR)
                 }
@@ -129,12 +143,12 @@ class SimpleTimerViewModel
 
         // 타이머 아이템을 수정하는 함수
         fun updateTimerItem(updatedTimer: SimpleTimer) {
-            val currentItems = _timerItems.value?.toMutableList() ?: return
+            val currentItems = _timerItems.value.toMutableList()
             val index = currentItems.indexOfFirst { it.id == updatedTimer.id }
 
             if (index != -1) {
                 currentItems[index] = updatedTimer
-                _timerItems.value = currentItems // 새 리스트 할당
+                _timerItems.value = currentItems
 
                 viewModelScope.launch {
                     val result = editSimpleTimerUseCase(updatedTimer)

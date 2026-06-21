@@ -383,10 +383,8 @@ class SimpleTimerViewModelTest {
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then - switchMap returns MutableLiveData(false) when service is null
-            var observedValue: Boolean? = null
-            viewModel.isTimerRunning.observeForever { observedValue = it }
-            assertThat(observedValue).isFalse()
+            // Then - service가 null일 때 StateFlow 초기값은 false
+            assertThat(viewModel.isTimerRunning.value).isFalse()
         }
 
     @Test
@@ -396,9 +394,7 @@ class SimpleTimerViewModelTest {
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then - switchMap returns MutableLiveData(0L) when service is null
-            var observedValue: Long? = null
-            viewModel.remainingTime.observeForever { observedValue = it }
-            assertThat(observedValue).isEqualTo(0L)
+            // Then - service가 null일 때 StateFlow 초기값은 0L
+            assertThat(viewModel.remainingTime.value).isEqualTo(0L)
         }
 }
