@@ -2,7 +2,7 @@
 
 [versions]
 # Build Tools & Core
-gradlePlugin = "8.3.2"
+gradlePlugin = "8.9.1"
 kotlin = "1.9.23"
 ksp = "1.9.23-1.0.19"
 

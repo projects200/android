@@ -181,7 +181,7 @@ class CustomTimerViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Success::class.java)
+            assertThat(viewModel.deleteResult.replayCache.firstOrNull()).isInstanceOf(BaseResult.Success::class.java)
         }
 
     @Test
@@ -198,7 +198,7 @@ class CustomTimerViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.deleteResult.value).isInstanceOf(BaseResult.Error::class.java)
+            assertThat(viewModel.deleteResult.replayCache.firstOrNull()).isInstanceOf(BaseResult.Error::class.java)
         }
 
     @Test
