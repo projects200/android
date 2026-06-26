@@ -1,7 +1,5 @@
 package com.project200.feature.timer.custom
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -27,7 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -258,11 +255,8 @@ private fun CircularProgress(
     progress: Float,
     modifier: Modifier = Modifier,
 ) {
-    val animated by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 150),
-        label = "progress",
-    )
+    // 50ms tick마다 progress가 갱신되므로 별도 tween 애니메이션 없이 즉시 반영 (애니메이션 누적·프레임 드랍 방지)
+    // 스텝 전환·종료 시 1f로 돌아갈 때도 부드러운 차오름 없이 바로 표시됨
     Canvas(modifier = modifier.fillMaxSize()) {
         val stroke = 20.dp.toPx()
         val half = stroke / 2f
@@ -281,7 +275,7 @@ private fun CircularProgress(
         drawArc(
             color = ColorMain,
             startAngle = 270f,
-            sweepAngle = -animated * 360f,
+            sweepAngle = -progress * 360f,
             useCenter = false,
             topLeft = topLeft,
             size = arcSize,
