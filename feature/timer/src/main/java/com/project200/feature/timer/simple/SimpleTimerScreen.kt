@@ -1,6 +1,5 @@
 package com.project200.feature.timer.simple
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -30,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -148,12 +148,6 @@ private fun TimerHeader(
     onPlayPauseClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progress =
-        if (totalTime > 0) {
-            (remainingTime.toFloat() / totalTime.toFloat()).coerceIn(0f, 1f)
-        } else {
-            1f
-        }
     Box(
         modifier =
             modifier
@@ -166,7 +160,17 @@ private fun TimerHeader(
             modifier = Modifier.size(230.dp),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgress(progress = progress)
+            // progress 계산을 lambda로 감싸 drawBehind의 draw phase에서만 read되게 함
+            // → Canvas Composable의 재컴포지션 없이 다음 frame draw phase만 새로 호출
+            CircularProgress(
+                progress = {
+                    if (totalTime > 0) {
+                        (remainingTime.toFloat() / totalTime.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        1f
+                    }
+                },
+            )
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
                     text = remainingTime.toFormattedTimeAsLong(),
@@ -199,39 +203,45 @@ private fun TimerHeader(
 
 @Composable
 private fun CircularProgress(
-    progress: Float,
+    progress: () -> Float,
     modifier: Modifier = Modifier,
 ) {
-    // 원본 TimerCircularProgressBar 동작 참고: stroke 20dp, 12시(270°) 시작 + 시계 반대 방향(-) 진행
-    // 50ms tick마다 progress가 갱신되므로 별도 tween 애니메이션 없이 즉시 반영 (애니메이션 누적·프레임 드랍 방지)
-    // reset 시 1f로 돌아갈 때도 부드러운 차오름 없이 바로 표시됨
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val stroke = 20.dp.toPx()
-        val half = stroke / 2f
-        val arcSize = Size(size.width - stroke, size.height - stroke)
-        val topLeft = Offset(half, half)
+    // progress를 lambda로 받아 drawBehind의 draw phase에서만 read됨
+    // → 50ms마다 progress가 바뀌어도 composition phase가 안 도는 만큼 비용 감소
+    // 원본 TimerCircularProgressBar: stroke 20dp, 12시(270°) 시작 + 시계 반대 방향(-) 진행
+    Spacer(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .drawBehind {
+                    val p = progress()
+                    val stroke = 20.dp.toPx()
+                    val half = stroke / 2f
+                    val arcSize = Size(size.width - stroke, size.height - stroke)
+                    val topLeft = Offset(half, half)
 
-        // 배경 링 (main_background)
-        drawArc(
-            color = ColorBackground,
-            startAngle = 0f,
-            sweepAngle = 360f,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke),
-        )
-        // 진행 링 (main color), 시계 반대 방향(-)
-        drawArc(
-            color = ColorMain,
-            startAngle = 270f,
-            sweepAngle = -progress * 360f,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-    }
+                    // 배경 링 (main_background)
+                    drawArc(
+                        color = ColorBackground,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke),
+                    )
+                    // 진행 링 (main color), 시계 반대 방향(-)
+                    drawArc(
+                        color = ColorMain,
+                        startAngle = 270f,
+                        sweepAngle = -p * 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                },
+    )
 }
 
 @Composable
