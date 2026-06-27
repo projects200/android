@@ -1,6 +1,5 @@
 package com.project200.feature.timer.custom
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -138,12 +138,6 @@ private fun TimerHeader(
     onRepeatToggle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val progress =
-        if (totalStepTime > 0) {
-            (remainingTime.toFloat() / totalStepTime.toFloat()).coerceIn(0f, 1f)
-        } else {
-            1f
-        }
     Column(
         modifier =
             modifier
@@ -156,7 +150,16 @@ private fun TimerHeader(
             modifier = Modifier.size(230.dp),
             contentAlignment = Alignment.Center,
         ) {
-            CircularProgress(progress = progress)
+            // progress 계산을 lambda로 감싸 drawBehind의 draw phase에서만 read되게 함
+            CircularProgress(
+                progress = {
+                    if (totalStepTime > 0) {
+                        (remainingTime.toFloat() / totalStepTime.toFloat()).coerceIn(0f, 1f)
+                    } else {
+                        1f
+                    }
+                },
+            )
             Text(
                 text = remainingTime.toFormattedTimeAsLong(),
                 style = MaterialTheme.typography.header,
@@ -252,36 +255,42 @@ private fun TimerActionButton(
 
 @Composable
 private fun CircularProgress(
-    progress: Float,
+    progress: () -> Float,
     modifier: Modifier = Modifier,
 ) {
-    // 50ms tick마다 progress가 갱신되므로 별도 tween 애니메이션 없이 즉시 반영 (애니메이션 누적·프레임 드랍 방지)
-    // 스텝 전환·종료 시 1f로 돌아갈 때도 부드러운 차오름 없이 바로 표시됨
-    Canvas(modifier = modifier.fillMaxSize()) {
-        val stroke = 20.dp.toPx()
-        val half = stroke / 2f
-        val arcSize = Size(size.width - stroke, size.height - stroke)
-        val topLeft = Offset(half, half)
+    // progress를 lambda로 받아 drawBehind의 draw phase에서만 read됨
+    // → 50ms마다 progress가 바뀌어도 composition phase가 안 도는 만큼 비용 감소
+    Spacer(
+        modifier =
+            modifier
+                .fillMaxSize()
+                .drawBehind {
+                    val p = progress()
+                    val stroke = 20.dp.toPx()
+                    val half = stroke / 2f
+                    val arcSize = Size(size.width - stroke, size.height - stroke)
+                    val topLeft = Offset(half, half)
 
-        drawArc(
-            color = ColorBackground,
-            startAngle = 0f,
-            sweepAngle = 360f,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke),
-        )
-        drawArc(
-            color = ColorMain,
-            startAngle = 270f,
-            sweepAngle = -progress * 360f,
-            useCenter = false,
-            topLeft = topLeft,
-            size = arcSize,
-            style = Stroke(width = stroke, cap = StrokeCap.Round),
-        )
-    }
+                    drawArc(
+                        color = ColorBackground,
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke),
+                    )
+                    drawArc(
+                        color = ColorMain,
+                        startAngle = 270f,
+                        sweepAngle = -p * 360f,
+                        useCenter = false,
+                        topLeft = topLeft,
+                        size = arcSize,
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                },
+    )
 }
 
 @Composable
