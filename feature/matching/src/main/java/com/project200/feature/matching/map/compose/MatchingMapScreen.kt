@@ -30,6 +30,8 @@ import com.project200.feature.matching.map.cluster.MapClusterItem
 fun MatchingMapScreen(
     viewModel: MatchingMapViewModel,
     modifier: Modifier = Modifier,
+    controller: MatchingMapController? = null,
+    onMapReady: () -> Unit = {},
     onClusterClick: (List<MapClusterItem>) -> Unit = {},
     onPlaceMarkerClick: () -> Unit = {},
 ) {
@@ -67,10 +69,13 @@ fun MatchingMapScreen(
                         onLabelClick = { label ->
                             handleLabelClick(label, manager, clusterCalculator, onClusterClick, onPlaceMarkerClick)
                         },
-                    )
+                    ).also { mgr ->
+                        controller?.manager = mgr // 카메라 제어 통로 연결
+                        onMapReady() // Fragment가 초기 복원 등을 시작하도록 통지
+                    }
             },
         )
-        // TODO: 필터, 현재위치 버튼 등 오버레이 여기에 추가
+        // 현재위치 버튼 등 오버레이는 Fragment XML 유지(추후 Compose 전환)
     }
 
     // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기
