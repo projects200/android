@@ -23,8 +23,6 @@ import com.project200.feature.matching.map.cluster.MapClusterItem
  *
  * KakaoMapView 로 지도를 호스팅하고, ViewModel 의 combinedMapData 를 구독해 마커/클러스터를 그린다.
  *
- * 라벨 클릭의 네비게이션/바텀시트는 화면 밖 책임이라 콜백으로 상위에 위임한다.
- *
  * @param onClusterClick 클러스터 라벨 클릭 시, 묶인 멤버 목록 전달
  * @param onPlaceMarkerClick 내 장소 마커 클릭 시
  */
@@ -36,6 +34,7 @@ fun MatchingMapScreen(
     onPlaceMarkerClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    // 멤버 데이터 구독
     val mapData by viewModel.combinedMapData.collectAsStateWithLifecycle()
 
     // 클러스터 계산기
@@ -71,7 +70,7 @@ fun MatchingMapScreen(
                     )
             },
         )
-        // 중앙 마커, 현재위치 버튼 등 오버레이는 여기에 추가
+        // TODO: 필터, 현재위치 버튼 등 오버레이 여기에 추가
     }
 
     // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기

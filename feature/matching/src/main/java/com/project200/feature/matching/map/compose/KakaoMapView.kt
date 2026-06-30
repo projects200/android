@@ -17,7 +17,6 @@ import com.kakao.vectormap.MapView
 import timber.log.Timber
 
 /**
- * KakaoMap v2(MapView) 를 Compose 에서 사용하기 위한 재사용 Composable
  *
  * MapView 를 AndroidView 로 호스팅하고,
  * 생명주기(resume/pause/finish)를 DisposableEffect 로 연결한다.
@@ -33,7 +32,7 @@ fun KakaoMapView(
     onMapReady: (KakaoMap) -> Unit = {},
     onMapError: (Exception) -> Unit = {},
 ) {
-    // Preview 에서는 네이티브 지도가 렌더되지 않으므로 빈 영역으로 early return
+    // Preview 에서는 빈 영역으로 return
     if (LocalInspectionMode.current) {
         return
     }
@@ -41,7 +40,7 @@ fun KakaoMapView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // recomposition 마다 재생성 금지
+    // recomposition 마다 재생성 방지하기 위해 remember 사용
     val mapView = remember { MapView(context) }
 
     // 호스트 생명주기를 MapView 의 resume/pause/finish 로 전달
@@ -57,7 +56,7 @@ fun KakaoMapView(
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            mapView.finish() // 화면 이탈 시 정리(누수 방지)
+            mapView.finish()
         }
     }
 
