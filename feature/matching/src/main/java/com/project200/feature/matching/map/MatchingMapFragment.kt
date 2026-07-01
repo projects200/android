@@ -74,6 +74,7 @@ class MatchingMapFragment :
                         MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
                     )
                 },
+                onCurrentLocationClick = { checkPermissionAndMove() },
             )
         }
 
@@ -83,10 +84,6 @@ class MatchingMapFragment :
     }
 
     private fun initListeners() {
-        binding.currentLocationBtn.setOnClickListener {
-            checkPermissionAndMove()
-        }
-
         binding.exercisePlaceListBtn.setOnClickListener {
             findNavController().navigate(
                 MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
