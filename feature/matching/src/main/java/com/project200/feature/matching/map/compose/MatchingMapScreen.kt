@@ -1,15 +1,27 @@
 package com.project200.feature.matching.map.compose
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kakao.vectormap.label.Label
 import com.project200.domain.model.MatchingMember
@@ -17,6 +29,7 @@ import com.project200.feature.matching.map.MapViewManager
 import com.project200.feature.matching.map.MatchingMapViewModel
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
+import com.project200.undabang.feature.matching.R
 
 /**
  * 매칭 지도 화면
@@ -34,6 +47,7 @@ fun MatchingMapScreen(
     onMapReady: () -> Unit = {},
     onClusterClick: (List<MapClusterItem>) -> Unit = {},
     onPlaceMarkerClick: () -> Unit = {},
+    onCurrentLocationClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
     // 멤버 데이터 구독
@@ -75,7 +89,21 @@ fun MatchingMapScreen(
                     }
             },
         )
-        // 현재위치 버튼 등 오버레이는 Fragment XML 유지(추후 Compose 전환)
+
+        // 현재위치 버튼 오버레이 (권한/위치 처리는 콜백으로 Fragment에 위임)
+        Image(
+            painter = painterResource(R.drawable.ic_current_location),
+            contentDescription = "현재 위치",
+            modifier =
+                Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(dimensionResource(com.project200.undabang.presentation.R.dimen.base_horizontal_margin))
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(colorResource(com.project200.undabang.presentation.R.color.white300))
+                    .clickable { onCurrentLocationClick() }
+                    .padding(10.dp),
+        )
     }
 
     // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기
