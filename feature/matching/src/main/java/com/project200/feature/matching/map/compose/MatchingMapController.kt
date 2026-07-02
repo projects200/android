@@ -1,7 +1,6 @@
 package com.project200.feature.matching.map.compose
 
 import com.kakao.vectormap.LatLng
-import com.project200.domain.model.MapBounds
 import com.project200.feature.matching.map.MapViewManager
 
 /**
@@ -14,15 +13,10 @@ import com.project200.feature.matching.map.MapViewManager
 class MatchingMapController {
     internal var manager: MapViewManager? = null
 
-    val isReady: Boolean
-        get() = manager != null
-
     fun moveCamera(
         latLng: LatLng,
         zoomLevel: Int,
     ) {
         manager?.moveCamera(latLng, zoomLevel)
     }
-
-    fun currentBounds(): MapBounds? = manager?.getCurrentBounds()
 }
