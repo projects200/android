@@ -7,7 +7,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -23,7 +22,6 @@ import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.map.compose.MatchingMapController
 import com.project200.feature.matching.map.compose.MatchingMapScreen
 import com.project200.feature.matching.map.filter.FilterBottomSheetDialog
-import com.project200.feature.matching.map.filter.MatchingFilterRVAdapter
 import com.project200.feature.matching.utils.MatchingFilterType
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.compose.applyAppTheme
@@ -42,13 +40,6 @@ class MatchingMapFragment :
     private var isMapInitialized = false
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
-    private val filterAdapter by lazy {
-        MatchingFilterRVAdapter(
-            onFilterClick = { type -> viewModel.onFilterTypeClicked(type) },
-            onClearClick = { viewModel.clearFilters() },
-        )
-    }
-
     private val locationPermissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             if (isGranted) moveToCurrentLocation()
@@ -62,33 +53,26 @@ class MatchingMapFragment :
         isMapInitialized = false
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
 
-        // 지도 본체는 Compose(MatchingMapScreen)로 호스팅. 마커/클러스터/카메라 idle은 Screen 내부 처리.
+        // 지도·툴바(필터)·현재위치·로딩까지 전체를 Compose(MatchingMapScreen)로 호스팅.
         binding.mapComposeView.applyAppTheme {
             MatchingMapScreen(
                 viewModel = viewModel,
                 controller = mapController,
                 onMapReady = { restoreInitialCamera() },
                 onClusterClick = { items -> showMembersBottomSheet(items) },
-                onPlaceMarkerClick = {
-                    findNavController().navigate(
-                        MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
-                    )
-                },
+                onPlaceMarkerClick = { navigateToExercisePlace() },
                 onCurrentLocationClick = { checkPermissionAndMove() },
+                onFilterClick = { type -> viewModel.onFilterTypeClicked(type) },
+                onClearClick = { viewModel.clearFilters() },
+                onExercisePlaceListClick = { navigateToExercisePlace() },
             )
         }
-
-        initListeners()
-        binding.matchingFilterRv.adapter = filterAdapter
-        filterAdapter.submitFilterList(MatchingFilterType.entries)
     }
 
-    private fun initListeners() {
-        binding.exercisePlaceListBtn.setOnClickListener {
-            findNavController().navigate(
-                MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
-            )
-        }
+    private fun navigateToExercisePlace() {
+        findNavController().navigate(
+            MatchingMapFragmentDirections.actionMatchingMapFragmentToExercisePlaceFragment(),
+        )
     }
 
     /**
@@ -173,18 +157,8 @@ class MatchingMapFragment :
                     }
                 }
                 launch {
-                    viewModel.filterState.collect { state ->
-                        filterAdapter.submitFilterState(state)
-                    }
-                }
-                launch {
                     viewModel.currentFilterType.collect { type ->
                         showFilterBottomSheet(type)
-                    }
-                }
-                launch {
-                    viewModel.isFilterLoading.collect { isLoading ->
-                        binding.filterLoadingGroup.isVisible = isLoading
                     }
                 }
                 launch {
