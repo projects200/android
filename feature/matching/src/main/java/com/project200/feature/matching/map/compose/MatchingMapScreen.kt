@@ -45,6 +45,7 @@ import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
+import com.project200.presentation.compose.map.KakaoMapView
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorGray200
