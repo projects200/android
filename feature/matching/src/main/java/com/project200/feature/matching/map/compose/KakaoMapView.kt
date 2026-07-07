@@ -1,8 +1,12 @@
 package com.project200.feature.matching.map.compose
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -14,6 +18,8 @@ import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
+import com.project200.presentation.compose.theme.ColorGray100
+import com.project200.presentation.compose.theme.ColorGray300
 import timber.log.Timber
 
 /**
@@ -32,8 +38,14 @@ fun KakaoMapView(
     onMapReady: (KakaoMap) -> Unit = {},
     onMapError: (Exception) -> Unit = {},
 ) {
-    // Preview 에서는 빈 영역으로 return
+    // Preview 에서는 실제 지도 대신 modifier 크기만큼의 placeholder 를 그린다
     if (LocalInspectionMode.current) {
+        Box(
+            modifier = modifier.background(ColorGray300),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = "지도 미리보기", color = ColorGray100)
+        }
         return
     }
 
