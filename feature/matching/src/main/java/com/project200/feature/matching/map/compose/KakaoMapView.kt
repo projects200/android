@@ -5,7 +5,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -55,6 +57,10 @@ fun KakaoMapView(
     // recomposition 마다 재생성 방지하기 위해 remember 사용 (context 변경 시에는 재생성)
     val mapView = remember(context) { MapView(context) }
 
+    // factory/콜백은 최초 1회만 생성되므로, 상위가 새 람다를 넘겨도 항상 최신 콜백을 참조하도록 한다
+    val currentOnMapReady by rememberUpdatedState(onMapReady)
+    val currentOnMapError by rememberUpdatedState(onMapError)
+
     // 호스트 생명주기를 MapView 의 resume/pause/finish 로 전달
     DisposableEffect(lifecycleOwner, mapView) {
         val observer =
@@ -84,12 +90,12 @@ fun KakaoMapView(
 
                         override fun onMapError(error: Exception) {
                             Timber.e(error, "KakaoMap error")
-                            onMapError(error)
+                            currentOnMapError(error)
                         }
                     },
                     object : KakaoMapReadyCallback() {
                         override fun onMapReady(map: KakaoMap) {
-                            onMapReady(map)
+                            currentOnMapReady(map)
                         }
                     },
                 )
