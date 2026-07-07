@@ -31,6 +31,7 @@ import com.project200.undabang.feature.matching.R
 import com.project200.undabang.feature.matching.databinding.FragmentMatchingMapBinding
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
+import timber.log.Timber
 
 @AndroidEntryPoint
 class MatchingMapFragment :
@@ -132,20 +133,33 @@ class MatchingMapFragment :
 
     @SuppressLint("MissingPermission") // 권한은 isLocationPermissionGranted()로 이미 확인됨
     private fun moveToCurrentLocation() {
-        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
-            val latLng =
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
                 if (location != null) {
-                    LatLng.from(location.latitude, location.longitude)
+                    mapController.moveCamera(
+                        LatLng.from(location.latitude, location.longitude),
+                        ZOOM_LEVEL,
+                    )
                 } else {
-                    Toast.makeText(
-                        requireContext(),
-                        R.string.error_cannot_find_current_location,
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                    LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE)
+                    fallbackToDefaultLocation(cause = null)
                 }
-            mapController.moveCamera(latLng, ZOOM_LEVEL)
-        }
+            }
+            .addOnFailureListener { e ->
+                fallbackToDefaultLocation(cause = e)
+            }
+    }
+
+    private fun fallbackToDefaultLocation(cause: Throwable?) {
+        cause?.let { Timber.e(it, "getLastLocation failed") }
+        Toast.makeText(
+            requireContext(),
+            R.string.error_cannot_find_current_location,
+            Toast.LENGTH_SHORT,
+        ).show()
+        mapController.moveCamera(
+            LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE),
+            ZOOM_LEVEL,
+        )
     }
 
     private fun isLocationPermissionGranted(): Boolean {
