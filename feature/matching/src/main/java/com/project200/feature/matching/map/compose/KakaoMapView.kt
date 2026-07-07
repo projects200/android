@@ -52,8 +52,8 @@ fun KakaoMapView(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
 
-    // recomposition 마다 재생성 방지하기 위해 remember 사용
-    val mapView = remember { MapView(context) }
+    // recomposition 마다 재생성 방지하기 위해 remember 사용 (context 변경 시에는 재생성)
+    val mapView = remember(context) { MapView(context) }
 
     // 호스트 생명주기를 MapView 의 resume/pause/finish 로 전달
     DisposableEffect(lifecycleOwner, mapView) {
