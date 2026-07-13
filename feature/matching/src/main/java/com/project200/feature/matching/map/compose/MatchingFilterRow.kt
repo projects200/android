@@ -71,10 +71,13 @@ fun MatchingFilterRow(
 
 /** 초기화 칩: 항상 흰 배경 + 회색 테두리. */
 @Composable
-private fun ClearChip(onClick: () -> Unit) {
+private fun ClearChip(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Row(
         modifier =
-            Modifier
+            modifier
                 .clip(ChipShape)
                 .background(ColorWhite100, ChipShape)
                 .border(1.dp, ColorGray200, ChipShape)
@@ -101,11 +104,12 @@ private fun FilterChip(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val contentColor = if (selected) ColorWhite300 else ColorBlack
     Row(
         modifier =
-            Modifier
+            modifier
                 .clip(ChipShape)
                 .background(if (selected) ColorMain else ColorWhite100, ChipShape)
                 .then(if (selected) Modifier else Modifier.border(1.dp, ColorGray200, ChipShape))
