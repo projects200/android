@@ -30,7 +30,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -132,7 +131,7 @@ fun MatchingMapScreen(
                     .padding(dimensionResource(com.project200.undabang.presentation.R.dimen.base_horizontal_margin))
                     .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
-                    .background(colorResource(com.project200.undabang.presentation.R.color.white300))
+                    .background(ColorWhite300)
                     .clickable { onCurrentLocationClick() }
                     .padding(10.dp),
         )
