@@ -20,6 +20,9 @@ dependencies {
     // Image Loading
     implementation(libs.coil.compose)
 
+    // Map (KakaoMapView 공통 컴포저블 호스팅용)
+    implementation(libs.kakao.map)
+
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.splashscreen)

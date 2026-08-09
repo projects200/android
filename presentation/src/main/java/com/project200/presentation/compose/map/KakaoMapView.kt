@@ -1,4 +1,4 @@
-package com.project200.feature.matching.map.compose
+package com.project200.presentation.compose.map
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -25,13 +25,13 @@ import com.project200.presentation.compose.theme.ColorGray300
 import timber.log.Timber
 
 /**
+ * KakaoMap SDK v2 의 MapView 를 Compose 에 호스팅하는 공통 컴포넌트.
  *
- * MapView 를 AndroidView 로 호스팅하고,
- * 생명주기(resume/pause/finish)를 DisposableEffect 로 연결한다.
- * MapView 단일 인스턴스 생성, start()/MapReadyCallback 캡슐화, 준비된 KakaoMap 을
- * [onMapReady] 로 노출한다.
+ * MapView 를 AndroidView 로 호스팅하고, 생명주기(resume/pause/finish)를 DisposableEffect 로 연결한다.
+ * MapView 단일 인스턴스 생성, start()/MapReadyCallback 캡슐화, 준비된 KakaoMap 을 [onMapReady] 로 노출한다.
+ * 매칭 지도/장소 검색 등 지도를 쓰는 화면들이 공유한다.
  *
- * @param onMapReady 지도 준비 완료 시 KakaoMap 핸들 전달(여기서 MapViewManager 생성 등)
+ * @param onMapReady 지도 준비 완료 시 KakaoMap 핸들 전달(여기서 MapViewManager 생성/리스너 등록 등)
  * @param onMapError 지도 로딩 에러
  */
 @Composable
