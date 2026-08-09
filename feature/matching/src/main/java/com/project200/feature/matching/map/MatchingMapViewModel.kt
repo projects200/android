@@ -1,8 +1,6 @@
 package com.project200.feature.matching.map
 
 import android.content.SharedPreferences
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.kakao.vectormap.LatLng
@@ -126,8 +124,8 @@ class MatchingMapViewModel
             )
 
         // 지도 초기 위치
-        private val _initialMapPosition = MutableLiveData<MapPosition?>()
-        val initialMapPosition: LiveData<MapPosition?> = _initialMapPosition
+        private val _initialMapPosition = MutableStateFlow<MapPosition?>(null)
+        val initialMapPosition: StateFlow<MapPosition?> = _initialMapPosition.asStateFlow()
 
         // 운동 장소 다이얼로그 표시 알림
         private val _shouldShowPlaceGuideDialog = MutableSharedFlow<Unit>()
