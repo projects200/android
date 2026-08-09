@@ -20,16 +20,19 @@ class AppUpdateRepositoryImpl
         override suspend fun getUpdateInfo(): Result<UpdateInfo> {
             return runCatching {
                 // Remote Config 값 가져오기 및 활성화
-                val activated = firebaseRemoteConfig.fetchAndActivate().await()
-                if (activated) {
-                    Timber.tag("RemoteConfig")
-                        .d("RemoteConfig 가져오기 성공 및 활성화 완료")
-                } else {
-                    Timber.tag("RemoteConfig")
-                        .d("RemoteConfig 가져오기 실패 또는 변경 없음")
+                // 오프라인 등으로 fetch 실패 시 로컬 캐시/기본값(remote_config_defaults.xml)으로 계속 진행
+                try {
+                    val activated = firebaseRemoteConfig.fetchAndActivate().await()
+                    if (activated) {
+                        Timber.tag("RemoteConfig").d("RemoteConfig 가져오기 성공 및 활성화 완료")
+                    } else {
+                        Timber.tag("RemoteConfig").d("RemoteConfig 가져오기 실패 또는 변경 없음")
+                    }
+                } catch (e: Exception) {
+                    Timber.tag("RemoteConfig").w(e, "fetchAndActivate 실패 - 캐시/기본값 사용")
                 }
 
-                // 값 읽어오기
+                // 값 읽어오기 (fetch 실패 시 캐시 또는 remote_config_defaults.xml 반환)
                 val latestVersion = firebaseRemoteConfig.getLong(RemoteConfigKeys.LATEST_VERSION_CODE)
                 val minRequiredVersion = firebaseRemoteConfig.getLong(RemoteConfigKeys.MIN_REQUIRED_VERSION_CODE)
                 Timber.tag("RemoteConfig")

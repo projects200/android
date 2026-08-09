@@ -47,7 +47,8 @@ class MainViewModel
                         }
                     }
                     .onFailure { error ->
-                        Timber.e(error, "ViewModel: 업데이트 확인 실패")
+                        Timber.e(error, "ViewModel: 업데이트 확인 실패 - NoUpdateNeeded로 진행")
+                        _updateCheckResult.value = UpdateCheckResult.NoUpdateNeeded
                     }
             }
         }
