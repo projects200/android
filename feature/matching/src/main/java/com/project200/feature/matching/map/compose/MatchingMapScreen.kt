@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kakao.vectormap.label.Label
@@ -43,7 +45,9 @@ import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.utils.FilterState
 import com.project200.feature.matching.utils.MatchingFilterType
+import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
+import com.project200.presentation.compose.theme.ColorGray200
 import com.project200.presentation.compose.theme.ColorMain
 import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
@@ -52,10 +56,10 @@ import com.project200.undabang.feature.matching.R
 private val ToolbarShape = RoundedCornerShape(bottomStart = 15.dp, bottomEnd = 15.dp)
 
 /**
- * 매칭 지도 화면
+ * 매칭 지도 화면 (stateful).
  *
- * KakaoMapView 로 지도를 호스팅하고, ViewModel 의 combinedMapData 를 구독해 마커/클러스터를 그린다.
- * 상단 툴바(장소 목록 버튼 + 필터 줄), 현재위치 버튼, 필터 로딩까지 한 Compose 트리에서 다룬다.
+ * ViewModel 의 상태를 구독하고 지도 호스팅(manager 생성·카메라 idle·라벨 클릭)을 담당한 뒤,
+ * 화면 레이아웃/오버레이는 stateless 인 [MatchingMapContent] 에 위임한다. 지도는 슬롯으로 넘긴다.
  *
  * @param onClusterClick 클러스터 라벨 클릭 시, 묶인 멤버 목록 전달
  * @param onPlaceMarkerClick 내 장소 마커 클릭 시
@@ -78,17 +82,25 @@ fun MatchingMapScreen(
     onExercisePlaceListClick: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    // 멤버 데이터 구독
+    // 멤버 데이터 / 필터 상태 / 로딩 구독
     val mapData by viewModel.combinedMapData.collectAsStateWithLifecycle()
-    // 필터 상태/로딩 구독
     val filterState by viewModel.filterState.collectAsStateWithLifecycle()
     val isFilterLoading by viewModel.isFilterLoading.collectAsStateWithLifecycle()
 
-    // 클러스터 계산기
+    // 클러스터 계산기 / 지도 매니저(지도 준비 후 비동기 생성이라 상태로 둠)
     val clusterCalculator = remember { ClusterCalculator<MapClusterItem>() }
     var manager by remember { mutableStateOf<MapViewManager?>(null) }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    MatchingMapContent(
+        filterState = filterState,
+        isFilterLoading = isFilterLoading,
+        onCurrentLocationClick = onCurrentLocationClick,
+        onFilterClick = onFilterClick,
+        onClearClick = onClearClick,
+        onExercisePlaceListClick = onExercisePlaceListClick,
+        modifier = modifier,
+    ) {
+        // 지도 슬롯: 호스팅 + manager 생성 + 카메라 idle/라벨 클릭 처리
         KakaoMapView(
             modifier = Modifier.fillMaxSize(),
             onMapReady = { map ->
@@ -120,6 +132,36 @@ fun MatchingMapScreen(
                     }
             },
         )
+    }
+
+    // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기
+    LaunchedEffect(mapData, manager) {
+        val mgr = manager ?: return@LaunchedEffect
+        val (members, places) = mapData
+        updateClusterData(members, clusterCalculator)
+        mgr.redrawMarkers(places, clusterCalculator)
+    }
+}
+
+/**
+ * 매칭 지도 화면의 stateless 레이아웃.
+ *
+ * 지도 본체는 [mapContent] 슬롯으로 받고, 오버레이(현재위치 버튼·상단 툴바·필터 로딩)는
+ * 순수 상태([filterState], [isFilterLoading])와 콜백으로 그린다. ViewModel 의존이 없어 Preview 가능.
+ */
+@Composable
+fun MatchingMapContent(
+    filterState: FilterState,
+    isFilterLoading: Boolean,
+    onCurrentLocationClick: () -> Unit,
+    onFilterClick: (MatchingFilterType) -> Unit,
+    onClearClick: () -> Unit,
+    onExercisePlaceListClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    mapContent: @Composable BoxScope.() -> Unit = {},
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        mapContent()
 
         // 현재위치 버튼 오버레이 (권한/위치 처리는 콜백으로 Fragment에 위임)
         Image(
@@ -161,14 +203,6 @@ fun MatchingMapScreen(
                 CircularProgressIndicator(color = ColorMain)
             }
         }
-    }
-
-    // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기
-    LaunchedEffect(mapData, manager) {
-        val mgr = manager ?: return@LaunchedEffect
-        val (members, places) = mapData
-        updateClusterData(members, clusterCalculator)
-        mgr.redrawMarkers(places, clusterCalculator)
     }
 }
 
@@ -251,5 +285,40 @@ private fun handleLabelClick(
         onClusterClick(cluster.items.toList())
     } else {
         onPlaceMarkerClick()
+    }
+}
+
+@Preview(showBackground = true, heightDp = 720)
+@Composable
+private fun MatchingMapContentPreview() {
+    AppTheme {
+        MatchingMapContent(
+            filterState = FilterState(),
+            isFilterLoading = false,
+            onCurrentLocationClick = {},
+            onFilterClick = {},
+            onClearClick = {},
+            onExercisePlaceListClick = {},
+        ) {
+            // 지도 자리 placeholder (실제 지도는 네이티브라 Preview 불가)
+            Box(Modifier.fillMaxSize().background(ColorGray200))
+        }
+    }
+}
+
+@Preview(showBackground = true, heightDp = 720)
+@Composable
+private fun MatchingMapContentLoadingPreview() {
+    AppTheme {
+        MatchingMapContent(
+            filterState = FilterState(),
+            isFilterLoading = true,
+            onCurrentLocationClick = {},
+            onFilterClick = {},
+            onClearClick = {},
+            onExercisePlaceListClick = {},
+        ) {
+            Box(Modifier.fillMaxSize().background(ColorGray200))
+        }
     }
 }
