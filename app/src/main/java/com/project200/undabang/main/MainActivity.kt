@@ -114,6 +114,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
 
         setupViews()
+        viewModel.onContentShown()
     }
 
     private fun navigateToLogin() {
@@ -244,6 +245,12 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                     Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
                     navigateToLogin()
                 }
+            }
+        }
+        lifecycleScope.launch {
+            viewModel.forceUpdateAfterReconnect.collectLatest {
+                Timber.d("재연결 후 강제 업데이트 필요 이벤트 수신")
+                showUpdateDialog(isForceUpdate = true)
             }
         }
     }

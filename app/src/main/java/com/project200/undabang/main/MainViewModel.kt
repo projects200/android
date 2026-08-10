@@ -4,12 +4,17 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -21,6 +26,7 @@ class MainViewModel
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
         private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
         private val loginUseCase: LoginUseCase,
+        private val networkMonitor: NetworkMonitor,
     ) : ViewModel() {
         private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
         val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
@@ -30,6 +36,45 @@ class MainViewModel
 
         private val _showBottomNavigation = MutableLiveData<Boolean>()
         val showBottomNavigation: LiveData<Boolean> = _showBottomNavigation
+
+        private val _forceUpdateAfterReconnect = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+        val forceUpdateAfterReconnect: SharedFlow<Unit> = _forceUpdateAfterReconnect.asSharedFlow()
+
+        private var isContentShown = false
+        private var wasOffline = false
+
+        init {
+            observeNetworkReconnection()
+        }
+
+        private fun observeNetworkReconnection() {
+            viewModelScope.launch {
+                networkMonitor.networkState.collect { isOnline ->
+                    if (isOnline && wasOffline && isContentShown) {
+                        recheckForUpdateOnReconnect()
+                    }
+                    wasOffline = !isOnline
+                }
+            }
+        }
+
+        private suspend fun recheckForUpdateOnReconnect() {
+            // onAvailable 직후 일시적 불안정 대비 딜레이
+            delay(RECONNECT_UPDATE_CHECK_DELAY_MS)
+            checkForUpdateUseCase()
+                .onSuccess { result ->
+                    if (result is UpdateCheckResult.UpdateAvailable && result.isForceUpdate) {
+                        _forceUpdateAfterReconnect.tryEmit(Unit)
+                    }
+                }
+                .onFailure { e ->
+                    Timber.w(e, "재연결 후 업데이트 확인 실패 - 무시")
+                }
+        }
+
+        fun onContentShown() {
+            isContentShown = true
+        }
 
         // 업데이트 확인
         fun checkForUpdate() {
@@ -68,5 +113,9 @@ class MainViewModel
 
         fun hideBottomNavigation() {
             _showBottomNavigation.value = false
+        }
+
+        companion object {
+            private const val RECONNECT_UPDATE_CHECK_DELAY_MS = 1500L
         }
     }
