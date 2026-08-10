@@ -163,9 +163,10 @@ class MainViewModelTest {
     fun `재연결 - 콘텐츠 진입 후 오프라인에서 온라인으로 전환되면 강제 업데이트 이벤트를 방출한다`() =
         runTest {
             // Given
-            coEvery { mockCheckForUpdateUseCase() } returns Result.success(
-                UpdateCheckResult.UpdateAvailable(isForceUpdate = true)
-            )
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
+                )
             viewModel = createViewModel()
             viewModel.onContentShown()
 
@@ -186,9 +187,10 @@ class MainViewModelTest {
     fun `재연결 - 선택 업데이트면 강제 업데이트 이벤트를 방출하지 않는다`() =
         runTest {
             // Given
-            coEvery { mockCheckForUpdateUseCase() } returns Result.success(
-                UpdateCheckResult.UpdateAvailable(isForceUpdate = false)
-            )
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = false),
+                )
             viewModel = createViewModel()
             viewModel.onContentShown()
 
@@ -230,9 +232,10 @@ class MainViewModelTest {
     fun `재연결 - 콘텐츠 진입 전에는 온라인 전환이 업데이트 재확인을 트리거하지 않는다`() =
         runTest {
             // Given
-            coEvery { mockCheckForUpdateUseCase() } returns Result.success(
-                UpdateCheckResult.UpdateAvailable(isForceUpdate = true)
-            )
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
+                )
             viewModel = createViewModel()
             // onContentShown() 호출 안 함
 
