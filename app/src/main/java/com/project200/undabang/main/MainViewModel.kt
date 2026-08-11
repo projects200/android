@@ -1,20 +1,20 @@
 package com.project200.undabang.main
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
-import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -24,24 +24,21 @@ class MainViewModel
     @Inject
     constructor(
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
-        private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
         private val loginUseCase: LoginUseCase,
         private val networkMonitor: NetworkMonitor,
     ) : ViewModel() {
-        private val _updateCheckResult = MutableLiveData<UpdateCheckResult>()
-        val updateCheckResult: LiveData<UpdateCheckResult> = _updateCheckResult
+        private val _updateCheckResult = MutableStateFlow<UpdateCheckResult?>(null)
+        val updateCheckResult: StateFlow<UpdateCheckResult?> = _updateCheckResult.asStateFlow()
 
-        private val _loginResult = MutableLiveData<BaseResult<Unit>>()
-        val loginResult: LiveData<BaseResult<Unit>> = _loginResult
-
-        private val _showBottomNavigation = MutableLiveData<Boolean>()
-        val showBottomNavigation: LiveData<Boolean> = _showBottomNavigation
+        private val _showBottomNavigation = MutableStateFlow(false)
+        val showBottomNavigation: StateFlow<Boolean> = _showBottomNavigation.asStateFlow()
 
         private val _forceUpdateAfterReconnect = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val forceUpdateAfterReconnect: SharedFlow<Unit> = _forceUpdateAfterReconnect.asSharedFlow()
 
         private var isContentShown = false
         private var wasOffline = false
+        private var serverLoginPending = false
 
         init {
             observeNetworkReconnection()
@@ -51,6 +48,9 @@ class MainViewModel
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
                     if (isOnline && wasOffline && isContentShown) {
+                        if (serverLoginPending) {
+                            loginInBackground()
+                        }
                         recheckForUpdateOnReconnect()
                     }
                     wasOffline = !isOnline
@@ -78,9 +78,7 @@ class MainViewModel
 
         // 업데이트 확인
         fun checkForUpdate() {
-            if (_updateCheckResult.value != null) {
-                return
-            } // 이미 체크했다면 스킵
+            if (_updateCheckResult.value != null) return // 이미 체크했다면 스킵
 
             viewModelScope.launch {
                 checkForUpdateUseCase()
@@ -88,7 +86,7 @@ class MainViewModel
                         _updateCheckResult.value = result
                         when (result) {
                             is UpdateCheckResult.UpdateAvailable -> Timber.d("업데이트 가능 isForce: ${result.isForceUpdate}")
-                            is UpdateCheckResult.NoUpdateNeeded -> Timber.d("업데이트 불가능")
+                            is UpdateCheckResult.NoUpdateNeeded -> Timber.d("업데이트 불필요")
                         }
                     }
                     .onFailure { error ->
@@ -98,12 +96,18 @@ class MainViewModel
             }
         }
 
-        // 로그인
-        fun login() {
+        // POST /login — 진입 게이트와 무관하게 백그라운드에서 실행
+        // 실패 시 serverLoginPending = true, 재연결 시 자동 재시도
+        fun loginInBackground() {
             viewModelScope.launch {
                 val result = loginUseCase()
-                checkIsRegisteredUseCase()
-                _loginResult.value = result
+                if (result is BaseResult.Success) {
+                    serverLoginPending = false
+                    Timber.d("서버 로그인 성공")
+                } else {
+                    serverLoginPending = true
+                    Timber.w("서버 로그인 실패 - 재연결 시 재시도 예정")
+                }
             }
         }
 

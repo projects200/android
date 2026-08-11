@@ -1,12 +1,10 @@
 package com.project200.undabang.main
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
-import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.LoginUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -31,14 +29,8 @@ class MainViewModelTest {
     @get:Rule
     val mockkRule = MockKRule(this)
 
-    @get:Rule
-    val instantTaskExecutorRule = InstantTaskExecutorRule()
-
     @MockK
     private lateinit var mockCheckForUpdateUseCase: CheckForUpdateUseCase
-
-    @MockK
-    private lateinit var mockCheckIsRegisteredUseCase: CheckIsRegisteredUseCase
 
     @MockK
     private lateinit var mockLoginUseCase: LoginUseCase
@@ -66,7 +58,6 @@ class MainViewModelTest {
     private fun createViewModel(): MainViewModel {
         return MainViewModel(
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
-            checkIsRegisteredUseCase = mockCheckIsRegisteredUseCase,
             loginUseCase = mockLoginUseCase,
             networkMonitor = mockNetworkMonitor,
         )
@@ -167,15 +158,17 @@ class MainViewModelTest {
                 Result.success(
                     UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
                 )
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
             viewModel.onContentShown()
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.advanceUntilIdle() // collectJob이 구독을 시작한 뒤 emit
 
-            // When: offline → online 전환
-            networkStateFlow.emit(false)
-            networkStateFlow.emit(true)
+            // When: offline → online 전환 (emit은 collect lambda 완료를 대기하므로 별도 코루틴으로)
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -191,15 +184,17 @@ class MainViewModelTest {
                 Result.success(
                     UpdateCheckResult.UpdateAvailable(isForceUpdate = false),
                 )
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
             viewModel.onContentShown()
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.advanceUntilIdle()
 
             // When: offline → online 전환
-            networkStateFlow.emit(false)
-            networkStateFlow.emit(true)
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -212,15 +207,17 @@ class MainViewModelTest {
         runTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
             viewModel.onContentShown()
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.advanceUntilIdle()
 
             // When: offline → online 전환
-            networkStateFlow.emit(false)
-            networkStateFlow.emit(true)
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -240,8 +237,8 @@ class MainViewModelTest {
             // onContentShown() 호출 안 함
 
             // When: offline → online 전환
-            networkStateFlow.emit(false)
-            networkStateFlow.emit(true)
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: UseCase 호출 없음
@@ -249,39 +246,64 @@ class MainViewModelTest {
         }
 
     @Test
-    fun `login - 성공하면 Success 결과를 반환한다`() =
+    fun `loginInBackground - 서버 로그인을 백그라운드에서 호출한다`() =
         runTest {
             // Given
             coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
-            coEvery { mockCheckIsRegisteredUseCase() } returns true
-
             viewModel = createViewModel()
 
             // When
-            viewModel.login()
+            viewModel.loginInBackground()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
-            coVerify { mockLoginUseCase() }
-            coVerify { mockCheckIsRegisteredUseCase() }
+            coVerify(exactly = 1) { mockLoginUseCase() }
         }
 
     @Test
-    fun `login - 실패하면 Error 결과를 반환한다`() =
+    fun `loginInBackground - 실패하면 재연결 시 재시도한다`() =
         runTest {
-            // Given
-            coEvery { mockLoginUseCase() } returns BaseResult.Error("ERROR", "로그인 실패")
-            coEvery { mockCheckIsRegisteredUseCase() } returns false
-
+            // Given: 처음엔 실패, 이후엔 성공
+            coEvery { mockLoginUseCase() } returns
+                BaseResult.Error("NETWORK_ERROR", "네트워크 오류") andThen
+                BaseResult.Success(Unit)
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
             viewModel = createViewModel()
+            viewModel.onContentShown()
 
-            // When
-            viewModel.login()
+            // When: 최초 로그인 실패
+            viewModel.loginInBackground()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then
-            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Error::class.java)
+            // When: offline → online 재연결
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 총 2회 호출 (최초 + 재시도)
+            coVerify(exactly = 2) { mockLoginUseCase() }
+        }
+
+    @Test
+    fun `loginInBackground - 성공하면 재연결 시 재시도하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
+            viewModel = createViewModel()
+            viewModel.onContentShown()
+
+            // When: 최초 로그인 성공
+            viewModel.loginInBackground()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When: offline → online 재연결
+            launch { networkStateFlow.emit(false) }
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 최초 1회만 호출
+            coVerify(exactly = 1) { mockLoginUseCase() }
         }
 
     @Test
