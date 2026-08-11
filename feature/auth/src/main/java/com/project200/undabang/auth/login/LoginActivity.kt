@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.project200.domain.model.BaseResult
+import com.project200.undabang.presentation.R as PresentationR
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.register.RegisterActivity
@@ -141,7 +142,13 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         viewModel.loginResult.observe(this) { result ->
             when (result) {
                 is BaseResult.Success -> appNavigator.navigateToMain(this)
-                is BaseResult.Error -> startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
+                is BaseResult.Error -> {
+                    if (result.errorCode == "NETWORK_ERROR") {
+                        Toast.makeText(this, PresentationR.string.network_error, Toast.LENGTH_SHORT).show()
+                    } else {
+                        startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
+                    }
+                }
             }
         }
         viewModel.fcmTokenEvent.observe(this) { result ->

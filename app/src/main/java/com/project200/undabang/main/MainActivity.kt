@@ -18,7 +18,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.BottomNavigationController
@@ -33,6 +32,7 @@ import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import net.openid.appauth.AuthorizationException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -83,20 +83,36 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
                     when (val refreshResult = authManager.refreshAccessToken()) {
                         is TokenRefreshResult.Success -> {
                             Timber.i("Token refresh successful.")
-                            viewModel.login()
+                            viewModel.loginInBackground()
+                            proceedToContent()
                         }
-                        is TokenRefreshResult.Error,
+                        is TokenRefreshResult.Error -> {
+                            val ex = refreshResult.exception
+                            val isInvalidGrant =
+                                ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
+                                    ex.error == "invalid_grant"
+                            if (isInvalidGrant) {
+                                // forceLogoutFlow도 함께 발행되지만 명시적으로 처리
+                                Timber.w("invalid_grant - 로그인 화면으로 이동")
+                                navigateToLogin()
+                            } else {
+                                // 네트워크 오류 등 일시적 실패 - 오프라인으로 진입
+                                Timber.w("Token refresh network error, proceeding offline.")
+                                viewModel.loginInBackground()
+                                proceedToContent()
+                            }
+                        }
                         is TokenRefreshResult.NoRefreshToken,
                         is TokenRefreshResult.ConfigError,
                         -> {
-                            Timber.w("Token refresh failed or not possible. Navigating to Login.")
-                            if (refreshResult is TokenRefreshResult.Error) Timber.e(refreshResult.exception)
+                            Timber.w("Token refresh not possible (${refreshResult::class.simpleName}). Navigating to Login.")
                             navigateToLogin()
                         }
                     }
                 } else {
                     Timber.i("User is authorized and token is fresh.")
-                    viewModel.login()
+                    viewModel.loginInBackground()
+                    proceedToContent()
                 }
             } else {
                 Timber.i("User is not authorized.")
@@ -171,44 +187,31 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     }
 
     private fun setupObservers() {
-        viewModel.updateCheckResult.observe(this) { result ->
-            when (result) {
-                is UpdateCheckResult.UpdateAvailable -> {
-                    showUpdateDialog(result.isForceUpdate)
-                    if (result.isForceUpdate) {
-                        isLoading = false
-                    } else {
+        lifecycleScope.launch {
+            viewModel.updateCheckResult.collectLatest { result ->
+                result ?: return@collectLatest
+                when (result) {
+                    is UpdateCheckResult.UpdateAvailable -> {
+                        showUpdateDialog(result.isForceUpdate)
+                        if (result.isForceUpdate) {
+                            isLoading = false
+                        } else {
+                            performRouting()
+                        }
+                    }
+                    is UpdateCheckResult.NoUpdateNeeded -> {
+                        Timber.d("업데이트 불필요")
                         performRouting()
                     }
                 }
-                is UpdateCheckResult.NoUpdateNeeded -> {
-                    Timber.d("업데이트 불필요")
-                    performRouting()
-                }
-                else -> {
-                    // 필요한 경우 다른 상태 처리
-                    Timber.d("UpdateCheckResult: Unhandled state or null")
-                    performRouting()
-                }
             }
         }
 
-        viewModel.loginResult.observe(this) { result ->
-            when (result) {
-                is BaseResult.Success -> {
-                    proceedToContent()
+        lifecycleScope.launch {
+            viewModel.showBottomNavigation.collectLatest { show ->
+                if (::binding.isInitialized) {
+                    binding.bottomNavigation.isVisible = show
                 }
-                is BaseResult.Error -> {
-                    navigateToLogin()
-                }
-            }
-        }
-
-        viewModel.showBottomNavigation.observe(this) { show ->
-            if (show) {
-                showBottomNavigation()
-            } else {
-                hideBottomNavigation()
             }
         }
     }
