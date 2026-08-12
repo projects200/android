@@ -2,6 +2,7 @@ package com.project200.undabang.main
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.google.common.truth.Truth.assertThat
+import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
@@ -9,10 +10,13 @@ import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.LoginUseCase
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -39,13 +43,20 @@ class MainViewModelTest {
     @MockK
     private lateinit var mockLoginUseCase: LoginUseCase
 
+    @MockK
+    private lateinit var mockNetworkMonitor: NetworkMonitor
+
     private lateinit var viewModel: MainViewModel
+    private lateinit var networkStateFlow: MutableSharedFlow<Boolean>
 
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        networkStateFlow = MutableSharedFlow()
+        every { mockNetworkMonitor.networkState } returns networkStateFlow
+        every { mockNetworkMonitor.isCurrentlyConnected() } returns true
     }
 
     @After
@@ -58,8 +69,43 @@ class MainViewModelTest {
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
             checkIsRegisteredUseCase = mockCheckIsRegisteredUseCase,
             loginUseCase = mockLoginUseCase,
+            networkMonitor = mockNetworkMonitor,
         )
     }
+
+    @Test
+    fun `오프라인 콜드스타트 - 첫 온라인 전환에 업데이트를 재확인한다`() =
+        runTest {
+            // Given: 오프라인 상태로 시작
+            every { mockNetworkMonitor.isCurrentlyConnected() } returns false
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onContentShown()
+
+            // When: 망이 붙어 첫 emit이 true로 옴 (false emit 없음)
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 재확인이 일어난다
+            coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
+        }
+
+    @Test
+    fun `온라인 콜드스타트 - 첫 onAvailable emit에 재확인이 헛발 실행되지 않는다`() =
+        runTest {
+            // Given: 온라인 상태로 시작 (setUp 기본값)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onContentShown()
+
+            // When: registerNetworkCallback 직후 시스템이 쏘는 onAvailable
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 재확인 없음
+            coVerify(exactly = 0) { mockCheckForUpdateUseCase() }
+        }
 
     @Test
     fun `checkForUpdate - 업데이트가 필요하면 UpdateAvailable 결과를 반환한다`() =
@@ -146,6 +192,99 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.updateCheckResult.value).isEqualTo(UpdateCheckResult.NoUpdateNeeded)
+        }
+
+    @Test
+    fun `재연결 - 콘텐츠 진입 후 오프라인에서 온라인으로 전환되면 강제 업데이트 이벤트를 방출한다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
+                )
+            viewModel = createViewModel()
+            viewModel.onContentShown()
+
+            val events = mutableListOf<Unit>()
+            val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
+
+            // When: offline → online 전환
+            networkStateFlow.emit(false)
+            networkStateFlow.emit(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(events).hasSize(1)
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `재연결 - 선택 업데이트면 강제 업데이트 이벤트를 방출하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = false),
+                )
+            viewModel = createViewModel()
+            viewModel.onContentShown()
+
+            val events = mutableListOf<Unit>()
+            val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
+
+            // When: offline → online 전환
+            networkStateFlow.emit(false)
+            networkStateFlow.emit(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(events).isEmpty()
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `재연결 - 업데이트 확인 실패 시 강제 업데이트 이벤트를 방출하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
+            viewModel = createViewModel()
+            viewModel.onContentShown()
+
+            val events = mutableListOf<Unit>()
+            val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
+
+            // When: offline → online 전환
+            networkStateFlow.emit(false)
+            networkStateFlow.emit(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(events).isEmpty()
+            collectJob.cancel()
+        }
+
+    @Test
+    fun `재연결 - 콘텐츠 진입 전에는 온라인 전환이 업데이트 재확인을 트리거하지 않는다`() =
+        runTest {
+            // Given
+            coEvery { mockCheckForUpdateUseCase() } returns
+                Result.success(
+                    UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
+                )
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            // onContentShown() 호출 안 함
+
+            // When: offline → online 전환
+            networkStateFlow.emit(false)
+            networkStateFlow.emit(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: UseCase 호출 없음
+            coVerify(exactly = 0) { mockCheckForUpdateUseCase() }
         }
 
     @Test
