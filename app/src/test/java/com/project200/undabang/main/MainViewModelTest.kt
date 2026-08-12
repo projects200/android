@@ -133,7 +133,7 @@ class MainViewModelTest {
         }
 
     @Test
-    fun `checkForUpdate - 실패해도 크래시하지 않는다`() =
+    fun `checkForUpdate - 실패해도 NoUpdateNeeded를 방출해 라우팅이 진행된다`() =
         runTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
@@ -145,7 +145,7 @@ class MainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.updateCheckResult.value).isNull()
+            assertThat(viewModel.updateCheckResult.value).isEqualTo(UpdateCheckResult.NoUpdateNeeded)
         }
 
     @Test
