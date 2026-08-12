@@ -10,7 +10,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.project200.domain.model.BaseResult
-import com.project200.undabang.presentation.R as PresentationR
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.register.RegisterActivity
@@ -26,6 +25,7 @@ import net.openid.appauth.AuthorizationService
 import net.openid.appauth.TokenResponse
 import timber.log.Timber
 import javax.inject.Inject
+import com.project200.undabang.presentation.R as PresentationR
 
 @AndroidEntryPoint
 class LoginActivity : BindingActivity<ActivityLoginBinding>() {
