@@ -8,11 +8,13 @@ import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import timber.log.Timber
+import java.io.IOException
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -23,17 +25,24 @@ class AuthRepositoryImpl
         private val spManager: PreferenceManager,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AuthRepository {
-        override suspend fun checkIsRegistered(): Boolean =
+        override suspend fun checkIsRegistered(): RegistrationStatus =
             withContext(ioDispatcher) {
                 try {
                     val response = apiService.getIsRegistered()
                     response.data?.let { spManager.saveMemberId(it.memberId) }
-                    response.data?.isRegistered ?: false
+                    if (response.data?.isRegistered == true) {
+                        RegistrationStatus.Registered
+                    } else {
+                        RegistrationStatus.Unregistered
+                    }
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: IOException) {
+                    Timber.tag(TAG).w("checkIsRegistered network error: $e")
+                    RegistrationStatus.Indeterminate
                 } catch (e: Exception) {
-                    Timber.tag(TAG).d("checkIsRegistered failed: $e")
-                    false
+                    Timber.tag(TAG).w("checkIsRegistered failed: $e")
+                    RegistrationStatus.Indeterminate
                 }
             }
 
