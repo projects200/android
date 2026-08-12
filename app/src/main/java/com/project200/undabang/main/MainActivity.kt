@@ -14,7 +14,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
@@ -46,9 +48,10 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
     @Inject lateinit var appNavigator: ActivityNavigator
     private lateinit var navController: NavController
-    private var isLoading = true // 스플래시 화면 유지를 위한 플래그
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
+    private var contentShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -56,7 +59,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         super.onCreate(savedInstanceState)
 
         // 스플래시 화면을 계속 보여줄 조건 설정
-        splashScreen.setKeepOnScreenCondition { isLoading }
+        splashScreen.setKeepOnScreenCondition { viewModel.entryState.value is EntryState.Loading }
 
         requestNotificationPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -70,71 +73,20 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         checkNotificationPermission()
 
         setupObservers()
-        viewModel.checkForUpdate()
         observeAuthEvents()
+        viewModel.startEntry()
     }
 
-    private fun performRouting() {
-        lifecycleScope.launch {
-            val currentAuthState = authStateManager.getCurrent()
-            if (currentAuthState.isAuthorized) {
-                if (currentAuthState.needsTokenRefresh) {
-                    Timber.i("Token needs refresh. Attempting refresh...")
-                    when (val refreshResult = authManager.refreshAccessToken()) {
-                        is TokenRefreshResult.Success -> {
-                            Timber.i("Token refresh successful.")
-                            viewModel.loginInBackground()
-                            proceedToContent()
-                        }
-                        is TokenRefreshResult.Error -> {
-                            val ex = refreshResult.exception
-                            val isInvalidGrant =
-                                ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
-                                    ex.error == "invalid_grant"
-                            if (isInvalidGrant) {
-                                // forceLogoutFlow도 함께 발행되지만 명시적으로 처리
-                                Timber.w("invalid_grant - 로그인 화면으로 이동")
-                                navigateToLogin()
-                            } else {
-                                // 네트워크 오류 등 일시적 실패 - 오프라인으로 진입
-                                Timber.w("Token refresh network error, proceeding offline.")
-                                viewModel.loginInBackground()
-                                proceedToContent()
-                            }
-                        }
-                        is TokenRefreshResult.NoRefreshToken,
-                        is TokenRefreshResult.ConfigError,
-                        -> {
-                            Timber.w("Token refresh not possible (${refreshResult::class.simpleName}). Navigating to Login.")
-                            navigateToLogin()
-                        }
-                    }
-                } else {
-                    Timber.i("User is authorized and token is fresh.")
-                    viewModel.loginInBackground()
-                    proceedToContent()
-                }
-            } else {
-                Timber.i("User is not authorized.")
-                navigateToLogin()
-            }
-        }
-    }
-
-    private fun proceedToContent() {
-        isLoading = false // 스플래시 종료
-
+    private fun showContentOnce() {
+        if (contentShown) return
+        contentShown = true
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
-
         setupViews()
-        viewModel.onContentShown()
     }
 
     private fun navigateToLogin() {
-        isLoading = false // 스플래시 종료
         appNavigator.navigateToLogin(this)
     }
 
@@ -188,29 +140,27 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
     private fun setupObservers() {
         lifecycleScope.launch {
-            viewModel.updateCheckResult.collectLatest { result ->
-                result ?: return@collectLatest
-                when (result) {
-                    is UpdateCheckResult.UpdateAvailable -> {
-                        showUpdateDialog(result.isForceUpdate)
-                        if (result.isForceUpdate) {
-                            isLoading = false
-                        } else {
-                            performRouting()
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.entryState.collect { state ->
+                        when (state) {
+                            EntryState.Loading -> Unit
+                            EntryState.Content -> showContentOnce()
+                            EntryState.Login -> {
+                                appNavigator.navigateToLogin(this@MainActivity)
+                                finish()
+                            }
+                            is EntryState.ForceUpdate -> showUpdateDialog(isForceUpdate = true)
                         }
                     }
-                    is UpdateCheckResult.NoUpdateNeeded -> {
-                        Timber.d("업데이트 불필요")
-                        performRouting()
-                    }
                 }
-            }
-        }
-
-        lifecycleScope.launch {
-            viewModel.showBottomNavigation.collectLatest { show ->
-                if (::binding.isInitialized) {
-                    binding.bottomNavigation.isVisible = show
+                launch {
+                    viewModel.optionalUpdate.collect { show ->
+                        if (show) {
+                            showUpdateDialog(isForceUpdate = false)
+                            viewModel.onOptionalUpdateShown()
+                        }
+                    }
                 }
             }
         }

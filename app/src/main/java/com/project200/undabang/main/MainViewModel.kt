@@ -7,6 +7,9 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.LoginUseCase
+import com.project200.undabang.oauth.AuthManager
+import com.project200.undabang.oauth.AuthStateManager
+import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -16,8 +19,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import net.openid.appauth.AuthorizationException
 import timber.log.Timber
 import javax.inject.Inject
+import kotlin.time.Duration.Companion.milliseconds
 
 @HiltViewModel
 class MainViewModel
@@ -26,6 +31,8 @@ class MainViewModel
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
         private val loginUseCase: LoginUseCase,
         private val networkMonitor: NetworkMonitor,
+        private val authManager: AuthManager,
+        private val authStateManager: AuthStateManager,
     ) : ViewModel() {
         private val _updateCheckResult = MutableStateFlow<UpdateCheckResult?>(null)
         val updateCheckResult: StateFlow<UpdateCheckResult?> = _updateCheckResult.asStateFlow()
@@ -36,21 +43,79 @@ class MainViewModel
         private val _forceUpdateAfterReconnect = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
         val forceUpdateAfterReconnect: SharedFlow<Unit> = _forceUpdateAfterReconnect.asSharedFlow()
 
-        private var isContentShown = false
-        private var serverLoginPending = false
         private var wasOffline = !networkMonitor.isCurrentlyConnected()
+
+        private val _entryState = MutableStateFlow<EntryState>(EntryState.Loading)
+        val entryState: StateFlow<EntryState> = _entryState.asStateFlow()
+
+        // 선택(비강제) 업데이트 다이얼로그용
+        private val _optionalUpdate = MutableStateFlow(false)
+        val optionalUpdate: StateFlow<Boolean> = _optionalUpdate.asStateFlow()
+
+        private var serverLoginPending = false
 
         init {
             observeNetworkReconnection()
         }
 
+        /** onCreate에서 1회. 회전 재생성 시 StateFlow 값이 살아 있어 자동 멱등 */
+        fun startEntry() {
+            if (_entryState.value != EntryState.Loading) return
+            viewModelScope.launch {
+                val update = checkForUpdateUseCase().getOrElse {
+                    // 업데이트 확인 실패. 오프라인이라고 간주하고 진행
+                    UpdateCheckResult.NoUpdateNeeded
+                }
+                if (update is UpdateCheckResult.UpdateAvailable) {
+                    if (update.isForceUpdate) {
+                        _entryState.value = EntryState.ForceUpdate(fromReconnect = false)
+                        return@launch
+                    }
+                    _optionalUpdate.value = true // 선택 업데이트는 라우팅과 병행 (기존 동작 유지)
+                }
+                routeByAuth()
+            }
+        }
+        private suspend fun routeByAuth() {
+            val state = authStateManager.getCurrent()
+            if (!state.isAuthorized) {
+                _entryState.value = EntryState.Login
+                return
+            }
+            if (state.needsTokenRefresh) {
+                when (val r = authManager.refreshAccessToken()) {
+                    is TokenRefreshResult.Success -> Unit
+                    is TokenRefreshResult.Error -> {
+                        val ex = r.exception
+                        val invalidGrant = ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
+                                ex.error == "invalid_grant"
+                        if (invalidGrant) {
+                            _entryState.value = EntryState.Login
+                            return
+                        }
+                        Timber.w("Token refresh 일시 실패 - 오프라인 진입")
+                    }
+                    is TokenRefreshResult.NoRefreshToken,
+                    is TokenRefreshResult.ConfigError,
+                        -> {
+                        _entryState.value = EntryState.Login
+                        return
+                    }
+                }
+            }
+            ensureFcmRegistration()
+            _entryState.value = EntryState.Content
+        }
+
+        /** 선택 업데이트 다이얼로그 표시 완료 */
+        fun onOptionalUpdateShown() {
+            _optionalUpdate.value = false
+        }
+
         private fun observeNetworkReconnection() {
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
-                    if (isOnline && wasOffline && isContentShown) {
-                        if (serverLoginPending) {
-                            loginInBackground()
-                        }
+                    if (isOnline && wasOffline && _entryState.value is EntryState.Content) {
                         recheckForUpdateOnReconnect()
                     }
                     wasOffline = !isOnline
@@ -59,21 +124,14 @@ class MainViewModel
         }
 
         private suspend fun recheckForUpdateOnReconnect() {
-            // onAvailable 직후 일시적 불안정 대비 딜레이
-            delay(RECONNECT_UPDATE_CHECK_DELAY_MS)
+            delay(RECONNECT_UPDATE_CHECK_DELAY_MS.milliseconds)
             checkForUpdateUseCase()
                 .onSuccess { result ->
                     if (result is UpdateCheckResult.UpdateAvailable && result.isForceUpdate) {
-                        _forceUpdateAfterReconnect.tryEmit(Unit)
+                        _entryState.value = EntryState.ForceUpdate(fromReconnect = true)
                     }
                 }
-                .onFailure { e ->
-                    Timber.w(e, "재연결 후 업데이트 확인 실패 - 무시")
-                }
-        }
-
-        fun onContentShown() {
-            isContentShown = true
+                .onFailure { Timber.w(it, "재연결 후 업데이트 확인 실패 - 무시") }
         }
 
         // 업데이트 확인
@@ -96,28 +154,13 @@ class MainViewModel
             }
         }
 
-        // POST /login — 진입 게이트와 무관하게 백그라운드에서 실행
-        // 실패 시 serverLoginPending = true, 재연결 시 자동 재시도
-        fun loginInBackground() {
+        private fun ensureFcmRegistration() {
             viewModelScope.launch {
                 val result = loginUseCase()
-                if (result is BaseResult.Success) {
-                    serverLoginPending = false
-                    Timber.d("서버 로그인 성공")
-                } else {
-                    serverLoginPending = true
-                    Timber.w("서버 로그인 실패 - 재연결 시 재시도 예정")
-                }
+                serverLoginPending = result !is BaseResult.Success  // 실패 시 재연결 때 재시도
             }
         }
 
-        fun showBottomNavigation() {
-            _showBottomNavigation.value = true
-        }
-
-        fun hideBottomNavigation() {
-            _showBottomNavigation.value = false
-        }
 
         companion object {
             private const val RECONNECT_UPDATE_CHECK_DELAY_MS = 1500L
