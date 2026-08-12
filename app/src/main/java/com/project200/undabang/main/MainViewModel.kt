@@ -11,12 +11,11 @@ import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import net.openid.appauth.AuthorizationException
@@ -34,17 +33,6 @@ class MainViewModel
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
     ) : ViewModel() {
-        private val _updateCheckResult = MutableStateFlow<UpdateCheckResult?>(null)
-        val updateCheckResult: StateFlow<UpdateCheckResult?> = _updateCheckResult.asStateFlow()
-
-        private val _showBottomNavigation = MutableStateFlow(false)
-        val showBottomNavigation: StateFlow<Boolean> = _showBottomNavigation.asStateFlow()
-
-        private val _forceUpdateAfterReconnect = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
-        val forceUpdateAfterReconnect: SharedFlow<Unit> = _forceUpdateAfterReconnect.asSharedFlow()
-
-        private var wasOffline = !networkMonitor.isCurrentlyConnected()
-
         private val _entryState = MutableStateFlow<EntryState>(EntryState.Loading)
         val entryState: StateFlow<EntryState> = _entryState.asStateFlow()
 
@@ -52,30 +40,45 @@ class MainViewModel
         private val _optionalUpdate = MutableStateFlow(false)
         val optionalUpdate: StateFlow<Boolean> = _optionalUpdate.asStateFlow()
 
+        private var wasOffline = !networkMonitor.isCurrentlyConnected()
+
+        private var registrationJob: Job? = null
         private var serverLoginPending = false
 
         init {
             observeNetworkReconnection()
+            observeForceLogout()
+            startEntry()
         }
 
-        /** onCreate에서 1회. 회전 재생성 시 StateFlow 값이 살아 있어 자동 멱등 */
-        fun startEntry() {
-            if (_entryState.value != EntryState.Loading) return
+        /**
+         * 진입 시 업데이트 확인 -> 토큰 확인
+         * 이후 진입 상태를 업데이트하여 라우팅
+         */
+        private fun startEntry() {
             viewModelScope.launch {
-                val update = checkForUpdateUseCase().getOrElse {
-                    // 업데이트 확인 실패. 오프라인이라고 간주하고 진행
-                    UpdateCheckResult.NoUpdateNeeded
-                }
-                if (update is UpdateCheckResult.UpdateAvailable) {
-                    if (update.isForceUpdate) {
-                        _entryState.value = EntryState.ForceUpdate(fromReconnect = false)
-                        return@launch
+                try {
+                    val update = checkForUpdateUseCase().getOrElse {
+                        Timber.e(it, "업데이트 확인 실패 - NoUpdateNeeded로 진행")
+                        UpdateCheckResult.NoUpdateNeeded
                     }
-                    _optionalUpdate.value = true // 선택 업데이트는 라우팅과 병행 (기존 동작 유지)
+                    if (update is UpdateCheckResult.UpdateAvailable) {
+                        if (update.isForceUpdate) {
+                            _entryState.compareAndSet(EntryState.Loading, EntryState.ForceUpdate(fromReconnect = false))
+                            return@launch
+                        }
+                        _optionalUpdate.value = true
+                    }
+                    routeByAuth()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Timber.e(e, "진입 플로우 실패 - 로그인 화면으로 폴백")
+                    _entryState.value = EntryState.Login
                 }
-                routeByAuth()
             }
         }
+
         private suspend fun routeByAuth() {
             val state = authStateManager.getCurrent()
             if (!state.isAuthorized) {
@@ -83,11 +86,12 @@ class MainViewModel
                 return
             }
             if (state.needsTokenRefresh) {
-                when (val r = authManager.refreshAccessToken()) {
+                when (val result = authManager.refreshAccessToken()) {
                     is TokenRefreshResult.Success -> Unit
                     is TokenRefreshResult.Error -> {
-                        val ex = r.exception
-                        val invalidGrant = ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
+                        val ex = result.exception
+                        val invalidGrant =
+                            ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
                                 ex.error == "invalid_grant"
                         if (invalidGrant) {
                             _entryState.value = EntryState.Login
@@ -95,16 +99,27 @@ class MainViewModel
                         }
                         Timber.w("Token refresh 일시 실패 - 오프라인 진입")
                     }
+
                     is TokenRefreshResult.NoRefreshToken,
                     is TokenRefreshResult.ConfigError,
-                        -> {
+                    -> {
                         _entryState.value = EntryState.Login
                         return
                     }
                 }
             }
             ensureFcmRegistration()
-            _entryState.value = EntryState.Content
+            _entryState.compareAndSet(EntryState.Loading, EntryState.Content)
+        }
+
+        /** 사용 중 invalid_grant */
+        private fun observeForceLogout() {
+            viewModelScope.launch {
+                authManager.forceLogoutFlow.collect {
+                    Timber.w("강제 로그아웃 이벤트 - Login 전이")
+                    _entryState.value = EntryState.Login
+                }
+            }
         }
 
         /** 선택 업데이트 다이얼로그 표시 완료 */
@@ -116,6 +131,9 @@ class MainViewModel
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
                     if (isOnline && wasOffline && _entryState.value is EntryState.Content) {
+                        if (serverLoginPending) {
+                            ensureFcmRegistration() // 실패했던 FCM 등록 재시도
+                        }
                         recheckForUpdateOnReconnect()
                     }
                     wasOffline = !isOnline
@@ -124,43 +142,36 @@ class MainViewModel
         }
 
         private suspend fun recheckForUpdateOnReconnect() {
+            // onAvailable 직후 일시적 불안정 대비 딜레이
             delay(RECONNECT_UPDATE_CHECK_DELAY_MS.milliseconds)
             checkForUpdateUseCase()
                 .onSuccess { result ->
                     if (result is UpdateCheckResult.UpdateAvailable && result.isForceUpdate) {
-                        _entryState.value = EntryState.ForceUpdate(fromReconnect = true)
+                        _entryState.compareAndSet(
+                            EntryState.Content,
+                            EntryState.ForceUpdate(fromReconnect = true),
+                        )
                     }
                 }
                 .onFailure { Timber.w(it, "재연결 후 업데이트 확인 실패 - 무시") }
         }
 
-        // 업데이트 확인
-        fun checkForUpdate() {
-            if (_updateCheckResult.value != null) return // 이미 체크했다면 스킵
-
-            viewModelScope.launch {
-                checkForUpdateUseCase()
-                    .onSuccess { result ->
-                        _updateCheckResult.value = result
-                        when (result) {
-                            is UpdateCheckResult.UpdateAvailable -> Timber.d("업데이트 가능 isForce: ${result.isForceUpdate}")
-                            is UpdateCheckResult.NoUpdateNeeded -> Timber.d("업데이트 불필요")
-                        }
-                    }
-                    .onFailure { error ->
-                        Timber.e(error, "ViewModel: 업데이트 확인 실패 - NoUpdateNeeded로 진행")
-                        _updateCheckResult.value = UpdateCheckResult.NoUpdateNeeded
-                    }
-            }
-        }
-
+        // FCM 토큰 등록
         private fun ensureFcmRegistration() {
-            viewModelScope.launch {
-                val result = loginUseCase()
-                serverLoginPending = result !is BaseResult.Success  // 실패 시 재연결 때 재시도
-            }
+            // 재시도 중 재연결이 겹치면 POST /login이 중복 발행 방지
+            if (registrationJob?.isActive == true) return
+            registrationJob =
+                viewModelScope.launch {
+                    serverLoginPending = true
+                    val result = loginUseCase()
+                    if (result is BaseResult.Success) {
+                        serverLoginPending = false
+                        Timber.d("서버 로그인(FCM 등록) 성공")
+                    } else {
+                        Timber.w("서버 로그인 실패 - 재연결 시 재시도 예정")
+                    }
+                }
         }
-
 
         companion object {
             private const val RECONNECT_UPDATE_CHECK_DELAY_MS = 1500L

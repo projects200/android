@@ -20,7 +20,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
@@ -30,11 +29,9 @@ import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
-import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import net.openid.appauth.AuthorizationException
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -43,8 +40,6 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     private val viewModel: MainViewModel by viewModels()
 
     @Inject lateinit var authManager: AuthManager
-
-    @Inject lateinit var authStateManager: AuthStateManager
 
     @Inject lateinit var appNavigator: ActivityNavigator
     private lateinit var navController: NavController
@@ -74,7 +69,6 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
         setupObservers()
         observeAuthEvents()
-        viewModel.startEntry()
     }
 
     private fun showContentOnce() {
@@ -84,10 +78,6 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         setContentView(binding.root)
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
         setupViews()
-    }
-
-    private fun navigateToLogin() {
-        appNavigator.navigateToLogin(this)
     }
 
     private fun setupViews() {
@@ -194,16 +184,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         lifecycleScope.launch {
             authManager.forceLogoutFlow.collectLatest {
                 Timber.d("토큰 재발급 실패, 강제 로그아웃 이벤트 수신")
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
-                    navigateToLogin()
-                }
-            }
-        }
-        lifecycleScope.launch {
-            viewModel.forceUpdateAfterReconnect.collectLatest {
-                Timber.d("재연결 후 강제 업데이트 필요 이벤트 수신")
-                showUpdateDialog(isForceUpdate = true)
+                Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
             }
         }
     }
