@@ -37,8 +37,8 @@ class MainViewModel
         val forceUpdateAfterReconnect: SharedFlow<Unit> = _forceUpdateAfterReconnect.asSharedFlow()
 
         private var isContentShown = false
-        private var wasOffline = false
         private var serverLoginPending = false
+        private var wasOffline = !networkMonitor.isCurrentlyConnected()
 
         init {
             observeNetworkReconnection()

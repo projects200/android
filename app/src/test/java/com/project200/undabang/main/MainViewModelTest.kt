@@ -48,6 +48,7 @@ class MainViewModelTest {
         Dispatchers.setMain(testDispatcher)
         networkStateFlow = MutableSharedFlow()
         every { mockNetworkMonitor.networkState } returns networkStateFlow
+        every { mockNetworkMonitor.isCurrentlyConnected() } returns true
     }
 
     @After
@@ -62,6 +63,40 @@ class MainViewModelTest {
             networkMonitor = mockNetworkMonitor,
         )
     }
+
+    @Test
+    fun `오프라인 콜드스타트 - 첫 온라인 전환에 업데이트를 재확인한다`() =
+        runTest {
+            // Given: 오프라인 상태로 시작
+            every { mockNetworkMonitor.isCurrentlyConnected() } returns false
+            coEvery { mockCheckForUpdateUseCase() } returns Result.success(UpdateCheckResult.NoUpdateNeeded)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onContentShown()
+
+            // When: 망이 붙어 첫 emit이 true로 옴 (false emit 없음)
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 재확인이 일어난다
+            coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
+        }
+
+    @Test
+    fun `온라인 콜드스타트 - 첫 onAvailable emit에 재확인이 헛발 실행되지 않는다`() =
+        runTest {
+            // Given: 온라인 상태로 시작 (setUp 기본값)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onContentShown()
+
+            // When: registerNetworkCallback 직후 시스템이 쏘는 onAvailable
+            launch { networkStateFlow.emit(true) }
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 재확인 없음
+            coVerify(exactly = 0) { mockCheckForUpdateUseCase() }
+        }
 
     @Test
     fun `checkForUpdate - 업데이트가 필요하면 UpdateAvailable 결과를 반환한다`() =
@@ -164,6 +199,7 @@ class MainViewModelTest {
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
             testDispatcher.scheduler.advanceUntilIdle() // collectJob이 구독을 시작한 뒤 emit
 
             // When: offline → online 전환 (emit은 collect lambda 완료를 대기하므로 별도 코루틴으로)
@@ -190,6 +226,7 @@ class MainViewModelTest {
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When: offline → online 전환
@@ -213,6 +250,7 @@ class MainViewModelTest {
 
             val events = mutableListOf<Unit>()
             val collectJob = launch { viewModel.forceUpdateAfterReconnect.collect { events.add(it) } }
+            testDispatcher.scheduler.runCurrent()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When: offline → online 전환
@@ -234,6 +272,7 @@ class MainViewModelTest {
                     UpdateCheckResult.UpdateAvailable(isForceUpdate = true),
                 )
             viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
             // onContentShown() 호출 안 함
 
             // When: offline → online 전환
