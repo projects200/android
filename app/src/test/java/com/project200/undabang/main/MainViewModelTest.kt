@@ -5,15 +5,19 @@ import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
+import com.project200.domain.usecase.ClearSessionUseCase
+import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.LoginUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import io.mockk.just
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -50,6 +54,12 @@ class MainViewModelTest {
     @MockK
     private lateinit var mockAuthStateManager: AuthStateManager
 
+    @MockK
+    private lateinit var mockClearSessionUseCase: ClearSessionUseCase
+
+    @MockK
+    private lateinit var mockGetMemberIdUseCase: GetMemberIdUseCase
+
     private lateinit var viewModel: MainViewModel
     private lateinit var networkStateFlow: MutableSharedFlow<Boolean>
     private lateinit var forceLogoutFlow: MutableSharedFlow<Unit>
@@ -64,6 +74,7 @@ class MainViewModelTest {
         every { mockNetworkMonitor.networkState } returns networkStateFlow
         every { mockNetworkMonitor.isCurrentlyConnected() } returns true
         every { mockAuthManager.forceLogoutFlow } returns forceLogoutFlow
+        coEvery { mockClearSessionUseCase() } just Runs
     }
 
     @After
@@ -78,18 +89,25 @@ class MainViewModelTest {
             networkMonitor = mockNetworkMonitor,
             authManager = mockAuthManager,
             authStateManager = mockAuthStateManager,
+            clearSessionUseCase = mockClearSessionUseCase,
+            getMemberIdUseCase = mockGetMemberIdUseCase,
         )
     }
 
-    /** 토큰 상태 스텁. AuthState는 AppAuth 클래스라 mockk로 만든다 */
+    /** 토큰 상태 스텁. AuthState는 AppAuth 클래스라 mockk로 만든다.
+     *  isAuthorized가 true면 회원ID 조회도 함께 스텁한다(기본값 "member-1", memberId로 override 가능). */
     private fun stubAuthState(
         isAuthorized: Boolean,
         needsRefresh: Boolean = false,
+        memberId: String? = "member-1",
     ) {
         val authState = mockk<AuthState>()
         every { authState.isAuthorized } returns isAuthorized
         every { authState.needsTokenRefresh } returns needsRefresh
         every { mockAuthStateManager.getCurrent() } returns authState
+        if (isAuthorized) {
+            coEvery { mockGetMemberIdUseCase() } returns memberId
+        }
     }
 
     private fun stubNoUpdate() {
@@ -199,6 +217,22 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
+        }
+
+    @Test
+    fun `진입 - 토큰은 유효하지만 회원ID가 없으면 Login으로 전이한다`() =
+        runTest {
+            // Given
+            stubNoUpdate()
+            stubAuthState(isAuthorized = true, memberId = null)
+
+            // When
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
+            coVerify(exactly = 0) { mockLoginUseCase() }
         }
 
     @Test

@@ -2,9 +2,8 @@ package com.project200.undabang.auth
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.google.common.truth.Truth.assertThat
-import com.project200.domain.model.BaseResult
-import com.project200.domain.usecase.LoginUseCase
-import com.project200.domain.usecase.SendFcmTokenUseCase
+import com.project200.domain.model.RegistrationStatus
+import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.undabang.auth.login.LoginViewModel
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -30,10 +29,7 @@ class LoginViewModelTest {
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @MockK
-    private lateinit var loginUseCase: LoginUseCase
-
-    @MockK
-    private lateinit var sendFcmTokenUseCase: SendFcmTokenUseCase
+    private lateinit var checkIsRegisteredUseCase: CheckIsRegisteredUseCase
 
     private lateinit var viewModel: LoginViewModel
 
@@ -50,14 +46,14 @@ class LoginViewModelTest {
     }
 
     private fun createViewModel(): LoginViewModel {
-        return LoginViewModel(loginUseCase, sendFcmTokenUseCase)
+        return LoginViewModel(checkIsRegisteredUseCase)
     }
 
     @Test
-    fun `checkIsRegistered - 로그인 성공 시 Success 결과를 반환한다`() =
+    fun `checkIsRegistered - 가입된 사용자면 Registered 결과를 반환한다`() =
         runTest {
             // Given
-            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { checkIsRegisteredUseCase() } returns RegistrationStatus.Registered
             viewModel = createViewModel()
 
             // When
@@ -65,15 +61,15 @@ class LoginViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.registrationResult.value).isInstanceOf(BaseResult.Success::class.java)
-            coVerify(exactly = 1) { loginUseCase() }
+            assertThat(viewModel.registrationResult.value).isEqualTo(RegistrationStatus.Registered)
+            coVerify(exactly = 1) { checkIsRegisteredUseCase() }
         }
 
     @Test
-    fun `checkIsRegistered - 로그인 실패 시 Error 결과를 반환한다`() =
+    fun `checkIsRegistered - 미가입 사용자면 Unregistered 결과를 반환한다`() =
         runTest {
             // Given
-            coEvery { loginUseCase() } returns BaseResult.Error("ERROR", "Login failed")
+            coEvery { checkIsRegisteredUseCase() } returns RegistrationStatus.Unregistered
             viewModel = createViewModel()
 
             // When
@@ -81,43 +77,23 @@ class LoginViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            val result = viewModel.registrationResult.value
-            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-            assertThat((result as BaseResult.Error).errorCode).isEqualTo("ERROR")
+            assertThat(viewModel.registrationResult.value).isEqualTo(RegistrationStatus.Unregistered)
+            coVerify(exactly = 1) { checkIsRegisteredUseCase() }
         }
 
     @Test
-    fun `sendFcmToken - FCM 토큰 전송 성공 시 Success 이벤트를 발생시킨다`() =
+    fun `checkIsRegistered - 확인 불가면 Indeterminate 결과를 반환한다`() =
         runTest {
             // Given
-            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
-            coEvery { sendFcmTokenUseCase() } returns BaseResult.Success(Unit)
+            coEvery { checkIsRegisteredUseCase() } returns RegistrationStatus.Indeterminate
             viewModel = createViewModel()
 
             // When
-            viewModel.sendFcmToken()
+            viewModel.checkIsRegistered()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.fcmTokenEvent.value).isInstanceOf(BaseResult.Success::class.java)
-            coVerify(exactly = 1) { sendFcmTokenUseCase() }
-        }
-
-    @Test
-    fun `sendFcmToken - FCM 토큰 전송 실패 시 Error 이벤트를 발생시킨다`() =
-        runTest {
-            // Given
-            coEvery { loginUseCase() } returns BaseResult.Success(Unit)
-            coEvery { sendFcmTokenUseCase() } returns BaseResult.Error("FCM_ERROR", "FCM token send failed")
-            viewModel = createViewModel()
-
-            // When
-            viewModel.sendFcmToken()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            val result = viewModel.fcmTokenEvent.value
-            assertThat(result).isInstanceOf(BaseResult.Error::class.java)
-            assertThat((result as BaseResult.Error).errorCode).isEqualTo("FCM_ERROR")
+            assertThat(viewModel.registrationResult.value).isEqualTo(RegistrationStatus.Indeterminate)
+            coVerify(exactly = 1) { checkIsRegisteredUseCase() }
         }
 }
