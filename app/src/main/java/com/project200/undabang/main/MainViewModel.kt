@@ -6,6 +6,8 @@ import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
+import com.project200.domain.usecase.ClearSessionUseCase
+import com.project200.domain.usecase.GetMemberIdUseCase
 import com.project200.domain.usecase.LoginUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
@@ -32,6 +34,8 @@ class MainViewModel
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
+        private val clearSessionUseCase: ClearSessionUseCase,
+        private val getMemberIdUseCase: GetMemberIdUseCase,
     ) : ViewModel() {
         private val _entryState = MutableStateFlow<EntryState>(EntryState.Loading)
         val entryState: StateFlow<EntryState> = _entryState.asStateFlow()
@@ -74,17 +78,23 @@ class MainViewModel
                     throw e
                 } catch (e: Exception) {
                     Timber.e(e, "진입 플로우 실패 - 로그인 화면으로 폴백")
-                    _entryState.value = EntryState.Login
+                    transitionToLogin()
                 }
             }
         }
 
         private suspend fun routeByAuth() {
             val state = authStateManager.getCurrent()
+            // 토큰 만료 시 refresh 시도, 실패 시 로그인 화면으로
             if (!state.isAuthorized) {
-                _entryState.value = EntryState.Login
+                transitionToLogin()
                 return
             }
+            if(getMemberIdUseCase().isNullOrBlank()) {
+                transitionToLogin()
+                return
+            }
+
             if (state.needsTokenRefresh) {
                 when (val result = authManager.refreshAccessToken()) {
                     is TokenRefreshResult.Success -> Unit
@@ -94,7 +104,7 @@ class MainViewModel
                             ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
                                 ex.error == "invalid_grant"
                         if (invalidGrant) {
-                            _entryState.value = EntryState.Login
+                            transitionToLogin()
                             return
                         }
                         Timber.w("Token refresh 일시 실패 - 오프라인 진입")
@@ -103,7 +113,7 @@ class MainViewModel
                     is TokenRefreshResult.NoRefreshToken,
                     is TokenRefreshResult.ConfigError,
                     -> {
-                        _entryState.value = EntryState.Login
+                        transitionToLogin()
                         return
                     }
                 }
@@ -117,7 +127,7 @@ class MainViewModel
             viewModelScope.launch {
                 authManager.forceLogoutFlow.collect {
                     Timber.w("강제 로그아웃 이벤트 - Login 전이")
-                    _entryState.value = EntryState.Login
+                    transitionToLogin()
                 }
             }
         }
@@ -171,6 +181,12 @@ class MainViewModel
                         Timber.w("서버 로그인 실패 - 재연결 시 재시도 예정")
                     }
                 }
+        }
+
+        private suspend fun transitionToLogin() {
+            runCatching { clearSessionUseCase() }
+                .onFailure { Timber.e(it, "세션 정리 실패 - 전이는 계속") }
+            _entryState.value = EntryState.Login
         }
 
         companion object {

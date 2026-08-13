@@ -103,7 +103,6 @@ class SettingFragment : Fragment() {
             } catch (e: Exception) {
                 Timber.e(e, "로그아웃 실패")
             }
-
             authManager.logout(
                 authService,
                 object : LogoutResultCallback {
