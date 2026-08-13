@@ -19,7 +19,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -157,7 +156,7 @@ class MainViewModelTest {
             stubNoUpdate()
             stubAuthState(isAuthorized = true, needsRefresh = true)
             coEvery { mockAuthManager.refreshAccessToken() } returns
-                    TokenRefreshResult.Error(AuthorizationException.TokenRequestErrors.INVALID_GRANT)
+                TokenRefreshResult.Error(AuthorizationException.TokenRequestErrors.INVALID_GRANT)
 
             // When
             viewModel = createViewModel()
@@ -175,7 +174,7 @@ class MainViewModelTest {
             stubNoUpdate()
             stubAuthState(isAuthorized = true, needsRefresh = true)
             coEvery { mockAuthManager.refreshAccessToken() } returns
-                    TokenRefreshResult.Error(AuthorizationException.GeneralErrors.NETWORK_ERROR)
+                TokenRefreshResult.Error(AuthorizationException.GeneralErrors.NETWORK_ERROR)
             coEvery { mockLoginUseCase() } returns BaseResult.Error("NETWORK_ERROR", "오프라인")
 
             // When
@@ -224,7 +223,7 @@ class MainViewModelTest {
         runTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns
-                    Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = true))
+                Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = true))
 
             // When
             viewModel = createViewModel()
@@ -240,7 +239,7 @@ class MainViewModelTest {
         runTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns
-                    Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = false))
+                Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = false))
             stubAuthState(isAuthorized = true)
             coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
 
@@ -383,8 +382,8 @@ class MainViewModelTest {
         runTest {
             // Given: Content 진입 (진입 시엔 업데이트 없음, 재확인에선 강제 업데이트)
             coEvery { mockCheckForUpdateUseCase() } returns
-                    Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
-                    Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = true))
+                Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
+                Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = true))
             stubAuthState(isAuthorized = true)
             coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
@@ -404,8 +403,8 @@ class MainViewModelTest {
         runTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns
-                    Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
-                    Result.failure(Exception("Network error"))
+                Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
+                Result.failure(Exception("Network error"))
             stubAuthState(isAuthorized = true)
             coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
@@ -429,8 +428,8 @@ class MainViewModelTest {
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
             coEvery { mockLoginUseCase() } returns
-                    BaseResult.Error("NETWORK_ERROR", "네트워크 오류") andThen
-                    BaseResult.Success(Unit)
+                BaseResult.Error("NETWORK_ERROR", "네트워크 오류") andThen
+                BaseResult.Success(Unit)
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 

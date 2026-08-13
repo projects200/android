@@ -9,7 +9,6 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator

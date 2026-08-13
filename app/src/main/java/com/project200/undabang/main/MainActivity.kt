@@ -28,7 +28,6 @@ import com.project200.presentation.utils.KeyboardUtils.hideKeyboardOnTouchOutsid
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
-import com.project200.undabang.oauth.AuthStateManager
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch

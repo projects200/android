@@ -62,10 +62,11 @@ class MainViewModel
         private fun startEntry() {
             viewModelScope.launch {
                 try {
-                    val update = checkForUpdateUseCase().getOrElse {
-                        Timber.e(it, "업데이트 확인 실패 - NoUpdateNeeded로 진행")
-                        UpdateCheckResult.NoUpdateNeeded
-                    }
+                    val update =
+                        checkForUpdateUseCase().getOrElse {
+                            Timber.e(it, "업데이트 확인 실패 - NoUpdateNeeded로 진행")
+                            UpdateCheckResult.NoUpdateNeeded
+                        }
                     if (update is UpdateCheckResult.UpdateAvailable) {
                         if (update.isForceUpdate) {
                             _entryState.compareAndSet(EntryState.Loading, EntryState.ForceUpdate(fromReconnect = false))
@@ -90,7 +91,7 @@ class MainViewModel
                 transitionToLogin()
                 return
             }
-            if(getMemberIdUseCase().isNullOrBlank()) {
+            if (getMemberIdUseCase().isNullOrBlank()) {
                 transitionToLogin()
                 return
             }

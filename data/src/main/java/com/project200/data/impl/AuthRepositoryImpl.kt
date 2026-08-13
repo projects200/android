@@ -11,11 +11,9 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
 import com.project200.undabang.oauth.AuthStateManager
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 import timber.log.Timber
-import java.io.IOException
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -107,14 +105,14 @@ class AuthRepositoryImpl
             return spManager.getMemberId()
         }
 
-    override suspend fun clearSession() {
-        withContext(ioDispatcher) {
-            authStateManager.clearAuthState()
-            spManager.clearMemberId()
+        override suspend fun clearSession() {
+            withContext(ioDispatcher) {
+                authStateManager.clearAuthState()
+                spManager.clearMemberId()
+            }
         }
-    }
 
-    companion object {
+        companion object {
             const val TAG = "AuthRepositoryImpl"
         }
     }
