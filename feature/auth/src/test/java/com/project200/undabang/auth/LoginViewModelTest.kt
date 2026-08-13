@@ -65,7 +65,7 @@ class LoginViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.loginResult.value).isInstanceOf(BaseResult.Success::class.java)
+            assertThat(viewModel.registrationResult.value).isInstanceOf(BaseResult.Success::class.java)
             coVerify(exactly = 1) { loginUseCase() }
         }
 
@@ -81,7 +81,7 @@ class LoginViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            val result = viewModel.loginResult.value
+            val result = viewModel.registrationResult.value
             assertThat(result).isInstanceOf(BaseResult.Error::class.java)
             assertThat((result as BaseResult.Error).errorCode).isEqualTo("ERROR")
         }
