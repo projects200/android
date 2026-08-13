@@ -5,7 +5,8 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
-import com.project200.domain.usecase.LoginUseCase
+import com.project200.domain.model.RegistrationStatus
+import com.project200.domain.usecase.CheckIsRegisteredUseCase
 import com.project200.domain.usecase.SendFcmTokenUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -15,26 +16,14 @@ import javax.inject.Inject
 class LoginViewModel
     @Inject
     constructor(
-        private val loginUseCase: LoginUseCase,
-        private val sendFcmTokenUseCase: SendFcmTokenUseCase,
+        private val checkIsRegisteredUseCase: CheckIsRegisteredUseCase,
     ) : ViewModel() {
-        private val _loginResult = MutableLiveData<BaseResult<Unit>>()
-        val loginResult: LiveData<BaseResult<Unit>> = _loginResult
-
-        private val _fcmTokenEvent = MutableLiveData<BaseResult<Unit>>()
-        val fcmTokenEvent: LiveData<BaseResult<Unit>> = _fcmTokenEvent
+        private val _registrationResult = MutableLiveData<RegistrationStatus>()
+        val registrationResult: LiveData<RegistrationStatus> = _registrationResult
 
         fun checkIsRegistered() {
             viewModelScope.launch {
-                _loginResult.value = loginUseCase()
-            }
-        }
-
-        // fcm 토큰 전송
-        fun sendFcmToken() {
-            viewModelScope.launch {
-                val result = sendFcmTokenUseCase()
-                _fcmTokenEvent.value = result
+                _registrationResult.value = checkIsRegisteredUseCase()
             }
         }
     }
