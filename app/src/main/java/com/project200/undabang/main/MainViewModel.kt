@@ -160,9 +160,9 @@ class MainViewModel
         private fun ensureFcmRegistration() {
             // 재시도 중 재연결이 겹치면 POST /login이 중복 발행 방지
             if (registrationJob?.isActive == true) return
+            serverLoginPending = true
             registrationJob =
                 viewModelScope.launch {
-                    serverLoginPending = true
                     val result = loginUseCase()
                     if (result is BaseResult.Success) {
                         serverLoginPending = false

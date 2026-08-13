@@ -10,6 +10,7 @@ import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
+import com.project200.undabang.oauth.AuthStateManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -23,14 +24,15 @@ class AuthRepositoryImpl
     constructor(
         private val apiService: ApiService,
         private val spManager: PreferenceManager,
+        private val authStateManager: AuthStateManager,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AuthRepository {
         override suspend fun checkIsRegistered(): RegistrationStatus =
             withContext(ioDispatcher) {
                 try {
                     val response = apiService.getIsRegistered()
-                    response.data?.let { spManager.saveMemberId(it.memberId) }
                     if (response.data?.isRegistered == true) {
+                        spManager.saveMemberId(response.data.memberId)
                         RegistrationStatus.Registered
                     } else {
                         RegistrationStatus.Unregistered
@@ -91,11 +93,18 @@ class AuthRepositoryImpl
             )
         }
 
-        override suspend fun getMemberId(): String {
-            return spManager.getMemberId().toString()
+        override suspend fun getMemberId(): String? {
+            return spManager.getMemberId()
         }
 
-        companion object {
+    override suspend fun clearSession() {
+        withContext(ioDispatcher) {
+            authStateManager.clearAuthState()
+            spManager.clearMemberId()
+        }
+    }
+
+    companion object {
             const val TAG = "AuthRepositoryImpl"
         }
     }
