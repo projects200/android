@@ -75,9 +75,11 @@ suspend fun <DTO, Domain> apiCallBuilder(
                                 val errorResponse = adapter.fromJson(errorBody)
 
                                 // 파싱 성공 후 메시지가 있다면 사용
-                                if (errorResponse != null && !errorResponse.message.isNullOrEmpty()) {
-                                    Timber.d("Parsed error message: ${errorResponse.message}")
-                                    errorMessage = errorResponse.message
+                                if (errorResponse != null) {
+                                    if(!errorResponse.message.isNullOrEmpty()) {
+                                        Timber.d("Parsed error message: ${errorResponse.message}")
+                                        errorMessage = errorResponse.message
+                                    }
                                     serverCode = errorResponse.code
                                 }
                             } catch (e: Exception) {

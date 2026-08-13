@@ -103,10 +103,12 @@ class SettingFragment : Fragment() {
             } catch (e: Exception) {
                 Timber.e(e, "로그아웃 실패")
             }
+            var logoutPageLaunched = false
             authManager.logout(
                 authService,
                 object : LogoutResultCallback {
                     override fun onLogoutPageIntentReady(logoutIntent: Intent) {
+                        logoutPageLaunched = true
                         logoutPageLauncher.launch(logoutIntent)
                     }
 
@@ -121,6 +123,9 @@ class SettingFragment : Fragment() {
                     }
                 },
             )
+
+            runCatching { viewModel.clearLocalSession() }
+            if (!logoutPageLaunched) appNavigator.navigateToLogin(requireContext())
         }
     }
 
