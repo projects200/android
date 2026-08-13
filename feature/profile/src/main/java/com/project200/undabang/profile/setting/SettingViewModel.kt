@@ -14,5 +14,6 @@ class SettingViewModel
         private val clearSessionUseCase: ClearSessionUseCase,
     ) : ViewModel() {
         suspend fun logout() = logoutUseCase()
+
         suspend fun clearLocalSession() = clearSessionUseCase()
     }
