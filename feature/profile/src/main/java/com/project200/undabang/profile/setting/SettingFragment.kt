@@ -119,7 +119,6 @@ class SettingFragment : Fragment() {
                     override fun onLogoutProcessError(exception: Exception) {
                         Timber.e(exception, "로그아웃 에러: ${exception.message}")
                         Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
-                        appNavigator.navigateToLogin(requireContext())
                     }
                 },
             )
