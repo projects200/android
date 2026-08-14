@@ -6,7 +6,7 @@ import javax.inject.Inject
 class GetMemberIdUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
-    suspend operator fun invoke(): String {
+    suspend operator fun invoke(): String? {
         return authRepository.getMemberId()
     }
 }

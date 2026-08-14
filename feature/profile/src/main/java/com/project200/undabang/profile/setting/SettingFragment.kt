@@ -103,11 +103,12 @@ class SettingFragment : Fragment() {
             } catch (e: Exception) {
                 Timber.e(e, "로그아웃 실패")
             }
-
+            var logoutPageLaunched = false
             authManager.logout(
                 authService,
                 object : LogoutResultCallback {
                     override fun onLogoutPageIntentReady(logoutIntent: Intent) {
+                        logoutPageLaunched = true
                         logoutPageLauncher.launch(logoutIntent)
                     }
 
@@ -118,10 +119,12 @@ class SettingFragment : Fragment() {
                     override fun onLogoutProcessError(exception: Exception) {
                         Timber.e(exception, "로그아웃 에러: ${exception.message}")
                         Toast.makeText(requireContext(), getString(R.string.logout_error), Toast.LENGTH_LONG).show()
-                        appNavigator.navigateToLogin(requireContext())
                     }
                 },
             )
+
+            runCatching { viewModel.clearLocalSession() }
+            if (!logoutPageLaunched) appNavigator.navigateToLogin(requireContext())
         }
     }
 

@@ -99,7 +99,7 @@ class RegisterFragment : Fragment() {
     }
 
     companion object {
-        const val NICKNAME_DUPLICATE_ERROR = "409"
+        const val NICKNAME_DUPLICATE_ERROR = "MEMBER_NICKNAME_DUPLICATED"
         const val MALE = "M"
         const val FEMALE = "F"
         const val HIDDEN = "U"
