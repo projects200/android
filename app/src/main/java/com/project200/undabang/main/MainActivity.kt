@@ -76,6 +76,14 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
+
+        // 오프라인 진입 시 시작 목적지를 운동 기록 탭으로 교체(그래프는 여기서 1회만 설정)
+        val graph = navController.navInflater.inflate(R.navigation.bottom_nav_graph)
+        if (viewModel.isOfflineEntry()) {
+            graph.setStartDestination(com.project200.undabang.feature.exercise.R.id.exercise_nav_graph)
+        }
+        navController.graph = graph
+
         setupViews()
     }
 

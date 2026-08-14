@@ -516,4 +516,34 @@ class MainViewModelTest {
             // Then: 실행 중 가드(registrationJob.isActive)가 두 번째 발사를 막는다
             coVerify(exactly = 1) { mockLoginUseCase() }
         }
+
+    @Test
+    fun `isOfflineEntry - 온라인이면 false를 반환한다`() =
+        runTest {
+            // Given
+            stubNoUpdate()
+            stubAuthState(isAuthorized = true)
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            every { mockNetworkMonitor.isCurrentlyConnected() } returns true
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When & Then
+            assertThat(viewModel.isOfflineEntry()).isFalse()
+        }
+
+    @Test
+    fun `isOfflineEntry - 오프라인이면 true를 반환한다`() =
+        runTest {
+            // Given
+            stubNoUpdate()
+            stubAuthState(isAuthorized = true)
+            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            every { mockNetworkMonitor.isCurrentlyConnected() } returns false
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When & Then
+            assertThat(viewModel.isOfflineEntry()).isTrue()
+        }
 }
