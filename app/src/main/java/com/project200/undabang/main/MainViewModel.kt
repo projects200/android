@@ -138,6 +138,9 @@ class MainViewModel
             _optionalUpdate.value = false
         }
 
+        /** 진입 시점 오프라인 여부 — 시작 탭 결정용 */
+        fun isOfflineEntry(): Boolean = !networkMonitor.isCurrentlyConnected()
+
         private fun observeNetworkReconnection() {
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
