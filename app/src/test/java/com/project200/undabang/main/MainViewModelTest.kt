@@ -496,6 +496,27 @@ class MainViewModelTest {
         }
 
     @Test
+    fun `FCM 등록 - 토큰이 없어 실패하면 대기가 닫히지 않고 재연결 때 재시도한다`() =
+        runTest {
+            // Given: FCM 토큰이 없어 서버 로그인이 막힌다
+            stubNoUpdate()
+            stubAuthState(isAuthorized = true)
+            coEvery { mockLoginUseCase() } returns
+                BaseResult.Error("NO_FCM_TOKEN", "FCM 토큰이 없어 서버 로그인을 보내지 않았습니다.") andThen
+                BaseResult.Success(Unit)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // When: offline → online 재연결
+            networkStateFlow.emit(false)
+            networkStateFlow.emit(true)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then: 성공으로 닫히지 않았으므로 재시도가 한 번 더 나간다
+            coVerify(exactly = 2) { mockLoginUseCase() }
+        }
+
+    @Test
     fun `FCM 등록 - 요청이 진행 중이면 재연결이 겹쳐도 중복 발행하지 않는다`() =
         runTest {
             // Given: 등록 요청이 느리게 진행 중
