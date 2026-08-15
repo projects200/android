@@ -32,6 +32,8 @@ androidxLifecycle = "2.7.0"
 androidxNavigation = "2.7.7"
 androidxRoom = "2.6.1"
 androidxDatastore = "1.0.0"
+androidxWork = "2.9.1"
+androidxHilt = "1.2.0"
 androidxArchCoreTesting = "2.2.0" # 테스트용
 androidxMedia = "1.7.0"
 lottie = "6.6.6"
@@ -163,6 +165,11 @@ androidx-room-compiler = { group = "androidx.room", name = "room-compiler", vers
 
 # AndroidX DataStore (Preferences Example)
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "androidxDatastore" }
+
+# AndroidX WorkManager
+androidx-work-runtime-ktx = { group = "androidx.work", name = "work-runtime-ktx", version.ref = "androidxWork" }
+androidx-hilt-work = { group = "androidx.hilt", name = "hilt-work", version.ref = "androidxHilt" }
+androidx-hilt-compiler = { group = "androidx.hilt", name = "hilt-compiler", version.ref = "androidxHilt" } # KSP
 
 # Hilt (DI)
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }

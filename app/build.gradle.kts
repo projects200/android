@@ -109,6 +109,11 @@ dependencies {
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
 
+    // WorkManager (FCM 토큰 전송 예약)
+    implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.hilt.work)
+    "ksp"(libs.androidx.hilt.compiler)
+
     implementation(libs.appauth)
 
     // Kakao Map
