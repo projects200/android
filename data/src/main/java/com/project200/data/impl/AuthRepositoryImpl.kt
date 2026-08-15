@@ -3,10 +3,8 @@ package com.project200.data.impl
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
 import com.project200.data.dto.GetIsNicknameDuplicated
-import com.project200.data.dto.PostLoginRequest
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
-import com.project200.data.utils.FcmTokenProvider
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
@@ -24,7 +22,6 @@ class AuthRepositoryImpl
         private val apiService: ApiService,
         private val spManager: PreferenceManager,
         private val authStateManager: AuthStateManager,
-        private val fcmTokenProvider: FcmTokenProvider,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AuthRepository {
         override suspend fun checkIsRegistered(): RegistrationStatus {
@@ -56,28 +53,6 @@ class AuthRepositoryImpl
                         RegistrationStatus.Indeterminate
                     }
             }
-        }
-
-        /**
-         * POST /login은 X-Fcm-Token 헤더로 기기 토큰을 등록합니다.
-         * 토큰이 없으면 서버는 헤더 없는 요청을 LOGIN_SUCCESS로 돌려주고 등록은 건너뜁니다.
-         * 그 성공을 그대로 올리면 재시도 경로가 닫히므로 보내기 전에 막습니다.
-         */
-        override suspend fun login(): BaseResult<Unit> {
-            val fcmToken = withContext(ioDispatcher) { fcmTokenProvider.getFcmToken() }
-            if (fcmToken.isNullOrBlank()) {
-                Timber.tag(TAG).w("FCM 토큰이 없어 서버 로그인을 보내지 않습니다.")
-                return BaseResult.Error(
-                    errorCode = NO_FCM_TOKEN_ERROR_CODE,
-                    message = NO_FCM_TOKEN_ERROR_MESSAGE,
-                )
-            }
-
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postLogin(PostLoginRequest("ANDROID", "APP")) },
-                mapper = { Unit },
-            )
         }
 
         override suspend fun logout(): BaseResult<Unit> {
@@ -130,7 +105,5 @@ class AuthRepositoryImpl
 
         companion object {
             const val TAG = "AuthRepositoryImpl"
-            const val NO_FCM_TOKEN_ERROR_CODE = "NO_FCM_TOKEN"
-            private const val NO_FCM_TOKEN_ERROR_MESSAGE = "FCM 토큰이 없어 서버 로그인을 보내지 않았습니다."
         }
     }

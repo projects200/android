@@ -3,12 +3,12 @@ package com.project200.undabang.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
-import com.project200.domain.model.BaseResult
+import com.project200.domain.model.FcmTokenSyncResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.ClearSessionUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
-import com.project200.domain.usecase.LoginUseCase
+import com.project200.domain.usecase.SyncFcmTokenUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
@@ -30,7 +30,7 @@ class MainViewModel
     @Inject
     constructor(
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
-        private val loginUseCase: LoginUseCase,
+        private val syncFcmTokenUseCase: SyncFcmTokenUseCase,
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
@@ -47,7 +47,7 @@ class MainViewModel
         private var wasOffline = !networkMonitor.isCurrentlyConnected()
 
         private var registrationJob: Job? = null
-        private var serverLoginPending = false
+        private var registrationPending = false
 
         init {
             observeNetworkReconnection()
@@ -145,7 +145,7 @@ class MainViewModel
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
                     if (isOnline && wasOffline && _entryState.value is EntryState.Content) {
-                        if (serverLoginPending) {
+                        if (registrationPending) {
                             ensureFcmRegistration() // 실패했던 FCM 등록 재시도
                         }
                         recheckForUpdateOnReconnect()
@@ -172,17 +172,17 @@ class MainViewModel
 
         // FCM 토큰 등록
         private fun ensureFcmRegistration() {
-            // 재시도 중 재연결이 겹치면 POST /login이 중복 발행 방지
+            // 재시도 중 재연결이 겹치면 등록 요청이 중복 발행되는 것을 방지
             if (registrationJob?.isActive == true) return
-            serverLoginPending = true
+            registrationPending = true
             registrationJob =
                 viewModelScope.launch {
-                    val result = loginUseCase()
-                    if (result is BaseResult.Success) {
-                        serverLoginPending = false
-                        Timber.d("서버 로그인(FCM 등록) 성공")
+                    // SKIPPED는 보낼 토큰이 없는 상태 - 대기를 닫지 않고 재연결 때 재시도
+                    if (syncFcmTokenUseCase() == FcmTokenSyncResult.SUCCESS) {
+                        registrationPending = false
+                        Timber.d("FCM 토큰 등록 성공")
                     } else {
-                        Timber.w("서버 로그인 실패 - 재연결 시 재시도 예정")
+                        Timber.w("FCM 토큰 등록 실패 - 재연결 시 재시도 예정")
                     }
                 }
         }
