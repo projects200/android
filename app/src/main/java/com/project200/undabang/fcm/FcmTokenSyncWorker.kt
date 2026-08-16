@@ -12,8 +12,12 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.project200.domain.model.FcmTokenSyncResult
 import com.project200.domain.usecase.SyncFcmTokenUseCase
+import com.project200.undabang.oauth.AuthManager
+import com.project200.undabang.oauth.AuthStateManager
+import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import net.openid.appauth.AuthorizationException
 import timber.log.Timber
 import java.util.concurrent.TimeUnit
 
@@ -29,8 +33,34 @@ class FcmTokenSyncWorker
         @Assisted appContext: Context,
         @Assisted params: WorkerParameters,
         private val syncFcmTokenUseCase: SyncFcmTokenUseCase,
+        private val authStateManager: AuthStateManager,
+        private val authManager: AuthManager,
     ) : CoroutineWorker(appContext, params) {
         override suspend fun doWork(): Result {
+            // POST /login은 @AccessTokenWithFcmApi라 401 자동 갱신이 없음 - 만료면 먼저 갱신
+            if (authStateManager.getCurrent().needsTokenRefresh) {
+                when (val refresh = authManager.refreshAccessToken()) {
+                    is TokenRefreshResult.Success -> Unit
+                    is TokenRefreshResult.Error -> {
+                        val ex = refresh.exception
+                        val invalidGrant =
+                            ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
+                                ex.error == "invalid_grant"
+                        // invalid_grant는 재시도해도 같음. 세션 정리는 refreshAccessToken() 내부가 함
+                        return if (invalidGrant) {
+                            Result.failure()
+                        } else if (FcmTokenSyncPolicy.shouldRetry(runAttemptCount)) {
+                            Result.retry()
+                        } else {
+                            Result.failure()
+                        }
+                    }
+                    is TokenRefreshResult.NoRefreshToken,
+                    is TokenRefreshResult.ConfigError,
+                    -> return Result.failure()
+                }
+            }
+
             val syncResult = syncFcmTokenUseCase()
             Timber.tag(TAG).d("FCM 토큰 전송 결과: $syncResult (시도 ${runAttemptCount + 1}회)")
 
