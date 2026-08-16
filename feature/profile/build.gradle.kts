@@ -1,6 +1,7 @@
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
+    id("convention.android.compose")
     alias(libs.plugins.navigation.safeargs)
 }
 
@@ -46,6 +47,9 @@ dependencies {
 
     // Glide
     implementation(libs.glide)
+
+    // Coil (Compose 이미지 로딩)
+    implementation(libs.coil.compose)
 
     // 캘린더
     implementation(libs.kizitonwose.calendar.view)

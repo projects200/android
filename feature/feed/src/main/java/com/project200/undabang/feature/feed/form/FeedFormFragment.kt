@@ -1,31 +1,32 @@
 package com.project200.undabang.feature.feed.form
 
+import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.Toast
+import android.view.ViewGroup
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
-import com.bumptech.glide.Glide
-import com.project200.domain.model.PreferredExercise
-import com.project200.presentation.base.BindingFragment
+import com.project200.presentation.compose.applyAppTheme
+import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.collectToast
-import com.project200.presentation.view.SelectionBottomSheetDialog
-import com.project200.undabang.feature.feed.R
-import com.project200.undabang.feature.feed.databinding.FragmentFeedFormBinding
 import com.project200.undabang.feature.feed.list.FeedListFragment
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragment_feed_form) {
+class FeedFormFragment : Fragment() {
     private val viewModel: FeedFormViewModel by viewModels()
     private val args: FeedFormFragmentArgs by navArgs()
-    private val imageAdapter =
-        FeedFormImageAdapter(
-            onDeleteExistingClick = { imageId -> viewModel.removeExistingImage(imageId) },
-            onDeleteNewClick = { uri -> viewModel.removeImage(uri) },
-        )
 
     private val pickImagesLauncher =
         registerForActivityResult(ActivityResultContracts.PickMultipleVisualMedia()) { uris ->
@@ -34,125 +35,95 @@ class FeedFormFragment : BindingFragment<FragmentFeedFormBinding>(R.layout.fragm
             }
         }
 
-    override fun getViewBinding(view: View): FragmentFeedFormBinding {
-        return FragmentFeedFormBinding.bind(view)
-    }
-
-    override fun setupViews() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
         viewModel.initData(feedId = args.feedId)
-        initToolbar()
-        initView()
-        initObserver()
     }
 
-    private fun initToolbar() {
-        viewModel.isEditMode.observe(viewLifecycleOwner) { isEditMode ->
-            val title =
-                if (isEditMode) {
-                    getString(R.string.feed_form_edit_title)
-                } else {
-                    getString(R.string.feed_form_title)
-                }
-            binding.baseToolbar.setTitle(title)
-        }
-        binding.baseToolbar.showBackButton(true) { findNavController().navigateUp() }
-        binding.completeBtn.setOnClickListener {
-            viewModel.submitFeed(binding.contentEt.text.toString())
-        }
-    }
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        ComposeView(requireContext()).apply {
+            applyAppTheme {
+                val isEditMode by viewModel.isEditMode.collectAsStateWithLifecycle()
+                val userProfile by viewModel.userProfile.collectAsStateWithLifecycle()
+                val content by viewModel.content.collectAsStateWithLifecycle()
+                val selectedType by viewModel.selectedType.collectAsStateWithLifecycle()
+                val registeredImages by viewModel.registeredImages.collectAsStateWithLifecycle()
+                val selectedImages by viewModel.selectedImages.collectAsStateWithLifecycle()
+                val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
 
-    private fun initView() {
-        binding.imageListRv.adapter = imageAdapter
-
-        binding.addImageBtn.setOnClickListener {
-            pickImagesLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-        }
-
-        binding.dabangSelectionTv.setOnClickListener {
-            showDabangSelection()
-        }
-
-        binding.arrowIv.setOnClickListener {
-            showDabangSelection()
-        }
-    }
-
-    private fun showDabangSelection() {
-        viewModel.requestShowDabangSelection()
-    }
-
-    private fun updateImageList() {
-        val existingImages = viewModel.registeredImages.value ?: emptyList()
-        val newImages = viewModel.selectedImages.value ?: emptyList()
-        imageAdapter.submitList(existingImages, newImages)
-    }
-
-    private fun displayDabangSelection(types: List<PreferredExercise>) {
-        val names = types.map { it.name }
-
-        SelectionBottomSheetDialog(names) { selectedName ->
-            val selected = types.find { it.name == selectedName }
-            viewModel.selectType(selected)
-            binding.dabangSelectionTv.text = selectedName
-            binding.dabangSelectionTv.setTextColor(resources.getColor(com.project200.undabang.presentation.R.color.black, null))
-        }.show(parentFragmentManager, SelectionBottomSheetDialog::class.java.name)
-        viewModel.onDabangSelectionShown()
-    }
-
-    private fun initObserver() {
-        viewModel.userProfile.observe(viewLifecycleOwner) { profile ->
-            binding.nicknameTv.text = profile.nickname
-            Glide.with(this)
-                .load(profile.profileImageUrl)
-                .placeholder(com.project200.undabang.presentation.R.drawable.ic_profile_default)
-                .circleCrop()
-                .into(binding.profileIv)
-        }
-
-        viewModel.selectedImages.observe(viewLifecycleOwner) { _ ->
-            updateImageList()
-        }
-
-        viewModel.registeredImages.observe(viewLifecycleOwner) { _ ->
-            updateImageList()
-        }
-
-        viewModel.isLoading.observe(viewLifecycleOwner) { isLoading ->
-            binding.loadingPb.visibility = if (isLoading) View.VISIBLE else View.GONE
-        }
-
-        viewModel.createSuccess.observe(viewLifecycleOwner) {
-            Toast.makeText(context, R.string.feed_form_create_success, Toast.LENGTH_SHORT).show()
-            findNavController().previousBackStackEntry?.savedStateHandle?.set(FeedListFragment.REFRESH_KEY, true)
-            findNavController().popBackStack()
-        }
-
-        viewModel.updateSuccess.observe(viewLifecycleOwner) { success ->
-            if (success) {
-                Toast.makeText(context, R.string.feed_form_update_success, Toast.LENGTH_SHORT).show()
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(FEED_UPDATED_KEY, true)
-                findNavController().popBackStack()
+                FeedFormScreen(
+                    isEditMode = isEditMode,
+                    userProfile = userProfile,
+                    content = content,
+                    selectedTypeName = selectedType?.name,
+                    registeredImages = registeredImages,
+                    newImages = selectedImages,
+                    isLoading = isLoading,
+                    onContentChange = viewModel::updateContent,
+                    onDabangSelectClick = viewModel::requestShowDabangSelection,
+                    onAddImageClick = {
+                        pickImagesLauncher.launch(
+                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                        )
+                    },
+                    onRemoveRegisteredImage = viewModel::removeExistingImage,
+                    onRemoveNewImage = viewModel::removeImage,
+                    onCompleteClick = viewModel::submitFeed,
+                    onBackClick = { findNavController().navigateUp() },
+                )
             }
         }
+
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
 
         collectToast(viewModel.toastEvent)
 
-        viewModel.showDabangSelection.observe(viewLifecycleOwner) { types ->
-            if (!types.isNullOrEmpty()) {
-                displayDabangSelection(types)
-            }
-        }
-
-        viewModel.initialContentForEdit.observe(viewLifecycleOwner) { content ->
-            if (!content.isNullOrEmpty()) {
-                binding.contentEt.setText(content)
-            }
-        }
-
-        viewModel.selectedType.observe(viewLifecycleOwner) { type ->
-            if (type != null) {
-                binding.dabangSelectionTv.text = type.name
-                binding.dabangSelectionTv.setTextColor(resources.getColor(com.project200.undabang.presentation.R.color.black, null))
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.showDabangSelection.collect { types ->
+                        val names = types.map { it.name }
+                        UndabangBottomSheet.showSelection(
+                            fragmentManager = parentFragmentManager,
+                            items = names,
+                        ) { selectedName ->
+                            val selected = types.find { it.name == selectedName }
+                            viewModel.selectType(selected)
+                        }
+                    }
+                }
+                launch {
+                    viewModel.createSuccess.collect {
+                        android.widget.Toast.makeText(
+                            requireContext(),
+                            com.project200.undabang.feature.feed.R.string.feed_form_create_success,
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                        findNavController().previousBackStackEntry?.savedStateHandle
+                            ?.set(FeedListFragment.REFRESH_KEY, true)
+                        findNavController().popBackStack()
+                    }
+                }
+                launch {
+                    viewModel.updateSuccess.collect {
+                        android.widget.Toast.makeText(
+                            requireContext(),
+                            com.project200.undabang.feature.feed.R.string.feed_form_update_success,
+                            android.widget.Toast.LENGTH_SHORT,
+                        ).show()
+                        findNavController().previousBackStackEntry?.savedStateHandle
+                            ?.set(FEED_UPDATED_KEY, true)
+                        findNavController().popBackStack()
+                    }
+                }
             }
         }
     }

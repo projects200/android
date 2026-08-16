@@ -1,7 +1,5 @@
 package com.project200.undabang.feature.feed.list
 
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
@@ -16,8 +14,11 @@ import com.project200.presentation.utils.UiText
 import com.project200.undabang.feature.feed.R
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -31,33 +32,30 @@ class FeedListViewModel
         private val getMemberIdUseCase: GetMemberIdUseCase,
         private val deleteFeedUseCase: DeleteFeedUseCase,
     ) : ViewModel() {
-        private val _feedList = MutableLiveData<List<Feed>>()
-        val feedList: LiveData<List<Feed>> get() = _feedList
+        private val _feedList = MutableStateFlow<List<Feed>>(emptyList())
+        val feedList: StateFlow<List<Feed>> = _feedList.asStateFlow()
 
-        private val _selectedType = MutableLiveData<ExerciseType?>(null)
-        val selectedType: LiveData<ExerciseType?> = _selectedType
+        private val _selectedType = MutableStateFlow<ExerciseType?>(null)
+        val selectedType: StateFlow<ExerciseType?> = _selectedType.asStateFlow()
 
-        private val _isLoading = MutableLiveData<Boolean>(false)
-        val isLoading: LiveData<Boolean> get() = _isLoading
+        private val _isLoading = MutableStateFlow(false)
+        val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
         private val _toastEvent = MutableSharedFlow<UiText>()
         val toastEvent: SharedFlow<UiText> = _toastEvent.asSharedFlow()
 
-        private val _isEmpty = MutableLiveData<Boolean>(false)
-        val isEmpty: LiveData<Boolean> get() = _isEmpty
+        private val _isEmpty = MutableStateFlow(false)
+        val isEmpty: StateFlow<Boolean> = _isEmpty.asStateFlow()
 
-        private val _exerciseTypeList = MutableLiveData<List<ExerciseType>>()
-        val exerciseTypeList: LiveData<List<ExerciseType>> = _exerciseTypeList
+        private val exerciseTypeListFlow = MutableStateFlow<List<ExerciseType>>(emptyList())
 
-        private val _currentMemberId = MutableLiveData<String>()
-        val currentMemberId: LiveData<String> get() = _currentMemberId
+        private val _currentMemberId = MutableStateFlow<String?>(null)
+        val currentMemberId: StateFlow<String?> = _currentMemberId.asStateFlow()
 
-        private val _showEmptyView = MutableLiveData<Boolean>(false)
-        val showEmptyView: LiveData<Boolean> get() = _showEmptyView
+        private val _showCategoryBottomSheet = MutableSharedFlow<List<ExerciseType>>()
+        val showCategoryBottomSheet: SharedFlow<List<ExerciseType>> = _showCategoryBottomSheet.asSharedFlow()
 
-        private val _showCategoryBottomSheet = MutableLiveData<List<ExerciseType>?>()
-        val showCategoryBottomSheet: LiveData<List<ExerciseType>?> get() = _showCategoryBottomSheet
-
+        // 페이징 상태. allFeeds는 원본, _feedList는 카테고리 필터링 결과
         private var hasNext: Boolean = true
         private var lastFeedId: Long? = null
         private val allFeeds = mutableListOf<Feed>()
@@ -88,25 +86,20 @@ class FeedListViewModel
             updateFilteredList()
         }
 
+        // 카테고리 필터링 중에는 페이징을 멈춤 (현재 정책: 필터링은 로컬 데이터만 대상)
         fun canLoadMore(): Boolean {
-            return _selectedType.value == null && _isLoading.value != true && hasNext
+            return _selectedType.value == null && !_isLoading.value && hasNext
         }
 
         fun requestShowCategoryBottomSheet() {
-            val items = _exerciseTypeList.value
-            if (items.isNullOrEmpty()) {
+            val items = exerciseTypeListFlow.value
+            if (items.isEmpty()) {
                 loadExerciseTypes()
             } else {
-                _showCategoryBottomSheet.value = items
+                viewModelScope.launch {
+                    _showCategoryBottomSheet.emit(items)
+                }
             }
-        }
-
-        fun onCategoryBottomSheetShown() {
-            _showCategoryBottomSheet.value = null
-        }
-
-        private fun updateShowEmptyView() {
-            _showEmptyView.value = _isEmpty.value == true && _isLoading.value != true
         }
 
         private fun updateFilteredList() {
@@ -119,7 +112,7 @@ class FeedListViewModel
         }
 
         fun loadExerciseTypes() {
-            if (!_exerciseTypeList.value.isNullOrEmpty()) return
+            if (exerciseTypeListFlow.value.isNotEmpty()) return
             viewModelScope.launch {
                 val preferredResult = getPreferredExerciseUseCase()
                 val preferredTypes =
@@ -137,6 +130,7 @@ class FeedListViewModel
                         emptyList()
                     }
 
+                // 선호 운동을 앞에 두고, 그 외 전체 운동을 뒤에 붙임 (중복 제거)
                 val preferredIds = preferredTypes.map { it.id }.toSet()
                 val combinedList =
                     mutableListOf<ExerciseType>().apply {
@@ -144,7 +138,7 @@ class FeedListViewModel
                         addAll(allTypes.filterNot { preferredIds.contains(it.id) })
                     }
 
-                _exerciseTypeList.value = combinedList
+                exerciseTypeListFlow.value = combinedList
             }
         }
 
@@ -155,7 +149,7 @@ class FeedListViewModel
                 allFeeds.clear()
             }
 
-            if (!hasNext || (_isLoading.value == true && !isRefresh)) return
+            if (!hasNext || (_isLoading.value && !isRefresh)) return
 
             _isLoading.value = true
 
@@ -171,19 +165,16 @@ class FeedListViewModel
                         }
                         updateFilteredList()
                         _isEmpty.value = allFeeds.isEmpty()
-                        updateShowEmptyView()
                     }
                     is BaseResult.Error -> {
                         _toastEvent.emit(UiText.StringResource(R.string.unknown_error))
                         if (allFeeds.isEmpty()) {
                             _isEmpty.value = true
                             _feedList.value = emptyList()
-                            updateShowEmptyView()
                         }
                     }
                 }
                 _isLoading.value = false
-                updateShowEmptyView()
             }
         }
 
@@ -194,7 +185,6 @@ class FeedListViewModel
                         allFeeds.removeAll { it.feedId == feedId }
                         updateFilteredList()
                         _isEmpty.value = allFeeds.isEmpty()
-                        updateShowEmptyView()
                         _toastEvent.emit(UiText.StringResource(R.string.feed_deleted))
                     }
                     is BaseResult.Error -> {

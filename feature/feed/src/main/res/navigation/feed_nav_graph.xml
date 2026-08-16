@@ -9,7 +9,7 @@
         android:id="@+id/feedListFragment"
         android:name="com.project200.undabang.feature.feed.list.FeedListFragment"
         android:label="FeedListFragment"
-        tools:layout="@layout/fragment_feed_list" >
+        >
         <action
             android:id="@+id/action_feedListFragment_to_feedFormFragment"
             app:destination="@id/feedFormFragment" />
@@ -21,7 +21,7 @@
         android:id="@+id/feedFormFragment"
         android:name="com.project200.undabang.feature.feed.form.FeedFormFragment"
         android:label="FeedFormFragment"
-        tools:layout="@layout/fragment_feed_form" >
+        >
         <argument
             android:name="feedId"
             app:argType="long"
@@ -31,7 +31,7 @@
         android:id="@+id/feedDetailFragment"
         android:name="com.project200.undabang.feature.feed.detail.FeedDetailFragment"
         android:label="FeedDetailFragment"
-        tools:layout="@layout/fragment_feed_detail" >
+        >
         <argument
             android:name="feedId"
             app:argType="long" />

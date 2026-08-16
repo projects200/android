@@ -1,6 +1,7 @@
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
+    id("convention.android.compose")
     alias(libs.plugins.navigation.safeargs)
 }
 
@@ -35,4 +36,7 @@ dependencies {
     androidTestImplementation(libs.androidx.navigation.testing)
 
     implementation(libs.androidx.media)
+
+    // Compose Drag/Drop
+    implementation(libs.reorderable)
 }

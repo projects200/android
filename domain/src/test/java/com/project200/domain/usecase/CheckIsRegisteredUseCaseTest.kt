@@ -1,6 +1,7 @@
 package com.project200.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -29,28 +30,41 @@ class CheckIsRegisteredUseCaseTest {
     }
 
     @Test
-    fun `invoke 호출 시 등록된 사용자면 true 반환`() = runTest {
+    fun `invoke 호출 시 등록된 사용자면 Registered 반환`() = runTest {
         // Given
-        coEvery { mockRepository.checkIsRegistered() } returns true
+        coEvery { mockRepository.checkIsRegistered() } returns RegistrationStatus.Registered
 
         // When
         val result = useCase()
 
         // Then
         coVerify(exactly = 1) { mockRepository.checkIsRegistered() }
-        assertThat(result).isTrue()
+        assertThat(result).isEqualTo(RegistrationStatus.Registered)
     }
 
     @Test
-    fun `invoke 호출 시 등록되지 않은 사용자면 false 반환`() = runTest {
+    fun `invoke 호출 시 등록되지 않은 사용자면 Unregistered 반환`() = runTest {
         // Given
-        coEvery { mockRepository.checkIsRegistered() } returns false
+        coEvery { mockRepository.checkIsRegistered() } returns RegistrationStatus.Unregistered
 
         // When
         val result = useCase()
 
         // Then
         coVerify(exactly = 1) { mockRepository.checkIsRegistered() }
-        assertThat(result).isFalse()
+        assertThat(result).isEqualTo(RegistrationStatus.Unregistered)
+    }
+
+    @Test
+    fun `invoke 호출 시 확인 불가면 Indeterminate 반환`() = runTest {
+        // Given
+        coEvery { mockRepository.checkIsRegistered() } returns RegistrationStatus.Indeterminate
+
+        // When
+        val result = useCase()
+
+        // Then
+        coVerify(exactly = 1) { mockRepository.checkIsRegistered() }
+        assertThat(result).isEqualTo(RegistrationStatus.Indeterminate)
     }
 }

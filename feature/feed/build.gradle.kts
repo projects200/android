@@ -1,6 +1,7 @@
 plugins {
     id("convention.android.library")
     id("convention.android.hilt")
+    id("convention.android.compose")
     alias(libs.plugins.navigation.safeargs)
 }
 
@@ -40,6 +41,9 @@ dependencies {
     // Glide
     implementation(libs.glide)
     ksp(libs.glide.compiler.ksp)
+
+    // Coil (Compose)
+    implementation(libs.coil.compose)
 
     // CircleImageView
     implementation(libs.circleimageview)

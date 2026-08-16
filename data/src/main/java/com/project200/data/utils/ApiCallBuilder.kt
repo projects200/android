@@ -60,8 +60,8 @@ suspend fun <DTO, Domain> apiCallBuilder(
                             )
                         }
                         val errorBody = exception.response()?.errorBody()?.string()
-
                         var errorMessage = errorBody // 기본값은 파싱 전 원본 문자열
+                        var serverCode: String? = null
 
                         Timber.d("errorBody: $errorBody")
                         if (!errorBody.isNullOrBlank()) {
@@ -75,16 +75,19 @@ suspend fun <DTO, Domain> apiCallBuilder(
                                 val errorResponse = adapter.fromJson(errorBody)
 
                                 // 파싱 성공 후 메시지가 있다면 사용
-                                if (errorResponse != null && !errorResponse.message.isNullOrEmpty()) {
-                                    Timber.d("Parsed error message: ${errorResponse.message}")
-                                    errorMessage = errorResponse.message
+                                if (errorResponse != null) {
+                                    if (!errorResponse.message.isNullOrEmpty()) {
+                                        Timber.d("Parsed error message: ${errorResponse.message}")
+                                        errorMessage = errorResponse.message
+                                    }
+                                    serverCode = errorResponse.code
                                 }
                             } catch (e: Exception) {
                                 Timber.e(e, "Failed to parse error body JSON with Moshi.")
                             }
                         }
                         BaseResult.Error(
-                            errorCode = exception.code().toString(),
+                            errorCode = serverCode ?: exception.code().toString(),
                             message = errorMessage, // 추출한 메시지 또는 원본 문자열 사용
                             cause = exception,
                         )

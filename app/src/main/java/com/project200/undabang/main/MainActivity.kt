@@ -14,12 +14,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.isVisible
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
-import com.project200.domain.model.BaseResult
-import com.project200.domain.model.UpdateCheckResult
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.presentation.navigator.BottomNavigationController
 import com.project200.presentation.update.UpdateDialogFragment
@@ -28,8 +28,6 @@ import com.project200.presentation.utils.KeyboardUtils.hideKeyboardOnTouchOutsid
 import com.project200.undabang.R
 import com.project200.undabang.databinding.ActivityMainBinding
 import com.project200.undabang.oauth.AuthManager
-import com.project200.undabang.oauth.AuthStateManager
-import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -42,13 +40,12 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
 
     @Inject lateinit var authManager: AuthManager
 
-    @Inject lateinit var authStateManager: AuthStateManager
-
     @Inject lateinit var appNavigator: ActivityNavigator
     private lateinit var navController: NavController
-    private var isLoading = true // 스플래시 화면 유지를 위한 플래그
+
     private lateinit var binding: ActivityMainBinding
     private lateinit var requestNotificationPermissionLauncher: ActivityResultLauncher<String>
+    private var contentShown = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -56,7 +53,7 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         super.onCreate(savedInstanceState)
 
         // 스플래시 화면을 계속 보여줄 조건 설정
-        splashScreen.setKeepOnScreenCondition { isLoading }
+        splashScreen.setKeepOnScreenCondition { viewModel.entryState.value is EntryState.Loading }
 
         requestNotificationPermissionLauncher =
             registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
@@ -70,55 +67,24 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         checkNotificationPermission()
 
         setupObservers()
-        viewModel.checkForUpdate()
         observeAuthEvents()
     }
 
-    private fun performRouting() {
-        lifecycleScope.launch {
-            val currentAuthState = authStateManager.getCurrent()
-            if (currentAuthState.isAuthorized) {
-                if (currentAuthState.needsTokenRefresh) {
-                    Timber.i("Token needs refresh. Attempting refresh...")
-                    when (val refreshResult = authManager.refreshAccessToken()) {
-                        is TokenRefreshResult.Success -> {
-                            Timber.i("Token refresh successful.")
-                            viewModel.login()
-                        }
-                        is TokenRefreshResult.Error,
-                        is TokenRefreshResult.NoRefreshToken,
-                        is TokenRefreshResult.ConfigError,
-                        -> {
-                            Timber.w("Token refresh failed or not possible. Navigating to Login.")
-                            if (refreshResult is TokenRefreshResult.Error) Timber.e(refreshResult.exception)
-                            navigateToLogin()
-                        }
-                    }
-                } else {
-                    Timber.i("User is authorized and token is fresh.")
-                    viewModel.login()
-                }
-            } else {
-                Timber.i("User is not authorized.")
-                navigateToLogin()
-            }
-        }
-    }
-
-    private fun proceedToContent() {
-        isLoading = false // 스플래시 종료
-
+    private fun showContentOnce() {
+        if (contentShown) return
+        contentShown = true
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         navController = (supportFragmentManager.findFragmentById(R.id.nav_host_fragment) as NavHostFragment).navController
 
-        setupViews()
-    }
+        // 오프라인 진입 시 시작 목적지를 운동 기록 탭으로 교체(그래프는 여기서 1회만 설정)
+        val graph = navController.navInflater.inflate(R.navigation.bottom_nav_graph)
+        if (viewModel.isOfflineEntry()) {
+            graph.setStartDestination(com.project200.undabang.feature.exercise.R.id.exercise_nav_graph)
+        }
+        navController.graph = graph
 
-    private fun navigateToLogin() {
-        isLoading = false // 스플래시 종료
-        appNavigator.navigateToLogin(this)
+        setupViews()
     }
 
     private fun setupViews() {
@@ -170,44 +136,29 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
     }
 
     private fun setupObservers() {
-        viewModel.updateCheckResult.observe(this) { result ->
-            when (result) {
-                is UpdateCheckResult.UpdateAvailable -> {
-                    showUpdateDialog(result.isForceUpdate)
-                    if (result.isForceUpdate) {
-                        isLoading = false
-                    } else {
-                        performRouting()
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.entryState.collect { state ->
+                        when (state) {
+                            EntryState.Loading -> Unit
+                            EntryState.Content -> showContentOnce()
+                            EntryState.Login -> {
+                                appNavigator.navigateToLogin(this@MainActivity)
+                                finish()
+                            }
+                            is EntryState.ForceUpdate -> showUpdateDialog(isForceUpdate = true)
+                        }
                     }
                 }
-                is UpdateCheckResult.NoUpdateNeeded -> {
-                    Timber.d("업데이트 불필요")
-                    performRouting()
+                launch {
+                    viewModel.optionalUpdate.collect { show ->
+                        if (show) {
+                            showUpdateDialog(isForceUpdate = false)
+                            viewModel.onOptionalUpdateShown()
+                        }
+                    }
                 }
-                else -> {
-                    // 필요한 경우 다른 상태 처리
-                    Timber.d("UpdateCheckResult: Unhandled state or null")
-                    performRouting()
-                }
-            }
-        }
-
-        viewModel.loginResult.observe(this) { result ->
-            when (result) {
-                is BaseResult.Success -> {
-                    proceedToContent()
-                }
-                is BaseResult.Error -> {
-                    navigateToLogin()
-                }
-            }
-        }
-
-        viewModel.showBottomNavigation.observe(this) { show ->
-            if (show) {
-                showBottomNavigation()
-            } else {
-                hideBottomNavigation()
             }
         }
     }
@@ -240,17 +191,14 @@ class MainActivity : AppCompatActivity(), BottomNavigationController {
         lifecycleScope.launch {
             authManager.forceLogoutFlow.collectLatest {
                 Timber.d("토큰 재발급 실패, 강제 로그아웃 이벤트 수신")
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
-                    navigateToLogin()
-                }
+                Toast.makeText(this@MainActivity, R.string.error_token_refresh_failed, Toast.LENGTH_SHORT).show()
             }
         }
     }
 
     private fun showUpdateDialog(isForceUpdate: Boolean) {
         if (supportFragmentManager.findFragmentByTag(UpdateDialogFragment::class.java.simpleName) == null) {
-            val dialog = UpdateDialogFragment(isForceUpdate)
+            val dialog = UpdateDialogFragment.newInstance(isForceUpdate)
             dialog.show(supportFragmentManager, UpdateDialogFragment::class.java.simpleName)
         }
     }

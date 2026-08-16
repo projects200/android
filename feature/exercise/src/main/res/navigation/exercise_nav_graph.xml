@@ -31,7 +31,7 @@
         android:id="@+id/exerciseDetailFragment"
         android:name="com.project200.feature.exercise.detail.ExerciseDetailFragment"
         android:label="exerciseDetail"
-        tools:layout="@layout/fragment_exercise_detail">
+       >
         <argument
             android:name="recordId"
             app:argType="long" />
@@ -55,7 +55,7 @@
         android:id="@+id/exerciseFormFragment"
         android:name="com.project200.feature.exercise.form.ExerciseFormFragment"
         android:label="exerciseForm"
-        tools:layout="@layout/fragment_exercise_form">
+       >
         <argument
             android:name="recordId"
             android:defaultValue="-1L"

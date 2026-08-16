@@ -1,112 +1,50 @@
 package com.project200.feature.matching.place
 
-import android.view.ContextThemeWrapper
+import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
-import android.widget.PopupMenu
+import android.view.ViewGroup
 import android.widget.Toast
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
-import androidx.recyclerview.widget.LinearLayoutManager
-import com.project200.domain.model.ExercisePlace
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
-import com.project200.presentation.base.BindingFragment
-import com.project200.presentation.utils.MenuStyler
+import com.project200.presentation.compose.applyAppTheme
 import com.project200.undabang.feature.matching.R
-import com.project200.undabang.feature.matching.databinding.FragmentExercisePlaceBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
-class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.layout.fragment_exercise_place) {
+class ExercisePlaceFragment : Fragment() {
     private val viewModel: ExercisePlaceViewModel by viewModels()
-    private lateinit var exercisePlaceAdapter: ExercisePlaceRVAdapter
 
-    override fun getViewBinding(view: View): FragmentExercisePlaceBinding {
-        return FragmentExercisePlaceBinding.bind(view)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        viewModel.getExercisePlaces()
-    }
-
-    override fun setupViews() {
-        binding.baseToolbar.apply {
-            setTitle(getString(R.string.exercise_place))
-            showBackButton(true) { requireActivity().onBackPressedDispatcher.onBackPressed() }
-        }
-        binding.exercisePlaceSearchBtn.setOnClickListener {
-            viewModel.places.value?.size?.let {
-                if (it >= 10) {
-                    Toast.makeText(requireContext(), R.string.max_place_count, Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-            }
-            findNavController().navigate(
-                ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment(),
-            )
-        }
-
-        setupRecyclerView()
-    }
-
-    private fun setupRecyclerView() {
-        exercisePlaceAdapter =
-            ExercisePlaceRVAdapter(onMenuClicked = { place, view ->
-                showPopupMenu(place, view)
-            })
-
-        binding.placeRv.apply {
-            adapter = exercisePlaceAdapter
-            layoutManager = LinearLayoutManager(requireContext())
-        }
-    }
-
-    override fun setupObservers() {
-        viewModel.places.observe(viewLifecycleOwner) { places ->
-            if (places.isEmpty()) {
-                binding.emptyPlaceTv.visibility = View.VISIBLE
-                binding.placeRv.visibility = View.GONE
-            } else {
-                binding.emptyPlaceTv.visibility = View.GONE
-                binding.placeRv.visibility = View.VISIBLE
-                exercisePlaceAdapter.submitList(places)
-            }
-        }
-
-        viewModel.errorToast.observe(viewLifecycleOwner) {
-            val message =
-                when (it) {
-                    ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
-                    ExercisePlaceErrorType.DELETE_FAILED -> {
-                        binding.emptyPlaceTv.visibility = View.VISIBLE
-                        binding.placeRv.visibility = View.GONE
-                        R.string.error_failed_to_delete_exercise_place
-                    }
-                    null -> return@observe
-                }
-            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    private fun showPopupMenu(
-        place: ExercisePlace,
-        view: View,
-    ) {
-        val contextWrapper = ContextThemeWrapper(requireContext(), com.project200.undabang.presentation.R.style.PopupItemStyle)
-
-        PopupMenu(contextWrapper, view).apply {
-            menuInflater.inflate(R.menu.exercise_place_item_menu, this.menu)
-
-            menu.findItem(R.id.action_edit)?.let {
-                MenuStyler.applyTextColor(requireContext(), it, android.R.color.black)
-            }
-            menu.findItem(R.id.action_delete)?.let {
-                MenuStyler.applyTextColor(requireContext(), it, com.project200.undabang.presentation.R.color.error_red)
-            }
-
-            setOnMenuItemClickListener { menuItem ->
-                when (menuItem.itemId) {
-                    R.id.action_edit -> {
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
+        ComposeView(requireContext()).apply {
+            applyAppTheme {
+                val places by viewModel.places.collectAsStateWithLifecycle()
+                ExercisePlaceScreen(
+                    places = places,
+                    onBackClick = { requireActivity().onBackPressedDispatcher.onBackPressed() },
+                    onAddClick = {
+                        if (places.size >= MAX_PLACE_COUNT) {
+                            Toast.makeText(requireContext(), R.string.max_place_count, Toast.LENGTH_SHORT).show()
+                        } else {
+                            findNavController().navigate(
+                                ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceSearchFragment(),
+                            )
+                        }
+                    },
+                    onEditClick = { place ->
                         findNavController().navigate(
                             ExercisePlaceFragmentDirections.actionExercisePlaceFragmentToExercisePlaceRegisterFragment(
                                 placeId = place.id,
@@ -116,15 +54,38 @@ class ExercisePlaceFragment : BindingFragment<FragmentExercisePlaceBinding> (R.l
                                 longitude = place.longitude.toString(),
                             ),
                         )
-                    }
-                    R.id.action_delete -> {
-                        viewModel.deleteExercisePlace(place.id)
-                    }
-                }
-                true
+                    },
+                    onDeleteClick = { place -> viewModel.deleteExercisePlace(place.id) },
+                )
             }
+        }
 
-            MenuStyler.showIcons(this)
-        }.show()
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
+        super.onViewCreated(view, savedInstanceState)
+
+        viewLifecycleOwner.lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.errorToast.collect { type ->
+                    val message =
+                        when (type) {
+                            ExercisePlaceErrorType.LOAD_FAILED -> R.string.error_failed_to_load_exercise_place
+                            ExercisePlaceErrorType.DELETE_FAILED -> R.string.error_failed_to_delete_exercise_place
+                        }
+                    Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.getExercisePlaces()
+    }
+
+    companion object {
+        private const val MAX_PLACE_COUNT = 10
     }
 }

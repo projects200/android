@@ -1,7 +1,6 @@
 package com.project200.undabang.profile.mypage.preferredExercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import androidx.lifecycle.Observer
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.PreferredExercise
@@ -12,12 +11,10 @@ import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.presentation.utils.SkillLevel
 import com.project200.undabang.profile.utils.CompletionState
-import com.project200.undabang.profile.utils.PreferredExerciseUiModel
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
-import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -55,9 +52,6 @@ class PreferredExerciseViewModelTest {
     private lateinit var viewModel: PreferredExerciseViewModel
 
     private val testDispatcher = StandardTestDispatcher()
-
-    private val mockObserver: Observer<List<PreferredExerciseUiModel>> = mockk(relaxed = true)
-    private val mockSelectedObserver: Observer<List<PreferredExerciseUiModel>> = mockk(relaxed = true)
 
     private val sampleExerciseTypes =
         listOf(
@@ -110,7 +104,6 @@ class PreferredExerciseViewModelTest {
                 editPreferredExerciseUseCase = mockEditPreferredExerciseUseCase,
                 deletePreferredExerciseUseCase = mockDeletePreferredExerciseUseCase,
             )
-        viewModel.exerciseUiModels.observeForever(mockObserver)
     }
 
     @Test
@@ -352,11 +345,10 @@ class PreferredExerciseViewModelTest {
             coEvery { mockGetPreferredExerciseUseCase() } returns BaseResult.Success(samplePreferredExercises)
 
             createViewModel()
-            viewModel.selectedExerciseUiModels.observeForever(mockSelectedObserver)
             testDispatcher.scheduler.advanceUntilIdle()
 
             val selectedModels = viewModel.selectedExerciseUiModels.value
             assertThat(selectedModels).hasSize(1)
-            assertThat(selectedModels?.first()?.exercise?.exerciseTypeId).isEqualTo(1L)
+            assertThat(selectedModels.first().exercise.exerciseTypeId).isEqualTo(1L)
         }
 }

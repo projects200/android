@@ -1,0 +1,109 @@
+package com.project200.undabang.fcm
+
+import android.content.Context
+import androidx.hilt.work.HiltWorker
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import com.project200.domain.model.FcmTokenSyncResult
+import com.project200.domain.usecase.SyncFcmTokenUseCase
+import com.project200.undabang.oauth.AuthManager
+import com.project200.undabang.oauth.AuthStateManager
+import com.project200.undabang.oauth.TokenRefreshResult
+import dagger.assisted.Assisted
+import dagger.assisted.AssistedInject
+import net.openid.appauth.AuthorizationException
+import timber.log.Timber
+import java.util.concurrent.TimeUnit
+
+/**
+ * 갱신된 FCM 토큰을 서버에 반영하는 워커입니다
+ * onNewToken()은 백그라운드나 프로세스 기동 직후에도 불려 네트워크와 로그인 상태를 확신할 수 없습니다
+ * 전송을 워커로 미뤄 연결이 잡힌 뒤에 보내고 실패하면 다시 시도합니다
+ */
+@HiltWorker
+class FcmTokenSyncWorker
+    @AssistedInject
+    constructor(
+        @Assisted appContext: Context,
+        @Assisted params: WorkerParameters,
+        private val syncFcmTokenUseCase: SyncFcmTokenUseCase,
+        private val authStateManager: AuthStateManager,
+        private val authManager: AuthManager,
+    ) : CoroutineWorker(appContext, params) {
+        override suspend fun doWork(): Result {
+            // POST /login은 @AccessTokenWithFcmApi라 401 자동 갱신이 없음 - 만료면 먼저 갱신
+            if (authStateManager.getCurrent().needsTokenRefresh) {
+                when (val refresh = authManager.refreshAccessToken()) {
+                    is TokenRefreshResult.Success -> Unit
+                    is TokenRefreshResult.Error -> {
+                        val ex = refresh.exception
+                        val invalidGrant =
+                            ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
+                                ex.error == "invalid_grant"
+                        // 세션 정리는 refreshAccessToken() 내부가 함
+                        return if (FcmTokenSyncPolicy.shouldRetryAfterRefreshFailure(invalidGrant, runAttemptCount)) {
+                            Result.retry()
+                        } else {
+                            Result.failure()
+                        }
+                    }
+                    is TokenRefreshResult.NoRefreshToken,
+                    is TokenRefreshResult.ConfigError,
+                    -> return Result.failure()
+                }
+            }
+
+            val syncResult = syncFcmTokenUseCase()
+            Timber.tag(TAG).d("FCM 토큰 전송 결과: $syncResult (시도 ${runAttemptCount + 1}회)")
+
+            return when (syncResult) {
+                FcmTokenSyncResult.SUCCESS -> Result.success()
+                // 로그인 전이거나 보낼 토큰이 없는 상태 - 재시도해도 같으므로 성공 처리
+                FcmTokenSyncResult.SKIPPED -> Result.success()
+                FcmTokenSyncResult.FAILURE ->
+                    if (FcmTokenSyncPolicy.shouldRetry(runAttemptCount)) Result.retry() else Result.failure()
+            }
+        }
+
+        companion object {
+            private const val TAG = "FcmTokenSyncWorker"
+            const val WORK_NAME = "fcm_token_sync"
+            private const val BACKOFF_DELAY_SECONDS = 30L
+
+            /**
+             * 토큰 등록을 예약합니다
+             * 대기 중에 토큰이 다시 갱신되면 새 요청으로 바꿔 백오프를 처음부터 다시 셉니다
+             * 워커는 실행 시점에 저장소에서 토큰을 읽으므로 마지막 값이 올라갑니다
+             */
+            fun enqueue(context: Context) {
+                val constraints =
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+
+                val request =
+                    OneTimeWorkRequestBuilder<FcmTokenSyncWorker>()
+                        .setConstraints(constraints)
+                        .setBackoffCriteria(
+                            BackoffPolicy.EXPONENTIAL,
+                            BACKOFF_DELAY_SECONDS,
+                            TimeUnit.SECONDS,
+                        )
+                        .build()
+
+                WorkManager.getInstance(context)
+                    .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            }
+
+            /** 예약된 등록을 취소합니다. 세션이 정리되면 보낼 회원ID가 없어 실행할 이유가 없습니다 */
+            fun cancel(context: Context) {
+                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+            }
+        }
+    }

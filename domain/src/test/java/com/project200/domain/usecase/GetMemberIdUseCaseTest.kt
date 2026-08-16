@@ -55,4 +55,17 @@ class GetMemberIdUseCaseTest {
         coVerify(exactly = 1) { mockRepository.getMemberId() }
         assertThat(result).isEmpty()
     }
+
+    @Test
+    fun `invoke 호출 시 memberId가 없으면 null 반환`() = runTest {
+        // Given
+        coEvery { mockRepository.getMemberId() } returns null
+
+        // When
+        val result = useCase()
+
+        // Then
+        coVerify(exactly = 1) { mockRepository.getMemberId() }
+        assertThat(result).isNull()
+    }
 }

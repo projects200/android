@@ -49,8 +49,7 @@
     <fragment
         android:id="@+id/exercisePlaceFragment"
         android:name="com.project200.feature.matching.place.ExercisePlaceFragment"
-        android:label="exercisePlace"
-        tools:layout="@layout/fragment_exercise_place">
+        android:label="exercisePlace">
         <action
             android:id="@+id/action_exercisePlaceFragment_to_exercisePlaceSearchFragment"
             app:destination="@id/exercisePlaceSearchFragment" />
@@ -101,8 +100,7 @@
     <fragment
         android:id="@+id/exercisePlaceRegisterFragment"
         android:name="com.project200.feature.matching.place.ExercisePlaceRegisterFragment"
-        android:label="exercisePlaceRegister"
-        tools:layout="@layout/fragment_exercise_place_register">
+        android:label="exercisePlaceRegister">
         <argument
             android:name="placeId"
             app:argType="long"
@@ -129,8 +127,7 @@
     <fragment
         android:id="@+id/matchingGuideFragment"
         android:name="com.project200.feature.matching.map.MatchingGuideFragment"
-        android:label="matchingGuide"
-        tools:layout="@layout/fragment_matching_guide">
+        android:label="matchingGuide">
         <action
             android:id="@+id/action_matchingGuideFragment_to_exercisePlaceSearchFragment"
             app:destination="@id/exercisePlaceSearchFragment" />

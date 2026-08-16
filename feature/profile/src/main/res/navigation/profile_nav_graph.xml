@@ -56,24 +56,17 @@
     <fragment
         android:id="@+id/notificationFragment"
         android:name="com.project200.undabang.profile.setting.NotificationFragment"
-        android:label="notification"
-        tools:layout="@layout/fragment_notification" />
+        android:label="notification" />
 
     <fragment
         android:id="@+id/profileEditFragment"
         android:name="com.project200.undabang.profile.mypage.ProfileEditFragment"
-        android:label="profileEdit"
-        tools:layout="@layout/fragment_profile_edit">
-
-    </fragment>
+        android:label="profileEdit" />
 
     <fragment
         android:id="@+id/profileImageDetailFragment"
         android:name="com.project200.undabang.profile.mypage.ProfileImageDetailFragment"
-        android:label="profileImageDetail"
-        tools:layout="@layout/fragment_profile_image_detail">
-
-    </fragment>
+        android:label="profileImageDetail" />
 
     <fragment
         android:id="@+id/urlFormFragment"
@@ -94,13 +87,12 @@
         android:id="@+id/blockMembersFragment"
         android:name="com.project200.undabang.profile.setting.BlockMembersFragment"
         android:label="blockMembers"
-        tools:layout="@layout/fragment_block_members" />
+        />
 
     <fragment
         android:id="@+id/preferredExerciseFragment"
         android:name="com.project200.undabang.profile.mypage.preferredExercise.PreferredExerciseFragment"
-        android:label="preferredExercise"
-        tools:layout="@layout/fragment_preferred_exercise" >
+        android:label="preferredExercise" >
         <argument
             android:name="nickname"
             app:argType="string" />

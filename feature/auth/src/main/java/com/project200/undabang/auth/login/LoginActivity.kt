@@ -9,7 +9,7 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
-import com.project200.domain.model.BaseResult
+import com.project200.domain.model.RegistrationStatus
 import com.project200.presentation.base.BindingActivity
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.register.RegisterActivity
@@ -25,6 +25,7 @@ import net.openid.appauth.AuthorizationService
 import net.openid.appauth.TokenResponse
 import timber.log.Timber
 import javax.inject.Inject
+import com.project200.undabang.presentation.R as PresentationR
 
 @AndroidEntryPoint
 class LoginActivity : BindingActivity<ActivityLoginBinding>() {
@@ -63,7 +64,6 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
             override fun onSuccess(tokenResponse: TokenResponse) {
                 Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
-                viewModel.sendFcmToken()
                 viewModel.checkIsRegistered()
             }
 
@@ -138,20 +138,13 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
     }
 
     override fun setupObservers() {
-        viewModel.loginResult.observe(this) { result ->
-            when (result) {
-                is BaseResult.Success -> appNavigator.navigateToMain(this)
-                is BaseResult.Error -> startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
-            }
-        }
-        viewModel.fcmTokenEvent.observe(this) { result ->
-            when (result) {
-                is BaseResult.Success -> {
-                    Timber.d(getString(R.string.fcm_token_send_success))
-                }
-                is BaseResult.Error -> {
-                    Timber.d(getString(R.string.fcm_token_not_found))
-                }
+        viewModel.registrationResult.observe(this) { status ->
+            when (status) {
+                RegistrationStatus.Registered -> appNavigator.navigateToMain(this)
+                RegistrationStatus.Unregistered ->
+                    startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
+                RegistrationStatus.Indeterminate ->
+                    Toast.makeText(this, PresentationR.string.network_error, Toast.LENGTH_SHORT).show()
             }
         }
     }

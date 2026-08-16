@@ -30,13 +30,15 @@ class FcmService : FirebaseMessagingService() {
 
     /**
      * 새로운 FCM 토큰이 발급되거나 갱신될 때 호출됩니다.
-     * 이 토큰은 백엔드 서버로 전송되어 특정 기기에 알림을 보내는 데 사용됩니다.
+     * 기기에 저장한 뒤 서버 반영은 워커에 맡깁니다.
+     * 이 콜백은 백그라운드에서도 불려 네트워크와 로그인 상태를 확신할 수 없습니다.
      */
     override fun onNewToken(token: String) {
         super.onNewToken(token)
         Timber.tag(TAG).d("Refreshed FCM token: $token")
 
         saveFcmToken(token)
+        FcmTokenSyncWorker.enqueue(applicationContext)
     }
 
     /**
