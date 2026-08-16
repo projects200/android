@@ -2,12 +2,12 @@ package com.project200.undabang.main
 
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
-import com.project200.domain.model.BaseResult
+import com.project200.domain.model.FcmTokenSyncResult
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.ClearSessionUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
-import com.project200.domain.usecase.LoginUseCase
+import com.project200.domain.usecase.SyncFcmTokenUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
@@ -43,7 +43,7 @@ class MainViewModelTest {
     private lateinit var mockCheckForUpdateUseCase: CheckForUpdateUseCase
 
     @MockK
-    private lateinit var mockLoginUseCase: LoginUseCase
+    private lateinit var mockSyncFcmTokenUseCase: SyncFcmTokenUseCase
 
     @MockK
     private lateinit var mockNetworkMonitor: NetworkMonitor
@@ -85,7 +85,7 @@ class MainViewModelTest {
     private fun createViewModel(): MainViewModel {
         return MainViewModel(
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
-            loginUseCase = mockLoginUseCase,
+            syncFcmTokenUseCase = mockSyncFcmTokenUseCase,
             networkMonitor = mockNetworkMonitor,
             authManager = mockAuthManager,
             authStateManager = mockAuthStateManager,
@@ -122,7 +122,7 @@ class MainViewModelTest {
             // Given
             stubNoUpdate()
             stubAuthState(isAuthorized = true, needsRefresh = false)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
 
             // When: init이 진입을 시작한다 — 별도 호출 없음
             viewModel = createViewModel()
@@ -131,7 +131,7 @@ class MainViewModelTest {
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
             coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
-            coVerify(exactly = 1) { mockLoginUseCase() }
+            coVerify(exactly = 1) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -147,7 +147,7 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
-            coVerify(exactly = 0) { mockLoginUseCase() }
+            coVerify(exactly = 0) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -157,7 +157,7 @@ class MainViewModelTest {
             stubNoUpdate()
             stubAuthState(isAuthorized = true, needsRefresh = true)
             coEvery { mockAuthManager.refreshAccessToken() } returns TokenRefreshResult.Success(mockk())
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
 
             // When
             viewModel = createViewModel()
@@ -182,7 +182,7 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
-            coVerify(exactly = 0) { mockLoginUseCase() }
+            coVerify(exactly = 0) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -193,7 +193,7 @@ class MainViewModelTest {
             stubAuthState(isAuthorized = true, needsRefresh = true)
             coEvery { mockAuthManager.refreshAccessToken() } returns
                 TokenRefreshResult.Error(AuthorizationException.GeneralErrors.NETWORK_ERROR)
-            coEvery { mockLoginUseCase() } returns BaseResult.Error("NETWORK_ERROR", "오프라인")
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.FAILURE
 
             // When
             viewModel = createViewModel()
@@ -232,7 +232,7 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
-            coVerify(exactly = 0) { mockLoginUseCase() }
+            coVerify(exactly = 0) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -265,7 +265,7 @@ class MainViewModelTest {
 
             // Then: 게이트 닫힘 — 토큰 판정·FCM 등록 미진행
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.ForceUpdate(fromReconnect = false))
-            coVerify(exactly = 0) { mockLoginUseCase() }
+            coVerify(exactly = 0) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -275,7 +275,7 @@ class MainViewModelTest {
             coEvery { mockCheckForUpdateUseCase() } returns
                 Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = false))
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
 
             // When
             viewModel = createViewModel()
@@ -296,7 +296,7 @@ class MainViewModelTest {
             // Given
             coEvery { mockCheckForUpdateUseCase() } returns Result.failure(Exception("Network error"))
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
 
             // When
             viewModel = createViewModel()
@@ -314,7 +314,7 @@ class MainViewModelTest {
             // Given: 정상 진입 완료
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
@@ -337,7 +337,7 @@ class MainViewModelTest {
                 forceLogoutFlow.emit(Unit) // 갱신 도중 강제 로그아웃 발생
                 TokenRefreshResult.Error(AuthorizationException.GeneralErrors.NETWORK_ERROR) // 진입은 오프라인 경로로 완주 시도
             }
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
 
             // When
             viewModel = createViewModel()
@@ -356,7 +356,7 @@ class MainViewModelTest {
             every { mockNetworkMonitor.isCurrentlyConnected() } returns false
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -374,7 +374,7 @@ class MainViewModelTest {
             // Given: 온라인 시작(setUp 기본값)으로 Content 진입
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -419,7 +419,7 @@ class MainViewModelTest {
                 Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
                 Result.success(UpdateCheckResult.UpdateAvailable(isForceUpdate = true))
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -440,7 +440,7 @@ class MainViewModelTest {
                 Result.success(UpdateCheckResult.NoUpdateNeeded) andThen
                 Result.failure(Exception("Network error"))
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -461,9 +461,9 @@ class MainViewModelTest {
             // Given: 처음엔 실패, 이후엔 성공
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns
-                BaseResult.Error("NETWORK_ERROR", "네트워크 오류") andThen
-                BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns
+                FcmTokenSyncResult.FAILURE andThen
+                FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -473,7 +473,7 @@ class MainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: 진입 1회 + 재시도 1회
-            coVerify(exactly = 2) { mockLoginUseCase() }
+            coVerify(exactly = 2) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -482,7 +482,7 @@ class MainViewModelTest {
             // Given
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -492,18 +492,18 @@ class MainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: 진입 1회뿐
-            coVerify(exactly = 1) { mockLoginUseCase() }
+            coVerify(exactly = 1) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
-    fun `FCM 등록 - 토큰이 없어 실패하면 대기가 닫히지 않고 재연결 때 재시도한다`() =
+    fun `FCM 등록 - 보낼 토큰이 없으면 대기가 닫히지 않고 재연결 때 재시도한다`() =
         runTest {
-            // Given: FCM 토큰이 없어 서버 로그인이 막힌다
+            // Given: 저장된 토큰이 없어 SKIPPED로 끝난다. 그사이 토큰이 도착하면 다음엔 성공한다
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns
-                BaseResult.Error("NO_FCM_TOKEN", "FCM 토큰이 없어 서버 로그인을 보내지 않았습니다.") andThen
-                BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns
+                FcmTokenSyncResult.SKIPPED andThen
+                FcmTokenSyncResult.SUCCESS
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
@@ -512,8 +512,8 @@ class MainViewModelTest {
             networkStateFlow.emit(true)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then: 성공으로 닫히지 않았으므로 재시도가 한 번 더 나간다
-            coVerify(exactly = 2) { mockLoginUseCase() }
+            // Then: SKIPPED는 성공이 아니므로 대기가 열려 있고 재시도가 나간다
+            coVerify(exactly = 2) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -522,9 +522,9 @@ class MainViewModelTest {
             // Given: 등록 요청이 느리게 진행 중
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } coAnswers {
+            coEvery { mockSyncFcmTokenUseCase() } coAnswers {
                 delay(10_000) // 응답 지연 — 이 사이 재연결이 겹친다
-                BaseResult.Error("NETWORK_ERROR", "타임아웃")
+                FcmTokenSyncResult.FAILURE
             }
             viewModel = createViewModel()
             testDispatcher.scheduler.runCurrent() // 진입 시작 → 등록 요청 발사(지연 중)
@@ -535,7 +535,7 @@ class MainViewModelTest {
             testDispatcher.scheduler.runCurrent()
 
             // Then: 실행 중 가드(registrationJob.isActive)가 두 번째 발사를 막는다
-            coVerify(exactly = 1) { mockLoginUseCase() }
+            coVerify(exactly = 1) { mockSyncFcmTokenUseCase() }
         }
 
     @Test
@@ -544,7 +544,7 @@ class MainViewModelTest {
             // Given
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             every { mockNetworkMonitor.isCurrentlyConnected() } returns true
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
@@ -559,7 +559,7 @@ class MainViewModelTest {
             // Given
             stubNoUpdate()
             stubAuthState(isAuthorized = true)
-            coEvery { mockLoginUseCase() } returns BaseResult.Success(Unit)
+            coEvery { mockSyncFcmTokenUseCase() } returns FcmTokenSyncResult.SUCCESS
             every { mockNetworkMonitor.isCurrentlyConnected() } returns false
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()

@@ -23,7 +23,7 @@ class NotificationRepositoryImpl
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = {
-                    val fcmTokenResult = fcmRepository.getFcmTokenFromPrefs() ?: throw NoSuchElementException("FCM token is missing.")
+                    val fcmTokenResult = fcmRepository.getSavedToken() ?: throw NoSuchElementException("FCM token is missing.")
                     apiService.getNotiState(fcmTokenResult)
                 },
                 mapper = { dtoList ->
@@ -36,7 +36,7 @@ class NotificationRepositoryImpl
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = {
-                    val fcmTokenResult = fcmRepository.getFcmTokenFromPrefs() ?: throw NoSuchElementException("FCM token is missing.")
+                    val fcmTokenResult = fcmRepository.getSavedToken() ?: throw NoSuchElementException("FCM token is missing.")
                     apiService.patchNotiState(
                         fcmToken = fcmTokenResult,
                         notiRequest = notiState.map { it.toDTO() },
