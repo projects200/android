@@ -27,4 +27,27 @@ class FcmTokenSyncPolicyTest {
     fun `상한을 넘긴 뒤에도 재시도하지 않는다`() {
         assertThat(FcmTokenSyncPolicy.shouldRetry(FcmTokenSyncPolicy.MAX_ATTEMPT_COUNT)).isFalse()
     }
+
+    @Test
+    fun `토큰 갱신이 일시 실패하면 재시도한다`() {
+        assertThat(
+            FcmTokenSyncPolicy.shouldRetryAfterRefreshFailure(invalidGrant = false, runAttemptCount = 0),
+        ).isTrue()
+    }
+
+    @Test
+    fun `invalid_grant면 첫 시도라도 재시도하지 않는다`() {
+        assertThat(
+            FcmTokenSyncPolicy.shouldRetryAfterRefreshFailure(invalidGrant = true, runAttemptCount = 0),
+        ).isFalse()
+    }
+
+    @Test
+    fun `토큰 갱신 실패도 상한에 닿으면 재시도하지 않는다`() {
+        val lastAttempt = FcmTokenSyncPolicy.MAX_ATTEMPT_COUNT - 1
+
+        assertThat(
+            FcmTokenSyncPolicy.shouldRetryAfterRefreshFailure(invalidGrant = false, runAttemptCount = lastAttempt),
+        ).isFalse()
+    }
 }

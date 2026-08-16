@@ -46,10 +46,8 @@ class FcmTokenSyncWorker
                         val invalidGrant =
                             ex?.type == AuthorizationException.TYPE_OAUTH_TOKEN_ERROR &&
                                 ex.error == "invalid_grant"
-                        // invalid_grant는 재시도해도 같음. 세션 정리는 refreshAccessToken() 내부가 함
-                        return if (invalidGrant) {
-                            Result.failure()
-                        } else if (FcmTokenSyncPolicy.shouldRetry(runAttemptCount)) {
+                        // 세션 정리는 refreshAccessToken() 내부가 함
+                        return if (FcmTokenSyncPolicy.shouldRetryAfterRefreshFailure(invalidGrant, runAttemptCount)) {
                             Result.retry()
                         } else {
                             Result.failure()
@@ -101,6 +99,11 @@ class FcmTokenSyncWorker
 
                 WorkManager.getInstance(context)
                     .enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.REPLACE, request)
+            }
+
+            /** 예약된 등록을 취소합니다. 세션이 정리되면 보낼 회원ID가 없어 실행할 이유가 없습니다 */
+            fun cancel(context: Context) {
+                WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
             }
         }
     }
