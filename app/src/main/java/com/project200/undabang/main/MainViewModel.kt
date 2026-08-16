@@ -3,18 +3,16 @@ package com.project200.undabang.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
-import com.project200.domain.model.FcmTokenSyncResult
+import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.ClearSessionUseCase
 import com.project200.domain.usecase.GetMemberIdUseCase
-import com.project200.domain.usecase.SyncFcmTokenUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +28,7 @@ class MainViewModel
     @Inject
     constructor(
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
-        private val syncFcmTokenUseCase: SyncFcmTokenUseCase,
+        private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
@@ -45,9 +43,6 @@ class MainViewModel
         val optionalUpdate: StateFlow<Boolean> = _optionalUpdate.asStateFlow()
 
         private var wasOffline = !networkMonitor.isCurrentlyConnected()
-
-        private var registrationJob: Job? = null
-        private var registrationPending = false
 
         init {
             observeNetworkReconnection()
@@ -119,7 +114,8 @@ class MainViewModel
                     }
                 }
             }
-            ensureFcmRegistration()
+            // 등록은 워커에 맡김. 재시도와 백오프, 프로세스 종료 후 재개를 WorkManager가 처리
+            fcmTokenSyncScheduler.schedule()
             _entryState.compareAndSet(EntryState.Loading, EntryState.Content)
         }
 
@@ -145,9 +141,6 @@ class MainViewModel
             viewModelScope.launch {
                 networkMonitor.networkState.collect { isOnline ->
                     if (isOnline && wasOffline && _entryState.value is EntryState.Content) {
-                        if (registrationPending) {
-                            ensureFcmRegistration() // 실패했던 FCM 등록 재시도
-                        }
                         recheckForUpdateOnReconnect()
                     }
                     wasOffline = !isOnline
@@ -168,23 +161,6 @@ class MainViewModel
                     }
                 }
                 .onFailure { Timber.w(it, "재연결 후 업데이트 확인 실패 - 무시") }
-        }
-
-        // FCM 토큰 등록
-        private fun ensureFcmRegistration() {
-            // 재시도 중 재연결이 겹치면 등록 요청이 중복 발행되는 것을 방지
-            if (registrationJob?.isActive == true) return
-            registrationPending = true
-            registrationJob =
-                viewModelScope.launch {
-                    // SKIPPED는 보낼 토큰이 없는 상태 - 대기를 닫지 않고 재연결 때 재시도
-                    if (syncFcmTokenUseCase() == FcmTokenSyncResult.SUCCESS) {
-                        registrationPending = false
-                        Timber.d("FCM 토큰 등록 성공")
-                    } else {
-                        Timber.w("FCM 토큰 등록 실패 - 재연결 시 재시도 예정")
-                    }
-                }
         }
 
         private suspend fun transitionToLogin() {
