@@ -1,0 +1,196 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "953d4eadbefa6d56d23af6cd5623fb2d",
+    "entities": [
+      {
+        "tableName": "exercise_count",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `date` TEXT NOT NULL, `count` INTEGER NOT NULL, PRIMARY KEY(`memberId`, `date`))",
+        "fields": [
+          {
+            "fieldPath": "memberId",
+            "columnName": "memberId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "count",
+            "columnName": "count",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "memberId",
+            "date"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "exercise_list_item",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `recordId` INTEGER NOT NULL, `date` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, `title` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `thumbnailUrls` TEXT, PRIMARY KEY(`memberId`, `recordId`))",
+        "fields": [
+          {
+            "fieldPath": "memberId",
+            "columnName": "memberId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "recordId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sortOrder",
+            "columnName": "sortOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personalType",
+            "columnName": "personalType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "thumbnailUrls",
+            "columnName": "thumbnailUrls",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "memberId",
+            "recordId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_exercise_list_item_memberId_date",
+            "unique": false,
+            "columnNames": [
+              "memberId",
+              "date"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_list_item_memberId_date` ON `${TABLE_NAME}` (`memberId`, `date`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "exercise_record_detail",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `recordId` INTEGER NOT NULL, `title` TEXT NOT NULL, `detail` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `location` TEXT NOT NULL, `pictures` TEXT, PRIMARY KEY(`memberId`, `recordId`))",
+        "fields": [
+          {
+            "fieldPath": "memberId",
+            "columnName": "memberId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "recordId",
+            "columnName": "recordId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "detail",
+            "columnName": "detail",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "personalType",
+            "columnName": "personalType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "startedAt",
+            "columnName": "startedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "endedAt",
+            "columnName": "endedAt",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "location",
+            "columnName": "location",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pictures",
+            "columnName": "pictures",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "memberId",
+            "recordId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '953d4eadbefa6d56d23af6cd5623fb2d')"
+    ]
+  }
+}
