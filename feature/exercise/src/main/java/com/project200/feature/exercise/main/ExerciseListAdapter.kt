@@ -12,7 +12,6 @@ import com.project200.domain.model.ExerciseListItem
 import com.project200.presentation.utils.UiUtils.dpToPx
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.ItemExerciseListBinding
-import timber.log.Timber
 import java.time.format.DateTimeFormatter
 
 class ExerciseListAdapter(
@@ -52,13 +51,11 @@ class ExerciseListAdapter(
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
 
                 val imageUrl = item.imageUrl
-                Timber.tag("asdasd").d("${item.imageUrl}")
                 if (!imageUrl.isNullOrEmpty()) {
                     Glide.with(exerciseIv)
                         .load(imageUrl[0])
                         .transform(CenterCrop(), RoundedCorners(dpToPx(exerciseIv.context, 8f)))
                         .into(exerciseIv)
-                    Timber.tag("asdasd").e("${imageUrl[0]}")
                 } else {
                     exerciseIv.setImageResource(R.drawable.ic_empty_img) // 기본 이미지
                 }
