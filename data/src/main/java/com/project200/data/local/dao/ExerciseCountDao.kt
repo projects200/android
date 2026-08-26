@@ -4,21 +4,21 @@ import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
 import com.project200.data.local.entity.ExerciseCountEntity
-import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 @Dao
 interface ExerciseCountDao {
+    /** 화면은 진입할 때 한 번 읽습니다. 지속 구독을 두지 않아 그린 뒤 저절로 바뀌지 않습니다 */
     @Query(
         "SELECT * FROM exercise_count " +
             "WHERE memberId = :memberId AND date BETWEEN :startDate AND :endDate " +
             "ORDER BY date",
     )
-    fun observeRange(
+    suspend fun getRange(
         memberId: String,
         startDate: LocalDate,
         endDate: LocalDate,
-    ): Flow<List<ExerciseCountEntity>>
+    ): List<ExerciseCountEntity>
 
     @Upsert
     suspend fun upsertAll(counts: List<ExerciseCountEntity>)

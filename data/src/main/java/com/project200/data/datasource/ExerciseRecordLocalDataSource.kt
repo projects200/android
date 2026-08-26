@@ -7,18 +7,20 @@ import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.mapper.toEntity
 import com.project200.data.mapper.toModel
+import com.project200.data.mapper.toSyncedEntity
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.flow.map
 import timber.log.Timber
 import java.time.LocalDate
+import java.util.UUID
 import javax.inject.Inject
 
 /**
  * 운동 기록 캐시를 읽고 씁니다.
+ *
+ * 읽기는 한 번에 끝납니다. 화면이 지속 구독을 하지 않아서 한 번 그린 값이
+ * 저절로 바뀌지 않습니다
  *
  * 계정 조건을 여기서 한 번에 겁니다. 호출부가 memberId를 넘기지 않게 해서
  * 조건을 빠뜨린 쿼리가 나올 자리를 없앱니다
@@ -33,13 +35,12 @@ class ExerciseRecordLocalDataSource
         private val exerciseRecordDao: ExerciseRecordDao,
         private val preferenceManager: PreferenceManager,
     ) {
-        fun observeCountsByRange(
+        suspend fun getCountsByRange(
             startDate: LocalDate,
             endDate: LocalDate,
-        ): Flow<List<ExerciseCount>> {
-            val memberId = currentMemberId() ?: return flowOf(emptyList())
-            return exerciseCountDao.observeRange(memberId, startDate, endDate)
-                .map { entities -> entities.map { it.toModel() } }
+        ): List<ExerciseCount> {
+            val memberId = currentMemberId() ?: return emptyList()
+            return exerciseCountDao.getRange(memberId, startDate, endDate).map { it.toModel() }
         }
 
         /** 서버 응답에는 운동한 날만 들어 있어서 구간을 비우고 다시 채웁니다 */
@@ -55,48 +56,73 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        fun observeListByDate(date: LocalDate): Flow<List<ExerciseListItem>> {
-            val memberId = currentMemberId() ?: return flowOf(emptyList())
-            return exerciseRecordDao.observeListByDate(memberId, date)
-                .map { entities -> entities.map { it.toModel() } }
+        suspend fun getListByDate(date: LocalDate): List<ExerciseListItem> {
+            val memberId = currentMemberId() ?: return emptyList()
+            return exerciseRecordDao.getListByDate(memberId, date).map { it.toModel() }
         }
 
-        /** 서버에서 지워진 기록이 남지 않도록 그날 목록을 통째로 갈아끼웁니다 */
-        suspend fun replaceListByDate(
+        /**
+         * 서버에서 지워진 기록이 남지 않도록 그날 목록을 갈아끼웁니다.
+         *
+         * 아직 못 올린 로컬 변경이 사라지면 안 되므로 전송 대기 행은 두고 갑니다.
+         * 이미 캐시에 있던 기록은 localId를 이어 써서, 목록을 새로 받아도
+         * 그 기록을 가리키던 화면과 이미지가 같은 행을 계속 가리킵니다
+         */
+        suspend fun replaceSyncedListByDate(
             date: LocalDate,
             items: List<ExerciseListItem>,
         ) {
             val memberId = currentMemberId() ?: return
             database.withTransaction {
-                exerciseRecordDao.deleteListByDate(memberId, date)
+                val knownLocalIds =
+                    exerciseRecordDao.getServerIdToLocalId(memberId, date)
+                        .associate { it.serverId to it.localId }
+
+                exerciseRecordDao.deleteSyncedListByDate(memberId, date)
                 exerciseRecordDao.upsertListItems(
-                    items.mapIndexed { index, item -> item.toEntity(memberId, date, index) },
+                    items.mapIndexed { index, item ->
+                        val localId = knownLocalIds[item.recordId] ?: newLocalId()
+                        item.toSyncedEntity(memberId, localId, date, index)
+                    },
                 )
             }
         }
 
-        fun observeDetail(recordId: Long): Flow<ExerciseRecord?> {
-            val memberId = currentMemberId() ?: return flowOf(null)
-            return exerciseRecordDao.observeDetail(memberId, recordId)
-                .map { entity -> entity?.toModel() }
+        suspend fun getDetailByServerId(serverId: Long): ExerciseRecord? {
+            val memberId = currentMemberId() ?: return null
+            return exerciseRecordDao.getDetailByServerId(memberId, serverId)?.toModel()
         }
 
-        suspend fun saveDetail(
-            recordId: Long,
+        suspend fun getDetailByLocalId(localId: String): ExerciseRecord? {
+            val memberId = currentMemberId() ?: return null
+            return exerciseRecordDao.getDetailByLocalId(memberId, localId)?.toModel()
+        }
+
+        /** 상세를 받아온 기록이 목록에도 있으면 그 localId를 씁니다 */
+        suspend fun saveSyncedDetail(
+            serverId: Long,
             record: ExerciseRecord,
         ) {
             val memberId = currentMemberId() ?: return
-            exerciseRecordDao.upsertDetail(record.toEntity(memberId, recordId))
+            database.withTransaction {
+                val localId =
+                    exerciseRecordDao.findDetailLocalId(memberId, serverId)
+                        ?: exerciseRecordDao.findListItemLocalId(memberId, serverId)
+                        ?: newLocalId()
+                exerciseRecordDao.upsertDetail(record.toSyncedEntity(memberId, localId, serverId))
+            }
         }
 
         /** 기록이 삭제되면 목록과 상세를 함께 지웁니다 */
-        suspend fun deleteRecord(recordId: Long) {
+        suspend fun deleteRecord(localId: String) {
             val memberId = currentMemberId() ?: return
             database.withTransaction {
-                exerciseRecordDao.deleteListItem(memberId, recordId)
-                exerciseRecordDao.deleteDetail(memberId, recordId)
+                exerciseRecordDao.deleteListItem(memberId, localId)
+                exerciseRecordDao.deleteDetail(memberId, localId)
             }
         }
+
+        private fun newLocalId(): String = UUID.randomUUID().toString()
 
         private fun currentMemberId(): String? {
             return preferenceManager.getMemberId().also {

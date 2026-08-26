@@ -8,6 +8,9 @@ import java.time.LocalDateTime
 /**
  * 하루 운동 기록 목록의 한 줄입니다.
  *
+ * 행을 식별하는 값은 localId입니다. 오프라인에서 만든 기록은 서버 ID를 받기 전이라
+ * serverId가 비어 있습니다
+ *
  * date는 목록을 받아올 때 서버에 넘긴 조회 날짜입니다. 응답에는 들어 있지 않지만
  * startedAt에서 파생시키면 자정을 넘긴 기록이 서버가 묶어준 날과 어긋나서 컬럼으로 둡니다
  *
@@ -16,12 +19,17 @@ import java.time.LocalDateTime
  */
 @Entity(
     tableName = "exercise_list_item",
-    primaryKeys = ["memberId", "recordId"],
-    indices = [Index(value = ["memberId", "date"])],
+    primaryKeys = ["memberId", "localId"],
+    indices = [
+        Index(value = ["memberId", "date"]),
+        Index(value = ["memberId", "serverId"]),
+    ],
 )
 data class ExerciseListItemEntity(
     val memberId: String,
-    val recordId: Long,
+    val localId: String,
+    val serverId: Long?,
+    val syncState: SyncState,
     val date: LocalDate,
     val sortOrder: Int,
     val title: String,

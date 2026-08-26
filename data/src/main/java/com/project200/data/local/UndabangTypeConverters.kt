@@ -3,6 +3,7 @@ package com.project200.data.local
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import com.project200.data.local.entity.CachedPicture
+import com.project200.data.local.entity.SyncState
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import java.time.LocalDate
@@ -28,6 +29,12 @@ class UndabangTypeConverters(moshi: Moshi) {
         moshi.adapter<List<CachedPicture>>(
             Types.newParameterizedType(List::class.java, CachedPicture::class.java),
         )
+
+    @TypeConverter
+    fun fromSyncState(value: SyncState?): String? = value?.name
+
+    @TypeConverter
+    fun toSyncState(value: String?): SyncState? = value?.let(SyncState::valueOf)
 
     @TypeConverter
     fun fromLocalDate(value: LocalDate?): String? = value?.toString()

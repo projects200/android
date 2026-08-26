@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 1,
-    "identityHash": "953d4eadbefa6d56d23af6cd5623fb2d",
+    "identityHash": "a1f028ec29bd0b4dee3f66b17c0b1740",
     "entities": [
       {
         "tableName": "exercise_count",
@@ -39,7 +39,7 @@
       },
       {
         "tableName": "exercise_list_item",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `recordId` INTEGER NOT NULL, `date` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, `title` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `thumbnailUrls` TEXT, PRIMARY KEY(`memberId`, `recordId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `localId` TEXT NOT NULL, `serverId` INTEGER, `syncState` TEXT NOT NULL, `date` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, `title` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `thumbnailUrls` TEXT, PRIMARY KEY(`memberId`, `localId`))",
         "fields": [
           {
             "fieldPath": "memberId",
@@ -48,9 +48,21 @@
             "notNull": true
           },
           {
-            "fieldPath": "recordId",
-            "columnName": "recordId",
+            "fieldPath": "localId",
+            "columnName": "localId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
             "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "syncState",
+            "columnName": "syncState",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -100,7 +112,7 @@
           "autoGenerate": false,
           "columnNames": [
             "memberId",
-            "recordId"
+            "localId"
           ]
         },
         "indices": [
@@ -113,13 +125,23 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_list_item_memberId_date` ON `${TABLE_NAME}` (`memberId`, `date`)"
+          },
+          {
+            "name": "index_exercise_list_item_memberId_serverId",
+            "unique": false,
+            "columnNames": [
+              "memberId",
+              "serverId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_list_item_memberId_serverId` ON `${TABLE_NAME}` (`memberId`, `serverId`)"
           }
         ],
         "foreignKeys": []
       },
       {
         "tableName": "exercise_record_detail",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `recordId` INTEGER NOT NULL, `title` TEXT NOT NULL, `detail` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `location` TEXT NOT NULL, `pictures` TEXT, PRIMARY KEY(`memberId`, `recordId`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`memberId` TEXT NOT NULL, `localId` TEXT NOT NULL, `serverId` INTEGER, `syncState` TEXT NOT NULL, `title` TEXT NOT NULL, `detail` TEXT NOT NULL, `personalType` TEXT NOT NULL, `startedAt` TEXT NOT NULL, `endedAt` TEXT NOT NULL, `location` TEXT NOT NULL, `pictures` TEXT, PRIMARY KEY(`memberId`, `localId`))",
         "fields": [
           {
             "fieldPath": "memberId",
@@ -128,9 +150,21 @@
             "notNull": true
           },
           {
-            "fieldPath": "recordId",
-            "columnName": "recordId",
+            "fieldPath": "localId",
+            "columnName": "localId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "serverId",
+            "columnName": "serverId",
             "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "syncState",
+            "columnName": "syncState",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
@@ -180,17 +214,28 @@
           "autoGenerate": false,
           "columnNames": [
             "memberId",
-            "recordId"
+            "localId"
           ]
         },
-        "indices": [],
+        "indices": [
+          {
+            "name": "index_exercise_record_detail_memberId_serverId",
+            "unique": false,
+            "columnNames": [
+              "memberId",
+              "serverId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_exercise_record_detail_memberId_serverId` ON `${TABLE_NAME}` (`memberId`, `serverId`)"
+          }
+        ],
         "foreignKeys": []
       }
     ],
     "views": [],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '953d4eadbefa6d56d23af6cd5623fb2d')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a1f028ec29bd0b4dee3f66b17c0b1740')"
     ]
   }
 }
