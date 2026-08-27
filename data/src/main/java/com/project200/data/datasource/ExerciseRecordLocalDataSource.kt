@@ -56,16 +56,23 @@ class ExerciseRecordLocalDataSource
             }
         }
 
+        /**
+         * 서버 ID가 없는 행은 아직 화면이 다룰 수 없어 건너뜁니다.
+         * 화면이 로컬 ID로 기록을 식별하게 바뀌면 이 필터가 사라집니다 (#584)
+         */
         suspend fun getListByDate(date: LocalDate): List<ExerciseListItem> {
             val memberId = currentMemberId() ?: return emptyList()
-            return exerciseRecordDao.getListByDate(memberId, date).map { it.toModel() }
+            return exerciseRecordDao.getListByDate(memberId, date).mapNotNull { it.toModel() }
         }
 
         /**
          * 서버에서 지워진 기록이 남지 않도록 그날 목록을 갈아끼웁니다.
          *
-         * 아직 못 올린 로컬 변경이 사라지면 안 되므로 전송 대기 행은 두고 갑니다.
-         * 이미 캐시에 있던 기록은 localId를 이어 써서, 목록을 새로 받아도
+         * 아직 못 올린 로컬 변경은 서버 값으로 덮지 않습니다. 대기 행을 남기는 것만으로는
+         * 부족하고, 그 기록에 해당하는 서버 항목 자체를 반영 대상에서 빼야 합니다.
+         * 같은 localId에 SYNCED와 서버 값을 쓰면 행을 지우지 않았을 뿐 결과가 같습니다
+         *
+         * 이미 캐시에 있던 기록은 localId를 이어 씁니다. 목록을 새로 받아도
          * 그 기록을 가리키던 화면과 이미지가 같은 행을 계속 가리킵니다
          */
         suspend fun replaceSyncedListByDate(
@@ -74,15 +81,39 @@ class ExerciseRecordLocalDataSource
         ) {
             val memberId = currentMemberId() ?: return
             database.withTransaction {
-                val knownLocalIds =
-                    exerciseRecordDao.getServerIdToLocalId(memberId, date)
-                        .associate { it.serverId to it.localId }
+                val pendingServerIds =
+                    exerciseRecordDao.getPendingServerIds(memberId, date).toSet()
+
+                // 대기 행이 걸린 기록은 로컬이 우선이라 서버 값을 반영하지 않습니다
+                val incoming = items.withIndex().filterNot { it.value.recordId in pendingServerIds }
+                val incomingServerIds = incoming.map { it.value.recordId }
+
+                val reusableLocalIds =
+                    if (incomingServerIds.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        exerciseRecordDao.getSyncedByServerIds(memberId, incomingServerIds)
+                            .associate { it.serverId to it.localId }
+                    }
+
+                // 서버 목록에서 빠진 기록은 상세도 함께 정리합니다
+                val removedLocalIds =
+                    exerciseRecordDao.getSyncedByDate(memberId, date)
+                        .filterNot { it.serverId in incomingServerIds }
+                        .map { it.localId }
 
                 exerciseRecordDao.deleteSyncedListByDate(memberId, date)
+                if (removedLocalIds.isNotEmpty()) {
+                    exerciseRecordDao.deleteDetailsByLocalIds(memberId, removedLocalIds)
+                }
+                if (incomingServerIds.isNotEmpty()) {
+                    exerciseRecordDao.deleteSyncedOnOtherDates(memberId, date, incomingServerIds)
+                }
+
                 exerciseRecordDao.upsertListItems(
-                    items.mapIndexed { index, item ->
-                        val localId = knownLocalIds[item.recordId] ?: newLocalId()
-                        item.toSyncedEntity(memberId, localId, date, index)
+                    incoming.map { (sortOrder, item) ->
+                        val localId = reusableLocalIds[item.recordId] ?: newLocalId()
+                        item.toSyncedEntity(memberId, localId, date, sortOrder)
                     },
                 )
             }

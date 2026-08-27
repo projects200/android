@@ -48,9 +48,10 @@ fun ExerciseListItem.toSyncedEntity(
     )
 }
 
-fun ExerciseListItemEntity.toModel(): ExerciseListItem {
+/** 서버 ID가 아직 없는 행은 화면이 다룰 수 없어 null을 돌려줍니다 */
+fun ExerciseListItemEntity.toModel(): ExerciseListItem? {
     return ExerciseListItem(
-        recordId = serverId ?: NO_SERVER_ID,
+        recordId = serverId ?: return null,
         title = title,
         type = personalType,
         startTime = startedAt,
@@ -90,9 +91,3 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         pictures = pictures?.map { ExerciseRecordPicture(it.id, it.url) },
     )
 }
-
-/**
- * 아직 서버 ID가 없는 기록을 도메인 모델로 옮길 때 쓰는 값입니다.
- * 화면이 로컬 ID로 기록을 식별하게 바뀌면 사라집니다 (#584)
- */
-private const val NO_SERVER_ID = -1L
