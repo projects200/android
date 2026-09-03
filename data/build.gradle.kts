@@ -20,6 +20,11 @@ android {
     }
 }
 
+// Room 스키마를 파일로 남겨 마이그레이션 검증에 씁니다
+ksp {
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(projects.domain)
     implementation(projects.common)

@@ -1,6 +1,7 @@
 package com.project200.domain.usecase
 
 import com.project200.domain.manager.FcmTokenSyncScheduler
+import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.repository.AuthRepository
 import io.mockk.Runs
 import io.mockk.coEvery
@@ -28,11 +29,14 @@ class ClearSessionUseCaseTest {
     @MockK
     private lateinit var mockFcmTokenSyncScheduler: FcmTokenSyncScheduler
 
+    @MockK
+    private lateinit var mockSessionDataCleaner: SessionDataCleaner
+
     private lateinit var useCase: ClearSessionUseCase
 
     @Before
     fun setUp() {
-        useCase = ClearSessionUseCase(mockRepository, mockFcmTokenSyncScheduler)
+        useCase = ClearSessionUseCase(mockRepository, mockFcmTokenSyncScheduler, mockSessionDataCleaner)
     }
 
     @Test
@@ -40,6 +44,7 @@ class ClearSessionUseCaseTest {
         // Given
         coEvery { mockRepository.clearSession() } just Runs
         every { mockFcmTokenSyncScheduler.cancel() } just Runs
+        coEvery { mockSessionDataCleaner.clearAll() } just Runs
 
         // When
         useCase()
@@ -53,11 +58,26 @@ class ClearSessionUseCaseTest {
         // Given
         coEvery { mockRepository.clearSession() } just Runs
         every { mockFcmTokenSyncScheduler.cancel() } just Runs
+        coEvery { mockSessionDataCleaner.clearAll() } just Runs
 
         // When
         useCase()
 
         // Then
         verify(exactly = 1) { mockFcmTokenSyncScheduler.cancel() }
+    }
+
+    @Test
+    fun `invoke 호출 시 로컬 캐시를 지운다`() = runTest {
+        // Given
+        coEvery { mockRepository.clearSession() } just Runs
+        every { mockFcmTokenSyncScheduler.cancel() } just Runs
+        coEvery { mockSessionDataCleaner.clearAll() } just Runs
+
+        // When
+        useCase()
+
+        // Then
+        coVerify(exactly = 1) { mockSessionDataCleaner.clearAll() }
     }
 }

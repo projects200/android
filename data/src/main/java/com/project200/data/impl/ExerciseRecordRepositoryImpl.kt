@@ -3,7 +3,7 @@ package com.project200.data.impl
 import android.content.Context
 import androidx.core.net.toUri
 import com.project200.common.di.IoDispatcher
-import com.project200.data.api.ApiService
+import com.project200.data.datasource.ExerciseRecordRemoteDataSource
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
@@ -30,7 +30,7 @@ import kotlin.coroutines.cancellation.CancellationException
 class ExerciseRecordRepositoryImpl
     @Inject
     constructor(
-        private val apiService: ApiService,
+        private val remoteDataSource: ExerciseRecordRemoteDataSource,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         @ApplicationContext private val context: Context,
     ) : ExerciseRecordRepository {
@@ -40,7 +40,7 @@ class ExerciseRecordRepositoryImpl
         ): BaseResult<List<ExerciseCount>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getExerciseCountsByRange(startDate, endDate) },
+                apiCall = { remoteDataSource.getExerciseCountsByRange(startDate, endDate) },
                 mapper = { dtoList: List<GetExerciseCountByRangeDTO>? ->
                     dtoList?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.")
                 },
@@ -50,7 +50,7 @@ class ExerciseRecordRepositoryImpl
         override suspend fun getExerciseDetail(recordId: Long): BaseResult<ExerciseRecord> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getExerciseRecordDetail(recordId) },
+                apiCall = { remoteDataSource.getExerciseRecordDetail(recordId) },
                 mapper = { dto: GetExerciseRecordData? ->
                     dto?.toModel() ?: throw NoSuchElementException("운동 상세 정보 응답 데이터가 없습니다.")
                 },
@@ -60,7 +60,7 @@ class ExerciseRecordRepositoryImpl
         override suspend fun getExerciseRecordList(date: LocalDate): BaseResult<List<ExerciseListItem>> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getExerciseList(date) },
+                apiCall = { remoteDataSource.getExerciseList(date) },
                 mapper = { dtoList: List<GetExerciseRecordListDto>? ->
                     dtoList?.map { it.toModel() } ?: emptyList()
                 },
@@ -70,7 +70,7 @@ class ExerciseRecordRepositoryImpl
         override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postExerciseRecord(record.toPostExerciseDTO()) },
+                apiCall = { remoteDataSource.postExerciseRecord(record.toPostExerciseDTO()) },
                 mapper = { dto: PostExerciseResponseDTO? ->
                     dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
                 },
@@ -83,7 +83,7 @@ class ExerciseRecordRepositoryImpl
         ): BaseResult<Long> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.patchExerciseRecord(recordId, record.toPatchExerciseDTO()) },
+                apiCall = { remoteDataSource.patchExerciseRecord(recordId, record.toPatchExerciseDTO()) },
                 mapper = { exerciseIdDto: ExerciseIdDto? ->
                     exerciseIdDto?.exerciseId ?: throw NoSuchElementException("운동 기록 수정 응답 데이터가 없습니다.")
                 },
@@ -118,7 +118,7 @@ class ExerciseRecordRepositoryImpl
 
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postExerciseImages(recordId, imageParts) },
+                apiCall = { remoteDataSource.postExerciseImages(recordId, imageParts) },
                 mapper = { exerciseIdDto: ExerciseIdDto? ->
                     exerciseIdDto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.")
                 },
@@ -131,7 +131,7 @@ class ExerciseRecordRepositoryImpl
         ): BaseResult<Unit> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.deleteExerciseImages(recordId, imageIds) },
+                apiCall = { remoteDataSource.deleteExerciseImages(recordId, imageIds) },
                 mapper = { Unit },
             )
         }
@@ -139,7 +139,7 @@ class ExerciseRecordRepositoryImpl
         override suspend fun deleteExerciseRecord(recordId: Long): BaseResult<Unit> {
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
-                apiCall = { apiService.deleteExerciseRecord(recordId) },
+                apiCall = { remoteDataSource.deleteExerciseRecord(recordId) },
                 mapper = { Unit },
             )
         }
