@@ -8,4 +8,8 @@
         <key>min_required_version_code</key>
         <value>1</value>
     </entry>
+    <entry>
+        <key>offline_cache_enabled</key>
+        <value>false</value>
+    </entry>
 </defaultsMap>
