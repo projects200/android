@@ -6,6 +6,7 @@ import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.utils.apiCallBuilder
+import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
@@ -22,6 +23,7 @@ class AuthRepositoryImpl
         private val apiService: ApiService,
         private val spManager: PreferenceManager,
         private val authStateManager: AuthStateManager,
+        private val sessionDataCleaner: SessionDataCleaner,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AuthRepository {
         override suspend fun checkIsRegistered(): RegistrationStatus {
@@ -29,20 +31,19 @@ class AuthRepositoryImpl
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
                     apiCall = { apiService.getIsRegistered() },
-                    mapper = { data ->
-                        // 가입 확인된 경우에만 저장
-                        if (data != null && data.isRegistered) {
-                            spManager.saveMemberId(data.memberId)
-                            true
-                        } else {
-                            false
-                        }
-                    },
+                    mapper = { data -> data?.takeIf { it.isRegistered }?.memberId },
                 )
 
             return when (result) {
-                is BaseResult.Success ->
-                    if (result.data) RegistrationStatus.Registered else RegistrationStatus.Unregistered
+                is BaseResult.Success -> {
+                    val memberId = result.data
+                    if (memberId != null) {
+                        replaceMemberId(memberId)
+                        RegistrationStatus.Registered
+                    } else {
+                        RegistrationStatus.Unregistered
+                    }
+                }
                 is BaseResult.Error ->
                     // 미가입자는 인터셉터가 401 AUTHENTICATION_FAILED로 막는다
                     if (result.errorCode == "AUTHENTICATION_FAILED") {
@@ -54,6 +55,22 @@ class AuthRepositoryImpl
                     }
             }
         }
+
+        /**
+         * 회원ID를 저장합니다.
+         *
+         * 저장 전에 이전 회원ID와 다르면 로컬 캐시를 지웁니다. 로그아웃을 거치지 않은 계정 전환에서
+         * 이전 계정의 행이 기기에 남기 때문입니다
+         * 이전 값이 없을 때도 지웁니다. 로그아웃 도중 캐시 삭제만 실패한 상태를 흡수합니다
+         */
+        private suspend fun replaceMemberId(memberId: String) =
+            withContext(ioDispatcher) {
+                if (spManager.getMemberId() != memberId) {
+                    Timber.tag(TAG).i("계정 경계 변경 - 로컬 캐시 삭제")
+                    sessionDataCleaner.clearAll()
+                }
+                spManager.saveMemberId(memberId)
+            }
 
         override suspend fun logout(): BaseResult<Unit> {
             return apiCallBuilder(
