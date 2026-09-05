@@ -12,11 +12,19 @@ constructor(
     private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
     private val sessionDataCleaner: SessionDataCleaner,
 ) {
+    /**
+     * 로컬 세션을 정리합니다.
+     *
+     * 캐시를 회원ID보다 먼저 지웁니다. 계정 스코프 삭제로 좁히면 회원ID가 없는 시점에는
+     * 지울 대상을 특정할 수 없습니다
+     * 캐시 삭제가 실패해도 세션은 끊습니다. 세션이 남으면 다음 진입에서 자동 로그인됩니다
+     */
     suspend operator fun invoke() {
-        authRepository.clearSession()
-        // 회원ID가 지워져 실행돼도 SKIPPED로 끝나지만 예약을 남겨둘 이유가 없습니다
-        fcmTokenSyncScheduler.cancel()
-        // 다음 사용자가 이전 사용자의 캐시를 보면 안 됩니다
-        sessionDataCleaner.clearAll()
+        try {
+            sessionDataCleaner.clearAll()
+        } finally {
+            fcmTokenSyncScheduler.cancel()
+            authRepository.clearSession()
+        }
     }
 }
