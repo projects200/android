@@ -1,4 +1,4 @@
-# AGENT.md - Undabang Android Project
+# AGENTS.md - Undabang Android Project
 
 > AI Agent를 위한 프로젝트 컨텍스트 문서. 코드베이스 이해와 일관된 개발을 위해 이 파일을 먼저 참조할 것.
 
@@ -8,7 +8,8 @@
 
 - **패키지명**: `com.project200.undabang`
 - **최소 SDK**: 26 (Android 8.0)
-- **타겟 SDK**: 35
+- **타겟 SDK**: 36 (Android 16)
+- **컴파일 SDK**: 36
 - **Kotlin 버전**: 1.9.23
 - **JDK**: 17
 
@@ -37,7 +38,7 @@ app/                      # Application entry point, DI 통합, MainActivity
 ### 2.2 Data Flow
 
 ```
-View(Fragment/Activity) → ViewModel → UseCase → Repository(interface) → RepositoryImpl → ApiService/Room
+View(Fragment/Activity) → ViewModel → UseCase → Repository(interface) → RepositoryImpl → RemoteDataSource(ApiService) / LocalDataSource(Room)
 ```
 
 ### 2.3 Module Dependencies
@@ -64,8 +65,8 @@ dependencies {
 |----------|-----------|
 | DI | Hilt |
 | Network | Retrofit2 + Moshi + OkHttp |
-| Local DB | 없음 (Room은 의존성만 선언, 구현 코드 없음) |
-| Preferences | EncryptedSharedPreferences (DataStore는 의존성만, 구현 코드 없음) |
+| Local DB | Room (`UndabangDatabase`, 엔티티 3개, DAO 2개, 스키마 `data/schemas/`) |
+| Preferences | 회원ID는 `PreferenceManager`의 평문 SharedPreferences(`undabangPrefs`), 토큰은 `core/oauth`의 EncryptedSharedPreferences (DataStore는 의존성만, 구현 코드 없음) |
 | Async | Coroutines + Flow |
 
 ### UI
@@ -265,6 +266,28 @@ abstract class RepositoryModule {
 }
 ```
 
+### 5.8 Room과 로컬 캐시 규칙
+
+오프라인 캐시는 `data` 모듈 안에서만 다룬다. `domain`과 `feature`는 Room을 모른다.
+
+- 모든 테이블에 `memberId` 컬럼을 두고 DAO 쿼리에 계정 조건을 강제한다
+- 행 식별은 `localId`(UUID), `serverId`는 nullable. 오프라인에서 만든 행은 서버 ID를 받기 전이다
+- `syncState`는 연산 로그가 아니라 행마다의 현재 상태다 (`SYNCED` / `CREATE_PENDING` / `UPDATE_PENDING` / `DELETE_PENDING`)
+- 삭제는 행을 바로 지우지 않고 삭제 대기로 표시한다. 예외는 서버에 없는 생성 대기 행뿐이다
+- 서버 목록을 로컬에 반영할 때 `syncState != SYNCED` 행은 대체하지 않는다
+- 읽기는 스냅샷 1회다. 화면이 지속 `Flow`를 구독하지 않는다. 서버 응답은 화면으로 직접 가지 않고 항상 Room을 거친다
+- 서버 조회 트리거는 화면 최초 진입과 수동 새로고침 둘뿐이다. 회전, 백스택 복귀, 온라인 전환은 트리거가 아니다. 복귀할 때 Room 값은 다시 읽는다
+- API 호출은 `RemoteDataSource`, Room 접근은 `LocalDataSource`로 나누고 `RepositoryImpl`이 합친다
+
+### 5.9 세션 정리
+
+로컬에 데이터를 쌓는 저장소를 추가하면 `ClearSessionUseCase`에 정리를 연결한다. `domain`의 `SessionDataCleaner` 인터페이스를 통해 `data` 구현이 지운다.
+
+- 캐시 삭제를 회원ID 소거보다 먼저 한다. 계정 스코프 삭제로 좁히면 회원ID 없이는 지울 대상을 특정할 수 없다
+- 캐시 삭제가 실패해도 세션 정리와 예약 작업 취소는 수행한다
+- 계정이 바뀔 때도 지운다. `AuthRepositoryImpl.checkIsRegistered()`가 회원ID를 저장할 때 이전 값과 다르면 캐시를 먼저 비운다
+- 예약한 Worker는 함께 취소한다
+
 ## 6. API Convention
 
 ### 6.1 BaseResponse
@@ -430,6 +453,7 @@ plugins {
 - 브랜치 이름: `{타입}/{설명}-{이슈번호}` (예: `fix/fcm-token-sync-565`, `refactor/entry-state-562`)
   - 타입은 `feat` `fix` `refactor` `chore` `docs`
 - PR Template: `.github/PULL_REQUEST_TEMPLATE.md` 참조. 이슈를 닫으려면 `Closes #번호`를 쓴다
+- PR 제목: `{접두} {한국어 제목} #{이슈번호}` (예: `[Fix] 계정 전환 시 이전 계정의 로컬 캐시 삭제 #593`). 이슈가 없는 작업만 번호를 뺀다
 
 ## 13. DO's and DON'Ts
 
@@ -442,12 +466,13 @@ plugins {
 - ViewModel에서 StateFlow로 상태 노출
 - 새 화면은 Compose로 작성
 - `by viewModels()` 위임 사용
+- 새 Room 테이블에 `memberId` 컬럼과 DAO 계정 조건 적용
 
 ### DON'T
 - data 모듈에서 domain 구현체 직접 참조 금지
 - Presentation/Feature에서 Retrofit/저장소 직접 사용 금지
 - 기존 XML 화면을 고치면서 Compose로 갈아엎기 금지
-- Room/DataStore가 이미 있다고 가정하고 코드 작성 금지 (의존성만 있고 구현이 없음)
+- DataStore가 이미 있다고 가정하고 코드 작성 금지 (의존성만 있고 구현이 없음)
 - Compose Compiler 버전을 Kotlin 버전과 따로 올리기 금지
 - CancellationException 삼키지 않기 (반드시 rethrow)
 - Fragment/Activity에서 ViewModel의 StateFlow/LiveData에 `.value` 직접 접근 금지 (반드시 `collect` 또는 `observe` 사용)
