@@ -63,6 +63,7 @@ androidxTestEspresso = "3.6.1"
 mockk = "1.13.10"
 turbine = "1.1.0" # Flow 테스트용
 truth = "1.1.5"
+robolectric = "4.14.1" # 단위 테스트에서 Room 메모리 DB를 열기 위함
 jacoco = "0.8.11" # 테스트 커버리지 측정 플러그인
 ktlintPlugin = "12.1.1"
 ktlintCli = "1.2.1"
@@ -199,6 +200,7 @@ androidx-arch-core-testing = { group = "androidx.arch.core", name = "core-testin
 mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 truth = { group = "com.google.truth", name = "truth", version.ref = "truth" }
+robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
 ktlint-gradle-plugin = { group = "org.jlleitschuh.gradle", name = "ktlint-gradle", version.ref = "ktlintPlugin" }
 ktlint-cli = { group = "com.pinterest.ktlint", name = "ktlint-cli", version.ref = "ktlintCli" }
 

@@ -18,6 +18,11 @@ android {
             buildConfigField("String", "BASE_URL", "\"https://api.undabang.site/\"") // Release용 URL
         }*/
     }
+
+    // Room 메모리 DB 테스트에 Robolectric이 android 리소스와 Context를 제공합니다
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 // Room 스키마를 파일로 남겨 마이그레이션 검증에 씁니다
@@ -49,6 +54,7 @@ dependencies {
     implementation(libs.androidx.datastore.preferences)
 
     testImplementation(libs.androidx.arch.core.testing)
+    testImplementation(libs.robolectric)
 
     implementation(libs.appauth)
 
