@@ -3,6 +3,7 @@ package com.project200.data.local
 import androidx.room.ProvidedTypeConverter
 import androidx.room.TypeConverter
 import com.project200.data.local.entity.CachedPicture
+import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.SyncState
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -28,6 +29,11 @@ class UndabangTypeConverters(moshi: Moshi) {
     private val pictureListAdapter =
         moshi.adapter<List<CachedPicture>>(
             Types.newParameterizedType(List::class.java, CachedPicture::class.java),
+        )
+
+    private val timerStepListAdapter =
+        moshi.adapter<List<CachedTimerStep>>(
+            Types.newParameterizedType(List::class.java, CachedTimerStep::class.java),
         )
 
     @TypeConverter
@@ -59,4 +65,10 @@ class UndabangTypeConverters(moshi: Moshi) {
 
     @TypeConverter
     fun toPictureList(value: String?): List<CachedPicture>? = value?.let(pictureListAdapter::fromJson)
+
+    @TypeConverter
+    fun fromTimerStepList(value: List<CachedTimerStep>?): String? = value?.let(timerStepListAdapter::toJson)
+
+    @TypeConverter
+    fun toTimerStepList(value: String?): List<CachedTimerStep>? = value?.let(timerStepListAdapter::fromJson)
 }

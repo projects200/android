@@ -5,9 +5,12 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
+import com.project200.data.local.dao.TimerDao
+import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
+import com.project200.data.local.entity.SimpleTimerEntity
 
 /**
  * 오프라인 캐시용 로컬 데이터베이스입니다.
@@ -20,8 +23,10 @@ import com.project200.data.local.entity.ExerciseRecordDetailEntity
         ExerciseCountEntity::class,
         ExerciseListItemEntity::class,
         ExerciseRecordDetailEntity::class,
+        SimpleTimerEntity::class,
+        CustomTimerEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(UndabangTypeConverters::class)
@@ -29,6 +34,8 @@ abstract class UndabangDatabase : RoomDatabase() {
     abstract fun exerciseCountDao(): ExerciseCountDao
 
     abstract fun exerciseRecordDao(): ExerciseRecordDao
+
+    abstract fun timerDao(): TimerDao
 
     companion object {
         const val DATABASE_NAME = "undabang.db"

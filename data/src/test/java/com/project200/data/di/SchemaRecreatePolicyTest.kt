@@ -34,6 +34,7 @@ class SchemaRecreatePolicyTest {
         runTest {
             // Given: 캐시가 쌓인 DB
             var database = openDatabase()
+            val codeVersion = database.openHelper.readableDatabase.version
             database.exerciseCountDao().upsertAll(
                 listOf(ExerciseCountEntity(memberId = "member-a", date = date, count = 2)),
             )
@@ -44,10 +45,10 @@ class SchemaRecreatePolicyTest {
             val path = context.getDatabasePath(UndabangDatabase.DATABASE_NAME).absolutePath
             val mismatched =
                 SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
-                    raw.version = 2
+                    raw.version = codeVersion + 1
                     raw.version
                 }
-            assertThat(mismatched).isEqualTo(2)
+            assertThat(mismatched).isEqualTo(codeVersion + 1)
             database = openDatabase()
 
             // Then: 예외 없이 열리고 캐시는 비어 있다
