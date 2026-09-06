@@ -51,7 +51,10 @@ class TimerRepositoryImpl
             return apiCallBuilder(
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.postSimpleTimer(SimpleTimerRequest(time)) },
-                mapper = { dto: SimpleTimerIdDTO? -> dto?.simpleTimerId ?: -1L },
+                // 서버 ID 없이 성공으로 올리면 로컬이 원본이 될 때 복구 못 하는 행이 생깁니다
+                mapper = { dto: SimpleTimerIdDTO? ->
+                    dto?.simpleTimerId ?: throw IllegalStateException("simpleTimerId가 없습니다")
+                },
             )
         }
 
@@ -80,7 +83,7 @@ class TimerRepositoryImpl
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.getCustomTimer(customTimerId) },
                 mapper = { dto: GetCustomTimerDetailDTO? ->
-                    dto?.toModel() ?: CustomTimer(-1L, "")
+                    (dto ?: throw IllegalStateException("커스텀 타이머 상세가 없습니다")).toModel()
                 },
             )
         }

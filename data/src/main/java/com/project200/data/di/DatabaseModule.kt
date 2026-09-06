@@ -7,6 +7,7 @@ import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
+import com.project200.data.local.dao.TimerDao
 import com.project200.domain.manager.SessionDataCleaner
 import com.squareup.moshi.Moshi
 import dagger.Binds
@@ -66,6 +67,12 @@ abstract class DatabaseModule {
         @Singleton
         fun provideExerciseRecordDao(database: UndabangDatabase): ExerciseRecordDao {
             return database.exerciseRecordDao()
+        }
+
+        @Provides
+        @Singleton
+        fun provideTimerDao(database: UndabangDatabase): TimerDao {
+            return database.timerDao()
         }
     }
 }
