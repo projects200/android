@@ -26,8 +26,8 @@ class CreateCustomTimerUseCaseTest {
     private lateinit var useCase: CreateCustomTimerUseCase
 
     private val sampleSteps = listOf(
-        Step(id = -1, order = 1, time = 30, name = "운동"),
-        Step(id = -1, order = 2, time = 10, name = "휴식")
+        Step(order = 1, time = 30, name = "운동"),
+        Step(order = 2, time = 10, name = "휴식")
     )
 
     @Before
@@ -39,8 +39,7 @@ class CreateCustomTimerUseCaseTest {
     fun `invoke 호출 시 커스텀 타이머 생성 성공`() = runTest {
         // Given
         val title = "새 타이머"
-        val newTimerId = 1L
-        val successResult = BaseResult.Success(newTimerId)
+        val successResult = BaseResult.Success("new-local-id")
         coEvery { mockRepository.createCustomTimer(title, sampleSteps) } returns successResult
 
         // When
@@ -49,7 +48,7 @@ class CreateCustomTimerUseCaseTest {
         // Then
         coVerify(exactly = 1) { mockRepository.createCustomTimer(title, sampleSteps) }
         assertThat(result).isEqualTo(successResult)
-        assertThat((result as BaseResult.Success).data).isEqualTo(newTimerId)
+        assertThat((result as BaseResult.Success).data).isEqualTo("new-local-id")
     }
 
     @Test
@@ -72,7 +71,7 @@ class CreateCustomTimerUseCaseTest {
         // Given
         val title = "빈 타이머"
         val emptySteps = emptyList<Step>()
-        val successResult = BaseResult.Success(1L)
+        val successResult = BaseResult.Success("new-local-id")
         coEvery { mockRepository.createCustomTimer(title, emptySteps) } returns successResult
 
         // When

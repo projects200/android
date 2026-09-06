@@ -42,7 +42,7 @@ class TimerListFragment : Fragment() {
                     },
                     onCustomTimerClick = { timer ->
                         findNavController().navigate(
-                            TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFragment(timer.id),
+                            TimerListFragmentDirections.actionTimerListFragmentToCustomTimerFragment(timer.localId),
                         )
                     },
                     onAddCustomTimerClick = {
@@ -73,7 +73,7 @@ class TimerListFragment : Fragment() {
         savedStateHandle?.getLiveData<Boolean>(REFRESH_KEY)?.observe(viewLifecycleOwner) { shouldRefresh ->
             if (shouldRefresh) {
                 Timber.tag("TimerListFragment").d("커스텀 타이머 리프레시")
-                viewModel.loadCustomTimers()
+                viewModel.refreshLocalCustomTimers()
                 savedStateHandle.remove<Boolean>(REFRESH_KEY)
             }
         }

@@ -42,6 +42,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.project200.domain.model.SimpleTimer
+import com.project200.feature.timer.utils.SyncPendingBadge
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTime
 import com.project200.feature.timer.utils.TimerFormatter.toFormattedTimeAsLong
 import com.project200.presentation.compose.components.layout.UndabangScaffold
@@ -253,9 +254,9 @@ private fun TimerGrid(
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 2열 그리드. 최대 6개 + 마지막에 추가 버튼 (총 6개 미만일 때만)
+    // 2열 그리드. 최대 6개(SimpleTimerViewModel.MAX_TIMER_COUNT) + 마지막에 추가 버튼 (한도 미만일 때만)
     val items = timers.map<SimpleTimer, GridItem> { GridItem.Timer(it) }
-    val withAdd = if (timers.size < MAX_TIMER_COUNT) items + GridItem.Add else items
+    val withAdd = if (timers.size < SimpleTimerViewModel.MAX_TIMER_COUNT) items + GridItem.Add else items
 
     Column(
         modifier = modifier.fillMaxSize(),
@@ -322,6 +323,14 @@ private fun TimerCell(
             color = ColorBlack,
             modifier = Modifier.align(Alignment.Center),
         )
+        if (timer.isSyncPending) {
+            SyncPendingBadge(
+                modifier =
+                    Modifier
+                        .align(Alignment.TopStart)
+                        .padding(6.dp),
+            )
+        }
         Box(
             modifier =
                 Modifier
@@ -390,7 +399,6 @@ private fun AddCell(
     }
 }
 
-private const val MAX_TIMER_COUNT = 6
 private const val GRID_COL_COUNT = 2
 
 @Preview(showBackground = true, heightDp = 800)
@@ -403,9 +411,9 @@ private fun SimpleTimerScreenPreview() {
             isRunning = true,
             timers =
                 listOf(
-                    SimpleTimer(id = 1L, time = 60),
-                    SimpleTimer(id = 2L, time = 120),
-                    SimpleTimer(id = 3L, time = 300),
+                    SimpleTimer(localId = "1", time = 60),
+                    SimpleTimer(localId = "2", time = 120),
+                    SimpleTimer(localId = "3", time = 300, isSyncPending = true),
                 ),
             onPlayPauseClick = {},
             onTimerItemClick = {},

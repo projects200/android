@@ -32,7 +32,7 @@ class CustomTimerFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel.setTimerId(args.customTimerId)
+        viewModel.setTimerLocalId(args.customTimerLocalId)
     }
 
     override fun onResume() {
@@ -151,7 +151,7 @@ class CustomTimerFragment : Fragment() {
             onEditClick = {
                 findNavController().navigate(
                     CustomTimerFragmentDirections.actionCustomTimerToCustomTimerFormFragment(
-                        args.customTimerId,
+                        args.customTimerLocalId,
                     ),
                 )
             },

@@ -28,19 +28,21 @@ class GetCustomTimerListUseCaseTest {
 
     private val sampleCustomTimers = listOf(
         CustomTimer(
-            id = 1L,
+            localId = "local-1",
+            serverId = 1L,
             name = "HIIT 타이머",
             steps = listOf(
-                Step(id = 1L, order = 1, time = 30, name = "운동"),
-                Step(id = 2L, order = 2, time = 10, name = "휴식")
+                Step(order = 1, time = 30, name = "운동"),
+                Step(order = 2, time = 10, name = "휴식")
             )
         ),
         CustomTimer(
-            id = 2L,
+            localId = "local-2",
+            serverId = 2L,
             name = "타바타",
             steps = listOf(
-                Step(id = 3L, order = 1, time = 20, name = "고강도"),
-                Step(id = 4L, order = 2, time = 10, name = "휴식")
+                Step(order = 1, time = 20, name = "고강도"),
+                Step(order = 2, time = 10, name = "휴식")
             )
         )
     )

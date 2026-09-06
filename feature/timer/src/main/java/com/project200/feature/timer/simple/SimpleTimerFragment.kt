@@ -52,7 +52,7 @@ class SimpleTimerFragment : Fragment() {
                         viewModel.setAndStartTimer(simpleTimer.time)
                     },
                     onTimerEditClick = { simpleTimer -> showTimePickerDialog(simpleTimer) },
-                    onTimerDeleteClick = { simpleTimer -> viewModel.deleteTimerItem(simpleTimer.id) },
+                    onTimerDeleteClick = { simpleTimer -> viewModel.deleteTimerItem(simpleTimer.localId) },
                     onAddClick = { showTimePickerDialog() },
                     onSortClick = viewModel::changeSortOrder,
                     onBackClick = { findNavController().navigateUp() },
@@ -69,7 +69,7 @@ class SimpleTimerFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.toastMessage.collect { type ->
-                    if (type == SimpleTimerToastMessage.GET_ERROR) findNavController().navigateUp()
+                    // 로컬 조회라 실패해도 행이 사라지지 않으므로 화면을 나가지 않는다
                     val messageResId =
                         when (type) {
                             SimpleTimerToastMessage.GET_ERROR -> R.string.load_simple_timer_error
@@ -96,7 +96,7 @@ class SimpleTimerFragment : Fragment() {
                 }
 
                 if (isEditMode) {
-                    viewModel.updateTimerItem(simpleTimer!!.copy(time = newTime))
+                    viewModel.updateTimerItem(simpleTimer!!.localId, newTime)
                 } else {
                     viewModel.addTimerItem(newTime)
                 }

@@ -1,6 +1,8 @@
 package com.project200.data.datasource
 
+import androidx.room.withTransaction
 import com.project200.data.local.PreferenceManager
+import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.dao.TimerDao
 import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.CustomTimerEntity
@@ -9,6 +11,19 @@ import com.project200.data.local.entity.SyncState
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
+
+/** 서버 심플 타이머 한 행입니다. 서버 목록 반영에만 씁니다 */
+data class ServerSimpleTimer(
+    val serverId: Long,
+    val time: Int,
+)
+
+/** 서버 커스텀 타이머 한 행입니다. 서버 목록 반영에만 씁니다 */
+data class ServerCustomTimer(
+    val serverId: Long,
+    val name: String,
+    val steps: List<CachedTimerStep>,
+)
 
 /**
  * 타이머를 읽고 씁니다. 기기가 원본이라 서버 응답 없이도 생성과 수정이 끝납니다.
@@ -25,6 +40,7 @@ import javax.inject.Inject
 class TimerLocalDataSource
     @Inject
     constructor(
+        private val database: UndabangDatabase,
         private val timerDao: TimerDao,
         private val preferenceManager: PreferenceManager,
     ) {
@@ -162,6 +178,85 @@ class TimerLocalDataSource
         suspend fun getPendingCustomTimers(): List<CustomTimerEntity> {
             val memberId = currentMemberId() ?: return emptyList()
             return timerDao.getPendingCustomTimers(memberId)
+        }
+
+        /**
+         * 서버 심플 타이머 목록을 반영합니다.
+         *
+         * 대기 행이 걸린 서버ID는 건드리지 않고, 동기화 완료 행은 자리를 갱신하며 localId를
+         * 이어 씁니다. 서버 목록에 없는 로컬 동기화 완료 행은 지웁니다
+         */
+        suspend fun replaceSyncedSimpleTimers(server: List<ServerSimpleTimer>) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val pendingServerIds = timerDao.getPendingSimpleTimerServerIds(memberId).toSet()
+                val incoming = server.filterNot { it.serverId in pendingServerIds }
+                val incomingServerIds = incoming.map { it.serverId }
+
+                val reusableLocalIds =
+                    if (incomingServerIds.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        timerDao.getSyncedSimpleTimersByServerIds(memberId, incomingServerIds)
+                            .associate { it.serverId to it.localId }
+                    }
+
+                timerDao.deleteSyncedSimpleTimersNotIn(memberId, incomingServerIds)
+                timerDao.upsertSimpleTimers(
+                    incoming.map { serverTimer ->
+                        SimpleTimerEntity(
+                            memberId = memberId,
+                            localId = reusableLocalIds[serverTimer.serverId] ?: newId(),
+                            serverId = serverTimer.serverId,
+                            syncState = SyncState.SYNCED,
+                            time = serverTimer.time,
+                            createRequestId = newId(),
+                            pendingEditId = null,
+                            editedAt = now(),
+                        )
+                    },
+                )
+            }
+        }
+
+        /**
+         * 서버 커스텀 타이머 목록을 반영합니다.
+         *
+         * 대기 행이 걸린 서버ID는 건드리지 않고, 동기화 완료 행은 자리를 갱신하며 localId를
+         * 이어 씁니다. 서버 목록에 없는 로컬 동기화 완료 행은 지웁니다
+         */
+        suspend fun replaceSyncedCustomTimers(server: List<ServerCustomTimer>) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val pendingServerIds = timerDao.getPendingCustomTimerServerIds(memberId).toSet()
+                val incoming = server.filterNot { it.serverId in pendingServerIds }
+                val incomingServerIds = incoming.map { it.serverId }
+
+                val reusableLocalIds =
+                    if (incomingServerIds.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        timerDao.getSyncedCustomTimersByServerIds(memberId, incomingServerIds)
+                            .associate { it.serverId to it.localId }
+                    }
+
+                timerDao.deleteSyncedCustomTimersNotIn(memberId, incomingServerIds)
+                timerDao.upsertCustomTimers(
+                    incoming.map { serverTimer ->
+                        CustomTimerEntity(
+                            memberId = memberId,
+                            localId = reusableLocalIds[serverTimer.serverId] ?: newId(),
+                            serverId = serverTimer.serverId,
+                            syncState = SyncState.SYNCED,
+                            name = serverTimer.name,
+                            steps = serverTimer.steps,
+                            createRequestId = newId(),
+                            pendingEditId = null,
+                            editedAt = now(),
+                        )
+                    },
+                )
+            }
         }
 
         private fun nextStateOnEdit(current: SyncState): SyncState =

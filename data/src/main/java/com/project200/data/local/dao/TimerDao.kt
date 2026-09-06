@@ -70,6 +70,41 @@ interface TimerDao {
         localId: String,
     )
 
+    /** 대기 행이 걸린 서버ID입니다. 서버 목록 반영에서 건드리면 안 됩니다 */
+    @Query(
+        "SELECT serverId FROM simple_timer " +
+            "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
+    )
+    suspend fun getPendingSimpleTimerServerIds(
+        memberId: String,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<Long>
+
+    /** 서버 목록에 있는 항목 중 이미 캐시된 것의 localId를 이어 쓰는 데 씁니다 */
+    @Query(
+        "SELECT serverId, localId FROM simple_timer " +
+            "WHERE memberId = :memberId AND serverId IN (:serverIds) AND syncState = :synced",
+    )
+    suspend fun getSyncedSimpleTimersByServerIds(
+        memberId: String,
+        serverIds: List<Long>,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<ServerIdLocalId>
+
+    @Upsert
+    suspend fun upsertSimpleTimers(timers: List<SimpleTimerEntity>)
+
+    /** 서버 목록에서 사라진 동기화 완료 행을 지웁니다. 대기 행은 건드리지 않습니다 */
+    @Query(
+        "DELETE FROM simple_timer " +
+            "WHERE memberId = :memberId AND syncState = :synced AND serverId NOT IN (:serverIds)",
+    )
+    suspend fun deleteSyncedSimpleTimersNotIn(
+        memberId: String,
+        serverIds: List<Long>,
+        synced: SyncState = SyncState.SYNCED,
+    )
+
     /** 전송할 대기 행입니다. 워커가 씁니다 */
     @Query(
         "SELECT * FROM simple_timer " +
@@ -90,4 +125,39 @@ interface TimerDao {
         memberId: String,
         synced: SyncState = SyncState.SYNCED,
     ): List<CustomTimerEntity>
+
+    /** 대기 행이 걸린 서버ID입니다. 서버 목록 반영에서 건드리면 안 됩니다 */
+    @Query(
+        "SELECT serverId FROM custom_timer " +
+            "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
+    )
+    suspend fun getPendingCustomTimerServerIds(
+        memberId: String,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<Long>
+
+    /** 서버 목록에 있는 항목 중 이미 캐시된 것의 localId를 이어 쓰는 데 씁니다 */
+    @Query(
+        "SELECT serverId, localId FROM custom_timer " +
+            "WHERE memberId = :memberId AND serverId IN (:serverIds) AND syncState = :synced",
+    )
+    suspend fun getSyncedCustomTimersByServerIds(
+        memberId: String,
+        serverIds: List<Long>,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<ServerIdLocalId>
+
+    @Upsert
+    suspend fun upsertCustomTimers(timers: List<CustomTimerEntity>)
+
+    /** 서버 목록에서 사라진 동기화 완료 행을 지웁니다. 대기 행은 건드리지 않습니다 */
+    @Query(
+        "DELETE FROM custom_timer " +
+            "WHERE memberId = :memberId AND syncState = :synced AND serverId NOT IN (:serverIds)",
+    )
+    suspend fun deleteSyncedCustomTimersNotIn(
+        memberId: String,
+        serverIds: List<Long>,
+        synced: SyncState = SyncState.SYNCED,
+    )
 }

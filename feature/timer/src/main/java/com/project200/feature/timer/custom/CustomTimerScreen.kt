@@ -312,7 +312,7 @@ private fun StepList(
         state = listState,
         contentPadding = PaddingValues(vertical = 6.dp),
     ) {
-        items(steps, key = { it.id }) { step ->
+        items(steps, key = { it.order }) { step ->
             val index = steps.indexOf(step)
             StepCard(
                 step = step,
@@ -377,9 +377,9 @@ private fun CustomTimerScreenPreview() {
             title = "운동 루틴",
             steps =
                 listOf(
-                    Step(id = 1L, order = 0, time = 30, name = "준비"),
-                    Step(id = 2L, order = 1, time = 60, name = "스쿼트"),
-                    Step(id = 3L, order = 2, time = 90, name = "휴식"),
+                    Step(order = 0, time = 30, name = "준비"),
+                    Step(order = 1, time = 60, name = "스쿼트"),
+                    Step(order = 2, time = 90, name = "휴식"),
                 ),
             currentStepIndex = 1,
             remainingTime = 45_000L,

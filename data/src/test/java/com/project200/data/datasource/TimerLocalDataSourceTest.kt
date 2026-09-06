@@ -31,7 +31,7 @@ class TimerLocalDataSourceTest {
         database = createInMemoryDatabase()
         preferenceManager = mockk()
         every { preferenceManager.getMemberId() } returns MEMBER_ID
-        dataSource = TimerLocalDataSource(database.timerDao(), preferenceManager)
+        dataSource = TimerLocalDataSource(database, database.timerDao(), preferenceManager)
     }
 
     @After
@@ -51,6 +51,16 @@ class TimerLocalDataSourceTest {
     ) {
         val timer = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
         database.timerDao().upsertSimpleTimer(
+            timer.copy(serverId = serverId, syncState = SyncState.SYNCED, pendingEditId = null),
+        )
+    }
+
+    private suspend fun markCustomSynced(
+        localId: String,
+        serverId: Long,
+    ) {
+        val timer = database.timerDao().getCustomTimer(MEMBER_ID, localId)!!
+        database.timerDao().upsertCustomTimer(
             timer.copy(serverId = serverId, syncState = SyncState.SYNCED, pendingEditId = null),
         )
     }
@@ -202,6 +212,92 @@ class TimerLocalDataSourceTest {
 
             // When & Then
             assertThat(dataSource.getPendingSimpleTimers().map { it.localId }).containsExactly(pending)
+        }
+
+    // ── 서버 목록 반영 ────────────────────────────────
+
+    @Test
+    fun `심플 서버 반영 - 대기 행은 서버 값으로 덮이지 않는다`() =
+        runTest {
+            // Given: 서버에도 있는 행인데 로컬에서 아직 못 올린 수정이 걸려 있다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+            dataSource.updateSimpleTimer(localId, time = 999)
+
+            // When: 서버는 옛 값을 그대로 들고 있다
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 60)))
+
+            // Then
+            val kept = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(kept.syncState).isEqualTo(SyncState.UPDATE_PENDING)
+            assertThat(kept.time).isEqualTo(999)
+        }
+
+    @Test
+    fun `심플 서버 반영 - 동기화 완료 행은 localId를 이어 쓴다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+
+            // When: 서버 값이 바뀌어 내려온다
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 120)))
+
+            // Then
+            val updated = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(updated.time).isEqualTo(120)
+            assertThat(updated.syncState).isEqualTo(SyncState.SYNCED)
+            assertThat(dataSource.getSimpleTimers()).hasSize(1)
+        }
+
+    @Test
+    fun `심플 서버 반영 - 서버 목록에서 사라진 동기화 완료 행은 지운다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+
+            // When: 서버 목록이 비어 있다
+            dataSource.replaceSyncedSimpleTimers(emptyList())
+
+            // Then
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)).isNull()
+        }
+
+    @Test
+    fun `심플 서버 반영 - 새 서버 행은 새 localId로 추가된다`() =
+        runTest {
+            // When
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 9L, time = 45)))
+
+            // Then
+            val saved = dataSource.getSimpleTimers().single()
+            assertThat(saved.serverId).isEqualTo(9L)
+            assertThat(saved.time).isEqualTo(45)
+            assertThat(saved.syncState).isEqualTo(SyncState.SYNCED)
+        }
+
+    @Test
+    fun `커스텀 서버 반영 - 대기 행을 지키고 새 행은 스텝과 함께 들어온다`() =
+        runTest {
+            // Given: 삭제 대기 중인 행은 서버 목록에서 빠져도 지워지면 안 된다
+            val pendingLocalId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+            markCustomSynced(pendingLocalId, serverId = 3L)
+            dataSource.deleteCustomTimer(pendingLocalId)
+            val newSteps = listOf(CachedTimerStep(order = 1, name = "전력", time = 20))
+
+            // When
+            dataSource.replaceSyncedCustomTimers(
+                listOf(ServerCustomTimer(serverId = 10L, name = "새 타이머", steps = newSteps)),
+            )
+
+            // Then: 삭제 대기 행은 그대로, 새 행은 스텝까지 반영된다
+            val kept = database.timerDao().getCustomTimer(MEMBER_ID, pendingLocalId)!!
+            assertThat(kept.syncState).isEqualTo(SyncState.DELETE_PENDING)
+            val inserted = dataSource.getCustomTimers().single { it.serverId == 10L }
+            assertThat(inserted.name).isEqualTo("새 타이머")
+            assertThat(inserted.steps).isEqualTo(newSteps)
+            assertThat(inserted.syncState).isEqualTo(SyncState.SYNCED)
         }
 
     // ── 계정 경계 ────────────────────────────────

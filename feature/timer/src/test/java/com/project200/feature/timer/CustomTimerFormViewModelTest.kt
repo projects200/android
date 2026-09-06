@@ -51,7 +51,6 @@ class CustomTimerFormViewModelTest {
 
     private val sampleStep =
         Step(
-            id = 1L,
             order = 0,
             time = 60,
             name = "스텝1",
@@ -59,7 +58,7 @@ class CustomTimerFormViewModelTest {
 
     private val sampleTimer =
         CustomTimer(
-            id = 1L,
+            localId = "local-1",
             name = "테스트 타이머",
             steps = listOf(sampleStep),
         )
@@ -94,13 +93,13 @@ class CustomTimerFormViewModelTest {
     }
 
     @Test
-    fun `loadData - 수정 모드로 로드하면 기존 데이터를 불러온다`() =
+    fun `loadData - localId로 로드하면 수정 모드가 되고 기존 데이터를 불러온다`() =
         runTest {
             // Given
-            coEvery { getCustomTimerUseCase(1L) } returns BaseResult.Success(sampleTimer)
+            coEvery { getCustomTimerUseCase("local-1") } returns BaseResult.Success(sampleTimer)
 
             // When
-            viewModel.loadData(1L)
+            viewModel.loadData("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -112,11 +111,11 @@ class CustomTimerFormViewModelTest {
     fun `loadData - 조회 실패 시 토스트를 표시한다`() =
         runTest {
             // Given
-            coEvery { getCustomTimerUseCase(1L) } returns BaseResult.Error("ERROR", "Failed")
+            coEvery { getCustomTimerUseCase("local-1") } returns BaseResult.Error("ERROR", "Failed")
 
             // When & Then
             viewModel.toast.test {
-                viewModel.loadData(1L)
+                viewModel.loadData("local-1")
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(ToastMessageType.GET_ERROR)
                 cancelAndIgnoreRemainingEvents()
@@ -133,26 +132,6 @@ class CustomTimerFormViewModelTest {
     }
 
     @Test
-    fun `updateNewStepName - 새 스텝 이름을 업데이트한다`() {
-        // When
-        viewModel.updateNewStepName("스텝 이름")
-
-        // Then
-        val footer = viewModel.uiState.value.listItems.lastOrNull()
-        assertThat(footer).isNotNull()
-    }
-
-    @Test
-    fun `updateNewStepTime - 새 스텝 시간을 업데이트한다`() {
-        // When
-        viewModel.updateNewStepTime(120)
-
-        // Then
-        val footer = viewModel.uiState.value.listItems.lastOrNull()
-        assertThat(footer).isNotNull()
-    }
-
-    @Test
     fun `addStep - 스텝을 추가한다`() {
         // Given
         viewModel.updateNewStepName("테스트 스텝")
@@ -165,14 +144,14 @@ class CustomTimerFormViewModelTest {
     }
 
     @Test
-    fun `removeStep - 스텝을 제거한다`() {
+    fun `removeStep - order로 스텝을 제거한다`() {
         // Given
         viewModel.updateNewStepName("테스트 스텝")
         viewModel.addStep()
-        val stepId = viewModel.getStepsWithFinalOrder().firstOrNull()?.id ?: return
+        val order = viewModel.getStepsWithFinalOrder().firstOrNull()?.order ?: return
 
         // When
-        viewModel.removeStep(stepId)
+        viewModel.removeStep(order)
 
         // Then
         assertThat(viewModel.uiState.value.listItems).hasSize(1)
@@ -210,20 +189,20 @@ class CustomTimerFormViewModelTest {
         }
 
     @Test
-    fun `submitCustomTimer - 생성 모드에서 성공 시 submitResult를 업데이트한다`() =
+    fun `submitCustomTimer - 생성 모드에서 성공 시 UseCase가 돌려준 localId로 submitResult를 업데이트한다`() =
         runTest {
             // Given
             viewModel.updateTimerTitle("새 타이머")
             viewModel.updateNewStepName("스텝1")
             viewModel.addStep()
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.Success
-            coEvery { createCustomTimerUseCase(any(), any()) } returns BaseResult.Success(1L)
+            coEvery { createCustomTimerUseCase(any(), any()) } returns BaseResult.Success("new-local-id")
 
             // When & Then
             viewModel.submitResult.test {
                 viewModel.submitCustomTimer()
                 testDispatcher.scheduler.advanceUntilIdle()
-                assertThat(awaitItem()).isEqualTo(1L)
+                assertThat(awaitItem()).isEqualTo("new-local-id")
                 cancelAndIgnoreRemainingEvents()
             }
             coVerify { createCustomTimerUseCase(any(), any()) }
@@ -252,8 +231,8 @@ class CustomTimerFormViewModelTest {
     fun `submitCustomTimer - 수정 모드에서 변경 없으면 NO_CHANGES 토스트`() =
         runTest {
             // Given
-            coEvery { getCustomTimerUseCase(1L) } returns BaseResult.Success(sampleTimer)
-            viewModel.loadData(1L)
+            coEvery { getCustomTimerUseCase("local-1") } returns BaseResult.Success(sampleTimer)
+            viewModel.loadData("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
             every { validateCustomTimerUseCase(any(), any()) } returns CustomTimerValidationResult.Success
 

@@ -4,10 +4,12 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.TimerRepository
 import javax.inject.Inject
 
-class DeleteCustomTimerUseCase @Inject constructor(
-    private val timerRepository: TimerRepository
-) {
-    suspend operator fun invoke(customTimerId: Long): BaseResult<Unit> {
-        return timerRepository.deleteCustomTimer(customTimerId)
+class DeleteCustomTimerUseCase
+    @Inject
+    constructor(
+        private val timerRepository: TimerRepository,
+    ) {
+        suspend operator fun invoke(localId: String): BaseResult<Unit> {
+            return timerRepository.deleteCustomTimer(localId)
+        }
     }
-}

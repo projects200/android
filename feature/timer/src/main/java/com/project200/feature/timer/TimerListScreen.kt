@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.project200.domain.model.CustomTimer
+import com.project200.feature.timer.utils.SyncPendingBadge
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBackground
@@ -67,10 +69,13 @@ fun TimerListScreen(
             SimpleTimerCard(onClick = onSimpleTimerClick)
             Spacer(Modifier.height(15.dp))
             customTimers.forEach { timer ->
-                CustomTimerCard(
-                    name = timer.name,
-                    onClick = { onCustomTimerClick(timer) },
-                )
+                key(timer.localId) {
+                    CustomTimerCard(
+                        name = timer.name,
+                        isSyncPending = timer.isSyncPending,
+                        onClick = { onCustomTimerClick(timer) },
+                    )
+                }
             }
             AddCustomTimerCard(
                 isEmpty = customTimers.isEmpty(),
@@ -123,6 +128,7 @@ private fun SimpleTimerCard(
 @Composable
 private fun CustomTimerCard(
     name: String,
+    isSyncPending: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -147,6 +153,14 @@ private fun CustomTimerCard(
             style = MaterialTheme.typography.header,
             color = ColorBlack,
         )
+        if (isSyncPending) {
+            SyncPendingBadge(
+                modifier =
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .padding(start = 16.dp),
+            )
+        }
         Image(
             painter = painterResource(R.drawable.ic_timer_arrow_right),
             contentDescription = null,
@@ -214,8 +228,8 @@ private fun TimerListScreenPreview() {
         TimerListScreen(
             customTimers =
                 listOf(
-                    CustomTimer(id = 1L, name = "인터벌 트레이닝", steps = emptyList()),
-                    CustomTimer(id = 2L, name = "스트레칭", steps = emptyList()),
+                    CustomTimer(localId = "1", name = "인터벌 트레이닝", steps = emptyList()),
+                    CustomTimer(localId = "2", name = "스트레칭", steps = emptyList(), isSyncPending = true),
                 ),
             onBackClick = {},
             onSimpleTimerClick = {},

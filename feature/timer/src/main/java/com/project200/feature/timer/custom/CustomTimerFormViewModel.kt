@@ -42,26 +42,23 @@ class CustomTimerFormViewModel
         private val _toast = MutableSharedFlow<ToastMessageType>()
         val toast: SharedFlow<ToastMessageType> = _toast.asSharedFlow()
 
-        private val _submitResult = MutableSharedFlow<Long>()
-        val submitResult: SharedFlow<Long> = _submitResult.asSharedFlow()
+        private val _submitResult = MutableSharedFlow<String>()
+        val submitResult: SharedFlow<String> = _submitResult.asSharedFlow()
 
         // 원본 데이터 저장 (수정 모드에서 변경 사항 취소 시 사용)
         private var originalTitle: String = ""
         private var originalSteps: List<Step> = emptyList()
 
-        // 타이머 id 저장
-        private var customTimerId: Long = DEFAULT_DUMMY_ID
+        // 수정 대상 타이머의 localId. 생성 모드는 이 값이 없는 경우이다
+        private var customTimerLocalId: String? = null
         val isEditMode: Boolean
-            get() = customTimerId != DEFAULT_DUMMY_ID
+            get() = customTimerLocalId != null
 
-        // 로컬에서만 사용하는 임시 ID. 음수 값으로 서버 ID와 충돌 방지
-        private var localIdCounter = DEFAULT_DUMMY_ID
-
-        fun loadData(timerId: Long) {
-            if (timerId != DEFAULT_DUMMY_ID) {
-                customTimerId = timerId
+        fun loadData(localId: String?) {
+            customTimerLocalId = localId
+            if (localId != null) {
                 viewModelScope.launch {
-                    when (val result = getCustomTimerUseCase(timerId)) {
+                    when (val result = getCustomTimerUseCase(localId)) {
                         is BaseResult.Success -> {
                             originalTitle = result.data.name
                             originalSteps = result.data.steps
@@ -121,10 +118,14 @@ class CustomTimerFormViewModel
             }
             val footer = current.listItems.last() as? TimerFormListItem.FooterItem ?: return
 
+            // order는 서버 스텝 id가 사라진 자리를 대신하는 화면 내 식별자다. 현재 목록의 최댓값 + 1로
+            // 매겨 삭제 후 재추가에도 값이 겹치지 않게 한다
+            val existingOrders = current.listItems.mapNotNull { (it as? TimerFormListItem.StepItem)?.step?.order }
+            val newOrder = (existingOrders.maxOrNull() ?: -1) + 1
+
             val newStep =
                 Step(
-                    id = localIdCounter--,
-                    order = 0,
+                    order = newOrder,
                     time = footer.time,
                     name = if (footer.name.isBlank()) "Step" else footer.name,
                 )
@@ -136,26 +137,26 @@ class CustomTimerFormViewModel
             _uiState.value = current.copy(listItems = newList)
         }
 
-        fun removeStep(id: Long) {
+        fun removeStep(order: Int) {
             _uiState.update { current ->
                 current.copy(
                     listItems =
                         current.listItems.filterNot { item ->
-                            item is TimerFormListItem.StepItem && item.step.id == id
+                            item is TimerFormListItem.StepItem && item.step.order == order
                         },
                 )
             }
         }
 
         fun updateStepName(
-            id: Long,
+            order: Int,
             name: String,
         ) {
             _uiState.update { current ->
                 current.copy(
                     listItems =
                         current.listItems.map { item ->
-                            if (item is TimerFormListItem.StepItem && item.step.id == id) {
+                            if (item is TimerFormListItem.StepItem && item.step.order == order) {
                                 item.copy(step = item.step.copy(name = name))
                             } else {
                                 item
@@ -166,14 +167,14 @@ class CustomTimerFormViewModel
         }
 
         fun updateStepTime(
-            id: Long,
+            order: Int,
             time: Int,
         ) {
             _uiState.update { current ->
                 current.copy(
                     listItems =
                         current.listItems.map { item ->
-                            if (item is TimerFormListItem.StepItem && item.step.id == id) {
+                            if (item is TimerFormListItem.StepItem && item.step.order == order) {
                                 item.copy(step = item.step.copy(time = time))
                             } else {
                                 item
@@ -243,20 +244,19 @@ class CustomTimerFormViewModel
             }
         }
 
+        // 로컬이 원본이라 이름만 바뀐 경우와 스텝이 바뀐 경우를 나누지 않고 하나로 저장한다
         private fun editCustomTimer(
             title: String,
             steps: List<Step>,
         ) {
-            val timerId = if (customTimerId != DEFAULT_DUMMY_ID) customTimerId else return
-            val hasTitleChanged = originalTitle != title
-            val hasStepsChanged = originalSteps != steps
-            if (!hasTitleChanged && !hasStepsChanged) {
+            val localId = customTimerLocalId ?: return
+            if (originalTitle == title && originalSteps == steps) {
                 viewModelScope.launch { _toast.emit(ToastMessageType.NO_CHANGES) }
                 return
             }
             viewModelScope.launch {
-                when (editCustomTimerUseCase(hasTitleChanged, hasStepsChanged, timerId, title, steps)) {
-                    is BaseResult.Success -> _submitResult.emit(customTimerId)
+                when (val result = editCustomTimerUseCase(localId, title, steps)) {
+                    is BaseResult.Success -> _submitResult.emit(localId)
                     is BaseResult.Error -> _toast.emit(ToastMessageType.EDIT_ERROR)
                 }
             }
@@ -264,7 +264,6 @@ class CustomTimerFormViewModel
 
         companion object {
             const val DEFAULT_TIME = 60 // 기본 시간 60초
-            const val DEFAULT_DUMMY_ID = -1L // 임시 ID
             const val MAX_STEP_SIZE = 51 // 최대 스텝 개수 (50 + Footer)
         }
     }

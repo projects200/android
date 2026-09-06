@@ -34,7 +34,7 @@ class CustomTimerViewModel
         private val getCustomTimerUseCase: GetCustomTimerUseCase,
         private val deleteCustomTimerUseCase: DeleteCustomTimerUseCase,
     ) : ViewModel() {
-        private var timerId: Long = -1
+        private lateinit var timerLocalId: String
 
         // Service와 통신하기 위한 설정
         private val service = MutableStateFlow<CustomTimerService?>(null)
@@ -94,25 +94,26 @@ class CustomTimerViewModel
             }
         }
 
-        fun setTimerId(id: Long) {
-            timerId = id
+        fun setTimerLocalId(localId: String) {
+            timerLocalId = localId
         }
 
         fun loadTimerData() =
             viewModelScope.launch {
-                when (val result = getCustomTimerUseCase(timerId)) {
+                when (val result = getCustomTimerUseCase(timerLocalId)) {
                     is BaseResult.Success -> {
                         _title.value = result.data.name
-                        _steps.value = result.data.steps
+                        _steps.value = result.data.steps.sortedBy { it.order }
 
                         // 서비스가 연결되었는지 확인
                         if (service.value == null) {
                             Timber.tag("타이머").d("loadTimerData: 데이터 로딩은 성공했지만, 아직 Service에 연결되지 않았습니다.")
                         }
 
-                        service.value?.loadTimerData(result.data.steps)
+                        service.value?.loadTimerData(result.data.steps.sortedBy { it.order })
                     }
                     is BaseResult.Error -> {
+                        // 로컬 단건 조회라 실패는 곧 해당 localId 행이 없다는 뜻이다
                         _errorEvent.emit(Unit)
                     }
                 }
@@ -120,7 +121,7 @@ class CustomTimerViewModel
 
         fun deleteTimer() =
             viewModelScope.launch {
-                _deleteResult.emit(deleteCustomTimerUseCase(timerId))
+                _deleteResult.emit(deleteCustomTimerUseCase(timerLocalId))
             }
 
         fun startTimer() {

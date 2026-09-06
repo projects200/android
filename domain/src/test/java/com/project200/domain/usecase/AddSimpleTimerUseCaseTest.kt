@@ -33,8 +33,7 @@ class AddSimpleTimerUseCaseTest {
     fun `invoke 호출 시 심플 타이머 추가 성공`() = runTest {
         // Given
         val time = 60
-        val newTimerId = 1L
-        val successResult = BaseResult.Success(newTimerId)
+        val successResult = BaseResult.Success("new-local-id")
         coEvery { mockRepository.addSimpleTimer(time) } returns successResult
 
         // When
@@ -43,7 +42,7 @@ class AddSimpleTimerUseCaseTest {
         // Then
         coVerify(exactly = 1) { mockRepository.addSimpleTimer(time) }
         assertThat(result).isEqualTo(successResult)
-        assertThat((result as BaseResult.Success).data).isEqualTo(newTimerId)
+        assertThat((result as BaseResult.Success).data).isEqualTo("new-local-id")
     }
 
     @Test
@@ -65,7 +64,7 @@ class AddSimpleTimerUseCaseTest {
     fun `0초 타이머 추가`() = runTest {
         // Given
         val time = 0
-        val successResult = BaseResult.Success(1L)
+        val successResult = BaseResult.Success("new-local-id")
         coEvery { mockRepository.addSimpleTimer(time) } returns successResult
 
         // When

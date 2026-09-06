@@ -32,30 +32,30 @@ class DeleteSimpleTimerUseCaseTest {
     @Test
     fun `invoke 호출 시 심플 타이머 삭제 성공`() = runTest {
         // Given
-        val timerId = 1L
+        val localId = "local-1"
         val successResult = BaseResult.Success(Unit)
-        coEvery { mockRepository.deleteSimpleTimer(timerId) } returns successResult
+        coEvery { mockRepository.deleteSimpleTimer(localId) } returns successResult
 
         // When
-        val result = useCase(timerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.deleteSimpleTimer(timerId) }
+        coVerify(exactly = 1) { mockRepository.deleteSimpleTimer(localId) }
         assertThat(result).isEqualTo(successResult)
     }
 
     @Test
     fun `invoke 호출 시 심플 타이머 삭제 실패`() = runTest {
         // Given
-        val timerId = 1L
+        val localId = "local-1"
         val errorResult = BaseResult.Error("ERR", "Delete failed")
-        coEvery { mockRepository.deleteSimpleTimer(timerId) } returns errorResult
+        coEvery { mockRepository.deleteSimpleTimer(localId) } returns errorResult
 
         // When
-        val result = useCase(timerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.deleteSimpleTimer(timerId) }
+        coVerify(exactly = 1) { mockRepository.deleteSimpleTimer(localId) }
         assertThat(result).isEqualTo(errorResult)
     }
 }

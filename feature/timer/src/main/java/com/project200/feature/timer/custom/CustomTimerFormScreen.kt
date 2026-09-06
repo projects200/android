@@ -66,9 +66,9 @@ fun CustomTimerFormScreen(
     listItems: List<TimerFormListItem>,
     isEditMode: Boolean,
     onTitleChange: (String) -> Unit,
-    onStepNameChange: (Long, String) -> Unit,
-    onStepTimeClick: (Long, Int) -> Unit,
-    onStepDelete: (Long) -> Unit,
+    onStepNameChange: (Int, String) -> Unit,
+    onStepTimeClick: (Int, Int) -> Unit,
+    onStepDelete: (Int) -> Unit,
     onMove: (from: Int, to: Int) -> Unit,
     onNewStepNameChange: (String) -> Unit,
     onNewStepTimeClick: (Int) -> Unit,
@@ -154,20 +154,25 @@ fun CustomTimerFormScreen(
             ) {
                 items(
                     items = listItems,
-                    key = { it.id.takeIf { id -> id != 0L } ?: "footer" },
+                    key = { item ->
+                        when (item) {
+                            is TimerFormListItem.StepItem -> item.step.order
+                            is TimerFormListItem.FooterItem -> FOOTER_KEY
+                        }
+                    },
                 ) { item ->
                     when (item) {
                         is TimerFormListItem.StepItem -> {
-                            ReorderableItem(reorderableState, key = item.id) {
+                            ReorderableItem(reorderableState, key = item.step.order) {
                                 StepRow(
                                     step = item.step,
                                     reorderModifier =
                                         Modifier.draggableHandle(
                                             interactionSource = remember { MutableInteractionSource() },
                                         ),
-                                    onNameChange = { onStepNameChange(item.step.id, it) },
-                                    onTimeClick = { onStepTimeClick(item.step.id, item.step.time) },
-                                    onDelete = { onStepDelete(item.step.id) },
+                                    onNameChange = { onStepNameChange(item.step.order, it) },
+                                    onTimeClick = { onStepTimeClick(item.step.order, item.step.time) },
+                                    onDelete = { onStepDelete(item.step.order) },
                                 )
                             }
                         }
@@ -373,6 +378,9 @@ private fun formatStepTime(seconds: Int): String {
     return "%02d:%02d".format(m, s)
 }
 
+// order는 항상 0 이상이라 -1은 Footer 전용 키로 겹치지 않는다
+private const val FOOTER_KEY = -1
+
 @Preview(showBackground = true, heightDp = 800)
 @Composable
 private fun CustomTimerFormScreenPreview() {
@@ -381,9 +389,9 @@ private fun CustomTimerFormScreenPreview() {
             title = "운동 루틴",
             listItems =
                 listOf(
-                    TimerFormListItem.StepItem(Step(id = 1L, order = 0, time = 30, name = "준비")),
-                    TimerFormListItem.StepItem(Step(id = 2L, order = 1, time = 60, name = "스쿼트")),
-                    TimerFormListItem.StepItem(Step(id = 3L, order = 2, time = 90, name = "휴식")),
+                    TimerFormListItem.StepItem(Step(order = 0, time = 30, name = "준비")),
+                    TimerFormListItem.StepItem(Step(order = 1, time = 60, name = "스쿼트")),
+                    TimerFormListItem.StepItem(Step(order = 2, time = 90, name = "휴식")),
                     TimerFormListItem.FooterItem(name = "", time = 60),
                 ),
             isEditMode = false,

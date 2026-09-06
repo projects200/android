@@ -26,9 +26,9 @@ class GetSimpleTimersUseCaseTest {
     private lateinit var useCase: GetSimpleTimersUseCase
 
     private val sampleTimers = listOf(
-        SimpleTimer(id = 1L, time = 30),
-        SimpleTimer(id = 2L, time = 60),
-        SimpleTimer(id = 3L, time = 90)
+        SimpleTimer(localId = "local-1", serverId = 1L, time = 30),
+        SimpleTimer(localId = "local-2", serverId = 2L, time = 60),
+        SimpleTimer(localId = "local-3", serverId = null, time = 90, isSyncPending = true)
     )
 
     @Before

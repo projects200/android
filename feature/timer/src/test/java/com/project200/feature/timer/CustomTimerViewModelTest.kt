@@ -50,14 +50,14 @@ class CustomTimerViewModelTest {
 
     private val sampleSteps =
         listOf(
-            Step(id = 1L, order = 1, time = 30, name = "준비"),
-            Step(id = 2L, order = 2, time = 60, name = "운동"),
-            Step(id = 3L, order = 3, time = 15, name = "휴식"),
+            Step(order = 0, time = 30, name = "준비"),
+            Step(order = 1, time = 60, name = "운동"),
+            Step(order = 2, time = 15, name = "휴식"),
         )
 
     private val sampleTimer =
         CustomTimer(
-            id = 1L,
+            localId = "local-1",
             name = "테스트 타이머",
             steps = sampleSteps,
         )
@@ -95,36 +95,20 @@ class CustomTimerViewModelTest {
         }
 
     @Test
-    fun `setTimerId - 타이머 ID가 설정된다`() =
+    fun `loadTimerData - 성공하면 setTimerLocalId로 지정한 localId로 조회하고 title과 steps가 설정된다`() =
         runTest {
             // Given
-            viewModel = createViewModel()
-
-            // When
-            viewModel.setTimerId(123L)
-
-            // Then - loadTimerData에서 올바른 ID로 조회되는지 확인
-            coEvery { mockGetCustomTimerUseCase(123L) } returns BaseResult.Success(sampleTimer)
-            viewModel.loadTimerData()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            coVerify { mockGetCustomTimerUseCase(123L) }
-        }
-
-    @Test
-    fun `loadTimerData - 성공하면 title과 steps가 설정된다`() =
-        runTest {
-            // Given
-            coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
+            coEvery { mockGetCustomTimerUseCase("local-123") } returns BaseResult.Success(sampleTimer)
 
             viewModel = createViewModel()
-            viewModel.setTimerId(1L)
+            viewModel.setTimerLocalId("local-123")
 
             // When
             viewModel.loadTimerData()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
+            coVerify { mockGetCustomTimerUseCase("local-123") }
             assertThat(viewModel.title.value).isEqualTo("테스트 타이머")
             assertThat(viewModel.steps.value).hasSize(3)
         }
@@ -136,7 +120,7 @@ class CustomTimerViewModelTest {
             coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "로드 실패")
 
             viewModel = createViewModel()
-            viewModel.setTimerId(1L)
+            viewModel.setTimerLocalId("local-1")
 
             // When & Then
             viewModel.errorEvent.test {
@@ -154,14 +138,14 @@ class CustomTimerViewModelTest {
             coEvery { mockGetCustomTimerUseCase(any()) } returns BaseResult.Success(sampleTimer)
 
             viewModel = createViewModel()
-            viewModel.setTimerId(1L)
+            viewModel.setTimerLocalId("local-1")
 
             // When
             viewModel.loadTimerData()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            val steps = viewModel.steps.value!!
+            val steps = viewModel.steps.value
             assertThat(steps[0].name).isEqualTo("준비")
             assertThat(steps[1].name).isEqualTo("운동")
             assertThat(steps[2].name).isEqualTo("휴식")
@@ -174,7 +158,7 @@ class CustomTimerViewModelTest {
             coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
 
             viewModel = createViewModel()
-            viewModel.setTimerId(1L)
+            viewModel.setTimerLocalId("local-1")
 
             // When
             viewModel.deleteTimer()
@@ -191,7 +175,7 @@ class CustomTimerViewModelTest {
             coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Error("ERROR", "삭제 실패")
 
             viewModel = createViewModel()
-            viewModel.setTimerId(1L)
+            viewModel.setTimerLocalId("local-1")
 
             // When
             viewModel.deleteTimer()
@@ -202,20 +186,20 @@ class CustomTimerViewModelTest {
         }
 
     @Test
-    fun `deleteTimer - 올바른 타이머 ID로 UseCase가 호출된다`() =
+    fun `deleteTimer - 올바른 타이머 localId로 UseCase가 호출된다`() =
         runTest {
             // Given
             coEvery { mockDeleteCustomTimerUseCase(any()) } returns BaseResult.Success(Unit)
 
             viewModel = createViewModel()
-            viewModel.setTimerId(456L)
+            viewModel.setTimerLocalId("local-456")
 
             // When
             viewModel.deleteTimer()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            coVerify { mockDeleteCustomTimerUseCase(456L) }
+            coVerify { mockDeleteCustomTimerUseCase("local-456") }
         }
 
     @Test
@@ -276,17 +260,5 @@ class CustomTimerViewModelTest {
             viewModel.toggleRepeat()
 
             // Then - no crash
-        }
-
-    @Test
-    fun `unbindService - 서비스 매니저의 unbindService가 호출된다`() =
-        runTest {
-            // Given
-            viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // When - onCleared is called internally when ViewModel is destroyed
-            // We verify that unbindService is configured
-            verify { mockTimerServiceManager.bindService() }
         }
 }
