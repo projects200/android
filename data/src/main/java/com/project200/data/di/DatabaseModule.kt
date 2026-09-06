@@ -31,6 +31,15 @@ abstract class DatabaseModule {
             return UndabangTypeConverters(moshi)
         }
 
+        /**
+         * 출시 전이라 마이그레이션 대신 재생성을 씁니다.
+         *
+         * 스키마를 바꿀 때는 version을 올립니다. version을 그대로 두고 스키마만 바꾸면
+         * identityHash가 어긋나 재생성 없이 크래시합니다
+         *
+         * 주의: 재생성은 전송 대기 행까지 지웁니다. 출시 뒤에는 이 설정을 걷고
+         * 마이그레이션을 씁니다
+         */
         @Provides
         @Singleton
         fun provideUndabangDatabase(
@@ -43,6 +52,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
+                .fallbackToDestructiveMigration()
                 .build()
         }
 
