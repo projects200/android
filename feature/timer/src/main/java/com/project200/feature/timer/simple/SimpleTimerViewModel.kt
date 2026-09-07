@@ -81,13 +81,10 @@ class SimpleTimerViewModel
         /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 읽습니다 */
         fun loadTimerItems() {
             viewModelScope.launch {
-                when (val result = getSimpleTimersUseCase()) {
-                    is BaseResult.Success -> {
-                        _timerItems.value = sortTimers(result.data, isAscending)
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
-                    }
+                val result = getSimpleTimersUseCase()
+                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                if (result is BaseResult.Success) {
+                    _timerItems.value = sortTimers(result.data, isAscending)
                 }
             }
         }
@@ -95,13 +92,10 @@ class SimpleTimerViewModel
         /** 내 쓰기 직후 재조회용입니다. 서버를 보지 않습니다 */
         private fun reloadLocalTimerItems() {
             viewModelScope.launch {
-                when (val result = getLocalSimpleTimersUseCase()) {
-                    is BaseResult.Success -> {
-                        _timerItems.value = sortTimers(result.data, isAscending)
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
-                    }
+                val result = getLocalSimpleTimersUseCase()
+                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                if (result is BaseResult.Success) {
+                    _timerItems.value = sortTimers(result.data, isAscending)
                 }
             }
         }
@@ -172,6 +166,7 @@ class SimpleTimerViewModel
         }
 
         companion object {
+            // 서버 정책상 상한입니다. 서버가 이 제약을 없애면 여기도 함께 걷습니다
             const val MAX_TIMER_COUNT = 6
             const val DEFAULT_ADD_TIME_SEC = 60
         }

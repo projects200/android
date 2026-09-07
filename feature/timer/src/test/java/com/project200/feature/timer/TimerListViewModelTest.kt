@@ -1,7 +1,6 @@
 package com.project200.feature.timer
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
-import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.CustomTimer
@@ -87,7 +86,7 @@ class TimerListViewModelTest {
         }
 
     @Test
-    fun `init - 에러 발생 시 errorToast 이벤트를 발생시킨다`() =
+    fun `loadCustomTimers - 실패하면 목록이 비어있는 채로 유지된다`() =
         runTest {
             // Given
             val error = BaseResult.Error("ERROR", "Failed to load")
@@ -95,12 +94,10 @@ class TimerListViewModelTest {
 
             // When
             viewModel = TimerListViewModel(getCustomTimerListUseCase, getLocalCustomTimerListUseCase)
+            testDispatcher.scheduler.advanceUntilIdle()
 
-            viewModel.errorToast.test {
-                testDispatcher.scheduler.advanceUntilIdle()
-                val result = awaitItem()
-                assertThat(result.errorCode).isEqualTo("ERROR")
-            }
+            // Then
+            assertThat(viewModel.customTimerList.value).isEmpty()
         }
 
     @Test

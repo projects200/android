@@ -4,5 +4,4 @@ enum class SimpleTimerToastMessage {
     EDIT_ERROR,
     DELETE_ERROR,
     ADD_ERROR,
-    GET_ERROR,
 }

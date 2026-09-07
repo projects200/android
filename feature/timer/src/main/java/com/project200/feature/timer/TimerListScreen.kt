@@ -29,7 +29,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.project200.domain.model.CustomTimer
-import com.project200.feature.timer.utils.SyncPendingBadge
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBackground
@@ -72,7 +71,6 @@ fun TimerListScreen(
                 key(timer.localId) {
                     CustomTimerCard(
                         name = timer.name,
-                        isSyncPending = timer.isSyncPending,
                         onClick = { onCustomTimerClick(timer) },
                     )
                 }
@@ -128,7 +126,6 @@ private fun SimpleTimerCard(
 @Composable
 private fun CustomTimerCard(
     name: String,
-    isSyncPending: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -153,14 +150,6 @@ private fun CustomTimerCard(
             style = MaterialTheme.typography.header,
             color = ColorBlack,
         )
-        if (isSyncPending) {
-            SyncPendingBadge(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterStart)
-                        .padding(start = 16.dp),
-            )
-        }
         Image(
             painter = painterResource(R.drawable.ic_timer_arrow_right),
             contentDescription = null,
@@ -229,7 +218,7 @@ private fun TimerListScreenPreview() {
             customTimers =
                 listOf(
                     CustomTimer(localId = "1", name = "인터벌 트레이닝", steps = emptyList()),
-                    CustomTimer(localId = "2", name = "스트레칭", steps = emptyList(), isSyncPending = true),
+                    CustomTimer(localId = "2", name = "스트레칭", steps = emptyList()),
                 ),
             onBackClick = {},
             onSimpleTimerClick = {},

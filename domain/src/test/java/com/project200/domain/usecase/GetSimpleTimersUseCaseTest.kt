@@ -28,7 +28,7 @@ class GetSimpleTimersUseCaseTest {
     private val sampleTimers = listOf(
         SimpleTimer(localId = "local-1", serverId = 1L, time = 30),
         SimpleTimer(localId = "local-2", serverId = 2L, time = 60),
-        SimpleTimer(localId = "local-3", serverId = null, time = 90, isSyncPending = true)
+        SimpleTimer(localId = "local-3", serverId = null, time = 90)
     )
 
     @Before

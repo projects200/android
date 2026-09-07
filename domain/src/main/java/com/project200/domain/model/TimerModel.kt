@@ -5,22 +5,18 @@ package com.project200.domain.model
  *
  * 기기가 원본이라 행을 식별하는 값은 localId입니다. serverId는 아직 서버에 올리지 못한
  * 타이머에서 비어 있습니다
- *
- * @property isSyncPending 서버에 아직 반영되지 않은 변경이 있는지. 화면이 동기화 대기를 표시합니다
  */
 data class CustomTimer(
     val localId: String,
     val serverId: Long? = null,
     val name: String,
     val steps: List<Step> = emptyList(),
-    val isSyncPending: Boolean = false,
 )
 
 data class SimpleTimer(
     val localId: String,
     val serverId: Long? = null,
     val time: Int,
-    val isSyncPending: Boolean = false,
 )
 
 /**

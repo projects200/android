@@ -9,7 +9,6 @@ import com.project200.data.dto.SimpleTimerDTO
 import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SimpleTimerEntity
-import com.project200.data.local.entity.SyncState
 import com.project200.domain.model.CustomTimer
 import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.Step
@@ -19,7 +18,6 @@ fun SimpleTimerEntity.toModel(): SimpleTimer {
         localId = localId,
         serverId = serverId,
         time = time,
-        isSyncPending = syncState != SyncState.SYNCED,
     )
 }
 
@@ -29,7 +27,6 @@ fun CustomTimerEntity.toModel(): CustomTimer {
         serverId = serverId,
         name = name,
         steps = steps.sortedBy { it.order }.toSteps(),
-        isSyncPending = syncState != SyncState.SYNCED,
     )
 }
 

@@ -135,16 +135,22 @@ class SimpleTimerViewModelTest {
         }
 
     @Test
-    fun `loadTimerItems - 실패하면 GET_ERROR 토스트가 발생한다`() =
+    fun `loadTimerItems - 실패하면 기존 목록이 유지되고 토스트가 발생하지 않는다`() =
         runTest {
             // Given
-            coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
             viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val existingItems = viewModel.timerItems.value
+            coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
 
-            // When & Then
+            // When
+            viewModel.loadTimerItems()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.timerItems.value).isEqualTo(existingItems)
             viewModel.toastMessage.test {
-                testDispatcher.scheduler.advanceUntilIdle()
-                assertThat(awaitItem()).isEqualTo(SimpleTimerToastMessage.GET_ERROR)
+                expectNoEvents()
             }
         }
 
@@ -192,24 +198,6 @@ class SimpleTimerViewModelTest {
             // Given
             val maxTimers = (1..6).map { SimpleTimer(localId = it.toString(), time = 60) }
             coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(maxTimers)
-            viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // When
-            viewModel.addTimerItem(300)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            coVerify(exactly = 0) { mockAddSimpleTimerUseCase(any()) }
-        }
-
-    @Test
-    fun `addTimerItem - 최대 개수 판정은 동기화 대기 행도 포함한다`() =
-        runTest {
-            // Given - 동기화 대기 행이 섞여 있어도 목록 크기만으로 판정한다
-            val pendingIncluded =
-                (1..6).map { SimpleTimer(localId = it.toString(), time = 60, isSyncPending = it % 2 == 0) }
-            coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(pendingIncluded)
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 

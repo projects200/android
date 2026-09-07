@@ -69,10 +69,8 @@ class SimpleTimerFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 viewModel.toastMessage.collect { type ->
-                    // 로컬 조회라 실패해도 행이 사라지지 않으므로 화면을 나가지 않는다
                     val messageResId =
                         when (type) {
-                            SimpleTimerToastMessage.GET_ERROR -> R.string.load_simple_timer_error
                             SimpleTimerToastMessage.EDIT_ERROR -> R.string.edit_simple_timer_error
                             SimpleTimerToastMessage.ADD_ERROR -> R.string.add_simple_timer_error
                             SimpleTimerToastMessage.DELETE_ERROR -> R.string.delete_simple_timer_error

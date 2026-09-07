@@ -185,6 +185,9 @@ class TimerLocalDataSource
          *
          * 대기 행이 걸린 서버ID는 건드리지 않고, 동기화 완료 행은 자리를 갱신하며 localId를
          * 이어 씁니다. 서버 목록에 없는 로컬 동기화 완료 행은 지웁니다
+         *
+         * 서버 행을 잘라내지 않습니다. 판정 단위는 목록 전체가 아니라 타이머 하나이고,
+         * 개수는 서버가 정합니다
          */
         suspend fun replaceSyncedSimpleTimers(server: List<ServerSimpleTimer>) {
             val memberId = currentMemberId() ?: return
