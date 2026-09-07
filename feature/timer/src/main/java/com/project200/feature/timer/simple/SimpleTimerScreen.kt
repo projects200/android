@@ -15,7 +15,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -253,12 +255,14 @@ private fun TimerGrid(
     onAddClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 2열 그리드. 최대 6개 + 마지막에 추가 버튼 (총 6개 미만일 때만)
+    // 2열 그리드. 상한 미만일 때만 마지막에 추가 버튼
     val items = timers.map<SimpleTimer, GridItem> { GridItem.Timer(it) }
-    val withAdd = if (timers.size < MAX_TIMER_COUNT) items + GridItem.Add else items
+    val withAdd = if (timers.size < SimpleTimerViewModel.MAX_TIMER_COUNT) items + GridItem.Add else items
 
+    // 전송 대기 행과 서버 목록이 함께 있으면 상한을 넘는 창이 있어 스크롤을 둡니다.
+    // 스크롤이 없으면 초과분이 화면 밖으로 나가 정렬 버튼과 겹칩니다
     Column(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         withAdd.chunked(GRID_COL_COUNT).forEach { rowItems ->
@@ -390,7 +394,6 @@ private fun AddCell(
     }
 }
 
-private const val MAX_TIMER_COUNT = 6
 private const val GRID_COL_COUNT = 2
 
 @Preview(showBackground = true, heightDp = 800)
@@ -403,9 +406,9 @@ private fun SimpleTimerScreenPreview() {
             isRunning = true,
             timers =
                 listOf(
-                    SimpleTimer(id = 1L, time = 60),
-                    SimpleTimer(id = 2L, time = 120),
-                    SimpleTimer(id = 3L, time = 300),
+                    SimpleTimer(localId = "1", time = 60),
+                    SimpleTimer(localId = "2", time = 120),
+                    SimpleTimer(localId = "3", time = 300),
                 ),
             onPlayPauseClick = {},
             onTimerItemClick = {},

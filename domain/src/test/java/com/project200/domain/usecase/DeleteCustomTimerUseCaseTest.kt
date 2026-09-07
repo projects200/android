@@ -32,45 +32,45 @@ class DeleteCustomTimerUseCaseTest {
     @Test
     fun `invoke 호출 시 커스텀 타이머 삭제 성공`() = runTest {
         // Given
-        val customTimerId = 1L
+        val localId = "local-1"
         val successResult = BaseResult.Success(Unit)
-        coEvery { mockRepository.deleteCustomTimer(customTimerId) } returns successResult
+        coEvery { mockRepository.deleteCustomTimer(localId) } returns successResult
 
         // When
-        val result = useCase(customTimerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(customTimerId) }
+        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(localId) }
         assertThat(result).isEqualTo(successResult)
     }
 
     @Test
     fun `invoke 호출 시 커스텀 타이머 삭제 실패`() = runTest {
         // Given
-        val customTimerId = 1L
+        val localId = "local-1"
         val errorResult = BaseResult.Error("ERR", "Delete failed")
-        coEvery { mockRepository.deleteCustomTimer(customTimerId) } returns errorResult
+        coEvery { mockRepository.deleteCustomTimer(localId) } returns errorResult
 
         // When
-        val result = useCase(customTimerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(customTimerId) }
+        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(localId) }
         assertThat(result).isEqualTo(errorResult)
     }
 
     @Test
     fun `존재하지 않는 커스텀 타이머 삭제 시도`() = runTest {
         // Given
-        val customTimerId = 999L
+        val localId = "missing"
         val errorResult = BaseResult.Error("NOT_FOUND", "Timer not found")
-        coEvery { mockRepository.deleteCustomTimer(customTimerId) } returns errorResult
+        coEvery { mockRepository.deleteCustomTimer(localId) } returns errorResult
 
         // When
-        val result = useCase(customTimerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(customTimerId) }
+        coVerify(exactly = 1) { mockRepository.deleteCustomTimer(localId) }
         assertThat(result).isEqualTo(errorResult)
     }
 }

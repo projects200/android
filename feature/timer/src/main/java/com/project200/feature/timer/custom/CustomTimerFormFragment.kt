@@ -30,7 +30,7 @@ class CustomTimerFormFragment : Fragment() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        viewModel.loadData(args.customTimerId)
+        viewModel.loadData(args.customTimerLocalId)
     }
 
     override fun onCreateView(
@@ -47,7 +47,7 @@ class CustomTimerFormFragment : Fragment() {
                     isEditMode = viewModel.isEditMode,
                     onTitleChange = viewModel::updateTimerTitle,
                     onStepNameChange = viewModel::updateStepName,
-                    onStepTimeClick = { id, time -> showTimePickerDialog(id, time) },
+                    onStepTimeClick = { order, time -> showTimePickerDialog(order, time) },
                     onStepDelete = viewModel::removeStep,
                     onMove = viewModel::moveStep,
                     onNewStepNameChange = viewModel::updateNewStepName,
@@ -89,7 +89,7 @@ class CustomTimerFormFragment : Fragment() {
                     }
                 }
                 launch {
-                    viewModel.submitResult.collect { id ->
+                    viewModel.submitResult.collect { localId ->
                         if (findNavController().currentDestination?.id != R.id.customTimerFormFragment) {
                             return@collect
                         }
@@ -97,7 +97,7 @@ class CustomTimerFormFragment : Fragment() {
                             findNavController().navigateUp()
                         } else {
                             findNavController().navigate(
-                                CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(id),
+                                CustomTimerFormFragmentDirections.actionCustomTimerFormFragmentToCustomTimerFragment(localId),
                             )
                         }
                     }
@@ -107,7 +107,7 @@ class CustomTimerFormFragment : Fragment() {
     }
 
     private fun showTimePickerDialog(
-        id: Long? = null,
+        order: Int? = null,
         time: Int,
     ) {
         TimePickerDialog(
@@ -117,7 +117,7 @@ class CustomTimerFormFragment : Fragment() {
                     Toast.makeText(requireContext(), R.string.custom_timer_error_invalid_time, Toast.LENGTH_SHORT).show()
                     return@TimePickerDialog
                 }
-                id?.let { viewModel.updateStepTime(it, newTimeInSeconds) }
+                order?.let { viewModel.updateStepTime(it, newTimeInSeconds) }
                     ?: viewModel.updateNewStepTime(newTimeInSeconds)
             },
         ).show(parentFragmentManager, this::class.java.simpleName)

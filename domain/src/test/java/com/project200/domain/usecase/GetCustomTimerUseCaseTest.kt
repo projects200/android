@@ -27,11 +27,12 @@ class GetCustomTimerUseCaseTest {
     private lateinit var useCase: GetCustomTimerUseCase
 
     private val sampleCustomTimer = CustomTimer(
-        id = 1L,
+        localId = "local-1",
+        serverId = 1L,
         name = "HIIT 타이머",
         steps = listOf(
-            Step(id = 1L, order = 1, time = 30, name = "운동"),
-            Step(id = 2L, order = 2, time = 10, name = "휴식")
+            Step(order = 1, time = 30, name = "운동"),
+            Step(order = 2, time = 10, name = "휴식")
         )
     )
 
@@ -43,31 +44,31 @@ class GetCustomTimerUseCaseTest {
     @Test
     fun `invoke 호출 시 커스텀 타이머 성공적으로 반환`() = runTest {
         // Given
-        val customTimerId = 1L
+        val localId = "local-1"
         val successResult = BaseResult.Success(sampleCustomTimer)
-        coEvery { mockRepository.getCustomTimer(customTimerId) } returns successResult
+        coEvery { mockRepository.getCustomTimer(localId) } returns successResult
 
         // When
-        val result = useCase(customTimerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.getCustomTimer(customTimerId) }
+        coVerify(exactly = 1) { mockRepository.getCustomTimer(localId) }
         assertThat(result).isEqualTo(successResult)
-        assertThat((result as BaseResult.Success).data.id).isEqualTo(customTimerId)
+        assertThat((result as BaseResult.Success).data.localId).isEqualTo(localId)
     }
 
     @Test
     fun `존재하지 않는 커스텀 타이머 조회`() = runTest {
         // Given
-        val customTimerId = 999L
+        val localId = "missing"
         val errorResult = BaseResult.Error("NOT_FOUND", "Custom timer not found")
-        coEvery { mockRepository.getCustomTimer(customTimerId) } returns errorResult
+        coEvery { mockRepository.getCustomTimer(localId) } returns errorResult
 
         // When
-        val result = useCase(customTimerId)
+        val result = useCase(localId)
 
         // Then
-        coVerify(exactly = 1) { mockRepository.getCustomTimer(customTimerId) }
+        coVerify(exactly = 1) { mockRepository.getCustomTimer(localId) }
         assertThat(result).isEqualTo(errorResult)
     }
 }

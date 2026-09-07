@@ -8,6 +8,7 @@ import com.project200.domain.model.SimpleTimer
 import com.project200.domain.usecase.AddSimpleTimerUseCase
 import com.project200.domain.usecase.DeleteSimpleTimerUseCase
 import com.project200.domain.usecase.EditSimpleTimerUseCase
+import com.project200.domain.usecase.GetLocalSimpleTimersUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
 import com.project200.feature.timer.utils.SimpleTimerServiceManager
 import io.mockk.coEvery
@@ -43,6 +44,9 @@ class SimpleTimerViewModelTest {
     private lateinit var mockGetSimpleTimersUseCase: GetSimpleTimersUseCase
 
     @MockK
+    private lateinit var mockGetLocalSimpleTimersUseCase: GetLocalSimpleTimersUseCase
+
+    @MockK
     private lateinit var mockAddSimpleTimerUseCase: AddSimpleTimerUseCase
 
     @MockK
@@ -57,9 +61,9 @@ class SimpleTimerViewModelTest {
 
     private val sampleTimers =
         listOf(
-            SimpleTimer(id = 1L, time = 60),
-            SimpleTimer(id = 2L, time = 120),
-            SimpleTimer(id = 3L, time = 30),
+            SimpleTimer(localId = "1", time = 60),
+            SimpleTimer(localId = "2", time = 120),
+            SimpleTimer(localId = "3", time = 30),
         )
 
     @Before
@@ -68,6 +72,8 @@ class SimpleTimerViewModelTest {
         every { mockSimpleTimerServiceManager.service } returns MutableStateFlow(null)
         every { mockSimpleTimerServiceManager.bindService() } returns Unit
         every { mockSimpleTimerServiceManager.unbindService() } returns Unit
+        // 기본 스텁은 여기서만 세웁니다. createViewModel에 두면 각 테스트가 세운 스텁을 덮어씁니다
+        coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(sampleTimers)
     }
 
     @After
@@ -76,10 +82,10 @@ class SimpleTimerViewModelTest {
     }
 
     private fun createViewModel(): SimpleTimerViewModel {
-        coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(sampleTimers)
         return SimpleTimerViewModel(
             simpleTimerServiceManager = mockSimpleTimerServiceManager,
             getSimpleTimersUseCase = mockGetSimpleTimersUseCase,
+            getLocalSimpleTimersUseCase = mockGetLocalSimpleTimersUseCase,
             addSimpleTimerUseCase = mockAddSimpleTimerUseCase,
             editSimpleTimerUseCase = mockEditSimpleTimerUseCase,
             deleteSimpleTimerUseCase = mockDeleteSimpleTimerUseCase,
@@ -98,7 +104,7 @@ class SimpleTimerViewModelTest {
         }
 
     @Test
-    fun `init - ViewModel 생성 시 타이머 목록을 로드한다`() =
+    fun `init - ViewModel 생성 시 GetSimpleTimersUseCase로 타이머 목록을 로드한다`() =
         runTest {
             // When
             viewModel = createViewModel()
@@ -116,7 +122,7 @@ class SimpleTimerViewModelTest {
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            val newTimers = listOf(SimpleTimer(id = 10L, time = 300))
+            val newTimers = listOf(SimpleTimer(localId = "10", time = 300))
             coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(newTimers)
 
             // When
@@ -125,51 +131,52 @@ class SimpleTimerViewModelTest {
 
             // Then
             assertThat(viewModel.timerItems.value).hasSize(1)
-            assertThat(viewModel.timerItems.value?.first()?.time).isEqualTo(300)
+            assertThat(viewModel.timerItems.value.first().time).isEqualTo(300)
         }
 
     @Test
-    fun `loadTimerItems - 실패하면 GET_ERROR 토스트가 발생한다`() =
+    fun `loadTimerItems - 실패하면 기존 목록이 유지되고 토스트가 발생하지 않는다`() =
         runTest {
             // Given
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val existingItems = viewModel.timerItems.value
             coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
-            viewModel =
-                SimpleTimerViewModel(
-                    simpleTimerServiceManager = mockSimpleTimerServiceManager,
-                    getSimpleTimersUseCase = mockGetSimpleTimersUseCase,
-                    addSimpleTimerUseCase = mockAddSimpleTimerUseCase,
-                    editSimpleTimerUseCase = mockEditSimpleTimerUseCase,
-                    deleteSimpleTimerUseCase = mockDeleteSimpleTimerUseCase,
-                )
 
-            // When & Then
+            // When
+            viewModel.loadTimerItems()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            // Then
+            assertThat(viewModel.timerItems.value).isEqualTo(existingItems)
             viewModel.toastMessage.test {
-                testDispatcher.scheduler.advanceUntilIdle()
-                assertThat(awaitItem()).isEqualTo(SimpleTimerToastMessage.GET_ERROR)
+                expectNoEvents()
             }
         }
 
     @Test
-    fun `addTimerItem - 성공하면 타이머가 추가된다`() =
+    fun `addTimerItem - 성공하면 GetLocalSimpleTimersUseCase로 목록을 다시 읽는다`() =
         runTest {
             // Given
-            coEvery { mockAddSimpleTimerUseCase(any()) } returns BaseResult.Success(100L)
+            coEvery { mockAddSimpleTimerUseCase(any()) } returns BaseResult.Success("100")
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
-            val initialSize = viewModel.timerItems.value?.size ?: 0
+
+            val reloadedTimers = sampleTimers + SimpleTimer(localId = "100", time = 180)
+            coEvery { mockGetLocalSimpleTimersUseCase() } returns BaseResult.Success(reloadedTimers)
 
             // When
             viewModel.addTimerItem(180)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.timerItems.value?.size).isEqualTo(initialSize + 1)
-            assertThat(viewModel.timerItems.value?.last()?.time).isEqualTo(180)
-            assertThat(viewModel.timerItems.value?.last()?.id).isEqualTo(100L)
+            coVerify { mockGetLocalSimpleTimersUseCase() }
+            assertThat(viewModel.timerItems.value).hasSize(4)
+            assertThat(viewModel.timerItems.value.last().localId).isEqualTo("100")
         }
 
     @Test
-    fun `addTimerItem - 실패하면 ADD_ERROR 토스트가 발생한다`() =
+    fun `addTimerItem - 실패하면 ADD_ERROR 토스트가 발생하고 재조회하지 않는다`() =
         runTest {
             // Given
             coEvery { mockAddSimpleTimerUseCase(any()) } returns BaseResult.Error("ERROR", "추가 실패")
@@ -182,22 +189,16 @@ class SimpleTimerViewModelTest {
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(SimpleTimerToastMessage.ADD_ERROR)
             }
+            coVerify(exactly = 0) { mockGetLocalSimpleTimersUseCase() }
         }
 
     @Test
     fun `addTimerItem - 최대 개수에 도달하면 추가되지 않는다`() =
         runTest {
             // Given
-            val maxTimers = (1..6).map { SimpleTimer(id = it.toLong(), time = 60) }
+            val maxTimers = (1..6).map { SimpleTimer(localId = it.toString(), time = 60) }
             coEvery { mockGetSimpleTimersUseCase() } returns BaseResult.Success(maxTimers)
-            viewModel =
-                SimpleTimerViewModel(
-                    simpleTimerServiceManager = mockSimpleTimerServiceManager,
-                    getSimpleTimersUseCase = mockGetSimpleTimersUseCase,
-                    addSimpleTimerUseCase = mockAddSimpleTimerUseCase,
-                    editSimpleTimerUseCase = mockEditSimpleTimerUseCase,
-                    deleteSimpleTimerUseCase = mockDeleteSimpleTimerUseCase,
-                )
+            viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When
@@ -209,21 +210,23 @@ class SimpleTimerViewModelTest {
         }
 
     @Test
-    fun `deleteTimerItem - 성공하면 타이머가 삭제된다`() =
+    fun `deleteTimerItem - 성공하면 GetLocalSimpleTimersUseCase로 목록을 다시 읽는다`() =
         runTest {
             // Given
             coEvery { mockDeleteSimpleTimerUseCase(any()) } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
-            val initialSize = viewModel.timerItems.value?.size ?: 0
+
+            val reloadedTimers = sampleTimers.filterNot { it.localId == "1" }
+            coEvery { mockGetLocalSimpleTimersUseCase() } returns BaseResult.Success(reloadedTimers)
 
             // When
-            viewModel.deleteTimerItem(1L)
+            viewModel.deleteTimerItem("1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.timerItems.value?.size).isEqualTo(initialSize - 1)
-            assertThat(viewModel.timerItems.value?.any { it.id == 1L }).isFalse()
+            coVerify { mockGetLocalSimpleTimersUseCase() }
+            assertThat(viewModel.timerItems.value.any { it.localId == "1" }).isFalse()
         }
 
     @Test
@@ -236,62 +239,47 @@ class SimpleTimerViewModelTest {
 
             // When & Then
             viewModel.toastMessage.test {
-                viewModel.deleteTimerItem(1L)
+                viewModel.deleteTimerItem("1")
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(SimpleTimerToastMessage.DELETE_ERROR)
             }
         }
 
     @Test
-    fun `updateTimerItem - 성공하면 타이머가 수정된다`() =
+    fun `updateTimerItem - 성공하면 GetLocalSimpleTimersUseCase로 목록을 다시 읽는다`() =
         runTest {
             // Given
-            coEvery { mockEditSimpleTimerUseCase(any()) } returns BaseResult.Success(Unit)
+            coEvery { mockEditSimpleTimerUseCase(any(), any()) } returns BaseResult.Success(Unit)
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            val updatedTimer = SimpleTimer(id = 1L, time = 999)
+            val reloadedTimers = sampleTimers.map { if (it.localId == "1") it.copy(time = 999) else it }
+            coEvery { mockGetLocalSimpleTimersUseCase() } returns BaseResult.Success(reloadedTimers)
 
             // When
-            viewModel.updateTimerItem(updatedTimer)
+            viewModel.updateTimerItem("1", 999)
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            assertThat(viewModel.timerItems.value?.find { it.id == 1L }?.time).isEqualTo(999)
-            coVerify { mockEditSimpleTimerUseCase(updatedTimer) }
+            coVerify { mockEditSimpleTimerUseCase("1", 999) }
+            coVerify { mockGetLocalSimpleTimersUseCase() }
+            assertThat(viewModel.timerItems.value.find { it.localId == "1" }?.time).isEqualTo(999)
         }
 
     @Test
     fun `updateTimerItem - 실패하면 EDIT_ERROR 토스트가 발생한다`() =
         runTest {
             // Given
-            coEvery { mockEditSimpleTimerUseCase(any()) } returns BaseResult.Error("ERROR", "수정 실패")
+            coEvery { mockEditSimpleTimerUseCase(any(), any()) } returns BaseResult.Error("ERROR", "수정 실패")
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When & Then
             viewModel.toastMessage.test {
-                viewModel.updateTimerItem(SimpleTimer(id = 1L, time = 500))
+                viewModel.updateTimerItem("1", 500)
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(SimpleTimerToastMessage.EDIT_ERROR)
             }
-        }
-
-    @Test
-    fun `updateTimerItem - 존재하지 않는 타이머는 수정되지 않는다`() =
-        runTest {
-            // Given
-            viewModel = createViewModel()
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            val nonExistentTimer = SimpleTimer(id = 999L, time = 100)
-
-            // When
-            viewModel.updateTimerItem(nonExistentTimer)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            coVerify(exactly = 0) { mockEditSimpleTimerUseCase(any()) }
         }
 
     @Test
@@ -305,7 +293,7 @@ class SimpleTimerViewModelTest {
             viewModel.changeSortOrder()
 
             // Then
-            val items = viewModel.timerItems.value!!
+            val items = viewModel.timerItems.value
             assertThat(items[0].time).isEqualTo(120)
             assertThat(items[1].time).isEqualTo(60)
             assertThat(items[2].time).isEqualTo(30)
@@ -323,7 +311,7 @@ class SimpleTimerViewModelTest {
             viewModel.changeSortOrder()
 
             // Then
-            val items = viewModel.timerItems.value!!
+            val items = viewModel.timerItems.value
             assertThat(items[0].time).isEqualTo(30)
             assertThat(items[1].time).isEqualTo(60)
             assertThat(items[2].time).isEqualTo(120)
@@ -366,14 +354,19 @@ class SimpleTimerViewModelTest {
         }
 
     @Test
-    fun `unbindService - 서비스 매니저의 bindService가 호출된다`() =
+    fun `onCleared - 서비스 매니저의 unbindService가 호출된다`() =
         runTest {
             // Given
             viewModel = createViewModel()
             testDispatcher.scheduler.advanceUntilIdle()
 
+            // When - onCleared는 protected라 리플렉션으로 호출한다
+            val onCleared = SimpleTimerViewModel::class.java.getDeclaredMethod("onCleared")
+            onCleared.isAccessible = true
+            onCleared.invoke(viewModel)
+
             // Then
-            verify { mockSimpleTimerServiceManager.bindService() }
+            verify { mockSimpleTimerServiceManager.unbindService() }
         }
 
     @Test

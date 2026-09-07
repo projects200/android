@@ -5,13 +5,13 @@ import com.project200.domain.model.SimpleTimer
 import com.project200.domain.repository.TimerRepository
 import javax.inject.Inject
 
-class GetSimpleTimersUseCase
+class GetLocalSimpleTimersUseCase
     @Inject
     constructor(
         private val timerRepository: TimerRepository,
     ) {
-        /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 로컬에서 읽습니다 */
+        /** 내 쓰기 직후와 화면 복귀용입니다. 서버를 보지 않습니다 */
         suspend operator fun invoke(): BaseResult<List<SimpleTimer>> {
-            return timerRepository.getSimpleTimers()
+            return timerRepository.getLocalSimpleTimers()
         }
     }

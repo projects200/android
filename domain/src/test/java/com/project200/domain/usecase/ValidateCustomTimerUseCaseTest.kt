@@ -20,8 +20,8 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 30, name = "운동"),
-            Step(id = 2L, order = 2, time = 10, name = "휴식")
+            Step(order = 1, time = 30, name = "운동"),
+            Step(order = 2, time = 10, name = "휴식")
         )
 
         // When
@@ -35,7 +35,7 @@ class ValidateCustomTimerUseCaseTest {
     fun `빈 타이틀은 EmptyTitle 반환`() {
         // Given
         val title = ""
-        val steps = listOf(Step(id = 1L, order = 1, time = 30, name = "운동"))
+        val steps = listOf(Step(order = 1, time = 30, name = "운동"))
 
         // When
         val result = useCase(title, steps)
@@ -48,7 +48,7 @@ class ValidateCustomTimerUseCaseTest {
     fun `공백만 있는 타이틀은 EmptyTitle 반환`() {
         // Given
         val title = "   "
-        val steps = listOf(Step(id = 1L, order = 1, time = 30, name = "운동"))
+        val steps = listOf(Step(order = 1, time = 30, name = "운동"))
 
         // When
         val result = useCase(title, steps)
@@ -75,8 +75,8 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 30, name = "운동"),
-            Step(id = 2L, order = 2, time = 4, name = "휴식")
+            Step(order = 1, time = 30, name = "운동"),
+            Step(order = 2, time = 4, name = "휴식")
         )
 
         // When
@@ -91,7 +91,7 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 0, name = "운동")
+            Step(order = 1, time = 0, name = "운동")
         )
 
         // When
@@ -106,8 +106,8 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 30, name = ""),
-            Step(id = 2L, order = 2, time = 10, name = "휴식")
+            Step(order = 1, time = 30, name = ""),
+            Step(order = 2, time = 10, name = "휴식")
         )
 
         // When
@@ -122,7 +122,7 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 30, name = "   ")
+            Step(order = 1, time = 30, name = "   ")
         )
 
         // When
@@ -137,7 +137,7 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "HIIT 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 5, name = "운동")
+            Step(order = 1, time = 5, name = "운동")
         )
 
         // When
@@ -152,11 +152,11 @@ class ValidateCustomTimerUseCaseTest {
         // Given
         val title = "복잡한 타이머"
         val steps = listOf(
-            Step(id = 1L, order = 1, time = 60, name = "준비운동"),
-            Step(id = 2L, order = 2, time = 45, name = "고강도"),
-            Step(id = 3L, order = 3, time = 15, name = "휴식"),
-            Step(id = 4L, order = 4, time = 45, name = "고강도"),
-            Step(id = 5L, order = 5, time = 60, name = "마무리")
+            Step(order = 1, time = 60, name = "준비운동"),
+            Step(order = 2, time = 45, name = "고강도"),
+            Step(order = 3, time = 15, name = "휴식"),
+            Step(order = 4, time = 45, name = "고강도"),
+            Step(order = 5, time = 60, name = "마무리")
         )
 
         // When

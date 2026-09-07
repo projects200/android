@@ -2,16 +2,15 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
-import com.project200.data.dto.CustomTimerIdDTO
+import com.project200.data.datasource.ServerCustomTimer
+import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetSimpleTimersDTO
-import com.project200.data.dto.PatchCustomTimerTitleRequest
-import com.project200.data.dto.PostCustomTimerRequest
-import com.project200.data.dto.SimpleTimerIdDTO
-import com.project200.data.dto.SimpleTimerRequest
-import com.project200.data.mapper.toDTO
+import com.project200.data.local.entity.CustomTimerEntity
+import com.project200.data.mapper.toCachedSteps
 import com.project200.data.mapper.toModel
+import com.project200.data.mapper.toServerModel
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.CustomTimer
@@ -25,129 +24,141 @@ class TimerRepositoryImpl
     @Inject
     constructor(
         private val apiService: ApiService,
+        private val localDataSource: TimerLocalDataSource,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : TimerRepository {
-        // 심플 타이머 전체 조회
         override suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getSimpleTimers() },
-                mapper = { dto: GetSimpleTimersDTO? ->
-                    dto?.simpleTimers?.map { it.toModel() } ?: emptyList()
-                },
-            )
+            val listResult =
+                apiCallBuilder(
+                    ioDispatcher = ioDispatcher,
+                    apiCall = { apiService.getSimpleTimers() },
+                    mapper = { dto: GetSimpleTimersDTO? ->
+                        dto?.simpleTimers?.map { it.toServerModel() } ?: emptyList()
+                    },
+                )
+            return when (listResult) {
+                is BaseResult.Success -> {
+                    localDataSource.replaceSyncedSimpleTimers(listResult.data)
+                    getLocalSimpleTimers()
+                }
+                is BaseResult.Error -> {
+                    if (listResult.errorCode == NETWORK_ERROR_CODE) getLocalSimpleTimers() else listResult
+                }
+            }
         }
 
-        // 심플 타이머 수정
-        override suspend fun editSimpleTimer(simpleTimer: SimpleTimer): BaseResult<Unit> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.patchSimpleTimer(simpleTimer.id, SimpleTimerRequest(simpleTimer.time)) },
-                mapper = { Unit },
-            )
+        override suspend fun getLocalSimpleTimers(): BaseResult<List<SimpleTimer>> {
+            return BaseResult.Success(localDataSource.getSimpleTimers().map { it.toModel() })
         }
 
-        override suspend fun addSimpleTimer(time: Int): BaseResult<Long> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postSimpleTimer(SimpleTimerRequest(time)) },
-                // 서버 ID 없이 성공으로 올리면 로컬이 원본이 될 때 복구 못 하는 행이 생깁니다
-                mapper = { dto: SimpleTimerIdDTO? ->
-                    dto?.simpleTimerId ?: throw IllegalStateException("simpleTimerId가 없습니다")
-                },
-            )
+        override suspend fun addSimpleTimer(time: Int): BaseResult<String> {
+            val localId = localDataSource.createSimpleTimer(time) ?: return noMemberIdError()
+            return BaseResult.Success(localId)
         }
 
-        override suspend fun deleteSimpleTimer(id: Long): BaseResult<Unit> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.deleteSimpleTimer(id) },
-                mapper = { Unit },
-            )
+        override suspend fun editSimpleTimer(
+            localId: String,
+            time: Int,
+        ): BaseResult<Unit> {
+            localDataSource.updateSimpleTimer(localId, time)
+            return BaseResult.Success(Unit)
         }
 
-        // 커스텀 타이머 전체 조회
+        override suspend fun deleteSimpleTimer(localId: String): BaseResult<Unit> {
+            localDataSource.deleteSimpleTimer(localId)
+            return BaseResult.Success(Unit)
+        }
+
+        /**
+         * 목록 GET은 스텝을 주지 않아 반영할 항목마다 상세 GET을 따로 불러 스텝을 채웁니다.
+         *
+         * 오프라인 실행에 스텝이 있어야 해서 가져오는 것이고, 목록 크기가 작아 N+1 호출을 감수합니다.
+         * 상세 조회가 실패한 항목은 반영에서 빼고, 로컬에 이미 값이 있으면 그 값으로 채워 지워지지
+         * 않게 합니다
+         */
         override suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getCustomTimerList() },
-                mapper = { dto: GetCustomTimerListDTO? ->
-                    dto?.toModel() ?: emptyList()
-                },
-            )
+            val listResult =
+                apiCallBuilder(
+                    ioDispatcher = ioDispatcher,
+                    apiCall = { apiService.getCustomTimerList() },
+                    mapper = { dto: GetCustomTimerListDTO? -> dto?.customTimers ?: emptyList() },
+                )
+            return when (listResult) {
+                is BaseResult.Success -> {
+                    val cachedByServerId =
+                        localDataSource.getCustomTimers()
+                            .mapNotNull { entity -> entity.serverId?.let { it to entity } }
+                            .toMap()
+                    val reflected =
+                        listResult.data.mapNotNull { summary ->
+                            fetchCustomTimerDetail(summary.customTimerId, cachedByServerId[summary.customTimerId])
+                        }
+                    localDataSource.replaceSyncedCustomTimers(reflected)
+                    getLocalCustomTimerList()
+                }
+                is BaseResult.Error -> {
+                    if (listResult.errorCode == NETWORK_ERROR_CODE) getLocalCustomTimerList() else listResult
+                }
+            }
         }
 
-        // 커스텀 타이머 상세 조회
-        override suspend fun getCustomTimer(customTimerId: Long): BaseResult<CustomTimer> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.getCustomTimer(customTimerId) },
-                mapper = { dto: GetCustomTimerDetailDTO? ->
-                    (dto ?: throw IllegalStateException("커스텀 타이머 상세가 없습니다")).toModel()
-                },
-            )
+        // 실패한 항목만 조용히 빠지고, 캐시된 값이 있으면 그 값으로 자리를 지킵니다
+        private suspend fun fetchCustomTimerDetail(
+            serverId: Long,
+            cached: CustomTimerEntity?,
+        ): ServerCustomTimer? {
+            val detailResult =
+                apiCallBuilder(
+                    ioDispatcher = ioDispatcher,
+                    apiCall = { apiService.getCustomTimer(serverId) },
+                    mapper = { dto: GetCustomTimerDetailDTO? ->
+                        (dto ?: throw IllegalStateException("커스텀 타이머 상세가 없습니다")).toServerModel()
+                    },
+                )
+            return when (detailResult) {
+                is BaseResult.Success -> detailResult.data
+                is BaseResult.Error -> cached?.let { ServerCustomTimer(serverId, it.name, it.steps) }
+            }
         }
 
-        // 커스텀 타이머 생성
+        override suspend fun getLocalCustomTimerList(): BaseResult<List<CustomTimer>> {
+            return BaseResult.Success(localDataSource.getCustomTimers().map { it.toModel() })
+        }
+
+        override suspend fun getCustomTimer(localId: String): BaseResult<CustomTimer> {
+            val entity = localDataSource.getCustomTimer(localId) ?: return notFoundError(localId)
+            return BaseResult.Success(entity.toModel())
+        }
+
         override suspend fun createCustomTimer(
             title: String,
             steps: List<Step>,
-        ): BaseResult<Long> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = {
-                    apiService.postCustomTimer(
-                        PostCustomTimerRequest(
-                            customTimerName = title,
-                            customTimerSteps = steps.toDTO(),
-                        ),
-                    )
-                },
-                mapper = { dto: CustomTimerIdDTO? ->
-                    dto?.customTimerId ?: throw IllegalStateException()
-                },
-            )
+        ): BaseResult<String> {
+            val localId =
+                localDataSource.createCustomTimer(title, steps.toCachedSteps()) ?: return noMemberIdError()
+            return BaseResult.Success(localId)
         }
 
-        // 커스텀 타이머 삭제
-        override suspend fun deleteCustomTimer(customTimerId: Long): BaseResult<Unit> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.deleteCustomTimer(customTimerId) },
-                mapper = { Unit },
-            )
-        }
-
-        // 커스텀 타이머 이름 수정
-        override suspend fun editCustomTimerTitle(
-            customTimerId: Long,
-            title: String,
-        ): BaseResult<Unit> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.patchCustomTimerTitle(customTimerId, PatchCustomTimerTitleRequest(title)) },
-                mapper = { Unit },
-            )
-        }
-
-        // 커스텀 타이머 전체 수정
         override suspend fun editCustomTimer(
-            customTimerId: Long,
+            localId: String,
             title: String,
             steps: List<Step>,
         ): BaseResult<Unit> {
-            return apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = {
-                    apiService.putCustomTimer(
-                        customTimerId,
-                        PostCustomTimerRequest(
-                            customTimerName = title,
-                            customTimerSteps = steps.toDTO(),
-                        ),
-                    )
-                },
-                mapper = { Unit },
-            )
+            localDataSource.updateCustomTimer(localId, title, steps.toCachedSteps())
+            return BaseResult.Success(Unit)
+        }
+
+        override suspend fun deleteCustomTimer(localId: String): BaseResult<Unit> {
+            localDataSource.deleteCustomTimer(localId)
+            return BaseResult.Success(Unit)
+        }
+
+        private fun noMemberIdError(): BaseResult.Error = BaseResult.Error(errorCode = "NO_MEMBER_ID", message = "회원ID가 없어 저장할 수 없습니다")
+
+        private fun notFoundError(localId: String): BaseResult.Error =
+            BaseResult.Error(errorCode = "NOT_FOUND", message = "$localId 타이머를 찾을 수 없습니다")
+
+        companion object {
+            private const val NETWORK_ERROR_CODE = "NETWORK_ERROR"
         }
     }

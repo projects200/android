@@ -8,6 +8,7 @@ import com.project200.domain.model.SimpleTimer
 import com.project200.domain.usecase.AddSimpleTimerUseCase
 import com.project200.domain.usecase.DeleteSimpleTimerUseCase
 import com.project200.domain.usecase.EditSimpleTimerUseCase
+import com.project200.domain.usecase.GetLocalSimpleTimersUseCase
 import com.project200.domain.usecase.GetSimpleTimersUseCase
 import com.project200.feature.timer.utils.SimpleTimerServiceManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,6 +33,7 @@ class SimpleTimerViewModel
     constructor(
         private val simpleTimerServiceManager: SimpleTimerServiceManager,
         private val getSimpleTimersUseCase: GetSimpleTimersUseCase,
+        private val getLocalSimpleTimersUseCase: GetLocalSimpleTimersUseCase,
         private val addSimpleTimerUseCase: AddSimpleTimerUseCase,
         private val editSimpleTimerUseCase: EditSimpleTimerUseCase,
         private val deleteSimpleTimerUseCase: DeleteSimpleTimerUseCase,
@@ -76,15 +78,24 @@ class SimpleTimerViewModel
             service.value?.setAndStartTimer(timeInSeconds)
         }
 
+        /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 읽습니다 */
         fun loadTimerItems() {
             viewModelScope.launch {
-                when (val result = getSimpleTimersUseCase()) {
-                    is BaseResult.Success -> {
-                        _timerItems.value = result.data
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.emit(SimpleTimerToastMessage.GET_ERROR)
-                    }
+                val result = getSimpleTimersUseCase()
+                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                if (result is BaseResult.Success) {
+                    _timerItems.value = sortTimers(result.data, isAscending)
+                }
+            }
+        }
+
+        /** 내 쓰기 직후 재조회용입니다. 서버를 보지 않습니다 */
+        private fun reloadLocalTimerItems() {
+            viewModelScope.launch {
+                val result = getLocalSimpleTimersUseCase()
+                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                if (result is BaseResult.Success) {
+                    _timerItems.value = sortTimers(result.data, isAscending)
                 }
             }
         }
@@ -105,27 +116,22 @@ class SimpleTimerViewModel
             }
         }
 
+        // 전송 대기 행도 목록에 포함되므로 크기 판정에 함께 셉니다. 삭제 대기 행은 로컬 조회에서 이미 제외됩니다
         fun addTimerItem(time: Int) {
-            val currentItems = _timerItems.value
-            if (currentItems.size >= MAX_TIMER_COUNT) return
+            if (_timerItems.value.size >= MAX_TIMER_COUNT) return
 
             viewModelScope.launch {
-                when (val result = addSimpleTimerUseCase(time)) {
-                    is BaseResult.Success -> {
-                        val newTimer = SimpleTimer(id = result.data, time = time)
-                        _timerItems.value = currentItems + newTimer
-                    }
+                when (addSimpleTimerUseCase(time)) {
+                    is BaseResult.Success -> reloadLocalTimerItems()
                     is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.ADD_ERROR)
                 }
             }
         }
 
-        fun deleteTimerItem(timerId: Long) {
+        fun deleteTimerItem(localId: String) {
             viewModelScope.launch {
-                when (deleteSimpleTimerUseCase(timerId)) {
-                    is BaseResult.Success -> {
-                        _timerItems.value = _timerItems.value.filterNot { it.id == timerId }
-                    }
+                when (deleteSimpleTimerUseCase(localId)) {
+                    is BaseResult.Success -> reloadLocalTimerItems()
                     is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.DELETE_ERROR)
                 }
             }
@@ -141,20 +147,15 @@ class SimpleTimerViewModel
             service.value?.pauseTimer()
         }
 
-        // 타이머 아이템을 수정하는 함수
-        fun updateTimerItem(updatedTimer: SimpleTimer) {
-            val currentItems = _timerItems.value.toMutableList()
-            val index = currentItems.indexOfFirst { it.id == updatedTimer.id }
-
-            if (index != -1) {
-                currentItems[index] = updatedTimer
-                _timerItems.value = currentItems
-
-                viewModelScope.launch {
-                    val result = editSimpleTimerUseCase(updatedTimer)
-                    if (result is BaseResult.Error) {
-                        _toastMessage.emit(SimpleTimerToastMessage.EDIT_ERROR)
-                    }
+        // 타이머 아이템을 수정합니다. 로컬이 원본이라 선반영 없이 재조회로 화면을 갱신합니다
+        fun updateTimerItem(
+            localId: String,
+            time: Int,
+        ) {
+            viewModelScope.launch {
+                when (editSimpleTimerUseCase(localId, time)) {
+                    is BaseResult.Success -> reloadLocalTimerItems()
+                    is BaseResult.Error -> _toastMessage.emit(SimpleTimerToastMessage.EDIT_ERROR)
                 }
             }
         }
@@ -165,6 +166,7 @@ class SimpleTimerViewModel
         }
 
         companion object {
+            // 서버 정책상 상한입니다. 서버가 이 제약을 없애면 여기도 함께 걷습니다
             const val MAX_TIMER_COUNT = 6
             const val DEFAULT_ADD_TIME_SEC = 60
         }
