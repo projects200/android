@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.manager.FcmTokenSyncScheduler
+import com.project200.domain.model.SessionExitReason
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.ClearSessionUseCase
@@ -164,7 +165,7 @@ class MainViewModel
         }
 
         private suspend fun transitionToLogin() {
-            runCatching { clearSessionUseCase() }
+            runCatching { clearSessionUseCase(SessionExitReason.FORCED) }
                 .onFailure { Timber.e(it, "세션 정리 실패 - 전이는 계속") }
             _entryState.value = EntryState.Login
         }

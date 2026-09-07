@@ -3,6 +3,7 @@ package com.project200.undabang.main
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.manager.FcmTokenSyncScheduler
+import com.project200.domain.model.SessionExitReason
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
 import com.project200.domain.usecase.ClearSessionUseCase
@@ -74,7 +75,7 @@ class MainViewModelTest {
         every { mockNetworkMonitor.isCurrentlyConnected() } returns true
         every { mockAuthManager.forceLogoutFlow } returns forceLogoutFlow
         every { mockFcmTokenSyncScheduler.schedule() } just Runs
-        coEvery { mockClearSessionUseCase() } just Runs
+        coEvery { mockClearSessionUseCase(SessionExitReason.FORCED) } just Runs
     }
 
     @After
