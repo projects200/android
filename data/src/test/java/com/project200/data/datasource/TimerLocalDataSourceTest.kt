@@ -214,6 +214,248 @@ class TimerLocalDataSourceTest {
             assertThat(dataSource.getPendingSimpleTimers().map { it.localId }).containsExactly(pending)
         }
 
+    // ── 전송 상태 전이 ────────────────────────────────
+
+    @Test
+    fun `삭제 - 전송 중인 생성은 즉시 지우지 않고 삭제 대기로 둔다`() =
+        runTest {
+            // Given: 생성 전송이 시작돼 서버에 행이 생길 수 있는 상태
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            dataSource.startSimpleTimerSync(localId)
+
+            // When
+            dataSource.deleteSimpleTimer(localId)
+
+            // Then: 즉시 지우면 생성이 성공했을 때 서버에 고아 행이 남는다
+            val pending = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(pending.syncState).isEqualTo(SyncState.DELETE_PENDING)
+        }
+
+    @Test
+    fun `삭제 - 전송 중인 생성을 지운 뒤 생성이 성공하면 serverId가 붙고 삭제 대기가 남는다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            dataSource.startSimpleTimerSync(localId)
+            dataSource.deleteSimpleTimer(localId)
+
+            // When: 진행 중이던 생성이 서버에서 성공한다
+            dataSource.finishSimpleTimerSync(localId, serverId = 7L)
+
+            // Then: 다음 전송이 삭제를 보낼 수 있어야 한다
+            val row = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(row.serverId).isEqualTo(7L)
+            assertThat(row.syncState).isEqualTo(SyncState.DELETE_PENDING)
+        }
+
+    @Test
+    fun `삭제 - 전송 전인 생성 대기 행은 즉시 지운다`() =
+        runTest {
+            // Given: 서버가 모르는 행이라 삭제를 알릴 필요가 없다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+
+            // When
+            dataSource.deleteSimpleTimer(localId)
+
+            // Then
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)).isNull()
+        }
+
+    @Test
+    fun `전송 시작 - 대기 행의 현재 값이 전송 중 칸에 복사된다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            val before = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+
+            // When
+            val started = dataSource.startSimpleTimerSync(localId)!!
+
+            // Then
+            assertThat(started.inFlightEditId).isEqualTo(before.pendingEditId)
+            assertThat(started.inFlightEditedAt).isEqualTo(before.editedAt)
+            assertThat(started.inFlightOperation).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(started.inFlightTime).isEqualTo(60)
+            assertThat(started.lastSyncError).isNull()
+        }
+
+    @Test
+    fun `전송 시작 - 동기화 완료 행은 null을 돌린다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+
+            // When & Then: 보낼 것이 없다
+            assertThat(dataSource.startSimpleTimerSync(localId)).isNull()
+        }
+
+    @Test
+    fun `전송 시작 - 이미 전송 중인 행은 다시 복사하지 않고 고정한 값을 돌린다`() =
+        runTest {
+            // Given: 서버에 있는 행을 수정해 전송을 한 번 시작한다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+            dataSource.updateSimpleTimer(localId, time = 90)
+            val started = dataSource.startSimpleTimerSync(localId)!!
+
+            // When: 전송 중에 사용자가 또 수정하고 다시 전송을 시작한다
+            dataSource.updateSimpleTimer(localId, time = 120)
+            val retried = dataSource.startSimpleTimerSync(localId)!!
+
+            // Then: 고정된 전송 중 칸은 그대로고, 새 수정은 pendingEditId에만 반영된다
+            assertThat(retried.inFlightTime).isEqualTo(started.inFlightTime)
+            assertThat(retried.inFlightEditId).isEqualTo(started.inFlightEditId)
+            assertThat(retried.time).isEqualTo(120)
+            assertThat(retried.pendingEditId).isNotEqualTo(retried.inFlightEditId)
+        }
+
+    @Test
+    fun `전송 성공 - 생성이면 serverId를 기록하고 동기화 완료로 바뀐다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            dataSource.startSimpleTimerSync(localId)
+
+            // When
+            dataSource.finishSimpleTimerSync(localId, serverId = 7L)
+
+            // Then
+            val finished = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(finished.serverId).isEqualTo(7L)
+            assertThat(finished.syncState).isEqualTo(SyncState.SYNCED)
+            assertThat(finished.inFlightEditId).isNull()
+            assertThat(finished.inFlightOperation).isNull()
+            assertThat(finished.inFlightTime).isNull()
+        }
+
+    @Test
+    fun `전송 성공 - 삭제면 행을 지운다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+            dataSource.deleteSimpleTimer(localId)
+            dataSource.startSimpleTimerSync(localId)
+
+            // When
+            dataSource.finishSimpleTimerSync(localId, serverId = null)
+
+            // Then
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)).isNull()
+        }
+
+    @Test
+    fun `전송 성공 - 전송 중에 사용자가 다시 수정하면 대기를 유지하고 전송 중 칸만 버린다`() =
+        runTest {
+            // Given: 서버에 있는 행을 수정해 전송을 시작한 뒤, 전송 중에 또 수정한다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            markSynced(localId, serverId = 7L)
+            dataSource.updateSimpleTimer(localId, time = 90)
+            dataSource.startSimpleTimerSync(localId)
+            dataSource.updateSimpleTimer(localId, time = 120)
+
+            // When: 먼저 시작한 전송(90)이 성공한다
+            dataSource.finishSimpleTimerSync(localId, serverId = null)
+
+            // Then: 이어서 보낼 편집(120)이 남아 대기 상태를 유지한다
+            val result = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(result.syncState).isEqualTo(SyncState.UPDATE_PENDING)
+            assertThat(result.time).isEqualTo(120)
+            assertThat(result.inFlightEditId).isNull()
+            assertThat(result.inFlightOperation).isNull()
+        }
+
+    @Test
+    fun `전송 성공 - 생성 직후 수정이 들어오면 serverId는 기록되고 수정 대기로 남는다`() =
+        runTest {
+            // Given: 생성 대기 행의 전송을 시작한 뒤, 서버 응답을 받기 전에 사용자가 다시 수정한다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            dataSource.startSimpleTimerSync(localId)
+            dataSource.updateSimpleTimer(localId, time = 90)
+
+            // When: 먼저 시작한 생성 요청이 serverId를 들고 성공한다
+            dataSource.finishSimpleTimerSync(localId, serverId = 7L)
+
+            // Then: serverId가 생겨 더는 생성 대기가 아니므로 수정 대기로 올라간다.
+            // updateSimpleTimer 시점에는 서버가 이 행을 몰라 생성 대기를 유지했지만(nextStateOnEdit),
+            // 전송 성공으로 serverId가 확정되면 다음 전송은 생성이 아니라 수정이어야 하므로
+            // finishSimpleTimerSync가 이 승격을 책임진다
+            val result = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(result.serverId).isEqualTo(7L)
+            assertThat(result.syncState).isEqualTo(SyncState.UPDATE_PENDING)
+            assertThat(result.time).isEqualTo(90)
+        }
+
+    @Test
+    fun `전송 실패 - lastSyncError가 기록되고 전송 중 칸은 유지된다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            val started = dataSource.startSimpleTimerSync(localId)!!
+
+            // When
+            dataSource.recordSimpleTimerSyncError(localId, "네트워크 오류")
+
+            // Then
+            val result = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(result.lastSyncError).isEqualTo("네트워크 오류")
+            assertThat(result.inFlightEditId).isEqualTo(started.inFlightEditId)
+            assertThat(result.inFlightOperation).isEqualTo(started.inFlightOperation)
+            assertThat(result.inFlightTime).isEqualTo(started.inFlightTime)
+        }
+
+    @Test
+    fun `커스텀 전송 시작 - 대기 행의 현재 값이 전송 중 칸에 복사된다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+
+            // When
+            val started = dataSource.startCustomTimerSync(localId)!!
+
+            // Then
+            assertThat(started.inFlightOperation).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(started.inFlightName).isEqualTo("8세트")
+            assertThat(started.inFlightSteps).isEqualTo(steps)
+        }
+
+    @Test
+    fun `커스텀 전송 성공 - 생성이면 serverId를 기록하고 동기화 완료로 바뀐다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+            dataSource.startCustomTimerSync(localId)
+
+            // When
+            dataSource.finishCustomTimerSync(localId, serverId = 3L)
+
+            // Then
+            val finished = database.timerDao().getCustomTimer(MEMBER_ID, localId)!!
+            assertThat(finished.serverId).isEqualTo(3L)
+            assertThat(finished.syncState).isEqualTo(SyncState.SYNCED)
+            assertThat(finished.inFlightOperation).isNull()
+            assertThat(finished.inFlightName).isNull()
+            assertThat(finished.inFlightSteps).isNull()
+        }
+
+    @Test
+    fun `커스텀 전송 실패 - lastSyncError가 기록되고 전송 중 칸은 유지된다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+            val started = dataSource.startCustomTimerSync(localId)!!
+
+            // When
+            dataSource.recordCustomTimerSyncError(localId, "네트워크 오류")
+
+            // Then
+            val result = database.timerDao().getCustomTimer(MEMBER_ID, localId)!!
+            assertThat(result.lastSyncError).isEqualTo("네트워크 오류")
+            assertThat(result.inFlightName).isEqualTo(started.inFlightName)
+            assertThat(result.inFlightSteps).isEqualTo(started.inFlightSteps)
+        }
+
     // ── 서버 목록 반영 ────────────────────────────────
 
     @Test
@@ -326,6 +568,26 @@ class TimerLocalDataSourceTest {
 
             // When & Then
             assertThat(dataSource.getSimpleTimers()).isEmpty()
+        }
+
+    @Test
+    fun `계정 경계 - 다른 계정의 행은 전송 시작도 성공 처리도 되지 않는다`() =
+        runTest {
+            // Given: member-a로 만든 행이 있다
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            every { preferenceManager.getMemberId() } returns "member-b"
+
+            // When: member-b로 전송을 시작하고 끝낸다
+            val started = dataSource.startSimpleTimerSync(localId)
+            dataSource.finishSimpleTimerSync(localId, serverId = 7L)
+
+            // Then: 다른 계정의 행이라 아무 일도 일어나지 않는다
+            assertThat(started).isNull()
+            every { preferenceManager.getMemberId() } returns MEMBER_ID
+            val untouched = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(untouched.syncState).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(untouched.serverId).isNull()
+            assertThat(untouched.inFlightOperation).isNull()
         }
 
     companion object {

@@ -68,6 +68,11 @@ class TimerRepositoryImplTest {
         createRequestId = "req",
         pendingEditId = null,
         editedAt = 0L,
+        inFlightEditId = null,
+        inFlightEditedAt = null,
+        inFlightOperation = null,
+        lastSyncError = null,
+        inFlightTime = null,
     )
 
     private fun customEntity(
@@ -86,6 +91,12 @@ class TimerRepositoryImplTest {
         createRequestId = "req",
         pendingEditId = null,
         editedAt = 0L,
+        inFlightEditId = null,
+        inFlightEditedAt = null,
+        inFlightOperation = null,
+        lastSyncError = null,
+        inFlightName = null,
+        inFlightSteps = null,
     )
 
     // ── 심플 타이머 조회 ────────────────────────────────

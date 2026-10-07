@@ -67,6 +67,11 @@ class TimerLocalDataSource
                     createRequestId = newId(),
                     pendingEditId = null,
                     editedAt = now(),
+                    inFlightEditId = null,
+                    inFlightEditedAt = null,
+                    inFlightOperation = null,
+                    lastSyncError = null,
+                    inFlightTime = null,
                 ),
             )
             return localId
@@ -91,7 +96,9 @@ class TimerLocalDataSource
         suspend fun deleteSimpleTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getSimpleTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            // 전송 중인 생성은 서버에 행이 생길 수 있어 즉시 지우지 않습니다. 삭제 대기로 두면
+            // 생성이 끝나 serverId가 채워진 뒤 삭제가 나갑니다
+            if (current.serverId == null && current.inFlightOperation == null) {
                 timerDao.deleteSimpleTimer(memberId, localId)
                 return
             }
@@ -131,6 +138,12 @@ class TimerLocalDataSource
                     createRequestId = newId(),
                     pendingEditId = null,
                     editedAt = now(),
+                    inFlightEditId = null,
+                    inFlightEditedAt = null,
+                    inFlightOperation = null,
+                    lastSyncError = null,
+                    inFlightName = null,
+                    inFlightSteps = null,
                 ),
             )
             return localId
@@ -157,7 +170,8 @@ class TimerLocalDataSource
         suspend fun deleteCustomTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getCustomTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            // 심플 타이머와 같은 이유로 전송 중인 생성은 즉시 지우지 않습니다
+            if (current.serverId == null && current.inFlightOperation == null) {
                 timerDao.deleteCustomTimer(memberId, localId)
                 return
             }
@@ -178,6 +192,153 @@ class TimerLocalDataSource
         suspend fun getPendingCustomTimers(): List<CustomTimerEntity> {
             val memberId = currentMemberId() ?: return emptyList()
             return timerDao.getPendingCustomTimers(memberId)
+        }
+
+        /**
+         * 전송을 시작합니다. 대기 행의 현재 값을 전송 중 칸으로 복사해 워커가 이 고정값으로
+         * 서버에 보내게 합니다. 재시도 중인 행이면 다시 복사하지 않고 이전에 고정한 값을
+         * 그대로 돌려줍니다. 이것이 재시도에도 같은 값을 보내는 핵심입니다
+         *
+         * 동기화 완료 행이거나 없는 행이면 보낼 것이 없어 null을 돌립니다
+         */
+        suspend fun startSimpleTimerSync(localId: String): SimpleTimerEntity? {
+            val memberId = currentMemberId() ?: return null
+            return database.withTransaction {
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@withTransaction null
+                if (current.syncState == SyncState.SYNCED) return@withTransaction null
+                if (current.inFlightOperation != null) return@withTransaction current
+
+                val started =
+                    current.copy(
+                        inFlightEditId = current.pendingEditId,
+                        inFlightEditedAt = current.editedAt,
+                        inFlightOperation = current.syncState,
+                        inFlightTime = current.time,
+                        lastSyncError = null,
+                    )
+                timerDao.upsertSimpleTimer(started)
+                started
+            }
+        }
+
+        /**
+         * 전송 성공을 반영합니다. serverId는 생성 성공일 때만 넘어옵니다.
+         *
+         * 전송 중에 pendingEditId가 그대로면 SYNCED로 바꾸고 전송 중 칸을 지웁니다.
+         * 전송 중에 사용자가 다시 저장해 pendingEditId가 달라졌으면 이어서 보낼 편집이
+         * 남은 것이라 syncState는 그대로 두고 전송 중 칸만 지웁니다. serverId는 두 경우
+         * 모두 반영합니다. 생성 직후 다시 수정된 행은 이 갈래를 타면서 serverId가 새로 생겨
+         * 더는 생성 대기가 아니므로 수정 대기로 올립니다. 그래야 다음 전송이 생성이 아니라
+         * 수정으로 나갑니다
+         */
+        suspend fun finishSimpleTimerSync(
+            localId: String,
+            serverId: Long?,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@withTransaction
+                if (current.inFlightOperation == SyncState.DELETE_PENDING) {
+                    timerDao.deleteSimpleTimer(memberId, localId)
+                    return@withTransaction
+                }
+
+                val withServerId = if (serverId != null) current.copy(serverId = serverId) else current
+                val finished =
+                    when {
+                        withServerId.pendingEditId == withServerId.inFlightEditId ->
+                            withServerId.copy(syncState = SyncState.SYNCED)
+                        withServerId.syncState == SyncState.CREATE_PENDING && withServerId.serverId != null ->
+                            withServerId.copy(syncState = SyncState.UPDATE_PENDING)
+                        else -> withServerId
+                    }
+                timerDao.upsertSimpleTimer(
+                    finished.copy(
+                        inFlightEditId = null,
+                        inFlightEditedAt = null,
+                        inFlightOperation = null,
+                        inFlightTime = null,
+                        lastSyncError = null,
+                    ),
+                )
+            }
+        }
+
+        /** 전송 실패를 기록합니다. 재시도가 고정값을 다시 보내야 하므로 전송 중 칸은 건드리지 않습니다 */
+        suspend fun recordSimpleTimerSyncError(
+            localId: String,
+            error: String,
+        ) {
+            val memberId = currentMemberId() ?: return
+            val current = timerDao.getSimpleTimer(memberId, localId) ?: return
+            timerDao.upsertSimpleTimer(current.copy(lastSyncError = error))
+        }
+
+        /** 전송을 시작합니다. 심플 타이머와 규칙이 같습니다 */
+        suspend fun startCustomTimerSync(localId: String): CustomTimerEntity? {
+            val memberId = currentMemberId() ?: return null
+            return database.withTransaction {
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@withTransaction null
+                if (current.syncState == SyncState.SYNCED) return@withTransaction null
+                if (current.inFlightOperation != null) return@withTransaction current
+
+                val started =
+                    current.copy(
+                        inFlightEditId = current.pendingEditId,
+                        inFlightEditedAt = current.editedAt,
+                        inFlightOperation = current.syncState,
+                        inFlightName = current.name,
+                        inFlightSteps = current.steps,
+                        lastSyncError = null,
+                    )
+                timerDao.upsertCustomTimer(started)
+                started
+            }
+        }
+
+        /** 전송 성공을 반영합니다. 심플 타이머와 규칙이 같습니다 */
+        suspend fun finishCustomTimerSync(
+            localId: String,
+            serverId: Long?,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@withTransaction
+                if (current.inFlightOperation == SyncState.DELETE_PENDING) {
+                    timerDao.deleteCustomTimer(memberId, localId)
+                    return@withTransaction
+                }
+
+                val withServerId = if (serverId != null) current.copy(serverId = serverId) else current
+                val finished =
+                    when {
+                        withServerId.pendingEditId == withServerId.inFlightEditId ->
+                            withServerId.copy(syncState = SyncState.SYNCED)
+                        withServerId.syncState == SyncState.CREATE_PENDING && withServerId.serverId != null ->
+                            withServerId.copy(syncState = SyncState.UPDATE_PENDING)
+                        else -> withServerId
+                    }
+                timerDao.upsertCustomTimer(
+                    finished.copy(
+                        inFlightEditId = null,
+                        inFlightEditedAt = null,
+                        inFlightOperation = null,
+                        inFlightName = null,
+                        inFlightSteps = null,
+                        lastSyncError = null,
+                    ),
+                )
+            }
+        }
+
+        /** 전송 실패를 기록합니다. 심플 타이머와 규칙이 같습니다 */
+        suspend fun recordCustomTimerSyncError(
+            localId: String,
+            error: String,
+        ) {
+            val memberId = currentMemberId() ?: return
+            val current = timerDao.getCustomTimer(memberId, localId) ?: return
+            timerDao.upsertCustomTimer(current.copy(lastSyncError = error))
         }
 
         /**
@@ -216,6 +377,11 @@ class TimerLocalDataSource
                             createRequestId = newId(),
                             pendingEditId = null,
                             editedAt = now(),
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightOperation = null,
+                            lastSyncError = null,
+                            inFlightTime = null,
                         )
                     },
                 )
@@ -256,6 +422,12 @@ class TimerLocalDataSource
                             createRequestId = newId(),
                             pendingEditId = null,
                             editedAt = now(),
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightOperation = null,
+                            lastSyncError = null,
+                            inFlightName = null,
+                            inFlightSteps = null,
                         )
                     },
                 )
