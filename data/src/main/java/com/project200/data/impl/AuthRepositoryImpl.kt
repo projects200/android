@@ -120,6 +120,12 @@ class AuthRepositoryImpl
             }
         }
 
+        override suspend fun clearTokens() {
+            withContext(ioDispatcher) {
+                authStateManager.clearAuthState()
+            }
+        }
+
         companion object {
             const val TAG = "AuthRepositoryImpl"
         }
