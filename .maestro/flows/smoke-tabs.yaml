@@ -1,0 +1,51 @@
+appId: com.project200.undabang
+name: 하단 탭 순회
+tags:
+  - smoke
+  - requires-login
+---
+# 탭을 눌렀을 때 그 탭이 선택되고 해당 화면이 떴는지 봅니다.
+# 탭 라벨과 화면 제목이 같은 탭이 있어(피드) 텍스트 단언만으로는 눌리지 않아도 통과합니다.
+# 그래서 내비 항목의 selected 상태를 함께 겁니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+# 기록 - XML 화면
+- tapOn:
+    id: exercise_nav_graph
+- assertVisible:
+    id: exercise_nav_graph
+    selected: true
+- assertVisible:
+    id: exercise_create_btn
+- assertVisible: "이번 달 운동 횟수"
+
+# 매칭 - 카카오맵 위에 올린 Compose 툴바
+- tapOn:
+    id: matching_nav_graph
+- assertVisible:
+    id: matching_nav_graph
+    selected: true
+- assertVisible: "운동 장소 목록"
+
+# 피드 - Compose
+- tapOn:
+    id: feed_nav_graph
+- assertVisible:
+    id: feed_nav_graph
+    selected: true
+
+# 채팅
+- tapOn:
+    id: chatting_nav_graph
+- assertVisible:
+    id: chatting_nav_graph
+    selected: true
+
+# MY - XML 화면
+- tapOn:
+    id: profile_nav_graph
+- assertVisible:
+    id: profile_nav_graph
+    selected: true
+- assertVisible: "최근 30일 운동 횟수"
+- assertVisible: "선호 운동"
