@@ -44,27 +44,31 @@ Clean Architecture 기반의 멀티 모듈 구조이며, 운동 기록과 타이
 
 ```mermaid
 flowchart LR
-    subgraph P[Presentation]
-        F[feature/*]
-        PR[presentation]
+    APP(["app"])
+    subgraph PL["Presentation"]
+        F["feature/*"]
+        PR["presentation"]
     end
-    subgraph D[Domain]
-        DM[domain<br/>Model · UseCase · Repository interface]
-    end
-    subgraph DA[Data]
-        DT[data<br/>RepositoryImpl · Api · Room]
-    end
-    APP[app] --> F
+    DM["domain"]
+    DT["data"]
+    OA["core/oauth"]
+    CM["common"]
+
+    APP --> F
     APP --> DT
     F --> PR
     F --> DM
     PR --> DM
-    DT -.implements.-> DM
-    F --> OA[core/oauth]
+    DT -- "implements" --> DM
     DT --> OA
+    F -. "auth · exercise · profile" .-> OA
+    F --> CM
+    PR --> CM
+    DT --> CM
 ```
 
-단방향 의존입니다. `domain`은 순수 Kotlin이며 안드로이드 의존성을 갖지 않습니다.
+화살표는 의존 방향입니다. 단방향이며 역방향 의존은 없습니다.
+`domain`은 외부 의존이 하나도 없는 순수 Kotlin 모듈입니다.
 `feature`와 `presentation`은 Retrofit과 저장소를 직접 참조하지 않고 UseCase만 호출합니다.
 
 ```
@@ -193,7 +197,7 @@ API 서버는 빌드 타입에 따라 갈립니다. debug는 `https://api.undaba
 ./gradlew lint                  # Android Lint
 ./gradlew testDebugUnitTest     # 단위 테스트 전체
 ./gradlew :feature:timer:testDebugUnitTest   # 모듈 단위 테스트
-./gradlew jacocoFullReport      # 커버리지 리포트
+./gradlew jacocoLogicReport     # UseCase·ViewModel 커버리지 리포트
 ./gradlew assembleDebug         # 디버그 APK
 ./gradlew assembleRelease       # 릴리스 APK
 ```
