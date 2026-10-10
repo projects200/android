@@ -1,0 +1,16 @@
+appId: com.project200.undabang
+name: 로그인 화면 진입
+tags:
+  - smoke
+---
+- runFlow: ../subflows/launch-logged-out.yaml
+
+- assertVisible:
+    id: logo
+- assertVisible: "운다방"
+- assertVisible:
+    id: kakao_login_btn
+    enabled: true
+- assertVisible:
+    id: google_login_btn
+    enabled: true
