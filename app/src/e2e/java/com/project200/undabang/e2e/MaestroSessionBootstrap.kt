@@ -3,8 +3,6 @@ package com.project200.undabang.e2e
 import android.net.Uri
 import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
-import com.project200.undabang.core.oauth.BuildConfig as OAuthBuildConfig
-import com.project200.undabang.data.BuildConfig as DataBuildConfig
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
@@ -17,6 +15,8 @@ import net.openid.appauth.TokenResponse
 import javax.inject.Inject
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import com.project200.undabang.core.oauth.BuildConfig as OAuthBuildConfig
+import com.project200.undabang.data.BuildConfig as DataBuildConfig
 
 internal class MaestroSessionBootstrap
     @Inject
@@ -63,8 +63,9 @@ internal class MaestroSessionBootstrap
             if (authRepository.checkIsRegistered() != RegistrationStatus.Registered) {
                 throw MaestroSetupFailure("registration_failed")
             }
-            val memberId = authRepository.getMemberId()?.takeIf { it.isNotBlank() }
-                ?: throw MaestroSetupFailure("registration_failed")
+            val memberId =
+                authRepository.getMemberId()?.takeIf { it.isNotBlank() }
+                    ?: throw MaestroSetupFailure("registration_failed")
             if (expectedMemberId != null && memberId != expectedMemberId) {
                 throw MaestroSetupFailure("member_mismatch")
             }
