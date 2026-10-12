@@ -1,0 +1,52 @@
+appId: com.project200.undabang
+name: 채팅방 메시지 수신 확인 (B 역할)
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# chatting-send.yaml과 짝으로 돌아가는 플로우입니다. PEER_NICKNAME은 이 기기 화면에 보이는
+# 상대(A) 닉네임이고, MESSAGE는 A가 보낸 것과 같은 값을 그대로 받아야 합니다.
+# 두 값 모두 evalScript 기본값 없이 외부에서 -e로만 주입받습니다. 실행 순서는 README-chatting.md 참고
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- tapOn:
+    id: chatting_nav_graph
+
+- extendedWaitUntil:
+    visible:
+      text: "(?s).*${PEER_NICKNAME}님과의 채팅"
+    timeout: 40000
+
+- tapOn:
+    text: "(?s).*${PEER_NICKNAME}님과의 채팅"
+
+- extendedWaitUntil:
+    visible:
+      id: chatting_message_et
+    timeout: 30000
+
+- assertVisible:
+    id: chatting_message_et
+    enabled: true
+
+# 소켓 티켓 발급, WebSocket 연결, 앱 레벨 하트비트가 끝나야 메시지가 들어옵니다(ChatSocketRepositoryImpl).
+# STOMP가 아니라 자체 JSON 프로토콜(SocketType.TALK 등)이라 더 긴 왕복이 생길 수 있어
+# send 쪽보다 여유 있게 기다립니다. 이쪽 입력창이나 내 말풍선이 아니라
+# 상대 메시지 뷰(item_opponent_message의 message_tv)에 해당 문구가 떴는지로 수신을 판정합니다
+- extendedWaitUntil:
+    visible:
+      id: message_tv
+      text: "${MESSAGE}"
+    timeout: 60000
+
+- assertVisible:
+    id: message_tv
+    text: "${MESSAGE}"
+
+# 메시지별 삭제 UI가 없고 방은 재사용하는 전용 픽스처라 탈퇴하지 않습니다. 일반 뒤로가기만 씁니다
+- back
+- extendedWaitUntil:
+    visible:
+      id: chatting_nav_graph
+    timeout: 30000

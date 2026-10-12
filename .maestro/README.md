@@ -117,6 +117,17 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
+ 
+### 기능별 확장 플로우
+
+|파일|태그|검증|
+|---|---|---|
+|`flows/chatting-send.yaml`|`regression`, `requires-login`|계정 A의 고유 메시지 송신|
+|`flows/chatting-receive.yaml`|`regression`, `requires-login`|계정 B의 동일 메시지 수신|
+|`flows/chatting-history.yaml`|`regression`, `requires-login`|방 재진입과 이탈 중 도착한 메시지 이력|
+|`flows/chatting-list-refresh.yaml`|`regression`, `requires-login`|대화 목록의 상대·최근 메시지 갱신|
+
+채팅 플로우는 두 계정과 두 기기를 사용합니다. 각 기기의 실행 결과를 별도 디렉터리에 저장하며 메시지별 삭제 UI가 없어 전용 대화방과 테스트 메시지는 별도 수명 관리가 필요합니다. 상세 실행 절차는 `README-chatting.md`를 참고합니다.
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 

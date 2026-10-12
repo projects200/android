@@ -1,0 +1,35 @@
+appId: com.project200.undabang
+name: 대화 목록 재조회 반영 확인
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# PEER_NICKNAME과 MESSAGE는 chatting-send/receive에서 실제로 주고받은 값을 그대로 받습니다.
+# 외부 주입 없이 evalScript로 기본값을 채우면 그 실행이 만든 데이터가 아니라서 검증 의미가 없습니다.
+# 목록 자체는 이 기기 혼자 조회하지만, 반영할 데이터는 상대와의 실제 교환에 의존하므로
+# 단일 기기 전체 실행 순서(config.yaml의 flowsOrder)에는 넣지 않았습니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- tapOn:
+    id: chatting_nav_graph
+
+# ChattingListViewModel은 푸시가 아니라 Fragment가 STARTED인 동안 15초 폴링과
+# onResume 재조회로만 목록을 갱신합니다(POLLING_PERIOD). 즉시 갱신을 전제하지 않고
+# 폴링 한두 주기를 감안해 넉넉히 기다립니다
+- extendedWaitUntil:
+    visible:
+      id: last_message_tv
+      text: "${MESSAGE}"
+      below:
+        text: "(?s).*${PEER_NICKNAME}님과의 채팅"
+    timeout: 40000
+
+# last_message_tv는 행마다 반복되는 id라서 올바른 상대 행인지까지 확인하려면
+# 바로 위에 있는 닉네임 접근성 레이블을 앵커로 묶습니다. below는 좌표 기준이라
+# 같은 행 안에서 nickname_tv 바로 아래 있는 last_message_tv만 집어냅니다
+- assertVisible:
+    id: last_message_tv
+    text: "${MESSAGE}"
+    below:
+      text: "(?s).*${PEER_NICKNAME}님과의 채팅"
