@@ -1,14 +1,14 @@
 package com.project200.undabang.e2e
 
-import com.project200.data.api.ApiService
-import com.project200.data.dto.BaseResponse
+import com.project200.domain.model.BaseResult
+import com.project200.domain.repository.ExerciseRecordRepository
 import java.time.LocalDate
 import javax.inject.Inject
 
 internal class MaestroFixtureCleaner
     @Inject
     constructor(
-        private val apiService: ApiService,
+        private val exerciseRecordRepository: ExerciseRecordRepository,
     ) {
         suspend fun clean(
             fixtureStartDate: LocalDate,
@@ -18,39 +18,41 @@ internal class MaestroFixtureCleaner
             val candidates = linkedSetOf<Long>()
             for (range in MaestroFixturePolicy.monthlyRanges(fixtureStartDate, today)) {
                 val counts =
-                    requireData(apiService.getExerciseCountsByRange(range.start, range.endInclusive))
+                    readOrFail(exerciseRecordRepository.getExerciseCountByRange(range.start, range.endInclusive))
                 val seenDates = mutableSetOf<LocalDate>()
                 for (count in counts) {
-                    if (count.date !in range || count.exerciseCount < 0 || !seenDates.add(count.date)) {
+                    if (count.date !in range || count.count < 0 || !seenDates.add(count.date)) {
                         throw MaestroSetupFailure("fixture_read_failed")
                     }
-                    if (count.exerciseCount == 0) continue
-                    val records = requireData(apiService.getExerciseList(count.date))
+                    if (count.count == 0) continue
+                    val records = readOrFail(exerciseRecordRepository.getExerciseRecordList(count.date))
                     for (record in records) {
-                        if (record.exerciseId <= 0 || record.exerciseStartedAt.toLocalDate() != count.date) {
+                        if (record.recordId <= 0 || record.startTime.toLocalDate() != count.date) {
                             throw MaestroSetupFailure("fixture_read_failed")
                         }
-                        if (MaestroFixturePolicy.ownsTitle(record.exerciseTitle)) {
-                            candidates.add(record.exerciseId)
+                        if (MaestroFixturePolicy.ownsTitle(record.title)) {
+                            candidates.add(record.recordId)
                         }
                     }
                 }
             }
 
             // 모든 월의 조회가 성공한 뒤 삭제하며, 조회 후 일반 제목으로 바뀐 기록은 보존합니다
-            for (exerciseId in candidates) {
-                val record = requireData(apiService.getExerciseRecordDetail(exerciseId))
-                if (record.exerciseStartedAt.toLocalDate() !in fixtureStartDate..today) {
+            for (recordId in candidates) {
+                val record = readOrFail(exerciseRecordRepository.getExerciseDetail(recordId))
+                if (record.startedAt.toLocalDate() !in fixtureStartDate..today) {
                     throw MaestroSetupFailure("fixture_read_failed")
                 }
-                if (!MaestroFixturePolicy.ownsTitle(record.exerciseTitle)) continue
-                val deleted = apiService.deleteExerciseRecord(exerciseId)
-                if (!deleted.succeed) throw MaestroSetupFailure("fixture_delete_failed")
+                if (!MaestroFixturePolicy.ownsTitle(record.title)) continue
+                if (exerciseRecordRepository.deleteExerciseRecord(recordId) is BaseResult.Error) {
+                    throw MaestroSetupFailure("fixture_delete_failed")
+                }
             }
         }
 
-        private fun <T : Any> requireData(response: BaseResponse<T>): T {
-            if (!response.succeed) throw MaestroSetupFailure("fixture_read_failed")
-            return response.data ?: throw MaestroSetupFailure("fixture_read_failed")
-        }
+        private fun <T> readOrFail(result: BaseResult<T>): T =
+            when (result) {
+                is BaseResult.Success -> result.data
+                is BaseResult.Error -> throw MaestroSetupFailure("fixture_read_failed")
+            }
     }
