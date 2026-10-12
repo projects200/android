@@ -28,14 +28,21 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -57,6 +64,8 @@ import com.project200.presentation.utils.RelativeTimeUtil
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.presentation.R as PresentationR
 
+// Maestro가 id 셀렉터로 잡을 수 있도록 testTagsAsResourceId를 켭니다 (FeedListScreen과 동일한 방식)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FeedDetailScreen(
     feed: Feed?,
@@ -79,7 +88,7 @@ fun FeedDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title = "",
@@ -87,7 +96,7 @@ fun FeedDetailScreen(
                 actions = {
                     // 내 피드일 때만 우측에 더보기 메뉴 노출
                     if (isMyFeed) {
-                        IconButton(onClick = onFeedMoreClick) {
+                        IconButton(onClick = onFeedMoreClick, modifier = Modifier.testTag("feed_detail_more_button")) {
                             Icon(
                                 painter = painterResource(R.drawable.ic_more),
                                 contentDescription = null,
@@ -278,18 +287,22 @@ private fun DetailImage(
     picture: FeedPicture,
     modifier: Modifier = Modifier,
 ) {
+    // 로딩 성공 시에만 테스트 태그를 붙여, 업로드가 서버 왕복까지 끝났을 때만 Maestro가 확인할 수 있게 합니다
+    var isLoaded by remember(picture.feedPictureId) { mutableStateOf(false) }
     AsyncImage(
         model = picture.feedPictureUrl,
         contentDescription = null,
         contentScale = ContentScale.Crop,
         placeholder = painterResource(R.drawable.ic_feed_image_placeholder),
         error = painterResource(R.drawable.ic_feed_image_placeholder),
+        onSuccess = { isLoaded = true },
         modifier =
             modifier
                 .padding(end = 8.dp)
                 .height(160.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(ColorWhite300),
+                .background(ColorWhite300)
+                .then(if (isLoaded) Modifier.testTag("feed_detail_image_loaded") else Modifier),
     )
 }
 
@@ -314,6 +327,7 @@ private fun FeedActionBar(
             text = feed.feedCommentsCount.toString(),
             style = MaterialTheme.typography.subtext14,
             color = ColorBlack,
+            modifier = Modifier.testTag("feed_detail_comments_count"),
         )
         Spacer(Modifier.width(12.dp))
         Icon(
@@ -321,7 +335,8 @@ private fun FeedActionBar(
                 painterResource(
                     if (feed.feedIsLiked) R.drawable.ic_like_fill else R.drawable.ic_like,
                 ),
-            contentDescription = null,
+            // 좋아요 상태를 접근성 라벨로 노출해 탭과 상태 확인에 같이 씁니다 (TopBar의 "뒤로가기"와 같은 방식)
+            contentDescription = if (feed.feedIsLiked) "좋아요 취소" else "좋아요",
             tint = Color.Unspecified,
             modifier =
                 Modifier
@@ -337,6 +352,7 @@ private fun FeedActionBar(
             text = feed.feedLikesCount.toString(),
             style = MaterialTheme.typography.subtext14,
             color = ColorBlack,
+            modifier = Modifier.testTag("feed_detail_likes_count"),
         )
     }
 }
@@ -457,7 +473,8 @@ private fun CommentRow(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onMoreClick,
-                        ),
+                        )
+                        .testTag("feed_detail_comment_more_button"),
             )
         }
     }
@@ -532,7 +549,8 @@ private fun CommentInputBar(
                         .background(ColorWhite300)
                         .padding(horizontal = 12.dp, vertical = 10.dp)
                         .heightIn(min = 24.dp, max = 130.dp)
-                        .defaultMinSize(minHeight = 24.dp),
+                        .defaultMinSize(minHeight = 24.dp)
+                        .testTag("feed_detail_comment_input"),
                 decorationBox = { inner ->
                     if (input.isEmpty()) {
                         Text(
@@ -561,7 +579,8 @@ private fun CommentInputBar(
                             indication = null,
                             enabled = input.isNotBlank(),
                             onClick = onSend,
-                        ),
+                        )
+                        .testTag("feed_detail_comment_send_button"),
             )
         }
     }

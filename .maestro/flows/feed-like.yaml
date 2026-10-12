@@ -1,0 +1,126 @@
+appId: com.project200.undabang
+name: 피드 좋아요 토글과 재진입 확인
+tags:
+  - regression
+  - requires-login
+---
+# 좋아요는 낙관적 UI입니다 (FeedDetailViewModel.LIKE_DEBOUNCE_MS = 1000ms 후에만 서버 호출)
+# 화면을 바로 벗어나면 ViewModel이 정리되며 지연된 서버 호출이 취소될 수 있어, 탭 직후 디바운스보다
+# 넉넉히 기다린 뒤에만 화면을 벗어납니다. 그 다음 상세를 나갔다 다시 들어와 저장된 값인지 확인합니다
+# 이번 실행이 만든 새 글에서만 토글하므로 초기값(좋아요 0, 미좋아요)을 그대로 가정할 수 있습니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- evalScript: ${output.tag = 'e2e612-like-' + Date.now()}
+
+- tapOn:
+    id: feed_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+
+- tapOn:
+    id: feed_add_button
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 30000
+- tapOn:
+    id: feed_form_content_field
+- inputText: ${output.tag}
+- tapOn:
+    id: feed_form_complete_button
+
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+
+# 초기 상태: 새 글이라 좋아요 0, 미좋아요
+- assertVisible:
+    id: feed_detail_likes_count
+    text: "0"
+- assertVisible: "좋아요"
+
+# 좋아요 — 탭 직후 낙관적 변화
+- tapOn: "좋아요"
+- assertVisible:
+    id: feed_detail_likes_count
+    text: "1"
+- assertVisible: "좋아요 취소"
+
+# 디바운스(1초)가 끝나 서버에 반영될 때까지 기다립니다. 화면에는 변화가 없어 phantom id로 대기합니다
+- extendedWaitUntil:
+    visible:
+      id: maestro-e2e612-like-debounce-wait
+    timeout: 1800
+    optional: true
+
+# 상세를 나갔다 다시 들어와 저장된 값인지 확인 (즉시 화면 변화만으로 통과시키지 않습니다)
+- tapOn: "뒤로가기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_likes_count
+    text: "1"
+- assertVisible: "좋아요 취소"
+
+# 좋아요 취소 — 탭 직후 낙관적 변화
+- tapOn: "좋아요 취소"
+- assertVisible:
+    id: feed_detail_likes_count
+    text: "0"
+- assertVisible: "좋아요"
+
+- extendedWaitUntil:
+    visible:
+      id: maestro-e2e612-like-debounce-wait
+    timeout: 1800
+    optional: true
+
+# 다시 나갔다 들어와 취소도 저장되었는지 확인
+- tapOn: "뒤로가기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_likes_count
+    text: "0"
+- assertVisible: "좋아요"
+
+# 정리: 이번 실행이 만든 글을 지웁니다
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "삭제하기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- assertNotVisible: ${output.tag}

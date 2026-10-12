@@ -1,0 +1,105 @@
+appId: com.project200.undabang
+name: 피드 사진 첨부·교체
+tags:
+  - regression
+  - requires-login
+---
+# 시스템 Photo Picker는 앱 밖 화면이라 testTagsAsResourceId가 닿지 않습니다. subflows/feed-pick-first-image.yaml에
+# Maestro 공식 레시피의 폴백 선택자를 모아 뒀습니다. 기기 갤러리에 이미지가 최소 1장 있어야 동작하고,
+# 다중 선택 폼이라 필요할 수 있는 확인(추가) 버튼 선택자는 실제 기기에서 확인하지 못했습니다
+#
+# 사진 미리보기나 글 저장 성공만으로 업로드 성공을 판정하지 않습니다. 두 단계 모두 상세를 나갔다
+# 다시 들어와 feed_detail_image_loaded(AsyncImage onState 성공 시에만 붙는 테스트 태그)로만 확인합니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- evalScript: ${output.tag = 'e2e612-photo-' + Date.now()}
+
+- tapOn:
+    id: feed_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+
+# 작성 + 사진 1장 첨부
+- tapOn:
+    id: feed_add_button
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 30000
+- tapOn:
+    id: feed_form_content_field
+- inputText: ${output.tag}
+- tapOn:
+    id: feed_form_add_image_button
+- runFlow: ../subflows/feed-pick-first-image.yaml
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 20000
+- tapOn:
+    id: feed_form_complete_button
+
+# 상세를 열어 서버에서 실제로 불러온 이미지인지 확인 (미리보기·저장 성공 토스트는 증거로 쓰지 않습니다)
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: feed_detail_image_loaded
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_image_loaded
+
+# 편집: 기존 사진 제거 + 새 사진 추가
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "수정하기"
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 20000
+- tapOn:
+    id: feed_form_remove_image_button
+- assertNotVisible:
+    id: feed_form_remove_image_button
+- tapOn:
+    id: feed_form_add_image_button
+- runFlow: ../subflows/feed-pick-first-image.yaml
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 20000
+- tapOn:
+    id: feed_form_complete_button
+
+# 수정 완료는 상세로 되돌아갑니다. 재조회로 새 사진이 실제로 올라갔는지 확인합니다
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: feed_detail_image_loaded
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_image_loaded
+
+# 정리: 이번 실행이 만든 글과 사진을 함께 지웁니다 (사진은 글에 종속되어 별도 삭제 UI가 없습니다)
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "삭제하기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- assertNotVisible: ${output.tag}

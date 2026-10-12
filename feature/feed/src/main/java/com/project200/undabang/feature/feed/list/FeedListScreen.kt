@@ -112,7 +112,7 @@ fun FeedListScreen(
                             )
                         }
                     }
-                    IconButton(onClick = onAddClick) {
+                    IconButton(onClick = onAddClick, modifier = Modifier.testTag("feed_add_button")) {
                         Icon(
                             painter = painterResource(R.drawable.ic_feed_add),
                             contentDescription = null,
