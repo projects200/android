@@ -34,12 +34,14 @@ class FeedListFragment : Fragment() {
                 val selectedType by viewModel.selectedType.collectAsStateWithLifecycle()
                 val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
                 val isEmpty by viewModel.isEmpty.collectAsStateWithLifecycle()
+                val hasLoadedFeeds by viewModel.hasLoadedFeeds.collectAsStateWithLifecycle()
 
                 FeedListScreen(
                     feeds = feeds,
                     selectedTypeName = selectedType?.name,
                     isLoading = isLoading,
                     isEmpty = isEmpty,
+                    hasLoadedFeeds = hasLoadedFeeds,
                     onFeedClick = { feedId ->
                         findNavController().navigate(
                             FeedListFragmentDirections.actionFeedListFragmentToFeedDetailFragment(feedId),

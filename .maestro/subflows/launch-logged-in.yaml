@@ -1,7 +1,7 @@
 appId: com.project200.undabang
 ---
 # 세션을 유지한 채 실행합니다. clearState를 켜면 토큰이 날아가 로그인 화면으로 떨어집니다.
-# 세션은 login-google 플로우가 먼저 만들어 둡니다 (config.yaml의 executionOrder)
+# 먼저 기기에서 수동 로그인해야 합니다. 이 서브플로우는 로그인하지 않습니다.
 - launchApp:
     clearState: false
     permissions:

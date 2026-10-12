@@ -33,6 +33,13 @@ tags:
 - assertVisible:
     id: feed_nav_graph
     selected: true
+# DEV 피드는 공용 데이터라 목록 유무를 고정하지 않습니다. 실제 행 또는 성공한 빈 응답을 기다립니다.
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+- assertVisible:
+    id: "feed_content|feed_empty"
 
 # 채팅
 - tapOn:
@@ -40,6 +47,13 @@ tags:
 - assertVisible:
     id: chatting_nav_graph
     selected: true
+# 계정에 채팅방이 있으면 실제 닉네임 행, 없으면 최초 조회가 끝난 빈 상태를 확인합니다.
+- extendedWaitUntil:
+    visible:
+      text: "(?s).*님과의 채팅|채팅 목록에 채팅방이 없습니다"
+    timeout: 30000
+- assertVisible:
+    text: "(?s).*님과의 채팅|채팅 목록에 채팅방이 없습니다"
 
 # MY - XML 화면
 - tapOn:

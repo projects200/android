@@ -28,12 +28,16 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -54,6 +58,7 @@ import com.project200.undabang.feature.feed.R
 import kotlinx.coroutines.flow.distinctUntilChanged
 import com.project200.undabang.presentation.R as PresentationR
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FeedListScreen(
     feeds: List<Feed>,
@@ -66,6 +71,7 @@ fun FeedListScreen(
     onClearCategory: () -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    hasLoadedFeeds: Boolean = false,
 ) {
     val lazyListState = rememberLazyListState()
 
@@ -87,7 +93,7 @@ fun FeedListScreen(
     }
 
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             // 카테고리 선택 모드일 때는 뒤로가기 + 카테고리명을 제목으로, 일반 모드일 때는 카테고리/추가 액션을 노출
             UndabangTopBar(
@@ -137,7 +143,10 @@ fun FeedListScreen(
                         text = stringResource(R.string.feed_empty_message),
                         style = MaterialTheme.typography.subtext14,
                         color = ColorGray200,
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier =
+                            Modifier
+                                .align(Alignment.Center)
+                                .then(if (hasLoadedFeeds) Modifier.testTag("feed_empty") else Modifier),
                     )
                 }
                 else -> {
@@ -169,6 +178,7 @@ private fun FeedCard(
         modifier =
             modifier
                 .fillMaxWidth()
+                .testTag("feed_content")
                 .clickable(onClick = onClick)
                 .padding(bottom = 24.dp),
     ) {
