@@ -4,7 +4,7 @@ tags:
   - regression
   - requires-login
 ---
-# 제목은 이번 실행 전용 예약 문자열입니다. 직접 실행이 실패하면 해당 기록만 수동 정리합니다.
+# 제목은 이번 실행 전용 예약 문자열이며, 준비/실패 정리는 호스트 러너가 맡습니다.
 # 시각/날짜 4개 변수는 기기의 Asia/Seoul 정시 기준입니다. 계정 인증값은 전달하지 않습니다.
 - assertTrue: ${/^maestro-e2e-[a-f0-9]{32}$/.test(EXERCISE_TITLE) && EDITED_EXERCISE_TITLE === EXERCISE_TITLE + '-edited'}
 - runFlow: ../subflows/launch-logged-in.yaml

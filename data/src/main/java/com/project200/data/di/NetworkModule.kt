@@ -1,5 +1,7 @@
 package com.project200.data.di
 
+import android.content.Context
+import android.content.pm.PackageManager
 import com.project200.data.api.ApiService
 import com.project200.data.api.ChatApiService
 import com.project200.data.utils.FcmTokenProvider
@@ -15,6 +17,7 @@ import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -37,10 +40,17 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideHttpLoggingInterceptor(): HttpLoggingInterceptor {
+    fun provideHttpLoggingInterceptor(
+        @ApplicationContext context: Context,
+    ): HttpLoggingInterceptor {
+        // 앱의 E2E manifest에서만 지정하며, 일반 debug의 네트워크 로그는 유지합니다
+        val disableLogging =
+            context.packageManager
+                .getApplicationInfo(context.packageName, PackageManager.GET_META_DATA)
+                .metaData?.getBoolean("com.project200.undabang.DISABLE_HTTP_LOGGING", false) == true
         return HttpLoggingInterceptor().apply {
             level =
-                if (BuildConfig.DEBUG) {
+                if (BuildConfig.DEBUG && !disableLogging) {
                     HttpLoggingInterceptor.Level.BODY
                 } else {
                     HttpLoggingInterceptor.Level.NONE

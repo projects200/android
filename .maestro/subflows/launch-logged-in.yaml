@@ -1,7 +1,7 @@
 appId: com.project200.undabang
 ---
 # 세션을 유지한 채 실행합니다. clearState를 켜면 토큰이 날아가 로그인 화면으로 떨어집니다.
-# 먼저 기기에서 수동 로그인해야 합니다. 이 서브플로우는 로그인하지 않습니다.
+# 직접 CLI 실행은 수동 로그인 후 사용하고, 호스트 러너는 보호된 플로우마다 실제 세션을 준비합니다.
 - launchApp:
     clearState: false
     permissions:
