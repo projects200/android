@@ -1,0 +1,140 @@
+appId: com.project200.undabang
+name: 지도 회원 선택부터 올바른 채팅방 진입까지
+tags:
+  - regression
+  - requires-login
+---
+# 지도 → 회원 마커 → 회원 목록 바텀시트 → 지정 회원 프로필 → 채팅 요청 → 그 회원과의 방 진입을 봅니다
+#
+# 지도 마커는 카카오맵 SDK가 그려서 접근성 트리에 올라오지 않습니다(README 알아 둘 것)
+# MatchingMapScreen.handleLabelClick()을 보면 회원 마커와 내 장소 마커가 같은 라벨 클릭 경로를 타고,
+# 클릭한 라벨 좌표가 클러스터와 일치하면 회원 목록을, 아니면 장소 클릭 콜백을 호출합니다
+# 즉 텍스트/id로 좌표를 특정할 수 없어 위치·줌을 고정한 뒤 화면 좌표를 직접 탭합니다(이슈 완료 기준의 지시대로)
+#
+# 전제: 이 좌표 근처(서울시청)에 매칭 가능한 회원이 최소 1명 떠 있어야 합니다. 계정/위치 기반 매칭 데이터 픽스처는
+# #609 범위라 이 플로우가 만들 수 없습니다. 데이터가 없으면 8단계의 rv_members 대기에서 타임아웃으로 실패합니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+# RuleConstants.SEOUL_CITY_HALL_LATITUDE/LONGITUDE와 같은 좌표로 고정합니다. 위치 권한은 launch-logged-in에서 이미 허용됨
+- setLocation:
+    latitude: 37.5666805
+    longitude: 126.9784147
+
+- tapOn:
+    id: matching_nav_graph
+- runFlow: ../subflows/matching-dismiss-guides.yaml
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 30000
+
+# 위치 고정이 fusedLocationClient에 반영되고 첫 회원 조회(fetchMatchingMembersIfMoved)가 끝날 시간을 둡니다
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 줌 레벨은 현재위치 이동 시 RuleConstants.ZOOM_LEVEL(18)로 고정되어 MIN_ZOOM_LEVEL_FOR_MEMBERS(11)를 항상 넘습니다
+# 화면 중앙 부근(상단 툴바 아래)을 탭해 회원 마커를 맞춥니다. 정확한 마커 좌표는 실제 기기에서 보정이 필요합니다
+- tapOn:
+    point: "50%, 55%"
+
+- extendedWaitUntil:
+    visible:
+      id: "rv_members"
+    timeout: 20000
+
+# 목록 첫 회원의 닉네임을 저장해 두고, 나중에 프로필·채팅방 상대가 같은 사람인지 비교합니다
+- copyTextFrom:
+    id: "nickname_tv"
+- evalScript: ${output.selectedNickname = maestro.copiedText}
+- tapOn:
+    id: "nickname_tv"
+
+# action_matchingMapFragment_to_matchingProfileFragment는 fromDeepLink 기본값이 false라 채팅 버튼이 보입니다
+# 딥링크 경로(fromDeepLink=true)였다면 chat_btn.isVisible이 false라 이 단언이 실패합니다
+- extendedWaitUntil:
+    visible: "1:1 채팅하기"
+    timeout: 30000
+- assertVisible: ${output.selectedNickname}
+
+- tapOn: "1:1 채팅하기"
+
+# 위치 권한이 있고 setLocation으로 위치도 고정돼 있어 getLastLocationAndCreateChat()이 바로 방을 만들거나 찾습니다
+# 메시지 입력란(chatting_message_et)은 채팅방에만 있는 요소라 제목 텍스트만으로는 못 보는 실제 진입을 확인합니다
+- extendedWaitUntil:
+    visible:
+      id: "chatting_message_et"
+    timeout: 30000
+- assertVisible: ${output.selectedNickname}
+
+# 메시지는 보내지 않습니다. 양방향 송수신과 이력 보존은 #614(채팅 E2E) 범위입니다
+# 채팅방 생성 자체를 되돌리는 UI가 없어(방 삭제 메뉴 없음) 이번 실행이 만들었을 수 있는 방은 정리하지 못합니다
+#
+# 채팅방은 app:// 딥링크로 chatting_nav_graph에 진입한 것이라 매칭 탭과는 다른 백스택입니다
+# back을 반복하는 대신 하단 탭으로 매칭 탭에 바로 돌아간 뒤, 그 탭 자체의 back으로 프로필에서 지도로 돌아갑니다
+- tapOn:
+    id: matching_nav_graph
+- back
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 20000
+
+# --- 위치를 얻지 못한 채팅 요청 ---
+# 위치 권한을 거부해 getLastLocationAndCreateChat()의 권한 분기를 강제로 탑니다. fusedLocation이 null인 경우를
+# 재현 가능하게 만들 방법이 없어(실제 GPS 캐시 상태에 의존), 권한 거부로 "위치를 얻지 못한" 상태를 대표합니다
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: allow
+      location: deny
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000
+- tapOn:
+    id: matching_nav_graph
+# MatchingMapFragment.restoreInitialCamera()도 권한이 없으면 지도가 뜨자마자 자체적으로 위치 권한을 요청합니다
+# launchApp이 Fragment를 다시 그리는지(권한 변경만으로 재생성되는지)는 실행해봐야 확실해, 다이얼로그가 없으면
+# 이 back은 지도 화면 자체를 빠져나갈 수 있습니다. 실기기 확인이 필요한 지점입니다
+- waitForAnimationToEnd:
+    timeout: 2000
+- back
+- runFlow: ../subflows/matching-dismiss-guides.yaml
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    point: "50%, 55%"
+- extendedWaitUntil:
+    visible:
+      id: "rv_members"
+    timeout: 20000
+- tapOn:
+    id: "nickname_tv"
+- extendedWaitUntil:
+    visible: "1:1 채팅하기"
+    timeout: 30000
+- tapOn: "1:1 채팅하기"
+
+# 권한이 없으면 RequestMultiplePermissions 다이얼로그가 뜹니다. back으로 닫으면 모두 거부로 처리됩니다
+- waitForAnimationToEnd:
+    timeout: 3000
+- back
+
+# 거부되면 토스트만 뜨고 화면 전환은 없습니다. 채팅 버튼이 그대로 보이는 것으로 "방에 들어가지 않았다"를 확인합니다
+- assertVisible: "1:1 채팅하기"
+- assertNotVisible:
+    id: "chatting_message_et"
+
+# 위치 권한을 원상 복구합니다. 그대로 두면 이 뒤에 도는 다른 회귀 플로우가 깨집니다
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: allow
+      location: allow
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000
