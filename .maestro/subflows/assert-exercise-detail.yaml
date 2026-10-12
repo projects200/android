@@ -1,0 +1,21 @@
+appId: com.project200.undabang
+---
+- extendedWaitUntil:
+    visible:
+      id: exercise_detail_title
+      text: "${RECORD_TITLE}"
+    timeout: 30000
+- assertVisible:
+    id: exercise_detail_title
+    text: "${RECORD_TITLE}"
+- scrollUntilVisible:
+    element:
+      id: exercise_detail_start_time
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: exercise_detail_start_time
+    text: "${EXERCISE_START_DATE.substring(2).split('.').join('[.]') + ' ' + EXERCISE_START_HOUR + ':' + START_MINUTE}"
+- assertVisible:
+    id: exercise_detail_end_time
+    text: "${EXERCISE_END_DATE.substring(2).split('.').join('[.]') + ' ' + EXERCISE_END_HOUR + ':00'}"

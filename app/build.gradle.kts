@@ -68,6 +68,12 @@ android {
         debug {
             resValue("string", "app_name", "운다방(Debug)")
         }
+        create("e2e") {
+            initWith(getByName("debug"))
+            matchingFallbacks += listOf("debug")
+            signingConfig = signingConfigs.getByName("debug")
+            resValue("string", "app_name", "운다방(E2E)")
+        }
     }
 
     buildFeatures {

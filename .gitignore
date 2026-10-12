@@ -186,3 +186,13 @@ fabric.properties
 ._.DS_Store
 **/.DS_Store
 **/._.DS_Store
+
+# Maestro: 로컬 비밀은 저장소 밖에 보관하며 실수로 복사해도 추적하지 않습니다.
+maestro-session*.json
+maestro-auth-state*.json
+maestro-request.json
+maestro-result.json
+.maestro/.local/
+.maestro/tests/
+__pycache__/
+*.pyc

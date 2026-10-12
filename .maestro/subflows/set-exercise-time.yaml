@@ -1,0 +1,29 @@
+appId: com.project200.undabang
+---
+# 실제 시각 버튼과 BasicTextField를 조작합니다. 날짜는 폼 초기값을 유지합니다.
+- scrollUntilVisible:
+    element:
+      id: "${TIME_BUTTON}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "${TIME_BUTTON}"
+- scrollUntilVisible:
+    element:
+      id: exercise_time_hour_input
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: exercise_time_hour_input
+- eraseText: 2
+- inputText: "${TIME_HOUR}"
+- tapOn:
+    id: exercise_time_minute_input
+- eraseText: 2
+- inputText: "${TIME_MINUTE}"
+- hideKeyboard
+- tapOn:
+    id: exercise_time_confirm
+- assertVisible:
+    id: "${TIME_BUTTON}"
+    text: "${TIME_HOUR}:${TIME_MINUTE}"

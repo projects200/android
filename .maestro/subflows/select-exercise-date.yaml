@@ -1,0 +1,30 @@
+appId: com.project200.undabang
+---
+# 자정에는 시작 날짜가 전날입니다. 월 경계에서도 실제 캘린더의 시작 날짜를 선택합니다.
+- scrollUntilVisible:
+    element:
+      id: date_tv
+    direction: UP
+    timeout: 30000
+- runFlow:
+    when:
+      notVisible:
+        id: date_tv
+        text: "${EXERCISE_START_DATE.substring(0, 4) + '년 ' + parseInt(EXERCISE_START_DATE.substring(5, 7), 10) + '월'}"
+    commands:
+      - tapOn:
+          id: prev_month_btn
+- assertVisible:
+    id: date_tv
+    text: "${EXERCISE_START_DATE.substring(0, 4) + '년 ' + parseInt(EXERCISE_START_DATE.substring(5, 7), 10) + '월'}"
+- tapOn:
+    id: calendar_day_tv
+    text: "${EXERCISE_START_DATE.split('.').join('-')}"
+# 로딩 기본값이나 이전 날짜의 행이 아닌, 새로 렌더링된 목록/빈 상태를 기다립니다.
+- scrollUntilVisible:
+    element:
+      text: "${EXERCISE_START_DATE.split('.').join('-') + '( 운동 기록 목록|에 운동 기록이 없습니다)'}"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    text: "${EXERCISE_START_DATE.split('.').join('-') + '( 운동 기록 목록|에 운동 기록이 없습니다)'}"

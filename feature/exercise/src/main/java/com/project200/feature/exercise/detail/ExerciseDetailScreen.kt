@@ -26,12 +26,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -50,6 +54,7 @@ import com.project200.presentation.compose.theme.subtext14
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ExerciseDetailScreen(
     state: UiState<ExerciseRecord>,
@@ -59,7 +64,7 @@ fun ExerciseDetailScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title = stringResource(R.string.exercise_detail),
@@ -69,14 +74,17 @@ fun ExerciseDetailScreen(
                     IconButton(onClick = onShareClick) {
                         Icon(
                             painter = painterResource(R.drawable.ic_share),
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.share),
                             tint = Color.Unspecified,
                         )
                     }
-                    IconButton(onClick = onMenuClick) {
+                    IconButton(
+                        onClick = onMenuClick,
+                        modifier = Modifier.testTag("exercise_detail_menu"),
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_menu),
-                            contentDescription = null,
+                            contentDescription = stringResource(R.string.exercise_detail_menu),
                             tint = Color.Unspecified,
                         )
                     }
@@ -174,6 +182,7 @@ private fun DetailContent(
         DetailField(
             label = stringResource(R.string.exercise_record_title),
             value = record.title,
+            valueModifier = Modifier.testTag("exercise_detail_title"),
         )
 
         // 운동 종류 (있을 때만)
@@ -205,7 +214,7 @@ private fun DetailContent(
                     text = startStr.orEmpty(),
                     style = MaterialTheme.typography.subtext14,
                     color = ColorBlack,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("exercise_detail_start_time"),
                 )
                 Spacer(Modifier.width(8.dp))
                 Icon(
@@ -218,7 +227,7 @@ private fun DetailContent(
                     text = endStr.orEmpty(),
                     style = MaterialTheme.typography.subtext14,
                     color = ColorBlack,
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.weight(1f).testTag("exercise_detail_end_time"),
                 )
             }
         }
@@ -248,6 +257,7 @@ private fun DetailField(
     value: String,
     modifier: Modifier = Modifier,
     minHeight: androidx.compose.ui.unit.Dp = 44.dp,
+    valueModifier: Modifier = Modifier,
 ) {
     Spacer(Modifier.height(20.dp))
     Text(
@@ -270,7 +280,7 @@ private fun DetailField(
             text = value,
             style = MaterialTheme.typography.subtext14,
             color = ColorBlack,
-            modifier = Modifier.defaultMinSize(minHeight = minHeight),
+            modifier = valueModifier.defaultMinSize(minHeight = minHeight),
         )
     }
 }

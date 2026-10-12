@@ -1,0 +1,180 @@
+appId: com.project200.undabang
+name: 운동 기록 생성 조회 수정 재진입 삭제
+tags:
+  - regression
+  - requires-login
+---
+# 제목은 이번 실행 전용 예약 문자열이며, 준비/실패 정리는 호스트 러너가 맡습니다.
+# 시각/날짜 4개 변수는 기기의 Asia/Seoul 정시 기준입니다. 계정 인증값은 전달하지 않습니다.
+- assertTrue: ${/^maestro-e2e-[a-f0-9]{32}$/.test(EXERCISE_TITLE) && EDITED_EXERCISE_TITLE === EXERCISE_TITLE + '-edited'}
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- tapOn:
+    id: exercise_create_btn
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+    timeout: 30000
+
+# 제목을 비운 상태에서 실제 완료를 눌러 안내와 작성 화면 유지로 저장 차단을 확인합니다.
+- tapOn:
+    id: exercise_complete
+- assertVisible: "필수 항목을 입력해주세요[.]"
+- assertVisible:
+    id: exercise_title_input
+- assertVisible: "운동 기록하기"
+
+# API가 아닌 실제 폼에서 제목과 유효한 시작/종료 시각을 입력합니다.
+- tapOn:
+    id: exercise_title_input
+- inputText: "${EXERCISE_TITLE}"
+- hideKeyboard
+- assertVisible:
+    id: exercise_title_input
+    text: "${EXERCISE_TITLE}"
+- assertVisible:
+    id: exercise_start_date
+    text: "${EXERCISE_START_DATE.split('.').join('[.]')}"
+- assertVisible:
+    id: exercise_end_date
+    text: "${EXERCISE_END_DATE.split('.').join('[.]')}"
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: "${EXERCISE_START_HOUR}"
+      TIME_MINUTE: "00"
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_end_time
+      TIME_HOUR: "${EXERCISE_END_HOUR}"
+      TIME_MINUTE: "00"
+- tapOn:
+    id: exercise_complete
+
+# 점수 획득 여부는 서버 정책에 따라 다릅니다. 어느 분기든 실제 목록의 저장값을 검증합니다.
+- extendedWaitUntil:
+    visible:
+      id: ".*(confirm_btn|exercise_create_btn)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: confirm_btn
+    commands:
+      - tapOn:
+          id: confirm_btn
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow: ../subflows/select-exercise-date.yaml
+- scrollUntilVisible:
+    element:
+      id: exercise_title_tv
+      text: "${EXERCISE_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: exercise_list_cl
+    containsDescendants:
+      - id: exercise_title_tv
+        text: "${EXERCISE_TITLE}"
+      - id: exercise_time_tv
+        text: "${EXERCISE_START_HOUR + ':00 ~ ' + EXERCISE_END_HOUR + ':00'}"
+- tapOn:
+    id: exercise_title_tv
+    text: "${EXERCISE_TITLE}"
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EXERCISE_TITLE}"
+      START_MINUTE: "00"
+
+# 같은 상세의 수정 메뉴로 들어가 제목과 시작 시각의 분을 실제로 변경합니다.
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: "수정하기"
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+      text: "${EXERCISE_TITLE}"
+    timeout: 30000
+- tapOn:
+    id: exercise_title_input
+- eraseText: 255
+- inputText: "${EDITED_EXERCISE_TITLE}"
+- hideKeyboard
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: "${EXERCISE_START_HOUR}"
+      TIME_MINUTE: "05"
+- tapOn:
+    id: exercise_complete
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EDITED_EXERCISE_TITLE}"
+      START_MINUTE: "05"
+- back
+
+# 강제 종료/재실행으로 메모리에 남은 상세가 아니라 다시 조회한 수정값을 검사합니다.
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+# 원제목이 다른 행으로 남아 있지 않은지도 같은 날짜의 목록 전체를 관찰합니다.
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE}"
+- scrollUntilVisible:
+    element:
+      id: exercise_title_tv
+      text: "${EDITED_EXERCISE_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: exercise_list_cl
+    containsDescendants:
+      - id: exercise_title_tv
+        text: "${EDITED_EXERCISE_TITLE}"
+      - id: exercise_time_tv
+        text: "${EXERCISE_START_HOUR + ':05 ~ ' + EXERCISE_END_HOUR + ':00'}"
+- tapOn:
+    id: exercise_title_tv
+    text: "${EDITED_EXERCISE_TITLE}"
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EDITED_EXERCISE_TITLE}"
+      START_MINUTE: "05"
+
+# 이번 실행이 만든 상세의 삭제 메뉴와 확인 다이얼로그를 사용합니다.
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: "삭제하기"
+- assertVisible: "운동 기록을 삭제하시겠습니까[?]"
+- tapOn: "확인"
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}"
+
+# 새 프로세스에서도 같은 날짜의 성공 목록 전체를 관찰하여 두 제목의 부재를 확인합니다.
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}"

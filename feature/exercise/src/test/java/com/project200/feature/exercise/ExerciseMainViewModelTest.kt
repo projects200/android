@@ -1,10 +1,12 @@
 package com.project200.feature.exercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
+import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.Policy
 import com.project200.domain.model.PolicyGroup
@@ -20,6 +22,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -454,5 +457,77 @@ class ExerciseMainViewModelTest {
 
             // Then
             assertThat(viewModel.earnablePoints.value).isEqualTo(0)
+        }
+
+    @Test
+    fun `빈 목록 조회 성공 후 완료 상태가 된다`() =
+        runTest {
+            // Given
+            val response = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } coAnswers { response.await() }
+
+            // When
+            viewModel.refreshData()
+            testDispatcher.scheduler.runCurrent()
+
+            // Then
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+
+            response.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseList.value).isEmpty()
+            assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+        }
+
+    @Test
+    fun `조회 실패의 빈 목록은 완료 상태로 노출하지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } returns BaseResult.Error("500", "조회 실패")
+
+            viewModel.refreshData()
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseList.value).isEmpty()
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+        }
+
+    @Test
+    fun `같은 날짜의 이전 응답은 최신 조회 완료 상태를 물려받지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            val previousResponse = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            val latestResponse = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            var requestCount = 0
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } coAnswers {
+                if (++requestCount == 1) previousResponse.await() else latestResponse.await()
+            }
+
+            viewModel.refreshData()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.refreshData()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+
+            latestResponse.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+
+            val loadedAtListEmission = mutableListOf<Boolean?>()
+            val observer = Observer<List<ExerciseListItem>> { loadedAtListEmission.add(viewModel.isExerciseListLoaded.value) }
+            viewModel.exerciseList.observeForever(observer)
+            loadedAtListEmission.clear()
+            try {
+                previousResponse.complete(BaseResult.Success(emptyList()))
+                testDispatcher.scheduler.runCurrent()
+
+                // 데이터 표시 정책은 유지하되 이전 요청의 행을 최신 성공으로 표시하지 않습니다.
+                assertThat(loadedAtListEmission).containsExactly(false)
+                assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+            } finally {
+                viewModel.exerciseList.removeObserver(observer)
+            }
         }
 }

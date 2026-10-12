@@ -30,7 +30,8 @@ class ApplicationClass : Application(), Configuration.Provider {
 
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
 
-        if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
+        // E2E 세션의 인증 코드와 토큰이 기존 디버그 로그에 남지 않도록 합니다
+        if (BuildConfig.DEBUG && BuildConfig.BUILD_TYPE != "e2e") Timber.plant(Timber.DebugTree())
         Timber.d("Timber")
 
         createNotificationChannel()
