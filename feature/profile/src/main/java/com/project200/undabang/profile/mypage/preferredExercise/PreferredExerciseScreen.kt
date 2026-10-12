@@ -28,12 +28,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,6 +70,7 @@ enum class PreferredExerciseStep {
     DETAIL,
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PreferredExerciseScreen(
     step: PreferredExerciseStep,
@@ -81,7 +87,13 @@ fun PreferredExerciseScreen(
     onSkillClick: (exerciseTypeId: Long, skill: SkillLevel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
+                .semantics { testTagsAsResourceId = true },
+    ) {
         Column(
             modifier =
                 Modifier
@@ -201,6 +213,9 @@ private fun PreferredExerciseTypeChip(
                     indication = null,
                     onClick = onClick,
                 )
+                // Maestro가 미선택/선택 칩을 selected 속성으로 구분해 고릅니다. 종목 목록이 계정마다 달라 이름을 미리 고정할 수 없습니다
+                .semantics { selected = uiModel.isSelected }
+                .testTag("preferred_exercise_type_chip")
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -326,6 +341,7 @@ private fun PreferredExerciseDetailCard(
                     text = stringResource(resId),
                     selected = uiModel.selectedDays[index],
                     onClick = { onDayClick(index) },
+                    testTag = "preferred_exercise_day_btn",
                     modifier = Modifier.weight(1f).padding(5.dp).height(40.dp),
                 )
             }
@@ -349,6 +365,7 @@ private fun PreferredExerciseDetailCard(
                             text = stringResource(skill.resId),
                             selected = uiModel.skillLevel == skill,
                             onClick = { onSkillClick(skill) },
+                            testTag = "preferred_exercise_skill_btn",
                             modifier = Modifier.weight(1f).padding(5.dp).height(36.dp),
                         )
                     }
@@ -367,6 +384,7 @@ private fun DayOrSkillButton(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
+    testTag: String,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = if (selected) ColorMain else ColorGray300
@@ -377,6 +395,9 @@ private fun DayOrSkillButton(
             modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(backgroundColor)
+                // 요일/숙련도 버튼을 같은 모양으로 공유해 호출부에서 구분용 testTag를 넘깁니다
+                .semantics { this.selected = selected }
+                .testTag(testTag)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

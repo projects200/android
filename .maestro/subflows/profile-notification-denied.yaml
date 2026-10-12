@@ -1,0 +1,17 @@
+appId: com.project200.undabang
+---
+# POST_NOTIFICATIONS만 거부한 채로 앱을 다시 띄웁니다. launch-logged-in은 notifications: allow를 미리 주기 때문에
+# 권한 거부 경로를 보려면 이 서브플로우로 전제를 깹니다. clearState는 쓰지 않습니다 — 세션과 Room 캐시는 유지하고
+# adb 권한 상태만 바꿉니다(pm revoke와 동일)
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: deny
+      location: allow
+
+# 콜드 스타트는 아니지만 재기동이라 스플래시를 다시 거칩니다
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000

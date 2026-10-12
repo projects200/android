@@ -1,0 +1,121 @@
+appId: com.project200.undabang
+name: 알림 설정 - 토글·권한 거부 구분과 복구
+tags:
+  - regression
+  - requires-login
+---
+# 전용 계정의 운동·채팅 알림 스위치 기준 상태는 모두 꺼짐(OFF)이라고 가정합니다(README에 명시).
+# NotificationViewModel.updateNotiStateByPermission은 권한이 없으면 서버에 쓰지 않고 화면 값만
+# 강제로 OFF로 보이게 합니다. 이 플로우는 먼저 켠 값을 서버에 실제로 저장해 두고, 권한을 거부한 채
+# 재진입했을 때도 화면은 OFF로 보이지만 서버 값은 그대로 켜져 있다는 것을 권한을 복구한 뒤 다시 읽어 증명합니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- tapOn:
+    id: profile_nav_graph
+- extendedWaitUntil:
+    visible: "최근 30일 운동 횟수"
+    timeout: 30000
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+- extendedWaitUntil:
+    visible:
+      id: exercise_noti_switch
+    timeout: 30000
+
+# 두 스위치를 켭니다. 권한은 이미 허용된 상태라 실제로 서버에 저장됩니다
+- tapOn:
+    id: exercise_noti_switch
+- assertVisible:
+    id: exercise_noti_switch
+    checked: true
+- tapOn:
+    id: chatting_noti_switch
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+
+# 재진입해서 켠 상태가 저장됐는지 확인합니다(화면 재진입에서 저장 상태 확인)
+- back
+- tapOn: "알림"
+- extendedWaitUntil:
+    visible:
+      id: exercise_noti_switch
+      checked: true
+    timeout: 15000
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+
+# 알림 권한만 거부한 채로 같은 화면에 다시 들어갑니다(세션은 유지)
+- runFlow: ../subflows/profile-notification-denied.yaml
+- tapOn:
+    id: profile_nav_graph
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+
+# 권한이 없으면 서버 값과 무관하게 화면은 항상 OFF로 보입니다(NotificationViewModel.updateNotiStateByPermission)
+- extendedWaitUntil:
+    visible:
+      id: exercise_noti_switch
+      checked: false
+    timeout: 15000
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
+- assertVisible: "알림을 받으려면 앱 설정에서 권한을 허용해주세요."
+
+# 권한이 없어도 화면을 계속 쓸 수 있습니다 - 뒤로 가기로 빠져나가도 앱이 멈추지 않습니다
+- back
+- assertVisible: "설정"
+
+# 권한을 되돌립니다. isInitialized가 false인 새 프로세스라 getNotificationState로 서버 값을 다시 읽습니다
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: profile_nav_graph
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+
+# 권한 거부 중에는 OFF로 보였지만, 서버에는 실제로 켜진 값이 그대로 남아 있었다는 증거입니다
+- extendedWaitUntil:
+    visible:
+      id: exercise_noti_switch
+      checked: true
+    timeout: 15000
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+
+# 복구: 기준 상태인 꺼짐(OFF)으로 되돌립니다
+- tapOn:
+    id: exercise_noti_switch
+- assertVisible:
+    id: exercise_noti_switch
+    checked: false
+- tapOn:
+    id: chatting_noti_switch
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
+
+- back
+- tapOn: "알림"
+- extendedWaitUntil:
+    visible:
+      id: exercise_noti_switch
+      checked: false
+    timeout: 15000
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
