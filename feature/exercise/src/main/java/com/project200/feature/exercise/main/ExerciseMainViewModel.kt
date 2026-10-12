@@ -60,6 +60,11 @@ class ExerciseMainViewModel
         private val _exerciseList = MutableLiveData<List<ExerciseListItem>>()
         val exerciseList: LiveData<List<ExerciseListItem>> = _exerciseList
 
+        // 초기값과 조회 실패가 삭제 검증의 빈 목록 선택자로 노출되지 않게 합니다.
+        private val _isExerciseListLoaded = MutableLiveData(false)
+        val isExerciseListLoaded: LiveData<Boolean> = _isExerciseListLoaded
+        private var exerciseListRequestId = 0L
+
         private val expectedScoreInfo = MutableLiveData<ExpectedScoreInfo?>()
 
         private val _earnablePoints = MutableLiveData<Int>()
@@ -91,6 +96,7 @@ class ExerciseMainViewModel
         }
 
         fun onDateSelected(date: LocalDate) {
+            _isExerciseListLoaded.value = false
             _selectedDate.value = date
             loadExercisesForDate(date)
             updateEarnablePoints()
@@ -98,10 +104,16 @@ class ExerciseMainViewModel
 
         // --- 특정 날짜의 운동 목록을 가져오는 함수 ---
         private fun loadExercisesForDate(date: LocalDate) {
+            val requestId = ++exerciseListRequestId
+            _isExerciseListLoaded.value = false
             viewModelScope.launch {
-                when (val result = getExerciseRecordListUseCase(date)) {
+                // 이전 요청의 완료 상태가 새 응답의 목록 관찰자에 전달되지 않게 먼저 해제합니다.
+                val result = getExerciseRecordListUseCase(date)
+                _isExerciseListLoaded.value = false
+                when (result) {
                     is BaseResult.Success -> {
                         _exerciseList.value = result.data
+                        _isExerciseListLoaded.value = requestId == exerciseListRequestId && date == _selectedDate.value
                     }
                     is BaseResult.Error -> {
                         _exerciseList.value = emptyList() // 실패 시 빈 리스트

@@ -8,6 +8,7 @@ executionOrder:
   flowsOrder:
     - smoke-tabs
     - exercise-form-entry
+    - exercise-crud
     - login-screen
 
 testOutputDir: build/maestro

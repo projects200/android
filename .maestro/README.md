@@ -21,8 +21,8 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 ## 실행
 
 ```bash
-# 전체
-maestro test .maestro/
+# 수동 로그인한 기기에서 스모크 실행
+maestro test .maestro/flows/smoke-tabs.yaml
 
 # 로그인 없이 도는 것만
 maestro test --include-tags=smoke --exclude-tags=requires-login .maestro/
@@ -31,7 +31,7 @@ maestro test --include-tags=smoke --exclude-tags=requires-login .maestro/
 maestro test -c .maestro/flows/smoke-tabs.yaml
 
 # CI용 리포트
-maestro test --format junit --output build/maestro/report.xml .maestro/
+maestro test --format junit --output build/maestro/report.xml .maestro/flows/smoke-tabs.yaml
 ```
 
 실행 결과와 스크린샷은 `build/maestro/`에 쌓입니다.
@@ -51,8 +51,30 @@ maestro test --format junit --output build/maestro/report.xml .maestro/
 |`flows/login-screen.yaml`|`smoke`|세션을 지우고 로그인 화면이 뜨는지|
 |`flows/smoke-tabs.yaml`|`smoke` `requires-login`|하단 탭 5개와 실제 피드 콘텐츠/빈 상태, 채팅 콘텐츠/성공한 빈 응답|
 |`flows/exercise-form-entry.yaml`|`regression` `requires-login`|기록 탭에서 운동 기록 작성 화면으로 진입하는지|
+|`flows/exercise-crud.yaml`|`regression` `requires-login`|필수값 누락, UI 생성/조회/수정, 재실행 뒤 영속성, 삭제 뒤 전체 목록 부재|
 
 서브플로우는 `subflows/`에 있습니다. `launch-logged-out`은 세션을 지우고 로그인 화면까지, `launch-logged-in`은 세션을 유지한 채 하단 내비까지 갑니다.
+
+### 운동 기록 CRUD 직접 실행
+
+가입을 완료한 DEV 전용 계정으로 수동 로그인합니다. 제목은 실행마다 새로운 소문자 hex UUID 32자에 `maestro-e2e-`를 붙이고, 수정 제목은 같은 값에 `-edited`를 붙입니다. 다른 실행의 제목을 재사용하지 마세요.
+
+`maestro test`의 `-e NAME=VALUE`로 다음 여섯 값을 모두 전달해야 합니다. 변수 없이 전체 `.maestro/`를 실행하지 마세요.
+
+|변수|값|
+|---|---|
+|`EXERCISE_TITLE`|이번 실행의 예약 제목|
+|`EDITED_EXERCISE_TITLE`|원제목 + `-edited`|
+|`EXERCISE_START_HOUR`|기기의 서울 시간 정시−1시간, 두 자리|
+|`EXERCISE_END_HOUR`|기기의 서울 시간 정시, 두 자리|
+|`EXERCISE_START_DATE`|시작 시각의 날짜, `yyyy.MM.dd`|
+|`EXERCISE_END_DATE`|종료 시각의 날짜, `yyyy.MM.dd`|
+
+플로우는 `.maestro/flows/exercise-crud.yaml`을 선택합니다. 폼의 기본 날짜와 이 값이 일치해야 하므로 실행 중 정시/자정 경계를 넘기지 않도록 합니다. UI에서 시작 분을 `00`→`05`로 수정하고 재실행 뒤 저장값을 검사합니다.
+
+삭제 검증은 선택 날짜의 성공한 목록/빈 상태와 RecyclerView 배치 완료를 기다립니다. 겹치는 느린 swipe마다 대상 제목의 부재를 검사하고, 최대 200회 안에 마지막 실제 행의 시간 접근성 레이블에 도달해야 통과합니다. 화면 밖에 남아 있는 기록을 삭제된 것으로 판단하지 않습니다.
+
+성공한 실행은 UI에서 해당 기록을 삭제합니다. 중간 실패 시 시작 날짜의 원제목/수정제목 기록만 수동 삭제하고 다음 실행에 새 제목을 사용합니다. 다른 기록은 지우지 마세요. 자동 인증 복원과 실패 정리는 후속 #609 PR의 호스트 러너에서 제공합니다. 현재 직접 실행에는 그 준비/정리 절차가 없습니다.
 
 ## 셀렉터를 고르는 기준
 

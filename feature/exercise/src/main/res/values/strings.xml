@@ -4,6 +4,7 @@
     <string name="record_exercise">운동 기록하기</string>
     <string name="edit_exercise">운동 기록 수정</string>
     <string name="exercise_detail">운동 기록 상세</string>
+    <string name="exercise_detail_menu">운동 기록 메뉴</string>
     <string name="exercise_record_title">제목 *</string>
     <string name="exercise_record_type">운동 종류</string>
     <string name="exercise_record_time">운동 시간 *</string>
@@ -25,6 +26,9 @@
     <string name="exercise_record_edit">수정하기</string>
     <string name="exercise_create_get_score">운동 기록하고 점수 얻기</string>
     <string name="exercise_empty">이 날짜에 등록된 기록이 없습니다</string>
+    <string name="exercise_list_loaded">%1$s 운동 기록 목록</string>
+    <string name="exercise_empty_loaded">%1$s에 운동 기록이 없습니다</string>
+    <string name="exercise_list_last_item">운동 기록 목록 마지막 항목: %1$s</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
     <string name="search">검색</string>
     <string name="exercise_place_input">입력</string>

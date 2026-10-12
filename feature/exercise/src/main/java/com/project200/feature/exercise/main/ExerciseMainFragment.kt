@@ -4,8 +4,10 @@ import android.net.Uri
 import android.view.View
 import android.widget.Toast
 import androidx.core.content.ContextCompat.getColor
+import androidx.core.view.doOnNextLayout
 import androidx.core.view.isVisible
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.kizitonwose.calendar.core.CalendarDay
@@ -30,6 +32,8 @@ import java.time.ZoneId
 class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
     private val viewModel: ExerciseMainViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
+    private var listSubmissionId = 0L
+    private var isListCommitted = false
     private val exerciseAdapter: ExerciseListAdapter by lazy {
         ExerciseListAdapter { recordId ->
             // 상세 화면으로 이동
@@ -84,6 +88,9 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         // DayViewContainer에 CalendarDay 데이터를 저장 (클릭 리스너에서 사용)
                         container.day = data
                         calendarDayTv.text = data.date.dayOfMonth.toString()
+                        // 숫자만 같은 다른 달의 날짜와 구분하고 실제 날짜를 접근성에 제공합니다.
+                        calendarDayTv.contentDescription =
+                            if (data.position == DayPosition.MonthDate) data.date.toString() else null
 
                         // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
                         calendarDayTv.background = null
@@ -247,9 +254,37 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         // 운동 목록이 변경될 때 RecyclerView 업데이트
         viewModel.exerciseList.observe(viewLifecycleOwner) { list ->
-            exerciseAdapter.submitList(list)
-            binding.exerciseListEmptyTv.isVisible = list.isNullOrEmpty()
+            val submissionId = ++listSubmissionId
+            val owner = viewLifecycleOwner
+            isListCommitted = false
+            updateListSelectors()
+            exerciseAdapter.submitList(list) {
+                if (submissionId == listSubmissionId && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
+                    binding.exerciseListEmptyTv.isVisible = list.isNullOrEmpty()
+                    binding.exerciseListRv.doOnNextLayout {
+                        if (submissionId == listSubmissionId && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
+                            isListCommitted = true
+                            updateListSelectors()
+                        }
+                    }
+                    // 같은 목록은 Diff가 생략되므로 실제 행 배치 완료를 따로 요청합니다.
+                    binding.exerciseListRv.requestLayout()
+                }
+            }
         }
+        viewModel.isExerciseListLoaded.observe(viewLifecycleOwner) {
+            updateListSelectors()
+        }
+    }
+
+    private fun updateListSelectors() {
+        // 같은 내용의 목록도 현재 제출의 비동기 Diff가 반영된 뒤에만 완료 상태를 노출합니다.
+        val isLoaded = viewModel.isExerciseListLoaded.value == true && isListCommitted
+        val date = viewModel.selectedDate.value.toString()
+        binding.exerciseListRv.contentDescription =
+            if (isLoaded && exerciseAdapter.currentList.isNotEmpty()) getString(R.string.exercise_list_loaded, date) else null
+        binding.exerciseListEmptyTv.contentDescription =
+            if (isLoaded && exerciseAdapter.currentList.isEmpty()) getString(R.string.exercise_empty_loaded, date) else null
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
