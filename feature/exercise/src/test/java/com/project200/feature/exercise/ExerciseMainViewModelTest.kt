@@ -460,10 +460,20 @@ class ExerciseMainViewModelTest {
         }
 
     @Test
-    fun `최초 빈 목록은 조회 성공 후에만 완료 상태가 된다`() =
+    fun `빈 목록 조회 성공 후 완료 상태가 된다`() =
         runTest {
+            // Given
+            val response = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } coAnswers { response.await() }
+
+            // When
+            viewModel.refreshData()
+            testDispatcher.scheduler.runCurrent()
+
+            // Then
             assertThat(viewModel.isExerciseListLoaded.value).isFalse()
 
+            response.complete(BaseResult.Success(emptyList()))
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.exerciseList.value).isEmpty()
