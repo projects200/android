@@ -1,0 +1,17 @@
+appId: com.project200.undabang
+---
+# clearState는 adb shell pm clear와 같아서 토큰과 Room 캐시가 함께 날아갑니다.
+# 권한도 같이 초기화되므로 all: allow만으로는 POST_NOTIFICATIONS가 안 잡힙니다. 하나씩 적습니다
+- launchApp:
+    clearState: true
+    permissions:
+      all: allow
+      notifications: allow
+      location: allow
+
+# clearState 직후 콜드 스타트는 에뮬레이터에서 50초 가까이 걸립니다.
+# 스플래시 동안 접근성 트리가 비어 있어 기본 7초로는 모자랍니다
+- extendedWaitUntil:
+    visible:
+      id: kakao_login_btn
+    timeout: 90000

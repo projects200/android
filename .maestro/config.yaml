@@ -1,0 +1,13 @@
+flows:
+  - "flows/**"
+
+# 로그인 세션을 지우는 플로우를 먼저 돌리면 뒤 플로우가 전부 로그인 화면에서 멈춥니다.
+# 세션을 쓰는 플로우를 앞에 두고 login-screen을 마지막에 둡니다
+executionOrder:
+  continueOnFailure: true
+  flowsOrder:
+    - smoke-tabs
+    - exercise-form-entry
+    - login-screen
+
+testOutputDir: build/maestro

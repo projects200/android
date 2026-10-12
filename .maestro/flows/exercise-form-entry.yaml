@@ -1,0 +1,32 @@
+appId: com.project200.undabang
+name: 운동 기록 작성 화면 진입
+tags:
+  - regression
+  - requires-login
+---
+# 진입 화면은 XML(ExerciseMainFragment), 작성 화면은 Compose(ExerciseFormScreen)입니다.
+# 한 플로우가 두 UI 프레임워크를 가로지릅니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- tapOn:
+    id: exercise_nav_graph
+
+# 하단 버튼 라벨은 획득 가능 점수에 따라 런타임에 바뀝니다. 텍스트로 잡으면 상태에 따라 깨집니다
+- tapOn:
+    id: exercise_create_btn
+
+- extendedWaitUntil:
+    visible: "운동 기록하기"
+    timeout: 30000
+
+- assertVisible: "제목 *"
+- assertVisible: "운동 종류"
+- assertVisible: "운동 시간 *"
+- assertVisible: "완료"
+
+# 저장하지 않고 빠져나옵니다. 기록을 남기면 다음 실행의 목록 상태가 달라집니다
+- back
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
