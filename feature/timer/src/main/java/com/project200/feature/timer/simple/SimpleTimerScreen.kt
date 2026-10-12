@@ -29,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -37,8 +38,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -57,6 +61,7 @@ import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 import com.project200.undabang.feature.timer.R
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun SimpleTimerScreen(
     remainingTime: Long,
@@ -73,7 +78,7 @@ fun SimpleTimerScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title = stringResource(R.string.simple_timer),
@@ -180,6 +185,8 @@ private fun TimerHeader(
                     fontSize = 40.sp,
                     fontWeight = FontWeight.Bold,
                     color = ColorBlack,
+                    // 실행 중 값이 계속 바뀌어 정확한 초 단정 대신 두 시점 비교로만 검증한다
+                    modifier = Modifier.testTag("simple_timer_remaining_time"),
                 )
                 Spacer(Modifier.height(6.dp))
                 Icon(
@@ -196,7 +203,9 @@ private fun TimerHeader(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = onPlayPauseClick,
-                            ),
+                            )
+                            // 아이콘 리소스로는 상태를 구분할 수 없어, 실행 상태를 태그 이름에 반영한다
+                            .testTag(if (isRunning) "simple_timer_pause_icon" else "simple_timer_play_icon"),
                 )
             }
         }
@@ -343,7 +352,9 @@ private fun TimerCell(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = { menuExpanded = true },
-                        ),
+                        )
+                        // 프리셋에 로컬 id 노출이 없어, 테스트가 직접 고른 고유 시간값으로 항목을 구분한다
+                        .testTag("simple_timer_menu_${timer.time}"),
             )
             DropdownMenu(
                 expanded = menuExpanded,
@@ -383,7 +394,8 @@ private fun AddCell(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ),
+                )
+                .testTag("simple_timer_add_cell"),
         contentAlignment = Alignment.Center,
     ) {
         Icon(

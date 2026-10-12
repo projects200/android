@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
@@ -35,8 +36,11 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -60,6 +64,7 @@ import com.project200.undabang.feature.timer.R
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CustomTimerFormScreen(
     title: String,
@@ -78,7 +83,7 @@ fun CustomTimerFormScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title =
@@ -129,7 +134,8 @@ fun CustomTimerFormScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 30.dp),
+                        .padding(horizontal = 20.dp, vertical = 30.dp)
+                        .testTag("custom_timer_form_title_field"),
                 decorationBox = { inner ->
                     if (title.isEmpty()) {
                         Text(
@@ -218,7 +224,9 @@ private fun StepRow(
             contentDescription = null,
             modifier =
                 reorderModifier
-                    .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
+                    // 순서는 스왑으로만 바뀌고 order 필드는 유지되어, 제출 전 핸들을 order로 특정할 수 있다
+                    .testTag("custom_timer_form_step_handle_${step.order}"),
         )
         Image(
             painter = painterResource(R.drawable.ic_clock),
@@ -237,7 +245,7 @@ private fun StepRow(
                     color = ColorBlack,
                 ),
             singleLine = true,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag("custom_timer_form_step_name_${step.order}"),
         )
         Text(
             text = formatStepTime(step.time),
@@ -250,7 +258,8 @@ private fun StepRow(
                         indication = null,
                         onClick = onTimeClick,
                     )
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .testTag("custom_timer_form_step_time_${step.order}"),
         )
         Image(
             painter = painterResource(R.drawable.ic_minus),
@@ -330,7 +339,7 @@ private fun FooterRow(
                     color = ColorBlack,
                 ),
             singleLine = true,
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag("custom_timer_form_new_step_name_field"),
             decorationBox = { inner ->
                 if (name.isEmpty()) {
                     Text(
@@ -354,7 +363,8 @@ private fun FooterRow(
                         indication = null,
                         onClick = onTimeClick,
                     )
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .testTag("custom_timer_form_new_step_time"),
         )
         Image(
             painter = painterResource(R.drawable.ic_plus),
@@ -367,7 +377,8 @@ private fun FooterRow(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onAdd,
-                    ),
+                    )
+                    .testTag("custom_timer_form_add_step_btn"),
         )
     }
 }

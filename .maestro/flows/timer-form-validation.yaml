@@ -1,0 +1,94 @@
+appId: com.project200.undabang
+name: 타이머 입력 유효성 검사로 저장 방지
+tags:
+  - regression
+  - requires-login
+---
+# 대표 입력 오류가 저장을 막는지 확인합니다 (#611 작업 상세 7번). 아무것도 실제로 저장하지 않으므로
+# 별도 정리가 필요 없습니다 (완료 기준 4번과 자연히 맞습니다)
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+
+# 1) 심플 타이머: 0초는 저장되지 않습니다 (SimpleTimerFragment의 newTime <= 0 가드)
+- tapOn: "심플 타이머"
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_add_cell
+    timeout: 30000
+- tapOn:
+    id: simple_timer_add_cell
+- extendedWaitUntil:
+    visible:
+      id: second_et
+    timeout: 10000
+- tapOn:
+    id: second_et
+- eraseText
+- inputText: "0"
+- tapOn:
+    id: minute_et
+- eraseText
+- inputText: "0"
+- tapOn:
+    id: confirm_btn
+- assertVisible: "타이머를 1초 이상으로 설정해주세요"
+- back
+
+# 2) 커스텀 타이머: 제목이 비면 저장되지 않습니다
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_add_card
+    timeout: 30000
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- inputText: "StepA"
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- tapOn: "완료"
+- assertVisible: "타이머 제목을 입력해주세요."
+# 토스트가 사라져도 화면은 폼에 남아있어야 합니다 (저장되지 않고 이동도 하지 않음)
+- assertVisible:
+    id: custom_timer_form_title_field
+
+# 3) 커스텀 타이머: 스텝 시간이 5초 미만이면 그 값이 반영되지 않습니다 (TimePickerDialog 단계에서 차단)
+- tapOn:
+    id: custom_timer_form_new_step_time
+- extendedWaitUntil:
+    visible:
+      id: second_et
+    timeout: 10000
+- tapOn:
+    id: second_et
+- eraseText
+- inputText: "3"
+- tapOn:
+    id: confirm_btn
+- assertVisible: "스텝의 시간을 5초 이상으로 설정해주세요."
+# 기본값(60초 = 01:00)이 그대로 남아 있어야 거부가 확인됩니다
+- assertVisible: "01:00"
+
+# 4) 커스텀 타이머: 제목은 채우고, 이미 추가된 스텝의 이름을 비우면 저장되지 않습니다
+- tapOn:
+    id: custom_timer_form_title_field
+- inputText: "e2e611v"
+- tapOn:
+    id: custom_timer_form_step_name_0
+- eraseText
+- tapOn: "완료"
+- assertVisible: "모든 스텝의 이름을 설정해주세요."
+- assertVisible:
+    id: custom_timer_form_title_field
+
+# 아무것도 저장하지 않고 나갑니다
+- back
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_add_card
+    timeout: 20000
+- assertNotVisible: "e2e611v"

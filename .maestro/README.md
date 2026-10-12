@@ -117,6 +117,18 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
+ 
+### 기능별 확장 플로우
+
+|파일|태그|검증|
+|---|---|---|
+|`flows/timer-simple-preset-crud.yaml`|`regression`, `requires-login`|심플 타이머 프리셋 생성·수정·삭제와 재진입·재실행 후 유지|
+|`flows/timer-simple-run.yaml`|`regression`, `requires-login`|심플 타이머 시작·일시정지·재개·자연 종료|
+|`flows/timer-custom-crud.yaml`|`regression`, `requires-login`|커스텀 타이머 2단계 생성·수정·순서 변경·삭제|
+|`flows/timer-custom-run.yaml`|`regression`, `requires-login`|단계 전환·반복·종료·정지 상태|
+|`flows/timer-form-validation.yaml`|`regression`, `requires-login`|빈 이름과 유효하지 않은 시간 저장 방지|
+
+타이머 플로우는 현재 기능별 회귀 대상입니다. 실행 중 타이머를 남기지 않고 같은 플로우에서 생성한 설정만 정리합니다. 커스텀 단계 순서 변경은 기기에서 `swipe` 동작 확인이 필요합니다.
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 

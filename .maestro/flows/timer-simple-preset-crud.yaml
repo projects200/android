@@ -1,0 +1,79 @@
+appId: com.project200.undabang
+name: 심플 타이머 프리셋 CRUD와 재진입 유지
+tags:
+  - regression
+  - requires-login
+---
+# 심플 타이머 프리셋을 추가·수정·삭제하고, 화면 재진입과 앱 재실행 후에도 결과가 남는지 봅니다.
+# 프리셋에는 이름이 없어 시간(mm:ss) 자체를 고유값으로 씁니다. 상한이 6개(MAX_TIMER_COUNT)라
+# 계정에 빈 자리가 있다는 전제가 필요합니다 (#611 작업 상세 8번)
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+
+- tapOn: "심플 타이머"
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_add_cell
+    timeout: 30000
+
+# 추가할 시간을 실행마다 다르게 만듭니다. 5~54초 범위라 분 자리는 항상 00으로 고정됩니다
+- evalScript: ${output.presetSec = (Date.now() % 50) + 5}
+- evalScript: ${output.presetLabel = '00:' + ('0' + output.presetSec).slice(-2)}
+- evalScript: ${output.presetSec2 = output.presetSec + 1}
+- evalScript: ${output.presetLabel2 = '00:' + ('0' + output.presetSec2).slice(-2)}
+
+# 추가: AddCell -> 다이얼로그에서 초만 바꾸고 확인
+- tapOn:
+    id: simple_timer_add_cell
+- extendedWaitUntil:
+    visible:
+      id: second_et
+    timeout: 10000
+- tapOn:
+    id: second_et
+- eraseText
+- inputText: ${output.presetSec}
+- tapOn:
+    id: confirm_btn
+- assertVisible: ${output.presetLabel}
+
+# 화면 재진입: 목록으로 나갔다가 다시 들어와도 유지되는지
+- back
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_add_card
+    timeout: 30000
+- tapOn: "심플 타이머"
+- extendedWaitUntil:
+    visible: ${output.presetLabel}
+    timeout: 30000
+
+# 수정: 카드 메뉴에서 수정 선택 후 초를 바꿉니다. 메뉴 아이콘은 프리셋마다 시간값으로 구분합니다
+- tapOn:
+    id: "simple_timer_menu_${output.presetSec}"
+- tapOn: "수정"
+- extendedWaitUntil:
+    visible:
+      id: second_et
+    timeout: 10000
+- tapOn:
+    id: second_et
+- eraseText
+- inputText: ${output.presetSec2}
+- tapOn:
+    id: confirm_btn
+- assertVisible: ${output.presetLabel2}
+
+# 앱 재실행 후에도 수정 결과가 남는지. clearState를 쓰면 세션이 지워지므로 launch-logged-in만 다시 돈다
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- tapOn: "심플 타이머"
+- extendedWaitUntil:
+    visible: ${output.presetLabel2}
+    timeout: 30000
+
+# 삭제: 심플 프리셋은 별도 확인 다이얼로그 없이 바로 지워집니다 (SimpleTimerViewModel.deleteTimerItem)
+- tapOn:
+    id: "simple_timer_menu_${output.presetSec2}"
+- tapOn: "삭제"
+- assertNotVisible: ${output.presetLabel2}

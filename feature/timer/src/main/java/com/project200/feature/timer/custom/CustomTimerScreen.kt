@@ -26,6 +26,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -36,8 +37,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -58,6 +62,7 @@ import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.header
 import com.project200.undabang.feature.timer.R
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CustomTimerScreen(
     title: String,
@@ -77,13 +82,13 @@ fun CustomTimerScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title = title,
                 onNavigationClick = onBackClick,
                 actions = {
-                    IconButton(onClick = onMenuClick) {
+                    IconButton(onClick = onMenuClick, modifier = Modifier.testTag("custom_timer_menu_btn")) {
                         androidx.compose.material3.Icon(
                             painter = painterResource(R.drawable.ic_menu),
                             contentDescription = null,
@@ -166,6 +171,8 @@ private fun TimerHeader(
                 fontSize = 40.sp,
                 fontWeight = FontWeight.Bold,
                 color = ColorBlack,
+                // 실행 중 값이 계속 바뀌어 정확한 초 단정 대신 두 시점 비교로만 검증한다
+                modifier = Modifier.testTag("custom_timer_remaining_time"),
             )
         }
 
@@ -203,7 +210,9 @@ private fun TimerHeader(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onRepeatToggle,
-                        ),
+                        )
+                        // 아이콘 리소스로는 상태를 구분할 수 없어, 반복 상태를 태그 이름에 반영한다
+                        .testTag(if (isRepeatEnabled) "custom_timer_repeat_on" else "custom_timer_repeat_off"),
             )
 
             // 시작/정지 (실행 중이면 error_red + 정지 텍스트, 아니면 main + 시작)
@@ -359,7 +368,8 @@ private fun StepCard(
             text = step.name,
             style = MaterialTheme.typography.contentBold,
             color = tint,
-            modifier = Modifier.weight(1f),
+            // 제출 시 order가 최종 화면 위치로 재계산되어, 순서 변경 확인에 쓸 수 있다
+            modifier = Modifier.weight(1f).testTag("custom_timer_step_name_${step.order}"),
         )
         Text(
             text = step.time.toFormattedTime(),
