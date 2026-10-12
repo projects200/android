@@ -42,33 +42,9 @@ Clean Architecture 기반의 멀티 모듈 구조이며, 운동 기록과 타이
 
 ## 아키텍처
 
-```mermaid
-flowchart LR
-    APP(["app"])
-    subgraph PL["Presentation"]
-        F["feature/*"]
-        PR["presentation"]
-    end
-    DM["domain"]
-    DT["data"]
-    OA["core/oauth"]
-    CM["common"]
+<img width="2080" height="808" alt="image" src="https://github.com/user-attachments/assets/330c59ca-3c09-485f-b568-ba487af48feb" />
 
-    APP --> F
-    APP --> DT
-    F --> PR
-    F --> DM
-    PR --> DM
-    DT -- "implements" --> DM
-    DT --> OA
-    F -. "auth · exercise · profile" .-> OA
-    F --> CM
-    PR --> CM
-    DT --> CM
-```
-
-화살표는 의존 방향입니다. 단방향이며 역방향 의존은 없습니다.
-`domain`은 외부 의존이 하나도 없는 순수 Kotlin 모듈입니다.
+`domain`은 외부 의존이 없는 순수 Kotlin 모듈입니다.
 `feature`와 `presentation`은 Retrofit과 저장소를 직접 참조하지 않고 UseCase만 호출합니다.
 
 ```
