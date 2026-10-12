@@ -36,7 +36,26 @@ class ExerciseListAdapter(
         holder: ExerciseViewHolder,
         position: Int,
     ) {
-        holder.bind(getItem(position))
+        holder.bind(getItem(position), position == itemCount - 1)
+    }
+
+    override fun onCurrentListChanged(
+        previousList: List<ExerciseListItem>,
+        currentList: List<ExerciseListItem>,
+    ) {
+        super.onCurrentListChanged(previousList, currentList)
+        // Diff에서 내용이 같아도 마지막 행이 바뀌면 기존/새 경계 레이블을 다시 바인딩합니다.
+        val previousLastId = previousList.lastOrNull()?.recordId
+        if (previousLastId == currentList.lastOrNull()?.recordId) return
+        if (previousLastId != null) {
+            val previousLastPosition = currentList.indexOfFirst { it.recordId == previousLastId }
+            if (previousLastPosition >= 0) {
+                notifyItemChanged(previousLastPosition)
+            }
+        }
+        if (currentList.isNotEmpty()) {
+            notifyItemChanged(currentList.lastIndex)
+        }
     }
 
     class ExerciseViewHolder(
@@ -44,11 +63,21 @@ class ExerciseListAdapter(
         private val onItemClicked: (Long) -> Unit,
         private val formatter: DateTimeFormatter,
     ) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: ExerciseListItem) {
+        fun bind(
+            item: ExerciseListItem,
+            isLastItem: Boolean,
+        ) {
             with(binding) {
                 exerciseTitleTv.text = item.title
                 // 시간 포맷팅 적용
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
+                // 실제 마지막 행의 시간 텍스트를 목록 끝의 접근성 경계로 사용합니다.
+                exerciseTimeTv.contentDescription =
+                    if (isLastItem) {
+                        root.context.getString(R.string.exercise_list_last_item, exerciseTimeTv.text)
+                    } else {
+                        null
+                    }
 
                 val imageUrl = item.imageUrl
                 if (!imageUrl.isNullOrEmpty()) {

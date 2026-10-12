@@ -70,6 +70,7 @@ fun UndabangTextField(
     supportingText: String = "",
     onFocusChange: (Boolean) -> Unit = {},
     visualTransformation: VisualTransformation = VisualTransformation.None,
+    inputModifier: Modifier = Modifier,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
@@ -169,7 +170,7 @@ fun UndabangTextField(
                     if (next != value) onValueChange(next)
                 },
                 modifier =
-                    Modifier
+                    inputModifier
                         .fillMaxWidth()
                         .onFocusChanged { focusState -> onFocusChange(focusState.isFocused) }
                         .then(

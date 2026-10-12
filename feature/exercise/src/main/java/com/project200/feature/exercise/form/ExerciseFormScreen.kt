@@ -34,12 +34,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -70,6 +74,7 @@ import java.time.LocalDateTime
 import java.time.ZoneOffset
 import com.project200.undabang.presentation.R as PresentationR
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ExerciseFormScreen(
     isEditMode: Boolean,
@@ -100,7 +105,7 @@ fun ExerciseFormScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title =
@@ -114,7 +119,7 @@ fun ExerciseFormScreen(
                         onClick = onCompleteClick,
                         isCompact = true,
                         enabled = !isLoading,
-                        modifier = Modifier.padding(end = 20.dp),
+                        modifier = Modifier.padding(end = 20.dp).testTag("exercise_complete"),
                     )
                 },
             )
@@ -141,6 +146,7 @@ fun ExerciseFormScreen(
                     hint = stringResource(R.string.exercise_record_title_hint),
                     variant = TextFieldVariant.FilledSmall,
                     maxLength = 255,
+                    inputModifier = Modifier.testTag("exercise_title_input"),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -348,11 +354,13 @@ private fun TimeSelectionRow(
                 text = startTime?.format(YYYY_MM_DD_KR) ?: "-",
                 selected = selection == TimeSelectionState.START_DATE,
                 onClick = { onClick(TimeSelectionState.START_DATE) },
+                modifier = Modifier.testTag("exercise_start_date"),
             )
             TimeButton(
                 text = startTime?.format(HH_MM_KR) ?: "-",
                 selected = selection == TimeSelectionState.START_TIME,
                 onClick = { onClick(TimeSelectionState.START_TIME) },
+                modifier = Modifier.testTag("exercise_start_time"),
             )
         }
         Icon(
@@ -370,11 +378,13 @@ private fun TimeSelectionRow(
                 text = endTime?.format(YYYY_MM_DD_KR) ?: "-",
                 selected = selection == TimeSelectionState.END_DATE,
                 onClick = { onClick(TimeSelectionState.END_DATE) },
+                modifier = Modifier.testTag("exercise_end_date"),
             )
             TimeButton(
                 text = endTime?.format(HH_MM_KR) ?: "-",
                 selected = selection == TimeSelectionState.END_TIME,
                 onClick = { onClick(TimeSelectionState.END_TIME) },
+                modifier = Modifier.testTag("exercise_end_time"),
             )
         }
     }
@@ -501,7 +511,7 @@ private fun InlineTimePicker(
                 androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                 ),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag("exercise_time_hour_input"),
         )
         Text(
             text = ":",
@@ -529,7 +539,7 @@ private fun InlineTimePicker(
                 androidx.compose.foundation.text.KeyboardOptions(
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Number,
                 ),
-            modifier = Modifier.weight(1f),
+            modifier = Modifier.weight(1f).testTag("exercise_time_minute_input"),
         )
         Spacer(Modifier.width(20.dp))
         PrimaryButton(
@@ -540,6 +550,7 @@ private fun InlineTimePicker(
                 onConfirm(h, m)
             },
             isCompact = true,
+            modifier = Modifier.testTag("exercise_time_confirm"),
         )
     }
 }
