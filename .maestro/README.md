@@ -8,7 +8,7 @@ Maestro는 APK 밖에서 실제 화면을 조작하는 블랙박스 테스트입
 
 - Python 3.10 이상(표준 라이브러리만 사용), JDK 17, Android SDK의 `adb`, Maestro **2.11.0**.
 - 기기의 언어는 한국어(`ko-KR`), 시간대는 `Asia/Seoul`. DEV API/Cognito에 연결할 수 있어야 합니다.
-- 에뮬레이터는 RAM 4096MB 이상. ARM translation을 사용하는 경우 **Android 11/API30 `google_apis` `x86_64`**처럼 ARM 실행을 지원하는 이미지가 필요합니다.
+- 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM, **Android 11/API30 `google_apis` `x86_64`**를 사용합니다.
 - ARM APK 필터(`armeabi-v7a`, `arm64-v8a`)는 그대로 유지합니다. [공식 ARM translation 안내](https://android-developers.googleblog.com/2020/03/run-arm-apps-on-android-emulator.html)는 Android 11 Google APIs 이미지의 ARM 실행을 설명합니다. 모든 x86 이미지가 이를 지원하는 것은 아닙니다. 러너의 `--apk`는 APK의 실제 ARM 라이브러리와 기기 `ro.product.cpu.abilist`의 교집합을 **설치 전에** 검사하며, 지원 ABI가 없으면 실패합니다.
 - `--device`에는 `adb devices`의 serial을 사용합니다. 생략하면 연결된 정상 기기가 정확히 하나여야 합니다.
 - `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 거절합니다. 옵션 없이 실행할 때는 기기의 설정을 먼저 맞춰야 합니다.
@@ -22,7 +22,7 @@ export PATH="$HOME/.maestro/bin:$PATH"
 maestro --version
 ```
 
-[실제로 게시된 `cli-2.11.0` 릴리스](https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.11.0)를 고정합니다. 러너는 다른 CLI 버전을 거절합니다.
+[실제로 게시된 `cli-2.11.0` 릴리스](https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.11.0)를 고정합니다. CI는 릴리스 ZIP의 SHA-256 `5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a`도 검사합니다. 러너는 다른 CLI 버전을 거절합니다.
 
 ## DEV 빌드 준비
 
@@ -34,7 +34,7 @@ cp app/src/debug/google-services.json app/src/e2e/google-services.json
 ./gradlew :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
 ```
 
-산출물은 `app/build/outputs/apk/e2e/app-e2e.apk`입니다. 새 e2e 빌드의 Firebase/Kakao debug 서명 등록도 외부 서비스에서 유효해야 합니다. 기존 dev CI는 e2e Firebase 설정을 요구하지 않도록 `lintDebug`로 검증 변형을 명시하며 기존 debug 테스트/빌드/배포는 유지합니다.
+산출물은 `app/build/outputs/apk/e2e/app-e2e.apk`입니다. 새 e2e 빌드의 Firebase/Kakao debug 서명 등록도 외부 서비스에서 유효해야 합니다. CI는 아래 비밀로 설정 파일을 생성합니다. `configure-ci.py`는 빈 값, 잘못된 JSON/날짜, 다른 Firebase 패키지를 거절하고 값은 출력하지 않습니다.
 
 ## 전용 계정과 최초 세션 내보내기(한 번 필요한 외부 준비)
 
@@ -62,9 +62,9 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 ## 무인 실행: 실제 세션을 매 플로우에 독립 복원
 
-로그인 전용을 제외한 suite에는 아래 세 환경 변수가 **모두 필수**입니다.
+로그인 전용을 제외한 suite에는 아래 세 값이 **모두 필수**입니다. 로컬도 CI도 동일합니다.
 
-|환경 변수|내용|
+|환경 변수/CI 비밀|내용|
 |---|---|
 |`MAESTRO_AUTH_STATE_JSON`|검증된 전용 DEV 계정의 AppAuth `authState` JSON **객체**|
 |`MAESTRO_MEMBER_ID`|같은 내보내기의 서버 `memberId`|
@@ -107,7 +107,7 @@ python3 .maestro/scripts/run-tests.py --suite login --device emulator-5554
 
 `^maestro-e2e-[a-f0-9]{32}(-edited)?$`에 정확히 맞는 제목은 **검증된 전용 계정에서 이 suite만 소유**합니다. 일반 기록 제목에 이 패턴을 사용하지 마세요. 준비/정리는 시작일~기기 오늘의 월별 운동 횟수를 읽고 기록이 있는 날짜만 조회하여 이 제목만 삭제합니다. 다른 제목·다른 계정·범위 밖 기록은 삭제하지 않습니다. 서버 오류나 계정 불일치 시 삭제를 진행하지 않습니다.
 
-UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. 같은 계정의 실행은 직렬화해야 합니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
+UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 직렬화하고 이전 job을 자동 취소하지 않습니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
 
 ## suite와 플로우(#607, #608)
 
@@ -146,9 +146,40 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 `clearState`는 권한도 초기화합니다. 플로우의 `notifications: allow`를 유지하세요. 콜드 스타트는 `extendedWaitUntil`로 기다립니다. 한글 입력은 Maestro Android `inputText`로 지원되지 않지만 한글 표시 검증은 가능합니다.
 
-## CI 연결 범위
+## CI(#610): 신뢰된 dev push/PR smoke와 승인된 수동 regression
 
-이 단계는 로컬에서 사용할 수 있는 실제 인증/정리 호스트 러너까지 포함합니다. GitHub Actions의 보호 환경·비밀 설정 생성·동일 계정 직렬화·smoke/regression 실행·아티팩트 업로드는 후속 #610 PR에서 추가합니다.
+`.github/workflows/android-maestro.yml`은 기존 `android-dev-ci.yml`/릴리스 CI와 분리되어 있습니다.
+
+|트리거|ref/신뢰 조건|suite/결과|
+|---|---|---|
+|`push`|`refs/heads/dev`만 허용|`smoke`|
+|`push`|다른 branch/tag ref|트리거 필터에서 제외, 비밀 미제공|
+|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`|`smoke`|
+|`pull_request`|base가 `dev`, fork head 또는 비신뢰 작성자|비밀 없는 거절 job 실패, 인증 job 미실행|
+|`pull_request`|다른 base branch|트리거 필터에서 제외, 비밀 미제공|
+|`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression` 또는 `all`|
+|`workflow_dispatch`|다른 ref|비밀 없는 거절 job 실패, 인증 job 미실행|
+
+- 인증 suite를 실행하지 않은 skip은 인증 통과가 아닙니다. 거절 job은 미실행 상태를 명시하며 **실패**합니다. `pull_request_target`은 사용하지 않습니다.
+- 세 실행 경로 모두 **`maestro-dev` 환경**과 동일 계정 concurrency group을 사용합니다. 운영자가 환경을 만들고 승인자(required reviewers), 자기 승인 방지, dev와 신뢰한 PR merge ref에 맞는 배포 branch 정책을 설정해야 합니다. 이 저장소 변경만으로 외부 보호 정책이 만들어지지 않습니다. 비밀을 환경에 두고 비신뢰 실행을 승인하지 마세요.
+- 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
+- Maestro job은 제공한 DEV 설정으로 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행합니다. JDK17, API30 Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인, 순차 플로우와 finally 정리를 사용합니다.
+
+`maestro-dev` 환경에 등록할 비밀:
+
+|비밀|용도|
+|---|---|
+|`GOOGLE_SERVICES_JSON_DEV_BASE64`|DEV Firebase JSON의 줄바꿈 없는 base64|
+|`COGNITO_USER_POOL_ID_DEV`|DEV 사용자 풀|
+|`COGNITO_APP_CLIENT_ID_DEV`|최초 세션을 발급한 동일 DEV AppAuth client|
+|`COGNITO_REGION_DEV`|DEV Cognito region|
+|`KAKAO_NATIVE_APP_KEY_DEV`|DEV 앱 native key(`KAKAO_NATIVE_APP_KEY` 환경으로 전달)|
+|`KAKAO_REST_API_KEY`|기존 REST key|
+|`MAESTRO_AUTH_STATE_JSON`|내보낸 AppAuth 객체 JSON|
+|`MAESTRO_MEMBER_ID`|검증된 전용 계정 member ID|
+|`MAESTRO_FIXTURE_START_DATE`|고정 fixture 관리 시작일|
+
+비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
 
 ## 결과와 실패 조사
 
@@ -160,10 +191,10 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat을 수집하지 않습니다.
 
-stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 마세요.
+CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
 
 ## 검증 상태와 남은 외부 준비
 
 이번 구현에서는 **빌드·lint·formatter·테스트·앱/에뮬레이터·설치 명령을 실행하지 않았습니다.** 문서/소스/공개 CLI 옵션·릴리스·ARM translation 안내만 정적으로 확인했습니다. 위 명령은 후속 실행 방법이며 실행 성공 증거가 아닙니다.
 
-최초 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션, Firebase/Kakao debug 등록과 APK의 ARM ABI를 지원하는 기기가 필요합니다. Compose/XML ID 노출, Android Toast 필수값 단언, 캘린더/시간 선택, CRUD 후 재진입과 정리 실패 경로를 확인해야 합니다. 세션 비밀과 서버 fixture가 실제로 준비되었다고 가정하지 않습니다.
+최초 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 9개 CI 비밀, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 첫 API30 실행에서 Compose/XML ID 노출, Android Toast 필수값 단언, 캘린더/시간 선택, CRUD 후 재진입과 정리 실패 경로를 확인해야 합니다. 세션 비밀과 서버 fixture가 실제로 준비되었다고 가정하지 않습니다.
