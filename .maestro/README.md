@@ -49,20 +49,20 @@ maestro test --format junit --output build/maestro/report.xml .maestro/
 |파일|태그|무엇을 보나|
 |---|---|---|
 |`flows/login-screen.yaml`|`smoke`|세션을 지우고 로그인 화면이 뜨는지|
-|`flows/smoke-tabs.yaml`|`smoke` `requires-login`|하단 탭 5개가 눌리고 각 화면이 뜨는지|
+|`flows/smoke-tabs.yaml`|`smoke` `requires-login`|하단 탭 5개와 실제 피드 콘텐츠/빈 상태, 채팅 콘텐츠/성공한 빈 응답|
 |`flows/exercise-form-entry.yaml`|`regression` `requires-login`|기록 탭에서 운동 기록 작성 화면으로 진입하는지|
 
 서브플로우는 `subflows/`에 있습니다. `launch-logged-out`은 세션을 지우고 로그인 화면까지, `launch-logged-in`은 세션을 유지한 채 하단 내비까지 갑니다.
 
 ## 셀렉터를 고르는 기준
 
-XML 화면은 `android:id`가 그대로 `id` 셀렉터가 됩니다. Compose 화면은 리소스 ID가 없어 보이는 텍스트로 잡습니다.
+XML 화면은 `android:id`를 `id` 셀렉터로 사용합니다. 피드 Compose 화면은 root의 `testTagsAsResourceId`로 `feed_content`, `feed_empty`를 노출합니다.
 
 주의할 것이 셋 있습니다.
 
 - **런타임에 바뀌는 텍스트는 `id`로 잡습니다.** 운동 기록 화면 하단 버튼은 XML에 `운동 기록하고 점수 얻기`로 적혀 있지만 `ExerciseMainFragment`가 점수에 따라 `운동 기록하고 N점 획득하기`나 `운동 기록하기`로 갈아끼웁니다
-- **탭 라벨과 화면 제목이 같으면 텍스트 단언이 헛돕니다.** 피드 탭이 그렇습니다. 하단 내비 항목의 `selected: true`를 함께 겁니다
-- **Compose 아이콘 버튼은 아직 못 잡습니다.** `contentDescription`이 전부 `null`이라 접근성 트리에 라벨이 안 올라갑니다. 필요해지는 순서대로 채워야 합니다
+- **탭 라벨과 실제 콘텐츠를 구분합니다.** 피드는 `feed_content` 또는 `feed_empty`, 채팅은 `'<nickname>님과의 채팅'` 행 또는 `'채팅 목록에 채팅방이 없습니다'` 접근성 레이블로 검사합니다. 하단 내비의 선택 상태만으로 통과하지 않습니다
+- **빈 화면은 조회 성공 뒤에만 인정합니다.** 초기 상태·로딩·실패·늦게 도착한 이전 응답을 성공한 빈 상태로 표시하지 않습니다. 채팅은 RecyclerView 목록 반영도 확인합니다
 
 ## 알아 둘 것
 
@@ -80,3 +80,7 @@ maestro hierarchy    # 지금 화면의 접근성 트리를 그대로 봅니다
 ```
 
 실패하면 `build/maestro/<실행시각>/<플로우 이름>/`에 스크린샷과 그 시점의 접근성 트리 JSON이 남습니다. 둘을 같이 봐야 원인이 보입니다. 화면에는 보이는데 트리가 비어 있으면 앱이 아직 안 뜬 것입니다.
+
+## 검증 상태
+
+소스·호출부·플로우와 ViewModel 회귀 테스트를 정적으로 확인했습니다. 이 변경 작업에서는 빌드·단위 테스트·Maestro를 실행하지 않았습니다. 실제 기기에서 콘텐츠/빈 상태/조회 실패와 접근성 선택자를 확인해야 합니다.

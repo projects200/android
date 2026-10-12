@@ -18,6 +18,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -347,5 +348,49 @@ class FeedListViewModelTest {
                 assertThat(awaitItem()).isNotEmpty()
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `새 조회 중이거나 실패하면 이전 빈 피드 완료 상태를 유지하지 않는다`() =
+        runTest {
+            viewModel = createViewModel()
+            coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Success(FeedListResult(hasNext = false, feeds = emptyList()))
+            assertThat(viewModel.hasLoadedFeeds.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.hasLoadedFeeds.value).isTrue()
+            assertThat(viewModel.isEmpty.value).isTrue()
+
+            coEvery { getFeedsUseCase(any(), any()) } returns BaseResult.Error("ERROR", "Failed")
+            viewModel.loadFeeds(isRefresh = true)
+            assertThat(viewModel.hasLoadedFeeds.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.feedList.value).isEmpty()
+            assertThat(viewModel.hasLoadedFeeds.value).isFalse()
+        }
+
+    @Test
+    fun `이전 빈 응답은 최신 피드 조회의 완료 상태가 되지 않는다`() =
+        runTest {
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            val previousResponse = CompletableDeferred<BaseResult<FeedListResult>>()
+            val latestResponse = CompletableDeferred<BaseResult<FeedListResult>>()
+            var requestCount = 0
+            coEvery { getFeedsUseCase(any(), any()) } coAnswers {
+                if (++requestCount == 1) previousResponse.await() else latestResponse.await()
+            }
+
+            viewModel.loadFeeds(isRefresh = true)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.loadFeeds(isRefresh = true)
+            testDispatcher.scheduler.runCurrent()
+            latestResponse.complete(BaseResult.Success(FeedListResult(hasNext = false, feeds = emptyList())))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.hasLoadedFeeds.value).isTrue()
+
+            previousResponse.complete(BaseResult.Success(FeedListResult(hasNext = false, feeds = emptyList())))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.hasLoadedFeeds.value).isFalse()
         }
 }

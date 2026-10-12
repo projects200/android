@@ -49,17 +49,42 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
                         delay(POLLING_PERIOD)
                     }
                 }
+                launch {
+                    viewModel.hasLoadedChattingRooms.collect {
+                        updateEmptySelector()
+                    }
+                }
                 viewModel.chattingRooms.collect { chatRooms ->
                     Timber.tag(TAG).d("Polling: $chatRooms")
-                    chattingListAdapter.submitList(chatRooms)
+                    val owner = viewLifecycleOwner
+                    chattingListAdapter.submitList(chatRooms) {
+                        if (owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
+                            updateEmptySelector()
+                        }
+                    }
                     if (chatRooms.isEmpty()) {
                         binding.emptyTv.visibility = View.VISIBLE
                     } else {
                         binding.emptyTv.visibility = View.GONE
                     }
+                    updateEmptySelector()
                 }
             }
         }
+    }
+
+    private fun updateEmptySelector() {
+        // 최초 조회 전의 기본 빈 화면과 서버가 확인한 빈 목록을 접근성 레이블로 구분합니다.
+        binding.emptyTv.contentDescription =
+            if (
+                viewModel.hasLoadedChattingRooms.value &&
+                viewModel.chattingRooms.value.isEmpty() &&
+                chattingListAdapter.currentList.isEmpty()
+            ) {
+                getString(R.string.chatting_empty_loaded)
+            } else {
+                null
+            }
     }
 
     override fun onResume() {

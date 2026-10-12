@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -117,5 +118,46 @@ class ChattingListViewModelTest {
             viewModel.chattingRooms.test {
                 assertThat(awaitItem()).hasSize(1)
             }
+        }
+
+    @Test
+    fun `빈 성공 뒤 조회 중이거나 실패하면 완료 상태를 유지하지 않는다`() =
+        runTest {
+            assertThat(viewModel.hasLoadedChattingRooms.value).isFalse()
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Success(emptyList())
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.hasLoadedChattingRooms.value).isTrue()
+
+            coEvery { getChattingRoomsUseCase() } returns BaseResult.Error("ERROR", "Failed")
+            viewModel.fetchChattingRooms()
+            assertThat(viewModel.hasLoadedChattingRooms.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.chattingRooms.value).isEmpty()
+            assertThat(viewModel.hasLoadedChattingRooms.value).isFalse()
+        }
+
+    @Test
+    fun `이전 빈 응답은 최신 채팅 조회의 완료 상태가 되지 않는다`() =
+        runTest {
+            val previousResponse = CompletableDeferred<BaseResult<List<ChattingRoom>>>()
+            val latestResponse = CompletableDeferred<BaseResult<List<ChattingRoom>>>()
+            var requestCount = 0
+            coEvery { getChattingRoomsUseCase() } coAnswers {
+                if (++requestCount == 1) previousResponse.await() else latestResponse.await()
+            }
+
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.fetchChattingRooms()
+            testDispatcher.scheduler.runCurrent()
+            latestResponse.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.hasLoadedChattingRooms.value).isTrue()
+
+            previousResponse.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.hasLoadedChattingRooms.value).isFalse()
         }
 }

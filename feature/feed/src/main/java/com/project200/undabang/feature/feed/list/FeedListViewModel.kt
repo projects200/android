@@ -47,6 +47,11 @@ class FeedListViewModel
         private val _isEmpty = MutableStateFlow(false)
         val isEmpty: StateFlow<Boolean> = _isEmpty.asStateFlow()
 
+        // 초기 빈 목록과 조회 실패를 실제 빈 응답으로 오인하지 않도록 접근성 선택자에 전달합니다.
+        private val _hasLoadedFeeds = MutableStateFlow(false)
+        val hasLoadedFeeds: StateFlow<Boolean> = _hasLoadedFeeds.asStateFlow()
+        private var feedsRequestId = 0L
+
         private val exerciseTypeListFlow = MutableStateFlow<List<ExerciseType>>(emptyList())
 
         private val _currentMemberId = MutableStateFlow<String?>(null)
@@ -150,11 +155,15 @@ class FeedListViewModel
             }
 
             if (!hasNext || (_isLoading.value && !isRefresh)) return
+            val requestId = ++feedsRequestId
+            _hasLoadedFeeds.value = false
 
             _isLoading.value = true
 
             viewModelScope.launch {
-                when (val result = getFeedsUseCase(lastFeedId, DEFAULT_PAGE_SIZE)) {
+                val result = getFeedsUseCase(lastFeedId, DEFAULT_PAGE_SIZE)
+                _hasLoadedFeeds.value = false
+                when (result) {
                     is BaseResult.Success -> {
                         val newFeeds = result.data.feeds
                         hasNext = result.data.hasNext
@@ -164,6 +173,7 @@ class FeedListViewModel
                             allFeeds.addAll(newFeeds)
                         }
                         updateFilteredList()
+                        _hasLoadedFeeds.value = requestId == feedsRequestId
                         _isEmpty.value = allFeeds.isEmpty()
                     }
                     is BaseResult.Error -> {

@@ -37,6 +37,8 @@ class ChattingListRVAdapter(private val onItemClicked: (roomId: Long, nickname: 
             onItemClicked: (roomId: Long, nickname: String, opponentMemberId: String) -> Unit,
         ) {
             binding.nicknameTv.text = chattingRoom.nickname
+            binding.nicknameTv.contentDescription =
+                binding.root.context.getString(R.string.chatting_room_accessibility, chattingRoom.nickname)
             binding.lastMessageTv.text = chattingRoom.lastMessage
 
             val imgRes = if (chattingRoom.thumbnailImageUrl != null) chattingRoom.thumbnailImageUrl else chattingRoom.profileImageUrl
