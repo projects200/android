@@ -96,17 +96,13 @@
 
 ## 아키텍처
 
-<img width="2080" height="808" alt="운다방 모듈 아키텍처" src="https://github.com/user-attachments/assets/330c59ca-3c09-485f-b568-ba487af48feb" />
+![운다방 계층 구조: Presentation Layer 안의 기능 모듈과 공통 UI 모듈, 그리고 Data 모듈이 Domain을 참조](docs/images/architecture.svg)
 
-화면·도메인 규칙·데이터 접근을 분리합니다. `domain`은 Android 프레임워크에 의존하지 않는 Kotlin/JVM 모듈이며, Repository 인터페이스를 정의하고 실제 API·Room 접근은 `data`에서 구현합니다.
+`Presentation Layer`는 기능 모듈과 공통 UI 모듈 `:presentation`을 묶은 **논리적 UI 계층**입니다. 기능은 `exercise`, `matching`, `chatting`, `…`로 축약했으며, 기능 모듈이 `:presentation` 안에 포함된다는 뜻은 아닙니다.
 
-```text
-Fragment / Composable → ViewModel → UseCase
-                                      ↓
-                        Repository 인터페이스 (domain)
-                                      ↓
-                        Repository 구현 (data) → API / Room
-```
+화살표는 **참조하는 모듈 → 참조되는 모듈** 방향의 Gradle 의존성입니다. 화면 요청의 실행 순서를 뜻하지 않습니다. 그림에서 생략한 `app`·`common`·`core:oauth`·`build-logic`의 역할과 전체 직접 참조 관계는 아래 표에 정리했습니다.
+
+`domain`은 모델·UseCase·Repository 인터페이스를 정의하는 Kotlin/JVM 모듈입니다. Repository 구현과 API·Room 접근은 `data`에 두며, `feature:*`는 `data`를 직접 참조하지 않습니다. `common`과 `core:oauth`는 Android 라이브러리이지만 `domain`에서는 참조하지 않습니다.
 
 - **화면과 도메인 경계**: 기능별 `feature` 모듈과 공통 UI인 `presentation`을 분리합니다. Compose 화면과 ViewBinding 화면이 공존하며 Navigation Component로 화면을 연결합니다.
 - **구현과 계약의 분리**: `domain`의 규칙과 인터페이스는 Android 저장소 구현 없이 JVM 테스트 대상으로 다룰 수 있습니다. 의존성 연결에는 Hilt를 사용합니다.
@@ -120,7 +116,7 @@ Fragment / Composable → ViewModel → UseCase
 | `app` | 앱 진입점, 하단 내비게이션, FCM, DI 통합 |
 | `domain` | 모델, UseCase, Repository 인터페이스 |
 | `data` | Repository 구현, Retrofit, DTO·Mapper, Room |
-| `presentation` | 공통 UI, 테마, 화면 상태·오류 표현 |
+| `presentation` | 공통 UI, 테마, 공통 `UiState`(로딩·성공·오류), 오류 표현 |
 | `common` | 공유 유틸, 상수, DI Qualifier |
 | `core:oauth` | Cognito·AppAuth 인증과 토큰 저장 |
 | `feature:auth` | 로그인, 약관·권한 동의, 회원가입 |
@@ -132,7 +128,30 @@ Fragment / Composable → ViewModel → UseCase
 | `feature:profile` | 마이페이지, 설정 |
 | `build-logic` | 공통 빌드 설정 |
 
+### 직접 참조 관계
+
+외부 라이브러리가 아닌 프로젝트 모듈 간 의존성만 정리했습니다. `build-logic`은 런타임 의존성과 별개인 포함 빌드입니다.
+
+| 참조하는 모듈 | 직접 참조하는 프로젝트 모듈 |
+|---|---|
+| `app` | 모든 `feature:*`, `presentation`, `data`, `domain`, `common`, `core:oauth` |
+| 모든 `feature:*` | `presentation`, `domain`, `common` |
+| `feature:auth`, `feature:exercise`, `feature:profile` | 위 공통 의존성에 더해 `core:oauth` |
+| `presentation` | `domain`, `common` |
+| `data` | `domain`, `common`, `core:oauth` |
+| `domain`, `common`, `core:oauth` | 다른 프로젝트 모듈을 직접 참조하지 않음 |
+
+근거: [app](app/build.gradle.kts), [feature 모듈](feature), [presentation](presentation/build.gradle.kts), [data](data/build.gradle.kts), [domain](domain/build.gradle.kts), [common](common/build.gradle.kts), [core:oauth](core/oauth/build.gradle.kts)의 빌드 설정.
+
 [모듈 선언](settings.gradle.kts) · [Convention Plugin](build-logic/convention/src/main/java/com/project200/convention)
+
+### 도식 표현 참고
+
+모듈과 의존성은 이 저장소의 Gradle 설정을 기준으로 했으며, 다음 자료에서는 배치와 표기 원칙을 참고했습니다.
+
+- [Now in Android 모듈화 예제](https://github.com/android/nowinandroid/blob/main/docs/ModularizationLearningJourney.md): 기능별 그룹과 계층적 배치.
+- [Android 공식 모듈화 패턴](https://developer.android.com/topic/modularization/patterns#dependency-inversion): 추상화와 구현이 분리된 의존성 표현.
+- [C4 도식 표기 지침](https://c4model.com/diagrams/notation): 도식의 범위·범례·짧은 역할 설명.
 
 </details>
 
