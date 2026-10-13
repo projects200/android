@@ -7,196 +7,253 @@
 운동을 기록하고, 점수를 쌓고, 가까운 운동 메이트를 찾는 안드로이드 앱
 
 [![Android CI (dev)](https://github.com/projects200/android/actions/workflows/android-dev-ci.yml/badge.svg?branch=dev)](https://github.com/projects200/android/actions/workflows/android-dev-ci.yml)
-[![Android CI/CD (master)](https://github.com/projects200/android/actions/workflows/android-master-ci-cd.yml/badge.svg?branch=master)](https://github.com/projects200/android/actions/workflows/android-master-ci-cd.yml)
-
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.23-7F52FF?logo=kotlin&logoColor=white)
-![AGP](https://img.shields.io/badge/AGP-8.9.1-3DDC84?logo=android&logoColor=white)
-![minSdk](https://img.shields.io/badge/minSdk-26-4F7942)
-![targetSdk](https://img.shields.io/badge/targetSdk-36-4F7942)
-![JDK](https://img.shields.io/badge/JDK-17-ED8B00?logo=openjdk&logoColor=white)
-![License](https://img.shields.io/badge/License-Apache%202.0-blue)
+![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
 
 </div>
 
----
+[프로젝트 소개](#프로젝트-소개) · [주요 화면](#주요-화면) · [주요 기능](#주요-기능) · [구현 포인트](#구현-포인트) · [아키텍처](#아키텍처) · [검증과 배포](#검증과-배포) · [실행 방법](#실행-방법)
 
-## 소개
+## 프로젝트 소개
 
-운다방은 혼자 하는 운동을 기록으로 남기고, 그 기록을 근거로 주변 사람과 연결해 주는 앱입니다.
-운동을 기록하면 운동 점수가 쌓이고, 지도 위의 다른 사용자는 이 점수와 선호 운동으로 탐색됩니다.
+운다방은 개인의 운동 기록과 운동 메이트 탐색을 연결하는 앱입니다. 캘린더에 운동을 기록하고, 운동 점수와 선호 운동을 기준으로 주변 사용자를 탐색합니다. 단순 타이머와 커스텀 인터벌 타이머, 피드, 실시간 채팅을 함께 제공합니다.
 
-Clean Architecture 기반의 멀티 모듈 구조이며, 운동 기록과 타이머는 Room 캐시를 둔 오프라인 우선 설계입니다.
+이 저장소는 운다방의 **Android 클라이언트**입니다. Kotlin 멀티 모듈 구조에서 Compose와 기존 XML 화면을 함께 운영하며, 다음 구현을 중심으로 소개합니다.
+
+- **로컬 변경 보존**: 타이머를 기기에 먼저 저장하고, 서버 목록을 반영할 때 미전송 변경을 보호합니다.
+- **백그라운드 작업 제어**: FCM 토큰 전송을 네트워크 조건에 맞춰 예약하고, 실패 유형과 시도 횟수에 따라 재시도를 결정합니다.
+- **화면 검증의 정확성**: UI 테스트에서 단순한 탭 선택이나 빈 목록을 조회 성공으로 오인하지 않도록 판정 조건을 구분합니다.
+
+## 주요 화면
+
+| 운동 기록 | 커스텀 타이머 | 지도 매칭 | 채팅 |
+|:---:|:---:|:---:|:---:|
+| <br><br><br><br> | <br><br><br><br> | <br><br><br><br> | <br><br><br><br> |
+
+<!-- 각 빈 셀에 해당 화면의 스크린샷을 넣습니다. -->
 
 ## 주요 기능
 
-| 탭 | 기능 |
-|---|---|
-| 운동 기록 | 캘린더 기반 기록 조회, 사진과 장소를 포함한 기록 작성, 운동 점수 획득과 정책 안내, 기록 공유 이미지 편집 |
-| 타이머 | 단순 타이머와 스텝 기반 커스텀 인터벌 타이머, 타이머 목록 관리 |
-| 매칭 | 카카오맵 위에서 주변 사용자 탐색, 운동 점수와 선호 운동 필터, 운동 장소 등록과 검색, 상대 프로필 조회 |
-| 피드 | 피드 목록과 상세, 글 작성 |
-| 채팅 | 채팅방 목록, WebSocket 기반 실시간 메시지 송수신 |
-| 마이페이지 | 프로필 수정, 선호 운동 설정, 알림 설정, 차단 사용자 관리 |
+1. **운동 기록과 타이머**
+   - 캘린더에서 운동 기록을 조회하고, 사진과 장소를 포함한 기록을 작성합니다.
+   - 운동 점수와 정책을 확인하고, 기록을 공유 이미지로 편집합니다.
+   - 단순 타이머 또는 단계별 시간과 이름을 구성한 커스텀 타이머를 사용합니다.
+2. **주변 운동 메이트 탐색과 대화**
+   - 카카오맵에서 주변 사용자를 운동 점수·선호 운동으로 탐색하고 프로필을 확인합니다.
+   - 운동 장소를 검색·등록하고, 채팅방에서 WebSocket 기반 메시지를 주고받습니다.
+3. **피드와 프로필**
+   - 피드를 작성하고 목록·상세를 조회합니다.
+   - 프로필, 선호 운동, 알림 설정과 차단 사용자를 관리합니다.
 
-추가로 Cognito 기반 OAuth 로그인, 약관과 권한 동의 플로우, FCM 푸시 알림(WorkManager로 토큰 동기화 예약)을 지원합니다.
+로그인은 Cognito 기반 OAuth를 사용하며, 약관·권한 동의와 FCM 푸시 알림을 지원합니다.
+
+## 구현 포인트
+
+### 1. 서버 목록을 다시 받아도 로컬 타이머 변경을 보존하기
+
+**문제** — 기기에서 타이머를 수정한 뒤 서버의 이전 값을 그대로 덮어쓰면 아직 전송하지 않은 변경이 사라질 수 있습니다. 새로 만든 타이머는 서버 ID가 없으므로 서버 ID만으로는 식별할 수도 없습니다.
+
+**구현** — 생성·수정·삭제는 Room에 먼저 반영하고, 로컬 식별자와 서버 식별자를 분리합니다. 서버 목록을 반영할 때는 변경 대기 중인 항목을 제외하고 동기화가 끝난 항목만 갱신합니다. 계정별 조회 조건은 LocalDataSource에서 적용합니다.
+
+- 서버에 없는 타이머를 수정하면 생성 대기를 유지하고, 삭제하면 로컬에서 바로 지웁니다.
+- 서버에 있는 타이머를 삭제하면 삭제 대기 상태로 남겨 서버에 전달할 정보를 보존합니다.
+- 서버 조회가 네트워크 오류로 실패하면 저장된 타이머를 읽습니다.
+
+**트레이드오프** — 커스텀 타이머 목록 API에는 실행 단계가 없어 항목별 상세 조회가 추가됩니다. 단계까지 로컬에 보관하기 위해 추가 요청 비용을 감수하는 구조입니다. 여기서 설명하는 범위는 로컬 저장과 서버 조회 결과 반영이며, 서버 전송 완료를 보장한다는 의미는 아닙니다.
+
+**관련 테스트** — 미전송 수정 보존, 생성·삭제 상태 전이, 계정별 데이터 분리를 메모리 DB로 검사하는 테스트가 있습니다.
+
+[저장 로직](data/src/main/java/com/project200/data/datasource/TimerLocalDataSource.kt) · [서버 조회와 로컬 읽기](data/src/main/java/com/project200/data/impl/TimerRepositoryImpl.kt) · [회귀 테스트](data/src/test/java/com/project200/data/datasource/TimerLocalDataSourceTest.kt)
+
+### 2. FCM 토큰 전송의 실행 조건과 재시도 범위 나누기
+
+**문제** — FCM 토큰 갱신 콜백은 백그라운드에서도 호출됩니다. 콜백 시점에 네트워크 연결과 로그인 상태를 전제할 수 없고, 일시적인 전송 실패와 재시도로 복구되지 않는 인증 오류도 구분해야 합니다.
+
+**구현** — 토큰을 기기에 저장한 뒤 WorkManager에 전송을 예약합니다. 네트워크 연결 조건과 지수 백오프를 적용하고, 같은 이름의 작업은 새 요청으로 교체합니다. 재시도 판단은 Android 의존성이 없는 정책 객체로 분리했습니다.
+
+- 작업당 총 시도 횟수는 최대 10회로 제한합니다.
+- 리프레시 토큰이 무효한 `invalid_grant`는 재시도하지 않습니다.
+- 로그인 전이거나 전송할 토큰이 없는 경우는 전송을 건너뜁니다.
+
+**트레이드오프** — 콜백 즉시 전송하는 대신 작업 실행 조건이 충족될 때까지 서버 반영이 늦어질 수 있습니다. 새 토큰으로 작업을 교체하면 백오프와 시도 횟수도 새 작업 기준으로 시작합니다.
+
+**관련 테스트** — 첫 실패, 재시도 상한 직전·도달·초과, 인증 오류에 따른 재시도 여부를 검사합니다.
+
+[토큰 수신](app/src/main/java/com/project200/undabang/fcm/FcmService.kt) · [전송 Worker](app/src/main/java/com/project200/undabang/fcm/FcmTokenSyncWorker.kt) · [재시도 정책](app/src/main/java/com/project200/undabang/fcm/FcmTokenSyncPolicy.kt) · [경계값 테스트](app/src/test/java/com/project200/undabang/fcm/FcmTokenSyncPolicyTest.kt)
+
+### 3. UI 테스트가 빈 화면을 성공으로 오인하지 않게 하기
+
+**문제** — 탭 제목이 보인다는 사실만으로 콘텐츠 로딩 성공을 판단할 수 없습니다. 빈 목록도 초기 상태, 조회 실패, 실제로 데이터가 없는 성공 응답에서 모두 나타날 수 있습니다.
+
+**구현** — Maestro의 피드 검증은 탭 선택 상태에 더해 실제 콘텐츠 또는 성공한 빈 응답의 선택자를 확인합니다. ViewModel에서는 조회 완료 여부를 따로 관리하고, 최신 요청의 성공 응답일 때만 완료 상태를 부여합니다. Compose 화면은 이 상태에 따라 빈 결과 선택자를 노출합니다.
+
+**검증 범위** — 새 조회·실패 시 이전 완료 상태를 유지하지 않는지, 늦게 도착한 이전 빈 응답을 최신 조회의 완료로 인정하지 않는지를 회귀 테스트로 다룹니다. 이 판정은 UI 테스트용 완료 상태에 관한 것으로, 모든 목록 갱신 경쟁을 해결했다는 의미는 아닙니다.
+
+**트레이드오프** — UI 테스트가 화면의 의미 있는 상태를 확인할 수 있도록 접근성 선택자를 관리해야 합니다. 로그인 필요 플로우는 로그인된 기기를 준비해야 하며 OAuth 로그인 자체는 자동화하지 않습니다.
+
+[화면 상태](feature/feed/src/main/java/com/project200/undabang/feature/feed/list/FeedListViewModel.kt) · [Compose 선택자](feature/feed/src/main/java/com/project200/undabang/feature/feed/list/FeedListScreen.kt) · [회귀 테스트](feature/feed/src/test/java/com/project200/undabang/feature/feed/FeedListViewModelTest.kt) · [Maestro 플로우](.maestro/flows/smoke-tabs.yaml)
 
 ## 아키텍처
 
-<img width="2080" height="808" alt="image" src="https://github.com/user-attachments/assets/330c59ca-3c09-485f-b568-ba487af48feb" />
+<img width="2080" height="808" alt="운다방 모듈 아키텍처" src="https://github.com/user-attachments/assets/330c59ca-3c09-485f-b568-ba487af48feb" />
 
-`domain`은 외부 의존이 없는 순수 Kotlin 모듈입니다.
-`feature`와 `presentation`은 Retrofit과 저장소를 직접 참조하지 않고 UseCase만 호출합니다.
+화면·도메인 규칙·데이터 접근을 분리합니다. `domain`은 Android 프레임워크에 의존하지 않는 Kotlin/JVM 모듈이며, Repository 인터페이스를 정의하고 실제 API·Room 접근은 `data`에서 구현합니다.
 
+```text
+Fragment / Composable → ViewModel → UseCase
+                                      ↓
+                        Repository 인터페이스 (domain)
+                                      ↓
+                        Repository 구현 (data) → API / Room
 ```
-View (Fragment / Composable)
-  → ViewModel          상태는 StateFlow<UiState<T>>로 노출
-  → UseCase            suspend operator fun invoke()
-  → Repository         interface는 domain, 구현은 data
-  → RemoteDataSource(ApiService) / LocalDataSource(Room)
-```
 
-### 모듈
+- **화면과 도메인 경계**: 기능별 `feature` 모듈과 공통 UI인 `presentation`을 분리합니다. Compose 화면과 ViewBinding 화면이 공존하며 Navigation Component로 화면을 연결합니다.
+- **구현과 계약의 분리**: `domain`의 규칙과 인터페이스는 Android 저장소 구현 없이 JVM 테스트 대상으로 다룰 수 있습니다. 의존성 연결에는 Hilt를 사용합니다.
+- **공통 빌드 설정**: `build-logic`의 Convention Plugin에서 Android·Kotlin·Hilt·Compose·Ktlint·JaCoCo 설정을 재사용합니다.
+
+<details>
+<summary>모듈별 역할</summary>
 
 | 모듈 | 역할 |
 |---|---|
-| `app` | 애플리케이션 진입점, MainActivity, 하단 네비게이션, DI 통합 |
-| `domain` | 모델, UseCase, Repository 인터페이스 (Pure Kotlin) |
-| `data` | Repository 구현체, Retrofit ApiService, DTO/Mapper, Room `UndabangDatabase` |
-| `presentation` | 공통 UI 컴포넌트, `BindingFragment`, `AppTheme`, `UiState` |
+| `app` | 앱 진입점, 하단 내비게이션, FCM, DI 통합 |
+| `domain` | 모델, UseCase, Repository 인터페이스 |
+| `data` | Repository 구현, Retrofit, DTO·Mapper, Room |
+| `presentation` | 공통 UI, 테마, 화면 상태·오류 표현 |
 | `common` | 공유 유틸, 상수, DI Qualifier |
-| `core:oauth` | Cognito + AppAuth 인증, 토큰 저장 (EncryptedSharedPreferences) |
-| `feature:auth` | 로그인, 약관 동의, 권한 요청, 회원가입 |
-| `feature:exercise` | 운동 기록 목록·상세·작성, 장소 검색, 공유 이미지 |
-| `feature:timer` | 단순 타이머, 커스텀 타이머 |
+| `core:oauth` | Cognito·AppAuth 인증과 토큰 저장 |
+| `feature:auth` | 로그인, 약관·권한 동의, 회원가입 |
+| `feature:exercise` | 운동 기록, 장소 검색, 공유 이미지 |
+| `feature:timer` | 단순·커스텀 타이머 |
 | `feature:matching` | 지도 매칭, 운동 장소 |
-| `feature:feed` | 피드 |
-| `feature:chatting` | 채팅 목록, 채팅방 |
+| `feature:feed` | 피드 목록·상세·작성 |
+| `feature:chatting` | 채팅 목록·채팅방 |
 | `feature:profile` | 마이페이지, 설정 |
+| `build-logic` | 공통 빌드 설정 |
 
-## 기술 스택
+[모듈 선언](settings.gradle.kts) · [Convention Plugin](build-logic/convention/src/main/java/com/project200/convention)
 
-| 구분 | 사용 기술 |
+</details>
+
+### 기술 스택
+
+| 영역 | 기술 |
 |---|---|
-| 언어 / 빌드 | Kotlin 1.9.23, Gradle Version Catalog, Convention Plugin (`build-logic`) |
-| UI | Jetpack Compose (신규 화면), ViewBinding (기존 화면), Navigation Component + SafeArgs |
-| DI | Hilt |
-| 비동기 | Coroutines, Flow |
-| 네트워크 | Retrofit2, OkHttp, Moshi, OkHttp WebSocket (채팅) |
-| 로컬 | Room, SharedPreferences, EncryptedSharedPreferences |
-| 백그라운드 | WorkManager |
-| 지도 | Kakao Map SDK |
-| 이미지 | Glide (XML), Coil (Compose) |
-| Firebase | FCM, Crashlytics, App Distribution |
-| 테스트 | JUnit4, MockK, Truth, Turbine, JaCoCo |
-| 품질 | Ktlint, Android Lint |
+| 언어·빌드 | Kotlin, Gradle Kotlin DSL, Version Catalog, Convention Plugin |
+| UI | Jetpack Compose, ViewBinding, Navigation Component |
+| 상태·비동기·DI | ViewModel, Coroutines, Flow, Hilt |
+| 네트워크·인증 | Retrofit, OkHttp·WebSocket, Moshi, Cognito·AppAuth |
+| 로컬·백그라운드 | Room, SharedPreferences, EncryptedSharedPreferences, WorkManager |
+| 지도·이미지 | Kakao Map SDK, Glide, Coil |
+| Firebase | FCM, Crashlytics, Analytics, Performance, Remote Config, App Distribution |
+| 검증 | JUnit4, MockK, Truth, Turbine, Robolectric, JaCoCo, Maestro, Ktlint, Android Lint |
 
-## 핵심 규칙
+세부 버전은 [Version Catalog](gradle/libs.versions.toml)에서 관리합니다.
 
-**API 호출은 `apiCallBuilder`를 거칩니다.** 서버 응답의 `code`가 `BaseResult.Error.errorCode`로 전달되고 화면 분기가 이 문자열에 걸려 있습니다.
+## 검증과 배포
 
-```kotlin
-override suspend fun login(): BaseResult<Unit> =
-    apiCallBuilder(
-        ioDispatcher = ioDispatcher,
-        apiCall = { apiService.postLogin(PostLoginRequest("ANDROID", "APP")) },
-        mapper = { Unit },
-    )
-```
+구현 사례별 소스와 테스트는 위 링크에서 확인할 수 있습니다.
 
-**도메인 결과는 `BaseResult`, 화면 상태는 `UiState`입니다.** `errorCode` 문자열은 화면까지 올라가지 않고 `Failure`로 변환됩니다.
+- **로직·저장소**: UseCase·ViewModel 단위 테스트, Robolectric 기반 Room 테스트를 두고 있습니다. JaCoCo 집계 대상은 UseCase·ViewModel입니다.
+- **사용자 흐름**: Maestro 플로우로 로그인 화면, 하단 탭과 콘텐츠, 운동 기록 작성 화면 진입을 검사하도록 구성했습니다. 기기 준비와 실행 조건은 [Maestro 가이드](.maestro/README.md)에 있습니다.
+- **CI/CD 구성**: `dev` push·PR은 debug 검증과 Firebase App Distribution 배포, `master` push·PR은 release 검증을 수행하도록 설정되어 있습니다. Google Play 내부 테스트 배포는 `master` push에서만 실행합니다.
 
-```kotlin
-sealed class BaseResult<out T> {
-    data class Success<T>(val data: T) : BaseResult<T>()
-    data class Error(val errorCode: String?, val message: String?, val cause: Throwable?) : BaseResult<Nothing>()
-}
-```
+[dev 워크플로우](.github/workflows/android-dev-ci.yml) · [master 워크플로우](.github/workflows/android-master-ci-cd.yml)
 
-**오프라인 캐시는 `data` 모듈 안에서만 다룹니다.** 모든 테이블에 `memberId` 컬럼을 두고 DAO 쿼리에 계정 조건을 겁니다.
-행은 `localId`(UUID)로 식별하고 `serverId`는 nullable입니다. 동기화 상태는 행마다 `syncState`(`SYNCED` / `CREATE_PENDING` / `UPDATE_PENDING` / `DELETE_PENDING`)로 들고 갑니다.
-화면은 Room을 지속 `Flow`로 구독하지 않고 진입 시 스냅샷을 한 번 읽습니다.
+### 현재 지원 범위
 
-**새 화면은 Compose로 만듭니다.** Composable은 상태를 파라미터로 받고 이벤트를 콜백으로 올리며 ViewModel을 직접 참조하지 않습니다.
-기존 XML 화면을 고칠 때는 `BindingFragment`를 그대로 씁니다.
+- 타이머의 로컬 저장과 달리, 현재 [운동 기록 Repository](data/src/main/java/com/project200/data/impl/ExerciseRecordRepositoryImpl.kt)의 목록·상세·횟수 조회는 서버를 호출합니다. Room 저장 계층이 있다는 이유만으로 앱 전체의 오프라인 지원을 의미하지는 않습니다.
+- CI 단위 테스트 명령에는 Kotlin/JVM 모듈인 `:domain:test`가 포함되어 있지 않습니다. 로컬 전체 단위 테스트 안내에는 이를 별도로 포함했습니다. Maestro도 현재 CI에서 실행하지 않습니다.
+- `dev` 워크플로우에는 배포를 push로 제한하는 조건이 없어 PR에도 배포 단계가 있습니다. 배포 구성은 공개 출시 여부나 실제 배포 성공을 뜻하지 않습니다.
 
-## 시작하기
+## 실행 방법
 
-### 요구 사항
+JDK 17, Android SDK Platform 36, NDK 28.0.10027231을 사용합니다. Gradle은 저장소의 Wrapper(8.11.1)를 사용하며, Android Studio는 AGP 8.9.1을 지원하는 버전이 필요합니다. 실행 기기는 Android 8.0(API 26) 이상이며 APK에 포함하는 ABI는 `armeabi-v7a`, `arm64-v8a`입니다.
 
-- Android Studio (AGP 8.9.1 지원 버전)
-- JDK 17
-- Android SDK 36, NDK 28.0.10027231
+외부 서비스 설정이 필요하므로 클론만으로는 앱 실행 준비가 끝나지 않습니다. 개발용 Cognito·Kakao 값과 Firebase 설정 파일을 준비합니다.
 
-### 설정
+<details>
+<summary>개발 환경 설정과 첫 빌드</summary>
 
-1. 저장소를 클론합니다.
+1. `dev` 브랜치를 클론하고 Android Studio에서 루트 폴더를 엽니다.
 
    ```bash
-   git clone https://github.com/projects200/android.git
+   git clone --branch dev https://github.com/projects200/android.git
    cd android
    ```
 
-2. 루트에 `local.properties`를 만들고 키를 채웁니다.
+2. Gradle JDK와 터미널의 `JAVA_HOME`을 JDK 17로 맞춥니다. 루트 `local.properties`의 기존 `sdk.dir`은 유지하고 아래 값을 추가합니다. `YOUR_...`는 개발 환경용 실제 값으로 바꿉니다.
 
    ```properties
    sdk.dir=/path/to/Android/sdk
-
-   KAKAO_NATIVE_APP_KEY=...
-   KAKAO_REST_API_KEY=...
-
-   # debug 빌드
-   COGNITO_USER_POOL_ID_DEV=...
-   COGNITO_APP_CLIENT_ID_DEV=...
-   COGNITO_REGION_DEV=...
-
-   # release 빌드
-   COGNITO_USER_POOL_ID=...
-   COGNITO_APP_CLIENT_ID=...
-   COGNITO_REGION=...
+   KAKAO_NATIVE_APP_KEY=YOUR_DEV_NATIVE_APP_KEY
+   KAKAO_REST_API_KEY=YOUR_REST_API_KEY
+   COGNITO_USER_POOL_ID_DEV=YOUR_DEV_USER_POOL_ID
+   COGNITO_APP_CLIENT_ID_DEV=YOUR_DEV_APP_CLIENT_ID
+   COGNITO_REGION_DEV=YOUR_DEV_REGION
    ```
 
-3. Firebase 콘솔에서 받은 `google-services.json`을 `app/`에 둡니다.
+   Kakao 키는 파일에 없으면 같은 이름의 환경변수를 읽습니다. Cognito 값은 `local.properties`에서만 읽습니다.
 
-4. 빌드합니다.
+3. 개발용 Firebase 파일을 `app/src/debug/google-services.json`에 둡니다.
+4. Gradle Sync 후 `app` 모듈의 `debug` 변형을 실행하거나 APK를 빌드합니다.
 
    ```bash
-   ./gradlew assembleDebug
+   ./gradlew :app:assembleDebug
    ```
 
-API 서버는 빌드 타입에 따라 갈립니다. debug는 `https://api.undabang.site/dev/`, release는 `https://api.undabang.site/`를 바라봅니다.
+   APK: `app/build/outputs/apk/debug/app-debug.apk`
 
-## 명령어
+Windows에서는 `./gradlew` 대신 `gradlew.bat`를 사용합니다. 설정 파일과 서명 키는 커밋하지 않습니다.
+
+</details>
+
+<details>
+<summary>빌드·테스트 명령</summary>
+
+저장소 루트에서 실행합니다.
 
 ```bash
-./gradlew ktlintFormat          # 코드 포맷
-./gradlew ktlintCheck           # 포맷 검사
-./gradlew lint                  # Android Lint
-./gradlew testDebugUnitTest     # 단위 테스트 전체
-./gradlew :feature:timer:testDebugUnitTest   # 모듈 단위 테스트
-./gradlew jacocoLogicReport     # UseCase·ViewModel 커버리지 리포트
-./gradlew assembleDebug         # 디버그 APK
-./gradlew assembleRelease       # 릴리스 APK
+./gradlew ktlintCheck                       # Kotlin 포맷 검사
+./gradlew ktlintFormat                      # Kotlin 포맷 수정
+./gradlew lintDebug                         # debug Android Lint
+./gradlew testDebugUnitTest :domain:test     # Android 모듈 + domain 단위 테스트
+./gradlew :feature:timer:testDebugUnitTest   # 타이머 모듈 단위 테스트
+./gradlew jacocoLogicReport                 # UseCase·ViewModel 커버리지
+./gradlew :app:assembleDebug                # 디버그 APK
 ```
 
-## CI/CD
+`domain`은 Kotlin/JVM 모듈이므로 `testDebugUnitTest`만으로는 해당 테스트가 실행되지 않습니다. JaCoCo HTML 리포트 경로는 `build/reports/jacoco/jacocoRootReport/html/index.html`입니다.
 
-| 워크플로우 | 트리거 | 동작 |
+</details>
+
+<details>
+<summary>개발·운영 환경과 릴리스 서명</summary>
+
+| 항목 | `debug` | `release` |
 |---|---|---|
-| Android CI (dev) | `dev` push, PR | Lint, Ktlint, 단위 테스트, Firebase App Distribution 배포 |
-| Android CI/CD (master) | `master` push, PR | Lint, Ktlint, 릴리스 단위 테스트, AAB 빌드, Google Play 내부 테스트 업로드 |
+| 앱 이름 | 운다방(Debug) | 운다방 |
+| API 서버 | `https://api.undabang.site/dev/` | `https://api.undabang.site/` |
+| Cognito 설정 | `COGNITO_*_DEV` | `COGNITO_*` |
+| Firebase 파일 | `app/src/debug/google-services.json` | `app/src/release/google-services.json` |
 
-## 기여 규칙
+릴리스 작업에는 운영용 Firebase 파일과 다음 `local.properties` 항목이 추가로 필요합니다.
 
-- 작업 브랜치는 `dev`에서 땁니다. 운영 브랜치는 `master`입니다.
-- 브랜치 이름은 `{타입}/{설명}-{이슈번호}` 형식입니다. 타입은 `feat` `fix` `refactor` `chore` `docs`입니다.
-  예: `fix/fcm-token-sync-565`
-- 커밋 메시지는 `{타입}: {한국어 한 줄} #이슈번호` 형식입니다.
-- PR 제목은 `{접두} {한국어 제목} #{이슈번호}` 형식입니다. 이슈를 닫으려면 본문에 `Closes #번호`를 씁니다.
-- 이슈와 PR 템플릿은 `.github/`에 있습니다.
-- 커밋 전에 `./gradlew ktlintFormat`을 한 번 돌립니다.
+```properties
+COGNITO_USER_POOL_ID=YOUR_PROD_USER_POOL_ID
+COGNITO_APP_CLIENT_ID=YOUR_PROD_APP_CLIENT_ID
+COGNITO_REGION=YOUR_PROD_REGION
+```
 
-코드베이스 규약 전문은 [AGENTS.md](AGENTS.md)에 있습니다.
+배포용 서명은 `android.injected.signing.store.file`, `android.injected.signing.store.password`, `android.injected.signing.key.alias`, `android.injected.signing.key.password` Gradle 프로젝트 속성(`-P`)으로 전달합니다.
 
-## 라이선스
+[앱 빌드 설정](app/build.gradle.kts) · [API 환경 선택](data/src/main/java/com/project200/data/di/NetworkModule.kt) · [릴리스 워크플로우](.github/workflows/android-master-ci-cd.yml)
 
-[Apache License 2.0](LICENSE)
+</details>
+
+## 기여와 라이선스
+
+개발 브랜치는 `dev`, 운영 브랜치는 `master`입니다. 상세 규약은 [AGENTS.md](AGENTS.md)를 참고하고, 변경 내용과 실제 검증 범위는 [PR 템플릿](.github/PULL_REQUEST_TEMPLATE.md)에 기록합니다.
+
+[버그 보고](.github/ISSUE_TEMPLATE/bug_report.md) · [기능 제안](.github/ISSUE_TEMPLATE/feature_request.md) · [Apache License 2.0](LICENSE)
