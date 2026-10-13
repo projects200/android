@@ -1,14 +1,14 @@
-<svg width="792" height="1536" viewBox="0 0 528 1024" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="screens-title screens-description">
+<svg width="1158" height="514" viewBox="0 0 1158 514" fill="none" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" role="img" aria-labelledby="screens-title screens-description">
 <title id="screens-title">운다방 주요 화면</title>
-<desc id="screens-description">Figma에서 내보낸 앱 화면을 두 줄로 배치했습니다. 위쪽은 지도 매칭과 운동 기록, 아래쪽은 채팅과 커스텀 타이머입니다.</desc>
+<desc id="screens-description">Figma에서 내보낸 앱 화면 네 개를 가로 한 줄로 배치했습니다. 왼쪽부터 지도 매칭, 운동 기록, 채팅, 커스텀 타이머입니다.</desc>
 <style>
   .screen-caption { font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; font-size: 20px; font-weight: 400; letter-spacing: -0.2px; fill: #f7f8f8; text-anchor: middle; }
 </style>
-<rect width="528" height="1024" fill="#010102"/>
+<rect width="1158" height="514" fill="#010102"/>
 <text x="122.5" y="40" class="screen-caption">지도 매칭</text>
-<text x="386.5" y="40" class="screen-caption">운동 기록</text>
-<text x="122.5" y="544" class="screen-caption">채팅</text>
-<text x="386.5" y="544" class="screen-caption">커스텀 타이머</text>
+<text x="420.167" y="40" class="screen-caption">운동 기록</text>
+<text x="717.833" y="40" class="screen-caption">채팅</text>
+<text x="1015.499" y="40" class="screen-caption">커스텀 타이머</text>
 <g transform="translate(24 56)" filter="url(#filter0_d_2202_2)">
 <path d="M1.45312 144.755L0.969095 144.755C0.434451 144.755 0.00103573 144.308 0.00103578 143.756L0.00104096 95.5729C0.00104101 95.0209 0.434456 94.5734 0.9691 94.5734L1.45313 94.5734L1.45312 144.755Z" fill="#121515"/>
 <path d="M195.549 151.51H196.033C196.568 151.51 197.001 151.958 197.001 152.51L197.001 180.91C197.001 181.462 196.568 181.909 196.033 181.909H195.549L195.549 151.51Z" fill="#121515"/>
@@ -22,7 +22,7 @@
 <rect x="6.32812" y="7.50006" width="184" height="396" fill="url(#pattern0_2202_2)"/>
 </g>
 </g>
-<g transform="translate(-9.667 56)" filter="url(#filter1_d_2202_2)">
+<g transform="translate(24 56)" filter="url(#filter1_d_2202_2)">
 <path d="M299.119 144.755L298.635 144.755C298.1 144.755 297.667 144.308 297.667 143.756L297.667 95.5729C297.667 95.0209 298.1 94.5734 298.635 94.5734L299.119 94.5734L299.119 144.755Z" fill="#121515"/>
 <path d="M493.215 151.51H493.699C494.234 151.51 494.667 151.958 494.667 152.51L494.667 180.91C494.667 181.462 494.234 181.909 493.699 181.909H493.215L493.215 151.51Z" fill="#121515"/>
 <path d="M493.215 107.119H493.699C494.234 107.119 494.667 107.566 494.667 108.118L494.667 127.833C494.667 128.385 494.234 128.832 493.699 128.832H493.215L493.215 107.119Z" fill="#121515"/>
@@ -35,7 +35,7 @@
 <rect x="304.443" y="7.72028" width="183.447" height="395.664" fill="url(#pattern1_2202_2)"/>
 </g>
 </g>
-<g transform="translate(-571.333 560)" filter="url(#filter2_d_2202_2)">
+<g transform="translate(24 56)" filter="url(#filter2_d_2202_2)">
 <path d="M596.785 144.755L596.301 144.755C595.766 144.755 595.333 144.308 595.333 143.756L595.333 95.5729C595.333 95.0209 595.766 94.5734 596.301 94.5734L596.785 94.5734L596.785 144.755Z" fill="#121515"/>
 <path d="M790.881 151.51H791.365C791.9 151.51 792.333 151.958 792.333 152.51L792.333 180.91C792.333 181.462 791.9 181.909 791.365 181.909H790.881L790.881 151.51Z" fill="#121515"/>
 <path d="M790.881 107.119H791.365C791.9 107.119 792.333 107.566 792.333 108.118L792.333 127.833C792.333 128.385 791.9 128.832 791.365 128.832H790.881L790.881 107.119Z" fill="#121515"/>
@@ -48,7 +48,7 @@
 <rect x="602.109" y="7.72028" width="183.447" height="395.664" fill="url(#pattern2_2202_2)"/>
 </g>
 </g>
-<g transform="translate(-604.999 560)" filter="url(#filter3_d_2202_2)">
+<g transform="translate(24 56)" filter="url(#filter3_d_2202_2)">
 <path d="M894.451 144.755L893.967 144.755C893.432 144.755 892.999 144.308 892.999 143.756L892.999 95.5729C892.999 95.0209 893.433 94.5734 893.967 94.5734L894.451 94.5734L894.451 144.755Z" fill="#121515"/>
 <path d="M1088.55 151.51H1089.03C1089.57 151.51 1090 151.958 1090 152.51L1090 180.91C1090 181.462 1089.57 181.909 1089.03 181.909H1088.55L1088.55 151.51Z" fill="#121515"/>
 <path d="M1088.55 107.119H1089.03C1089.57 107.119 1090 107.566 1090 108.118L1090 127.833C1090 128.385 1089.57 128.832 1089.03 128.832H1088.55L1088.55 107.119Z" fill="#121515"/>
