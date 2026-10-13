@@ -6,14 +6,27 @@
 
 운동을 기록하고, 점수를 쌓고, 가까운 운동 메이트를 찾는 안드로이드 앱
 
-[![Android CI (dev)](https://github.com/projects200/android/actions/workflows/android-dev-ci.yml/badge.svg?branch=dev)](https://github.com/projects200/android/actions/workflows/android-dev-ci.yml)
 ![Kotlin](https://img.shields.io/badge/Kotlin-1.9.23-7F52FF?logo=kotlin&logoColor=white)
 ![Android](https://img.shields.io/badge/Android-8.0%2B-3DDC84?logo=android&logoColor=white)
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue)](LICENSE)
+![Jetpack Compose](https://img.shields.io/badge/Jetpack%20Compose-4285F4)
+<br>
+![Coroutines](https://img.shields.io/badge/Coroutines-7F52FF)
+![Hilt](https://img.shields.io/badge/Hilt-34A853)
+![Retrofit](https://img.shields.io/badge/Retrofit-3E4348)
+![Room](https://img.shields.io/badge/Room-3DDC84)
 
 </div>
 
-[프로젝트 소개](#프로젝트-소개) · [주요 화면](#주요-화면) · [주요 기능](#주요-기능) · [구현 포인트](#구현-포인트) · [아키텍처](#아키텍처) · [검증과 배포](#검증과-배포) · [실행 방법](#실행-방법)
+## 목차
+
+- [프로젝트 소개](#프로젝트-소개)
+- [주요 화면](#주요-화면)
+- [주요 기능](#주요-기능)
+- [구현 포인트](#구현-포인트)
+- [아키텍처](#아키텍처)
+- [기술 스택](#기술-스택)
+- [검증과 배포](#검증과-배포)
+- [실행 방법](#실행-방법)
 
 ## 프로젝트 소개
 
@@ -27,9 +40,17 @@
 
 ## 주요 화면
 
-![운다방 주요 화면: 왼쪽부터 지도 매칭, 운동 기록, 채팅, 커스텀 타이머](docs/images/app-screens.svg)
-
-Figma에서 내보낸 주요 화면입니다.
+<table>
+  <tr>
+    <th width="25%">지도 매칭</th>
+    <th width="25%">운동 기록</th>
+    <th width="25%">채팅</th>
+    <th width="25%">커스텀 타이머</th>
+  </tr>
+  <tr>
+    <td colspan="4"><img src="docs/images/app-screens.svg" alt="왼쪽부터 지도 매칭, 운동 기록, 채팅, 커스텀 타이머 화면" /></td>
+  </tr>
+</table>
 
 ## 주요 기능
 
@@ -153,18 +174,18 @@ Figma에서 내보낸 주요 화면입니다.
 
 </details>
 
-### 기술 스택
+## 기술 스택
 
-| 영역 | 기술 |
-|---|---|
-| 언어·빌드 | Kotlin, Gradle Kotlin DSL, Version Catalog, Convention Plugin |
-| UI | Jetpack Compose, ViewBinding, Navigation Component |
-| 상태·비동기·DI | ViewModel, Coroutines, Flow, Hilt |
-| 네트워크·인증 | Retrofit, OkHttp·WebSocket, Moshi, Cognito·AppAuth |
-| 로컬·백그라운드 | Room, SharedPreferences, EncryptedSharedPreferences, WorkManager |
-| 지도·이미지 | Kakao Map SDK, Glide, Coil |
-| Firebase | FCM, Crashlytics, Analytics, Performance, Remote Config, App Distribution |
-| 검증 | JUnit4, MockK, Truth, Turbine, Robolectric, JaCoCo, Maestro, Ktlint, Android Lint |
+| 영역 | 기술 | 이 프로젝트에서의 용도 |
+|---|---|---|
+| 언어·빌드 | Kotlin, Gradle Kotlin DSL, Version Catalog, Convention Plugin | 의존성 버전 관리와 모듈 공통 빌드 설정 재사용 |
+| UI | Jetpack Compose, ViewBinding, Navigation Component | Compose·XML 화면 구성과 화면 전환 |
+| 상태·비동기·DI | ViewModel, Coroutines, Flow, Hilt | 화면 상태 관리, 비동기 처리·상태 전달, 의존성 주입 |
+| 네트워크·인증 | Retrofit, OkHttp·WebSocket, Moshi, Cognito·AppAuth | REST API·실시간 채팅 연결, JSON 매핑, OAuth 로그인 |
+| 로컬·백그라운드 | Room, SharedPreferences, EncryptedSharedPreferences, WorkManager | 타이머 로컬 저장, 사용자 설정·인증 상태 보관, FCM 토큰 전송 작업 예약 |
+| 지도·이미지 | Kakao Map SDK, Glide, Coil | 주변 운동 메이트·운동 장소 지도 표시와 이미지 로딩 |
+| Firebase | FCM, Crashlytics, Analytics, Performance, Remote Config, App Distribution | 푸시 알림, 크래시·사용 지표·성능 수집 설정, 원격 설정, 테스트 앱 배포 |
+| 검증 | JUnit4, MockK, Truth, Turbine, Robolectric, JaCoCo, Maestro, Ktlint, Android Lint | 로직·저장소·UI 테스트 구성, 커버리지 수집, 정적 검사 |
 
 세부 버전은 [Version Catalog](gradle/libs.versions.toml)에서 관리합니다.
 
