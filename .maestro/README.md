@@ -58,6 +58,10 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 내보내기는 private 요청 `{"operation":"export"}`를 전달합니다. 앱이 계정을 검증하고 `files/maestro-session.json`에 실제 `authState`와 검증된 `memberId`를 씁니다. 호스트는 ADB 파이프로 읽어 `0600` 파일에 저장하며 JSON을 화면/로그/argv/아티팩트에 출력하지 않습니다. bootstrap 성공 직후에는 요청/결과의 본문과 `.new`/`.bak`만 제거하고, 세션 본문과 sidecar는 호스트가 읽을 때까지 보존합니다. 완료·실패·처리 가능한 중단 시 앱을 강제 종료한 뒤 `files/maestro-request.json`, `files/maestro-result.json`, `files/maestro-session.json`과 각 파일의 `.new`/`.bak`만 정확한 allowlist로 제거합니다. 와일드카드나 디렉터리 삭제는 하지 않습니다. 제거 실패도 명령 실패이며 작성한 호스트 파일은 제거합니다. **내보내기는 기존 로그인을 지우지 않습니다.** 기기를 폐기하거나 다음 격리 실행으로 로컬 세션을 비우세요.
 
+앱 private I/O는 `adb shell -T run-as`를 사용합니다. `-T`는 PTY를 금지하며 shell-v2가 stdin, 분리된 stdout/stderr와 원격 종료 코드를 전달합니다. shell-v2 미지원 기기는 명령 실행 전에 실패하며 `exec-out` 폴백은 없습니다. 요청 JSON은 stdin으로만 전달하고 자격 증명을 argv나 ADB/원격 셸 환경에 넣지 않습니다. ADB stdout/stderr 원문도 로그에 포함하지 않고 고정 실패 코드만 보고합니다.
+
+결과 파일이 아직 없을 때만 고정 probe가 종료 코드 `3`을 반환해 기존 0.5초 간격으로 기다립니다. 파일이 있으면 `cat`의 실패 상태를 그대로 전달합니다. `run-as`·쓰기·읽기·삭제의 다른 nonzero는 즉시 실패합니다. 종료 코드 `0`이라도 빈 본문/잘못된 JSON은 `invalid-bootstrap-result`로 즉시 실패하며, 요청 작업에 맞는 `ready`/`cleaned`/`exported`가 아니면 성공하지 않습니다.
+
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 
 ## 무인 실행: 실제 세션을 매 플로우에 독립 복원
@@ -195,6 +199,14 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 ## 검증 상태와 남은 외부 준비
 
-이번 구현에서는 **빌드·lint·formatter·테스트·앱/에뮬레이터·설치 명령을 실행하지 않았습니다.** 문서/소스/공개 CLI 옵션·릴리스·ARM translation 안내만 정적으로 확인했습니다. 위 명령은 후속 실행 방법이며 실행 성공 증거가 아닙니다.
+이번 transport 수정에서는 **로컬 unittest 하네스·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증을 실행하지 않았습니다.** 러너와 관련 소스/문서를 정적으로 읽었으며, 명령 예시는 실행 성공 증거가 아닙니다.
+
+저장소 루트에서 실행할 표준 라이브러리 회귀 테스트 명령(이 작업에서는 미실행):
+
+```bash
+python3 -m unittest discover -s .maestro/scripts -p 'test_run_tests.py'
+```
+
+`test_run_tests.py`의 로컬 셸 하네스는 실제 adb/기기/계정 없이 stdin 전달, 원격 종료 상태, JSON 검증과 실패 시 export 파일 제거를 검사합니다. 하네스 통과도 실기기 export 증거는 아닙니다. 후속 기기 검증에서는 인증된 세션/member ID 쌍, 비ASCII JSON 왕복과 private 파일 제거를 별도로 확인해야 합니다.
 
 최초 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 9개 CI 비밀, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 첫 API30 실행에서 Compose/XML ID 노출, Android Toast 필수값 단언, 캘린더/시간 선택, CRUD 후 재진입과 정리 실패 경로를 확인해야 합니다. 세션 비밀과 서버 fixture가 실제로 준비되었다고 가정하지 않습니다.
