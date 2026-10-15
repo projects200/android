@@ -215,6 +215,27 @@ class SessionTransportTests(unittest.TestCase):
         self.transport.result = b'{"status":"exported"}'
         self.transport.session = json.dumps(SESSION_DATA, ensure_ascii=False).encode("utf-8")
 
+    def test_feature_metadata_uses_private_stdin_and_returns_safe_variables(self):
+        self.transport.result = b'{"status":"ready","variables":{"E2E_MARKER":"run-owned"}}'
+        parameters = {"MAESTRO_PEER_MEMBER_ID": "synthetic-peer"}
+        result = self.device.bootstrap(
+            "prepare", CREDENTIALS, feature="matching", flow="matching-map",
+            run_id="0123456789abcdef", parameters=parameters,
+        )
+        request = json.loads(self.transport.request_bytes)
+        self.assertEqual(request["parameters"], parameters)
+        self.assertEqual(request["runId"], "0123456789abcdef")
+        self.assertEqual(result, {"E2E_MARKER": "run-owned"})
+        self.assert_no_credential_arguments()
+        for argv, env in self.transport.calls:
+            self.assertFalse(any("synthetic-peer" in value for value in (*argv, *env.values())))
+
+    def test_bootstrap_refuses_sensitive_return_variables(self):
+        self.transport.result = b'{"status":"ready","variables":{"FCM_TOKEN":"private"}}'
+        self.assert_failure(
+            "invalid-feature-variables", lambda: self.device.bootstrap("prepare", CREDENTIALS),
+        )
+
     def test_prepare_transfers_exact_request_then_waits_for_ready(self):
         self.device.bootstrap("prepare", CREDENTIALS)
         expected = json.dumps(
