@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title description">
+  <title id="title">운다방 계층과 주요 모듈 의존성</title>
+  <desc id="description">왼쪽 Presentation Layer는 논리적인 UI 계층이다. 그 안에 기능 모듈 묶음과 공통 UI 모듈인 :presentation을 별도 상자로 배치한다. 기능은 exercise, matching, chatting과 말줄임표로 축약한다. 기능 모듈은 :presentation과 :domain을 참조하고, :presentation도 :domain을 참조한다. 오른쪽 :data는 가운데 :domain의 Repository 인터페이스를 구현하며 :domain을 참조한다. 화살표는 실행 순서가 아니다.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 14 14" refX="13" refY="7" markerWidth="14" markerHeight="14" markerUnits="userSpaceOnUse" orient="auto">
+      <path d="M 1 1 L 13 7 L 1 13 Z" fill="#d0d6e0"/>
+    </marker>
+    <style>
+      text { font-family: -apple-system, system-ui, 'Segoe UI', Roboto, sans-serif; fill: #f7f8f8; }
+      .heading { font-size: 40px; font-weight: 600; letter-spacing: -1px; }
+      .title { font-size: 28px; font-weight: 600; letter-spacing: -0.6px; }
+      .module { font-size: 22px; font-weight: 500; letter-spacing: -0.4px; }
+      .body { font-size: 20px; font-weight: 400; letter-spacing: -0.2px; fill: #d0d6e0; }
+      .label { font-size: 18px; font-weight: 400; letter-spacing: -0.1px; fill: #d0d6e0; }
+      .card { fill: #0f1011; stroke: #34343a; stroke-width: 1; }
+      .edge { fill: none; stroke: #d0d6e0; stroke-width: 3; stroke-linejoin: round; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1200" height="640" fill="#010102"/>
+  <text x="48" y="72" class="heading">운다방 아키텍처</text>
+  <text x="48" y="108" class="label">점선은 논리 계층 · 화살표는 주요 모듈 의존 방향</text>
+
+  <rect x="48" y="152" width="400" height="440" rx="16" fill="none" stroke="#8a8f98" stroke-width="1" stroke-dasharray="8 8"/>
+  <text x="72" y="200" class="title">Presentation Layer</text>
+  <text x="72" y="228" class="label">UI 계층 · 내부 상자는 별도 모듈</text>
+
+  <rect x="72" y="248" width="352" height="136" rx="12" class="card"/>
+  <text x="96" y="288" class="module">Feature Modules — feature:*</text>
+  <text x="96" y="320" class="body">exercise · matching · chatting · …</text>
+  <text x="96" y="352" class="label">화면 · ViewModel</text>
+
+  <path d="M 248 384 V 464" class="edge"/>
+  <rect x="72" y="464" width="352" height="104" rx="12" class="card"/>
+  <text x="96" y="504" class="module">Shared UI — :presentation</text>
+  <text x="96" y="536" class="body">공통 UI · 테마 · UiState</text>
+
+  <path d="M 424 320 H 560" class="edge"/>
+  <path d="M 424 516 H 560" class="edge"/>
+  <rect x="560" y="248" width="272" height="320" rx="12" fill="#141516" stroke="#5e6ad2" stroke-width="2"/>
+  <text x="584" y="292" class="title">Domain Layer</text>
+  <text x="584" y="324" class="module">:domain</text>
+  <text x="584" y="384" class="body">모델 · UseCase</text>
+  <text x="584" y="416" class="body">Repository 인터페이스</text>
+  <text x="584" y="488" class="label">Kotlin/JVM</text>
+  <text x="584" y="520" class="label">Android 비의존</text>
+
+  <path d="M 928 408 H 832" class="edge"/>
+  <rect x="928" y="248" width="224" height="320" rx="12" class="card"/>
+  <text x="952" y="292" class="title">Data Layer</text>
+  <text x="952" y="324" class="module">:data</text>
+  <text x="952" y="384" class="body">Repository 구현체</text>
+  <text x="952" y="416" class="body">DTO · Mapper</text>
+  <text x="952" y="488" class="body">Retrofit · Room</text>
+</svg>
