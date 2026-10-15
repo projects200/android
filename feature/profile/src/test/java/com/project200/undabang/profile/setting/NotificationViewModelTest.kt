@@ -1,6 +1,5 @@
 package com.project200.undabang.profile.setting
 
-import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.NotificationState
@@ -11,6 +10,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -22,33 +22,28 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 
-@ExperimentalCoroutinesApi
+@OptIn(ExperimentalCoroutinesApi::class)
 class NotificationViewModelTest {
     @get:Rule
     val mockkRule = MockKRule(this)
 
-    @get:Rule
-    val instantTaskExecutorRule = InstantTaskExecutorRule()
+    @MockK
+    private lateinit var getState: GetNotificationStateUseCase
 
     @MockK
-    private lateinit var mockGetNotiStateUseCase: GetNotificationStateUseCase
+    private lateinit var updateState: UpdateNotificationStateUseCase
 
-    @MockK
-    private lateinit var mockUpdateNotiSettingUseCase: UpdateNotificationStateUseCase
-
-    private lateinit var viewModel: NotificationViewModel
-
-    private val testDispatcher = StandardTestDispatcher()
-
-    private val sampleNotificationStates =
-        listOf(
-            NotificationState(NotificationType.WORKOUT_REMINDER, true),
-            NotificationState(NotificationType.CHAT_MESSAGE, false),
-        )
+    private val dispatcher = StandardTestDispatcher()
+    private val original = listOf(
+        NotificationState(NotificationType.WORKOUT_REMINDER, true),
+        NotificationState(NotificationType.CHAT_MESSAGE, false),
+        NotificationState(NotificationType.UNKNOWN, true),
+    )
 
     @Before
     fun setUp() {
-        Dispatchers.setMain(testDispatcher)
+        Dispatchers.setMain(dispatcher)
+        coEvery { getState() } returns BaseResult.Success(original)
     }
 
     @After
@@ -56,168 +51,103 @@ class NotificationViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel(): NotificationViewModel {
-        return NotificationViewModel(
-            getNotiStateUseCase = mockGetNotiStateUseCase,
-            updateNotiSettingUseCase = mockUpdateNotiSettingUseCase,
-        )
+    @Test
+    fun `조회가 성공한 뒤에만 ready 상태가 된다`() = runTest {
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(true)
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Loading)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Ready)
+        assertThat(model.notificationStates.value).isEqualTo(original)
     }
 
     @Test
-    fun `initNotiState - 권한 있을 때 getNotificationState가 호출된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            coVerify(exactly = 1) { mockGetNotiStateUseCase() }
-            assertThat(viewModel.notificationStates.value).isEqualTo(sampleNotificationStates)
-        }
+    fun `권한 거부 중에도 실제 서버 조회가 실패하면 OFF 성공 화면이 아니다`() = runTest {
+        coEvery { getState() } returns BaseResult.Error("ERROR", "로드 실패")
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(false)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Error)
+        assertThat(model.notificationStates.value).isEmpty()
+        assertThat(model.toastMessage.value).isEqualTo("로드 실패")
+    }
 
     @Test
-    fun `initNotiState - 권한 없을 때 모든 알림이 비활성화된 기본 상태가 설정된다`() =
-        runTest {
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = false)
-
-            val states = viewModel.notificationStates.value
-            assertThat(states).hasSize(2)
-            assertThat(states.all { !it.enabled }).isTrue()
-        }
+    fun `필수 알림 행이 없으면 기본 OFF로 대체하지 않는다`() = runTest {
+        coEvery { getState() } returns BaseResult.Success(original.filterNot { it.type == NotificationType.CHAT_MESSAGE })
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Error)
+    }
 
     @Test
-    fun `initNotiState - API 에러 시 toastMessage가 설정된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Error("ERROR", "로드 실패")
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            assertThat(viewModel.toastMessage.value).isEqualTo("로드 실패")
-        }
-
-    @Test
-    fun `updateNotiStateByPermission - 권한 거부 시 모든 알림이 비활성화된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            viewModel.updateNotiStateByPermission(isGranted = false)
-
-            val states = viewModel.notificationStates.value
-            assertThat(states.all { !it.enabled }).isTrue()
-        }
+    fun `PATCH 완료와 재조회 전에는 낙관적 checked 상태나 다음 쓰기를 허용하지 않는다`() = runTest {
+        val patch = CompletableDeferred<BaseResult<Unit>>()
+        coEvery { updateState(any()) } coAnswers { patch.await() }
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        model.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
+        model.onSwitchToggled(NotificationType.WORKOUT_REMINDER, false)
+        dispatcher.scheduler.runCurrent()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Saving)
+        assertThat(model.notificationStates.value).isEqualTo(original)
+        coVerify(exactly = 1) { updateState(listOf(NotificationState(NotificationType.CHAT_MESSAGE, true))) }
+        coEvery { getState() } returns BaseResult.Success(original.map { if (it.type == NotificationType.CHAT_MESSAGE) it.copy(enabled = true) else it })
+        patch.complete(BaseResult.Success(Unit))
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Ready)
+        assertThat(model.notificationStates.value.first { it.type == NotificationType.CHAT_MESSAGE }.enabled).isTrue()
+    }
 
     @Test
-    fun `updateNotiStateByPermission - 권한 거부에서 허용으로 변경 시 대기 중인 설정이 적용된다`() =
-        runTest {
-            coEvery { mockUpdateNotiSettingUseCase(any()) } returns BaseResult.Success(Unit)
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = false)
-
-            viewModel.onSwitchToggled(NotificationType.WORKOUT_REMINDER, true)
-            assertThat(viewModel.permissionRequestTrigger.value).isTrue()
-
-            viewModel.updateNotiStateByPermission(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            coVerify { mockUpdateNotiSettingUseCase(any()) }
-        }
-
-    @Test
-    fun `onSwitchToggled - 권한 없이 활성화 시도 시 권한 요청 트리거가 발생한다`() =
-        runTest {
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = false)
-
-            viewModel.onSwitchToggled(NotificationType.WORKOUT_REMINDER, true)
-
-            assertThat(viewModel.permissionRequestTrigger.value).isTrue()
-        }
+    fun `PATCH 실패 또는 재조회 불일치는 settled 성공이 아니다`() = runTest {
+        coEvery { updateState(any()) } returns BaseResult.Error("ERROR", "업데이트 실패")
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        model.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Error)
+        assertThat(model.toastMessage.value).isEqualTo("업데이트 실패")
+        assertThat(model.notificationStates.value).isEqualTo(original)
+        model.updateNotiStateByPermission(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        coEvery { updateState(any()) } returns BaseResult.Success(Unit)
+        model.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Error)
+    }
 
     @Test
-    fun `onSwitchToggled - 권한 있을 때 updateSetting이 호출된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-            coEvery { mockUpdateNotiSettingUseCase(any()) } returns BaseResult.Success(Unit)
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            viewModel.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            coVerify { mockUpdateNotiSettingUseCase(any()) }
-        }
+    fun `권한 거부는 화면만 OFF로 만들고 서버 설정을 수정하지 않는다`() = runTest {
+        val model = NotificationViewModel(getState, updateState)
+        model.initNotiState(false)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.notificationStates.value.all { !it.enabled }).isTrue()
+        assertThat(model.syncState.value).isEqualTo(NotificationSyncState.Ready)
+        coVerify(exactly = 0) { updateState(any()) }
+        model.updateNotiStateByPermission(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertThat(model.notificationStates.value).isEqualTo(original)
+    }
 
     @Test
-    fun `updateSetting - 성공 시 UI가 업데이트된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-            coEvery { mockUpdateNotiSettingUseCase(any()) } returns BaseResult.Success(Unit)
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            viewModel.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            val chatMessageState = viewModel.notificationStates.value.find { it.type == NotificationType.CHAT_MESSAGE }
-            assertThat(chatMessageState?.enabled).isTrue()
-        }
-
-    @Test
-    fun `updateSetting - 실패 시 UI가 원상복구되고 토스트 메시지가 설정된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-            coEvery { mockUpdateNotiSettingUseCase(any()) } returns BaseResult.Error("ERROR", "업데이트 실패")
-
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            val originalState = viewModel.notificationStates.value.find { it.type == NotificationType.CHAT_MESSAGE }?.enabled
-
-            viewModel.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            val revertedState = viewModel.notificationStates.value.find { it.type == NotificationType.CHAT_MESSAGE }?.enabled
-            assertThat(revertedState).isEqualTo(originalState)
-            assertThat(viewModel.toastMessage.value).isEqualTo("업데이트 실패")
-        }
-
-    @Test
-    fun `onPermissionRequestHandled - 트리거가 리셋된다`() =
-        runTest {
-            viewModel = createViewModel()
-            viewModel.initNotiState(isGranted = false)
-
-            viewModel.onSwitchToggled(NotificationType.WORKOUT_REMINDER, true)
-            assertThat(viewModel.permissionRequestTrigger.value).isTrue()
-
-            viewModel.onPermissionRequestHandled()
-
-            assertThat(viewModel.permissionRequestTrigger.value).isFalse()
-        }
-
-    @Test
-    fun `updateNotiStateByPermission - 초기화 전 호출 시 initNotiState가 호출된다`() =
-        runTest {
-            coEvery { mockGetNotiStateUseCase() } returns BaseResult.Success(sampleNotificationStates)
-
-            viewModel = createViewModel()
-            viewModel.updateNotiStateByPermission(isGranted = true)
-            testDispatcher.scheduler.advanceUntilIdle()
-
-            coVerify(exactly = 1) { mockGetNotiStateUseCase() }
-        }
+    fun `권한 요청은 처리 후 초기화되고 허용 후 해당 type만 저장한다`() = runTest {
+        coEvery { updateState(any()) } returns BaseResult.Success(Unit)
+        val enabled = original.map { if (it.type == NotificationType.CHAT_MESSAGE) it.copy(enabled = true) else it }
+        val model = NotificationViewModel(getState, updateState)
+        model.updateNotiStateByPermission(false)
+        dispatcher.scheduler.advanceUntilIdle()
+        model.onSwitchToggled(NotificationType.CHAT_MESSAGE, true)
+        assertThat(model.permissionRequestTrigger.value).isTrue()
+        model.onPermissionRequestHandled()
+        assertThat(model.permissionRequestTrigger.value).isFalse()
+        coEvery { getState() } returnsMany listOf(BaseResult.Success(original), BaseResult.Success(enabled))
+        model.updateNotiStateByPermission(true)
+        dispatcher.scheduler.advanceUntilIdle()
+        coVerify(exactly = 1) { updateState(listOf(NotificationState(NotificationType.CHAT_MESSAGE, true))) }
+        assertThat(model.notificationStates.value).isEqualTo(enabled)
+    }
 }

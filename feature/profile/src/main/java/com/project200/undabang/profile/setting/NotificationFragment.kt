@@ -48,12 +48,16 @@ class NotificationFragment : Fragment() {
         ComposeView(requireContext()).apply {
             applyAppTheme {
                 val states by viewModel.notificationStates.collectAsStateWithLifecycle()
+                val syncState by viewModel.syncState.collectAsStateWithLifecycle()
+                val hasDevicePermission by viewModel.hasDevicePermission.collectAsStateWithLifecycle()
                 val isExerciseOn = states.find { it.type == NotificationType.WORKOUT_REMINDER }?.enabled ?: false
                 val isChattingOn = states.find { it.type == NotificationType.CHAT_MESSAGE }?.enabled ?: false
 
                 NotificationScreen(
                     isExerciseOn = isExerciseOn,
                     isChattingOn = isChattingOn,
+                    syncState = syncState,
+                    hasDevicePermission = hasDevicePermission,
                     onNavigateBack = { findNavController().popBackStack() },
                     onExerciseToggle = { viewModel.onSwitchToggled(NotificationType.WORKOUT_REMINDER, it) },
                     onChattingToggle = { viewModel.onSwitchToggled(NotificationType.CHAT_MESSAGE, it) },

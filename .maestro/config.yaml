@@ -9,10 +9,6 @@ executionOrder:
     - smoke-tabs
     - exercise-form-entry
     - exercise-crud
-    - profile-edit
-    - profile-edit-validation
-    - profile-preferred-exercise
-    - profile-notification
     - login-screen
 
 testOutputDir: build/maestro

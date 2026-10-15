@@ -4,104 +4,142 @@ tags:
   - regression
   - requires-login
 ---
-# 닉네임 중복 확인과 소개 변경을 저장한 뒤 마이페이지와 편집 화면 재진입으로 대조하고,
-# 끝에서 원래 값으로 되돌립니다. ProfileEditViewModel.checkProfileChanged는 저장 전 중복 확인을
-# 요구하므로(NO_DUPLICATE_CHECKED) 복구 역시 실제 저장 경로를 한 번 더 거쳐야 합니다
+# 준비 API가 읽은 원문과 로드된 입력 노드가 일치한 뒤에만 수정합니다.
+# 실패 복구는 공통 finally의 profile fixture가 실제 API로 수행합니다.
 - runFlow: ../subflows/launch-logged-in.yaml
-
 - tapOn:
     id: profile_nav_graph
-- assertVisible:
-    id: profile_nav_graph
-    selected: true
 - extendedWaitUntil:
     visible: "최근 30일 운동 횟수"
     timeout: 30000
-
 - tapOn:
     id: mypage_edit_btn
 - extendedWaitUntil:
     visible:
-      id: profile_edit_nickname_field
+      id: profile_edit_loaded
     timeout: 30000
-
-# 원래 값을 보관합니다. 소개가 비어 있으면 힌트 문구가 대신 읽혀서 복구 값이 힌트 문구가 될 수 있습니다.
-# 전용 계정은 소개를 비워 두지 않는다고 가정합니다(README에 명시)
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
 - copyTextFrom:
     id: profile_edit_nickname_field
 - evalScript: ${output.originalNickname = maestro.copiedText}
+- assertTrue: ${output.originalNickname === E2E_PROFILE_ORIGINAL_NICKNAME}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_introduction_field
+    text: ${E2E_PROFILE_ORIGINAL_BIO}
 - copyTextFrom:
     id: profile_edit_introduction_field
 - evalScript: ${output.originalIntroduction = maestro.copiedText}
-- evalScript: ${output.newNickname = 'e2e615' + Date.now()}
-- evalScript: ${output.newIntroduction = 'e2e615-intro-' + Date.now()}
-
+- assertTrue: ${output.originalIntroduction === E2E_PROFILE_ORIGINAL_BIO}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: UP
 - tapOn:
     id: profile_edit_nickname_field
 - eraseText
-- inputText: ${output.newNickname}
+- inputText: ${E2E_PROFILE_NEW_NICKNAME}
+- hideKeyboard
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
     timeout: 15000
-
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
 - tapOn:
     id: profile_edit_introduction_field
 - eraseText
-- inputText: ${output.newIntroduction}
-
+- inputText: ${E2E_PROFILE_NEW_BIO}
+- hideKeyboard
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "프로필 수정이 완료됐습니다."
     timeout: 15000
-
-# 저장 뒤 자동으로 마이페이지로 돌아옵니다. REFRESH_KEY로 다시 조회된 값을 대조합니다
 - extendedWaitUntil:
     visible:
       id: nickname_tv
-      text: ${output.newNickname}
+      text: ${E2E_PROFILE_NEW_NICKNAME}
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: introduction_tv
+      text: ${E2E_PROFILE_NEW_BIO}
+    direction: DOWN
 - assertVisible:
     id: introduction_tv
-    text: ${output.newIntroduction}
-
-# 편집 화면을 다시 열어 서버에 실제로 반영됐는지 재확인합니다
+    text: ${E2E_PROFILE_NEW_BIO}
+- scrollUntilVisible:
+    element:
+      id: mypage_edit_btn
+    direction: UP
 - tapOn:
     id: mypage_edit_btn
 - extendedWaitUntil:
     visible:
-      id: profile_edit_nickname_field
-      text: ${output.newNickname}
+      id: profile_edit_loaded
     timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${E2E_PROFILE_NEW_NICKNAME}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
 - assertVisible:
     id: profile_edit_introduction_field
-    text: ${output.newIntroduction}
-
-# 복구: 원래 닉네임은 이번 세션 기준으로는 새 값이라 중복 확인을 다시 거쳐야 저장됩니다
+    text: ${E2E_PROFILE_NEW_BIO}
+# UI 복구도 저장·재조회 경로를 반드시 통과합니다. API finally 복구의 대체물이 아닙니다.
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: UP
 - tapOn:
     id: profile_edit_nickname_field
 - eraseText
 - inputText: ${output.originalNickname}
+- hideKeyboard
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
     timeout: 15000
-
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
 - tapOn:
     id: profile_edit_introduction_field
 - eraseText
 - inputText: ${output.originalIntroduction}
-
+- hideKeyboard
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "프로필 수정이 완료됐습니다."
     timeout: 15000
-
 - extendedWaitUntil:
     visible:
       id: nickname_tv
       text: ${output.originalNickname}
     timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: introduction_tv
+      text: ${output.originalIntroduction}
+    direction: DOWN
 - assertVisible:
     id: introduction_tv
     text: ${output.originalIntroduction}

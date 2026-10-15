@@ -4,8 +4,7 @@ tags:
   - regression
   - requires-login
 ---
-# 세 가지 저장 방지 경로를 봅니다. 셋 다 ProfileEditViewModel이 저장 API를 호출하지 않고
-# 토스트만 띄우므로, 이 플로우는 끝까지 한 번도 저장하지 않습니다 — 복구할 서버 상태가 없습니다
+# 세 가지 차단 경로 모두 저장하지 않아야 합니다. finally가 실제 원본과 대조하고 복구합니다.
 - runFlow: ../subflows/launch-logged-in.yaml
 
 - tapOn:
@@ -18,17 +17,25 @@ tags:
     id: mypage_edit_btn
 - extendedWaitUntil:
     visible:
-      id: profile_edit_nickname_field
+      id: profile_edit_loaded
     timeout: 30000
 
-- evalScript: ${output.nickA = 'e2e615a' + Date.now()}
-- evalScript: ${output.nickB = 'e2e615b' + Date.now()}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+- evalScript: ${output.nickA = 'e2ea' + E2E_RUN_ID}
+- evalScript: ${output.nickB = 'e2eb' + E2E_RUN_ID}
 
 # 1) 중복 확인 없이 완료 -> 저장이 막힙니다
 - tapOn:
     id: profile_edit_nickname_field
 - eraseText
 - inputText: ${output.nickA}
+- hideKeyboard
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "닉네임 중복 확인을 해주세요."
@@ -40,6 +47,7 @@ tags:
     id: profile_edit_nickname_field
 - eraseText
 - inputText: "e2e615!invalid"
+- hideKeyboard
 - tapOn: "중복 확인"
 - assertVisible: "닉네임 조건을 확인해주세요."
 - tapOn: "완료"
@@ -52,6 +60,7 @@ tags:
     id: profile_edit_nickname_field
 - eraseText
 - inputText: ${output.nickA}
+- hideKeyboard
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
@@ -61,6 +70,7 @@ tags:
     id: profile_edit_nickname_field
 - eraseText
 - inputText: ${output.nickB}
+- hideKeyboard
 # updateNickname이 값이 바뀔 때마다 isNicknameChecked를 초기화합니다. 중복 확인 문구가 사라졌는지 확인합니다
 - assertNotVisible: "사용 가능한 닉네임입니다."
 - tapOn: "완료"
@@ -70,3 +80,8 @@ tags:
 
 # 세 경로 모두 저장되지 않았으므로 로컬 입력만 버리고 나갑니다
 - back
+- extendedWaitUntil:
+    visible:
+      id: nickname_tv
+      text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+    timeout: 15000

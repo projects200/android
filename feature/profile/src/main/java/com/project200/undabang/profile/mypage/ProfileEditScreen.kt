@@ -82,6 +82,7 @@ fun ProfileEditScreen(
     onCompleteClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoaded: Boolean = true,
 ) {
     Column(
         modifier =
@@ -89,7 +90,8 @@ fun ProfileEditScreen(
                 .fillMaxSize()
                 .background(ColorWhite300)
                 // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
-                .semantics { testTagsAsResourceId = true },
+                .semantics { testTagsAsResourceId = true }
+                .testTag(if (isLoaded) "profile_edit_loaded" else "profile_edit_loading"),
     ) {
         UndabangTopBar(
             title = stringResource(R.string.profile_edit),
@@ -98,6 +100,7 @@ fun ProfileEditScreen(
                 PrimaryButton(
                     text = stringResource(PresentationR.string.complete),
                     onClick = onCompleteClick,
+                    enabled = isLoaded,
                     isCompact = true,
                     modifier = Modifier.padding(end = 20.dp),
                 )
@@ -211,7 +214,8 @@ private fun NicknameSection(
                 value = nickname,
                 onValueChange = onNicknameChange,
                 // Maestro가 중복 확인 전후 상태를 읽고 닉네임을 다시 입력할 지점
-                modifier = Modifier.weight(1f).testTag("profile_edit_nickname_field"),
+                modifier = Modifier.weight(1f),
+                inputModifier = Modifier.testTag("profile_edit_nickname_field"),
                 variant = TextFieldVariant.Underline,
                 maxLength = 30,
             )
@@ -372,9 +376,8 @@ private fun IntroductionSection(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .defaultMinSize(minHeight = 120.dp)
-                    // 값이 비어 있으면 힌트 텍스트가 대신 보입니다. copyTextFrom이 힌트를 읽을 수 있다는 점을 README에 남깁니다
-                    .testTag("profile_edit_introduction_field"),
+                    .defaultMinSize(minHeight = 120.dp),
+            inputModifier = Modifier.testTag("profile_edit_introduction_field"),
         )
     }
 }

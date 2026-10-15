@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -42,6 +43,8 @@ fun NotificationScreen(
     onExerciseToggle: (Boolean) -> Unit,
     onChattingToggle: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    syncState: NotificationSyncState = NotificationSyncState.Ready,
+    hasDevicePermission: Boolean = true,
 ) {
     UndabangScaffold(
         // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
@@ -49,7 +52,7 @@ fun NotificationScreen(
         topBar = {
             UndabangTopBar(
                 title = stringResource(R.string.notification),
-                onNavigationClick = onNavigateBack,
+                onNavigationClick = { if (syncState != NotificationSyncState.Saving) onNavigateBack() },
             )
         },
     ) { innerPadding ->
@@ -57,20 +60,35 @@ fun NotificationScreen(
             modifier =
                 Modifier
                     .padding(innerPadding)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .testTag("notification_${syncState.name.lowercase()}"),
         ) {
-            NotificationSwitchRow(
-                labelRes = R.string.exercise_notification,
-                checked = isExerciseOn,
-                onCheckedChange = onExerciseToggle,
-                testTag = "exercise_noti_switch",
-            )
-            NotificationSwitchRow(
-                labelRes = R.string.chatting_notification,
-                checked = isChattingOn,
-                onCheckedChange = onChattingToggle,
-                testTag = "chatting_noti_switch",
-            )
+            when (syncState) {
+                NotificationSyncState.Loading -> CircularProgressIndicator()
+                NotificationSyncState.Error -> Text(text = stringResource(R.string.noti_state_failed))
+                NotificationSyncState.Ready, NotificationSyncState.Saving -> {
+                    if (!hasDevicePermission) {
+                        Text(
+                            text = stringResource(R.string.noti_permission_announce),
+                            modifier = Modifier.testTag("notification_permission_denied"),
+                        )
+                    }
+                    NotificationSwitchRow(
+                        labelRes = R.string.exercise_notification,
+                        checked = isExerciseOn,
+                        onCheckedChange = onExerciseToggle,
+                        testTag = "exercise_noti_switch",
+                        enabled = syncState == NotificationSyncState.Ready,
+                    )
+                    NotificationSwitchRow(
+                        labelRes = R.string.chatting_notification,
+                        checked = isChattingOn,
+                        onCheckedChange = onChattingToggle,
+                        testTag = "chatting_noti_switch",
+                        enabled = syncState == NotificationSyncState.Ready,
+                    )
+                }
+            }
         }
     }
 }
@@ -82,6 +100,7 @@ private fun NotificationSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     testTag: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
@@ -101,6 +120,7 @@ private fun NotificationSwitchRow(
             Switch(
                 checked = checked,
                 onCheckedChange = onCheckedChange,
+                enabled = enabled,
                 // 운동/채팅 알림 스위치를 구분해 토글·상태 검증에 씁니다
                 modifier = Modifier.testTag(testTag),
                 colors =

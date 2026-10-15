@@ -1,0 +1,23 @@
+appId: com.project200.undabang
+---
+- scrollUntilVisible:
+    element:
+      id: nickname_tv
+    direction: UP
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_edit_btn
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: preferred_exercise_edit_btn
+- extendedWaitUntil:
+    visible:
+      id: preferred_exercise_type_loaded
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    direction: DOWN
+    timeout: 30000

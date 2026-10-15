@@ -118,6 +118,18 @@ class ProfileEditViewModelTest {
         }
 
     @Test
+    fun `프로필 조회 성공 전에는 loaded 상태와 저장 API를 허용하지 않는다`() =
+        runTest {
+            coEvery { mockGetUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
+            createViewModel()
+            assertThat(viewModel.isLoaded.value).isFalse()
+            viewModel.completeEditProfile()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isLoaded.value).isTrue()
+            coVerify(exactly = 0) { mockEditProfileUseCase(any(), any(), any()) }
+        }
+
+    @Test
     fun `getProfile - 성공 시 initProfile이 업데이트된다`() =
         runTest {
             // Given
@@ -145,6 +157,7 @@ class ProfileEditViewModelTest {
 
                 // Then
                 assertThat(awaitItem()).isEqualTo(ProfileEditErrorType.LOAD_FAILED)
+                assertThat(viewModel.isLoaded.value).isFalse()
             }
         }
 

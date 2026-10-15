@@ -11,8 +11,14 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import timber.log.Timber
 import javax.inject.Inject
+
+enum class NotificationSyncState {
+    Loading,
+    Ready,
+    Saving,
+    Error,
+}
 
 @HiltViewModel
 class NotificationViewModel
@@ -24,109 +30,110 @@ class NotificationViewModel
         private val _notificationStates = MutableStateFlow<List<NotificationState>>(emptyList())
         val notificationStates: StateFlow<List<NotificationState>> = _notificationStates
 
+        private val _syncState = MutableStateFlow(NotificationSyncState.Loading)
+        val syncState: StateFlow<NotificationSyncState> = _syncState
+
         private val _permissionRequestTrigger = MutableStateFlow(false)
         val permissionRequestTrigger: StateFlow<Boolean> = _permissionRequestTrigger
 
         private val _toastMessage = MutableStateFlow<String?>(null)
         val toastMessage: StateFlow<String?> = _toastMessage
 
-        // 디바이스 권한 상태
-        private var hasDevicePermission: Boolean = false
-
-        // 대기 중인 알림 설정 타입
+        private var serverStates: List<NotificationState> = emptyList()
+        private val _hasDevicePermission = MutableStateFlow(false)
+        val hasDevicePermission: StateFlow<Boolean> = _hasDevicePermission
         private var pendingSettingType: NotificationType? = null
-
-        private var isInitialized = false
+        private var busy = false
 
         fun initNotiState(isGranted: Boolean) {
-            this.hasDevicePermission = isGranted
-            if (isGranted) {
-                getNotificationState()
-            } else {
-                _notificationStates.value =
-                    listOf(
-                        NotificationState(NotificationType.WORKOUT_REMINDER, false),
-                        NotificationState(NotificationType.CHAT_MESSAGE, false),
-                    )
-            }
-            isInitialized = true
+            updateNotiStateByPermission(isGranted)
         }
 
         fun updateNotiStateByPermission(isGranted: Boolean) {
-            if (!isInitialized) {
-                initNotiState(isGranted)
+            _hasDevicePermission.value = isGranted
+            publishStates()
+            if (busy) return
+            busy = true
+            _syncState.value = NotificationSyncState.Loading
+            viewModelScope.launch {
+                try {
+                    if (readStates()) {
+                        val pending = pendingSettingType
+                        if (_hasDevicePermission.value && pending != null) {
+                            pendingSettingType = null
+                            persist(pending, true)
+                        } else {
+                            _syncState.value = NotificationSyncState.Ready
+                        }
+                    }
+                } finally {
+                    busy = false
+                }
+            }
+        }
+
+        fun onSwitchToggled(type: NotificationType, isEnabled: Boolean) {
+            if (busy || _syncState.value != NotificationSyncState.Ready || type == NotificationType.UNKNOWN) return
+            if (!_hasDevicePermission.value) {
+                if (isEnabled) {
+                    pendingSettingType = type
+                    _permissionRequestTrigger.value = true
+                }
                 return
             }
-
-            val wasGranted = this.hasDevicePermission
-            this.hasDevicePermission = isGranted
-
-            // 권한 거부
-            if (!isGranted) {
-                // 모든 알림 설정을 false로 조정
-                Timber.tag("NotificationViewModel").e("권한 거부로 모든 알림 설정 비활성화")
-                _notificationStates.value = _notificationStates.value.map { it.copy(enabled = false) }
-            } else if (!wasGranted) { // 권한 거부에서 허용으로 변경된 경우
-                Timber.tag("NotificationViewModel").e("권한 허용으로 변경")
-                pendingSettingType?.let {
-                    updateSetting(it, true)
-                    pendingSettingType = null
-                }
-            }
-        }
-
-        private fun getNotificationState() {
+            busy = true
+            _syncState.value = NotificationSyncState.Saving
             viewModelScope.launch {
-                when (val result = getNotiStateUseCase()) {
-                    is BaseResult.Success -> {
-                        _notificationStates.value = result.data
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.value = result.message
-                    }
+                try {
+                    persist(type, isEnabled)
+                } finally {
+                    busy = false
                 }
             }
         }
 
-        fun onSwitchToggled(
-            type: NotificationType,
-            isEnabled: Boolean,
-        ) {
-            // 권한이 없는 경우
-            if (isEnabled && !hasDevicePermission) {
-                // 권한 허용 후에 적용할 설정을 저장
-                pendingSettingType = type
-                _permissionRequestTrigger.value = true
-                return
+        private suspend fun persist(type: NotificationType, enabled: Boolean) {
+            _syncState.value = NotificationSyncState.Saving
+            // 전체 목록의 UNKNOWN 재전송은 원래 서버 type을 잃습니다. 변경한 행만 PATCH합니다.
+            when (val result = updateNotiSettingUseCase(listOf(NotificationState(type, enabled)))) {
+                is BaseResult.Success -> {
+                    if (readStates(NotificationState(type, enabled))) _syncState.value = NotificationSyncState.Ready
+                }
+                is BaseResult.Error -> fail(result.message)
             }
-            updateSetting(type, isEnabled)
         }
 
-        private fun updateSetting(
-            type: NotificationType,
-            enabled: Boolean,
-        ) {
-            Timber.tag("NotificationViewModel").e("알림 설정 변경 요청: $type, enabled: $enabled")
-            viewModelScope.launch {
-                // UI를 먼저 변경
-                val originalStates = _notificationStates.value
-                val newStates =
-                    originalStates.map {
-                        // 전달받은 type에 해당하는 아이템의 enabled 값만 변경
-                        if (it.type == type) it.copy(enabled = enabled) else it
-                    }
-                _notificationStates.value = newStates
-
-                when (val result = updateNotiSettingUseCase(newStates)) {
-                    is BaseResult.Success -> { /* 성공 시 별도 처리 없음 */ }
-                    is BaseResult.Error -> {
-                        Timber.tag("NotificationViewModel").e("알림 설정 변경 실패: $type, enabled: $enabled")
-                        // 실패 시 스위치 원상복구
-                        _notificationStates.value = originalStates
-                        _toastMessage.value = result.message
+        private suspend fun readStates(expected: NotificationState? = null): Boolean {
+            return when (val result = getNotiStateUseCase()) {
+                is BaseResult.Success -> {
+                    val states = result.data
+                    if (states.count { it.type == NotificationType.WORKOUT_REMINDER } != 1 ||
+                        states.count { it.type == NotificationType.CHAT_MESSAGE } != 1 ||
+                        (expected != null && states.none { it.type == expected.type && it.enabled == expected.enabled })
+                    ) {
+                        fail("알림 설정을 확인하지 못했습니다.")
+                        false
+                    } else {
+                        serverStates = states
+                        publishStates()
+                        true
                     }
                 }
+                is BaseResult.Error -> {
+                    fail(result.message)
+                    false
+                }
             }
+        }
+
+        private fun publishStates() {
+            // OS 권한은 표시만 바꾸고, 확인된 서버 값은 별도로 보존합니다.
+            _notificationStates.value = if (_hasDevicePermission.value) serverStates else serverStates.map { it.copy(enabled = false) }
+        }
+
+        private fun fail(message: String?) {
+            _syncState.value = NotificationSyncState.Error
+            _toastMessage.value = message ?: "알림 설정을 확인하지 못했습니다."
         }
 
         fun onPermissionRequestHandled() {

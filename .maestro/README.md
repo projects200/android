@@ -121,17 +121,6 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
- 
-### 기능별 확장 플로우
-
-|파일|태그|검증|
-|---|---|---|
-|`flows/profile-edit.yaml`|`regression`, `requires-login`|닉네임·소개 수정, 재진입 확인, 원래 값 복구|
-|`flows/profile-edit-validation.yaml`|`regression`, `requires-login`|닉네임 중복 확인 누락과 유효하지 않은 값 저장 방지|
-|`flows/profile-preferred-exercise.yaml`|`regression`, `requires-login`|운동 종목·요일·숙련도 저장, 변경·일부 해제·복구|
-|`flows/profile-notification.yaml`|`regression`, `requires-login`|운동·채팅 알림 저장, 재진입, OS 권한 거부 상태|
-
-프로필 플로우는 전용 계정 설정을 변경하므로 각 플로우에서 원래 상태를 복구합니다. 선호 운동과 알림 상태를 완전히 읽을 수 없는 항목은 전용 계정 기준 상태를 명시해 실행해야 합니다.
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 

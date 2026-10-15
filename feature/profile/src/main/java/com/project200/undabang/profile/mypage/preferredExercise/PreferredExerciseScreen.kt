@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -92,7 +94,8 @@ fun PreferredExerciseScreen(
             modifier
                 .fillMaxSize()
                 // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
-                .semantics { testTagsAsResourceId = true },
+                .semantics { testTagsAsResourceId = true }
+                .testTag(if (isLoading) "preferred_exercise_loading" else "preferred_exercise_${step.name.lowercase()}_loaded"),
     ) {
         Column(
             modifier =
@@ -121,21 +124,23 @@ fun PreferredExerciseScreen(
                 },
             )
 
-            when (step) {
-                PreferredExerciseStep.TYPE ->
-                    PreferredExerciseTypeContent(
-                        nickname = nickname,
-                        uiModels = uiModels,
-                        onTypeClick = onTypeClick,
-                        onLimitReached = onTypeLimitReached,
-                    )
-                PreferredExerciseStep.DETAIL ->
-                    PreferredExerciseDetailContent(
-                        items = selectedUiModels,
-                        formatter = formatter,
-                        onDayClick = onDayClick,
-                        onSkillClick = onSkillClick,
-                    )
+            if (!isLoading) {
+                when (step) {
+                    PreferredExerciseStep.TYPE ->
+                        PreferredExerciseTypeContent(
+                            nickname = nickname,
+                            uiModels = uiModels,
+                            onTypeClick = onTypeClick,
+                            onLimitReached = onTypeLimitReached,
+                        )
+                    PreferredExerciseStep.DETAIL ->
+                        PreferredExerciseDetailContent(
+                            items = selectedUiModels,
+                            formatter = formatter,
+                            onDayClick = onDayClick,
+                            onSkillClick = onSkillClick,
+                        )
+                }
             }
         }
 
@@ -160,11 +165,13 @@ private fun PreferredExerciseTypeContent(
         modifier =
             modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(44.dp))
         Text(
             text = stringResource(R.string.preferred_exercise_type_title, nickname),
+            modifier = Modifier.testTag("preferred_exercise_type_start"),
             style = MaterialTheme.typography.contentBold,
             color = ColorBlack,
         )
@@ -215,7 +222,7 @@ private fun PreferredExerciseTypeChip(
                 )
                 // Maestro가 미선택/선택 칩을 selected 속성으로 구분해 고릅니다. 종목 목록이 계정마다 달라 이름을 미리 고정할 수 없습니다
                 .semantics { selected = uiModel.isSelected }
-                .testTag("preferred_exercise_type_chip")
+                .testTag("preferred_exercise_type_${uiModel.exercise.exerciseTypeId}")
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -276,6 +283,7 @@ private fun PreferredExerciseDetailCard(
         modifier =
             modifier
                 .fillMaxWidth()
+                .testTag("preferred_exercise_card_${uiModel.exercise.exerciseTypeId}")
                 .padding(horizontal = 20.dp)
                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(15.dp), clip = false)
                 .clip(RoundedCornerShape(15.dp))
@@ -341,7 +349,7 @@ private fun PreferredExerciseDetailCard(
                     text = stringResource(resId),
                     selected = uiModel.selectedDays[index],
                     onClick = { onDayClick(index) },
-                    testTag = "preferred_exercise_day_btn",
+                    testTag = "preferred_exercise_${uiModel.exercise.exerciseTypeId}_day_$index",
                     modifier = Modifier.weight(1f).padding(5.dp).height(40.dp),
                 )
             }
@@ -365,7 +373,7 @@ private fun PreferredExerciseDetailCard(
                             text = stringResource(skill.resId),
                             selected = uiModel.skillLevel == skill,
                             onClick = { onSkillClick(skill) },
-                            testTag = "preferred_exercise_skill_btn",
+                            testTag = "preferred_exercise_${uiModel.exercise.exerciseTypeId}_skill_${skill.name}",
                             modifier = Modifier.weight(1f).padding(5.dp).height(36.dp),
                         )
                     }

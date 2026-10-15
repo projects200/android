@@ -1,0 +1,61 @@
+# Profile Maestro CI
+
+`.maestro/suites/profile.json` registers four real authenticated flows:
+
+| Flow | Required behavior |
+| --- | --- |
+| `profile-edit` | Check nickname availability, save nickname/bio, read persisted values, restore through the UI, and read the original values. |
+| `profile-edit-validation` | Reject unchecked nicknames, invalid input, and a nickname changed after availability confirmation. No profile write is permitted. |
+| `profile-preferred-exercise` | Reject incomplete/empty selections, create one real catalog preference, persist Monday/BEGINNER, add Wednesday, remove Monday, verify both changes after re-entry, and delete only the added preference. |
+| `profile-notification` | Persist OFF→ON, deny the actual Android notification permission, show OFF without writing server settings, grant permission, read the persisted ON values, and persist OFF again. |
+
+The shared runner selects this descriptor with `--suite profile`; `--suite ci` discovers it automatically. The descriptor requires **API33 or newer** and `fixture: true`. The complete denied-permission branch is mandatory. API30 cannot exercise this behavior. Use the shared runner's disposable CI emulator, installed E2E APK, required ABI, real DEV/Firebase configuration, and existing private authentication bootstrap. Do not invoke these YAML files directly against a personal account.
+
+## Real prerequisites
+
+The existing `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, and `MAESTRO_FIXTURE_START_DATE` inputs are required by the shared lifecycle. There are no additional profile secrets, fake FCM tokens, or fixed exercise IDs.
+
+Preparation reads the authenticated member's real profile and preference records before any feature write. Only `profile-notification` requires device registration and notification settings. Any unsuccessful response or missing required data fails preparation.
+
+- The original nickname must match `[A-Za-z0-9]{1,30}`. The original gender must be one of the app's `MALE`, `FEMALE`, or `UNKNOWN` values.
+- The bio must be non-null, nonempty, at most 4096 characters, and match `[A-Za-z0-9][A-Za-z0-9 _-]*`. These explicit restrictions permit exact Android `inputText` restoration. Null, Unicode, punctuation outside that set, and control characters fail **before mutation**. The fixture does not replace the account baseline with test text.
+- Every original preference must have a positive unique record ID/type ID, seven day booleans with at least one true day, and a recognized skill. The preference scenario requires 1–4 original selections and at least one real unselected catalog type. Preparation obtains its ID/name from the real catalog; the flow never chooses an arbitrary offscreen chip.
+- For `profile-notification`, the fixture waits for the real saved FCM token, registers that token, and reads the actual device settings. The response must contain exactly one `WORKOUT_REMINDER` and one `CHAT_MESSAGE` row. Missing rows fail; the fixture never synthesizes OFF/OFF defaults.
+- Notification values need not initially be OFF. Preparation snapshots the real values before its notification PATCH. It sets only the two UI-owned types to OFF and verifies that readback. Additional server notification type names and values remain intact.
+
+After `pm clear`, Firebase token creation is asynchronous. `MaestroProfileNotificationReadiness` supplies the registration barrier inside authenticated feature preparation:
+
+1. Wait at most 60 seconds for a nonblank `FcmRepository.getSavedToken()`, checking every 250 milliseconds. Firebase's existing startup initialization and `FcmService.onNewToken` save the real token in encrypted preferences. The fixture does not create or write tokens.
+2. Call the real `FcmRepository.registerToken()` once, with a 30-second limit. This uses the existing authenticated `POST /login` and `X-Fcm-Token` header. Only `BaseResult.Success` permits continuation; an error, exception, or timeout fails preparation.
+3. Require the saved token to remain unchanged. Read actual settings with a 30-second limit, validate the required rows, and check the token again.
+4. Save the original settings and token in the private recovery snapshot before the first feature PATCH. No profile or preference mutation can occur before preparation returns.
+
+Only absent or blank tokens are polled. Storage failures, registration failures, invalid rows, and token rotations are not retried. Fixed errors include `profile_fcm_token_timeout`, `profile_fcm_storage_failed`, `profile_fcm_registration_failed`, `profile_fcm_registration_timeout`, `profile_fcm_settings_timeout`, and `profile_fcm_identity_changed`. No error includes a token or backend exception body. The E2E application does not install the normal debug Timber tree.
+
+The fixture does not wait for `MainViewModel` or the normal registration worker. Firebase initialization occurs at application startup; the manifest retains the real messaging service and does not disable auto-initialization. No new Firebase API or manual persistence path is used. The other three profile flows never open notification settings and do not require, read, register, or restore notification state in new runs.
+
+CI still needs valid `GOOGLE_SERVICES_JSON_DEV_BASE64` for `com.project200.undabang`, working Google Play services on the API33+ `google_apis` emulator, network access to Firebase and DEV APIs, and valid dedicated-account authentication. Source inspection cannot establish these external conditions. If Firebase cannot supply a token within the limit, preparation fails before feature mutation. Initial device registration can create real server device settings; their returned values, not assumed defaults, become the notification baseline. This suite does not redesign authentication or remove backend device-registration records.
+
+The host serializes the dedicated account. Run IDs are the shared 16-character ASCII hex `E2E_RUN_ID`. Generated nickname/bio values and the chosen catalog ID are internal nonsecret Maestro variables. Credentials and the actual FCM token never become Maestro command-line variables.
+
+## Failure recovery
+
+The E2E-only Hilt map contributes `MaestroProfileFixture` under `profile`. It consumes the shared `MaestroFeatureRequest` and returns only safe string variables. Before its first feature write, it atomically stores `files/maestro-profile-recovery.json` in app-private storage. The record contains member/run/flow identity, original nickname/gender/bio, and exact preference IDs/type IDs/skills/days. The notification flow also stores every raw notification type/value and the original FCM device identity. New non-notification snapshots store explicit JSON nulls for both notification fields, not invented settings or tokens. The record contains no raw authentication state.
+
+The common `finally` calls feature cleanup **before** session cleanup or app-data clear, including when preparation or a UI assertion fails. Cleanup attempts profile, preference, and each recorded notification recovery independently. It uses real PUT/PATCH/DELETE calls and successful GET readbacks:
+
+1. Restore the original profile tuple. Writes outside the scenario's owned nickname/bio values fail rather than overwrite unrelated data. Validation-flow writes and unintended gender changes remain failures even if recovery succeeds.
+2. Delete only the record for the run's previously absent catalog type. Restore altered original values with PATCH while keeping their original IDs. Missing/replaced IDs and unrelated additions fail; the fixture never wipes or recreates baseline preferences. Unintended original-record changes remain test failures after restoration.
+3. For a recorded notification snapshot, restore values on the **same saved FCM token**, preserving raw unknown type names. Changed device identity, missing rows, unrelated unknown-type changes, unsuccessful writes, or mismatched readbacks fail. Existing snapshots with notification data retain this exact recovery even for another flow. Only explicitly absent notification data in a non-notification flow skips this area; missing data for `profile-notification` fails.
+
+The fixture keeps its snapshot after successful feature restoration. The host's final successful `pm clear` removes it only after feature restoration, exercise cleanup, and session clear succeed. If a later shared cleanup step fails, the snapshot remains available for a retry with the exact same member/run/flow identity. Repeated restoration reads the original profile, preference IDs, and notification values without rewriting an already-restored baseline or registering another FCM identity. Any restoration failure still fails the flow and preserves recovery metadata. The shared recovery marker prevents app-data clear and the next flow from destroying that metadata. Do not upload this file, manually clear app data, or substitute a new device token to conceal a failed restoration. Force-stopping the app before bootstrap prevents live UI coroutines from issuing later local writes; remote server commit timing still requires real CI observation.
+
+Android permission changes use a disposable emulator policy: the flow grants the permission again on its normal path, and the shared runner clears the disposable installation after successful backend cleanup. Reusable devices are not supported by this suite's permission-reset policy. No server setting is inferred from the Android permission state.
+
+## Observable UI state and tests
+
+Profile fields put test tags on `UndabangTextField.inputModifier`, not its layout wrapper. `profile_edit_loaded` appears only after a successful profile read. Preference screens expose loaded TYPE/DETAIL states, use exercise-type-scoped chip/day/skill IDs, and scroll to each target explicitly. The empty-selection check also reaches originally selected chips outside the viewport. Notification switches are hidden on read errors, disabled while saving, and exposed as `notification_ready` only after required rows and PATCH readback succeed. Permission denial has a persistent OS-derived explanation as well as the existing toast.
+
+Behavioral coverage is in profile ViewModel tests and `app/src/testE2e/.../MaestroProfilePolicyTest.kt`, `MaestroProfileRecoveryTest.kt`, and `MaestroProfileNotificationReadinessTest.kt`. The readiness tests cover delayed callback storage, the timeout boundary, absent/blank tokens, backend errors/timeouts, token rotation, missing rows, cancellation, and notification-only scope. The recovery tests cover original-ID preservation, exact owned deletion, raw additional notification types, backend read errors, wrong device identity, failed readback, and explicit notification absence. They retain cross-flow recovery checks for existing notification snapshots. Additional tests call restoration twice with the same baseline to cover profile, preference, and notification idempotence, plus rejection of token rotation before a retry. These are unit-test doubles only; the actual fixture and all four Maestro scenarios call the real backend.
+
+No build, unit test, lint, emulator, Firebase registration, or Maestro result is established by this document. The controller must run the integrated E2E build, profile/ViewModel/E2E unit tests, and the API33+ authenticated suite in approved CI. Actual account baselines, FCM registration, and remote flow results are runtime prerequisites, not source-inspection evidence.
