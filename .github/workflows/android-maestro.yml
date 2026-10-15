@@ -25,7 +25,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' &&
        (github.event.pull_request.head.repo.full_name != github.repository ||
-        !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))) ||
+        !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association))) ||
       (github.event_name == 'push' && github.ref != 'refs/heads/dev') ||
       (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/dev')
     runs-on: ubuntu-latest
@@ -48,16 +48,20 @@ jobs:
 
   maestro:
     name: Maestro authenticated DEV UI
+    # 비공개 조직 멤버는 pull_request 이벤트에서 MEMBER 대신 CONTRIBUTOR로 표시될 수 있습니다.
+    # 신뢰 경계는 쓰기 권한이 필요한 같은 저장소 head 브랜치이며, fork와 첫 기여 계정(FIRST_TIME_CONTRIBUTOR·FIRST_TIMER·NONE)은 계속 거절합니다.
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association)) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # 이 환경에 승인자와 dev/PR merge ref 정책을 설정해야 DEV 계정 비밀을 공개할 수 있습니다.
-    environment: maestro-dev
+    # DEV 계정 비밀은 환경에서 읽고, 허용 ref 제한은 외부 환경 정책으로 유지합니다.
+    environment:
+      name: maestro-dev
+      deployment: false
     concurrency:
       group: maestro-dev-dedicated-account
       cancel-in-progress: false
@@ -95,6 +99,8 @@ jobs:
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
 
       - name: Install pinned Maestro 2.11.0
         env:
@@ -107,11 +113,17 @@ jobs:
           echo "$RUNNER_TEMP/maestro-cli/maestro/bin" >> "$GITHUB_PATH"
 
       - name: Enable KVM
+        shell: bash
         run: |
+          set -x
+          id
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-          test -r /dev/kvm && test -w /dev/kvm
+          sudo udevadm settle --timeout=30
+          stat -c 'KVM node: type=%F mode=%a owner=%U group=%G' /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
 
       - name: Validate and build exact E2E APK (DEV, debug signing, unchanged ARM filters)
         run: |
@@ -132,7 +144,7 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul
           # API30 Google APIs는 ARM translation을 제공하지만 설치 전 실제 abilist/APK 교집합도 검사합니다.
           script: python3 .maestro/scripts/run-tests.py --suite "$MAESTRO_SUITE" --device emulator-5554 --configure-emulator --apk app/build/outputs/apk/e2e/app-e2e.apk
 
