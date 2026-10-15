@@ -4,13 +4,12 @@ tags:
   - regression
   - requires-login
 ---
-# 좋아요는 낙관적 UI입니다 (FeedDetailViewModel.LIKE_DEBOUNCE_MS = 1000ms 후에만 서버 호출)
-# 화면을 바로 벗어나면 ViewModel이 정리되며 지연된 서버 호출이 취소될 수 있어, 탭 직후 디바운스보다
-# 넉넉히 기다린 뒤에만 화면을 벗어납니다. 그 다음 상세를 나갔다 다시 들어와 저장된 값인지 확인합니다
-# 이번 실행이 만든 새 글에서만 토글하므로 초기값(좋아요 0, 미좋아요)을 그대로 가정할 수 있습니다
+# 낙관적 변화 뒤 실제 좋아요 요청이 끝난 상태를 기다립니다. 고정 시간 대기는 사용하지 않습니다.
+# 상세를 다시 열어 서버에 저장된 좋아요/취소 상태를 각각 확인합니다.
+# 이번 실행이 만든 새 글에서만 토글하므로 초기값(좋아요 0, 미좋아요)을 그대로 가정할 수 있습니다.
 - runFlow: ../subflows/launch-logged-in.yaml
 
-- evalScript: ${output.tag = 'e2e612-like-' + Date.now()}
+- evalScript: ${output.tag = FEED_POST}
 
 - tapOn:
     id: feed_nav_graph
@@ -57,12 +56,11 @@ tags:
     text: "1"
 - assertVisible: "좋아요 취소"
 
-# 디바운스(1초)가 끝나 서버에 반영될 때까지 기다립니다. 화면에는 변화가 없어 phantom id로 대기합니다
+# 디바운스와 실제 네트워크 요청이 모두 끝난 상태에서만 화면을 벗어납니다.
 - extendedWaitUntil:
     visible:
-      id: maestro-e2e612-like-debounce-wait
-    timeout: 1800
-    optional: true
+      id: feed_detail_like_settled
+    timeout: 30000
 
 # 상세를 나갔다 다시 들어와 저장된 값인지 확인 (즉시 화면 변화만으로 통과시키지 않습니다)
 - tapOn: "뒤로가기"
@@ -92,9 +90,8 @@ tags:
 
 - extendedWaitUntil:
     visible:
-      id: maestro-e2e612-like-debounce-wait
-    timeout: 1800
-    optional: true
+      id: feed_detail_like_settled
+    timeout: 30000
 
 # 다시 나갔다 들어와 취소도 저장되었는지 확인
 - tapOn: "뒤로가기"

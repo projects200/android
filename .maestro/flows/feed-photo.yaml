@@ -4,15 +4,10 @@ tags:
   - regression
   - requires-login
 ---
-# 시스템 Photo Picker는 앱 밖 화면이라 testTagsAsResourceId가 닿지 않습니다. subflows/feed-pick-first-image.yaml에
-# Maestro 공식 레시피의 폴백 선택자를 모아 뒀습니다. 기기 갤러리에 이미지가 최소 1장 있어야 동작하고,
-# 다중 선택 폼이라 필요할 수 있는 확인(추가) 버튼 선택자는 실제 기기에서 확인하지 못했습니다
-#
-# 사진 미리보기나 글 저장 성공만으로 업로드 성공을 판정하지 않습니다. 두 단계 모두 상세를 나갔다
-# 다시 들어와 feed_detail_image_loaded(AsyncImage onState 성공 시에만 붙는 테스트 태그)로만 확인합니다
+# prepare가 실제 빨강 A/파랑 B PNG를 MediaStore에 넣고, before_flow가 전체 갤러리와 정렬을 검증합니다.
+# 생성/교체 모두 실제 picker와 multipart 업로드를 통과합니다. 서버가 원본 바이트를 보존한다고 가정하지 않습니다.
 - runFlow: ../subflows/launch-logged-in.yaml
-
-- evalScript: ${output.tag = 'e2e612-photo-' + Date.now()}
+- evalScript: ${output.tag = FEED_POST}
 
 - tapOn:
     id: feed_nav_graph
@@ -21,7 +16,7 @@ tags:
       id: "feed_content|feed_empty"
     timeout: 30000
 
-# 작성 + 사진 1장 첨부
+# 작성 + A 첨부
 - tapOn:
     id: feed_add_button
 - extendedWaitUntil:
@@ -33,15 +28,14 @@ tags:
 - inputText: ${output.tag}
 - tapOn:
     id: feed_form_add_image_button
-- runFlow: ../subflows/feed-pick-first-image.yaml
-- extendedWaitUntil:
-    visible:
-      id: feed_form_content_field
-    timeout: 20000
+- runFlow:
+    file: ../subflows/feed-pick-image.yaml
+    env:
+      IMAGE_INDEX: ${FEED_IMAGE_A_INDEX}
 - tapOn:
     id: feed_form_complete_button
 
-# 상세를 열어 서버에서 실제로 불러온 이미지인지 확인 (미리보기·저장 성공 토스트는 증거로 쓰지 않습니다)
+# 목록에서 열어 서버가 반환한 사진 1개의 ID와 실제 로딩 성공을 확인합니다.
 - extendedWaitUntil:
     visible:
       id: "feed_content|feed_empty"
@@ -54,20 +48,31 @@ tags:
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
+- assertVisible:
+    id: feed_detail_images_count_1
 - extendedWaitUntil:
     visible:
       id: feed_detail_image_loaded
-    timeout: 20000
+    timeout: 30000
 - assertVisible:
     id: feed_detail_image_loaded
+- copyTextFrom:
+    id: feed_detail_image_loaded
+- evalScript: ${output.originalPicture = maestro.copiedText}
+- assertTrue: ${/^feed-picture-[1-9][0-9]*$/.test(output.originalPicture)}
 
-# 편집: 기존 사진 제거 + 새 사진 추가
+# 편집 데이터(본문과 기존 첨부)가 로드된 뒤 A를 제거하고 별개 B를 고릅니다.
 - tapOn:
     id: feed_detail_more_button
 - tapOn: "수정하기"
 - extendedWaitUntil:
     visible:
       id: feed_form_content_field
+      text: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: feed_form_remove_image_button
     timeout: 20000
 - tapOn:
     id: feed_form_remove_image_button
@@ -75,26 +80,49 @@ tags:
     id: feed_form_remove_image_button
 - tapOn:
     id: feed_form_add_image_button
-- runFlow: ../subflows/feed-pick-first-image.yaml
-- extendedWaitUntil:
-    visible:
-      id: feed_form_content_field
-    timeout: 20000
+- runFlow:
+    file: ../subflows/feed-pick-image.yaml
+    env:
+      IMAGE_INDEX: ${FEED_IMAGE_B_INDEX}
 - tapOn:
     id: feed_form_complete_button
-
-# 수정 완료는 상세로 되돌아갑니다. 재조회로 새 사진이 실제로 올라갔는지 확인합니다
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
 - extendedWaitUntil:
+    notVisible: ${output.originalPicture}
+    timeout: 30000
+
+# 다시 나갔다 들어와 재조회된 정확히 1개 사진만 허용합니다. A ID 유지/기존+새 사진은 실패합니다.
+- tapOn: "뒤로가기"
+- extendedWaitUntil:
     visible:
-      id: feed_detail_image_loaded
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
     timeout: 20000
 - assertVisible:
+    id: feed_detail_images_count_1
+- extendedWaitUntil:
+    visible:
+      id: feed_detail_image_loaded
+    timeout: 30000
+- assertVisible:
     id: feed_detail_image_loaded
+- assertNotVisible: ${output.originalPicture}
+- copyTextFrom:
+    id: feed_detail_image_loaded
+- evalScript: ${output.replacementPicture = maestro.copiedText}
+- assertTrue: ${/^feed-picture-[1-9][0-9]*$/.test(output.replacementPicture)}
+- assertTrue: ${output.replacementPicture !== output.originalPicture}
 
-# 정리: 이번 실행이 만든 글과 사진을 함께 지웁니다 (사진은 글에 종속되어 별도 삭제 UI가 없습니다)
+# 실제 글 삭제 UI를 검증합니다. 서버 파일/CDN의 물리 삭제 여부는 이 UI로 증명하지 않습니다.
 - tapOn:
     id: feed_detail_more_button
 - tapOn: "삭제하기"

@@ -11,8 +11,8 @@ tags:
 # 삭제까지 같은 플로우에서 마쳐 이번 실행이 만든 글이 남지 않게 합니다
 - runFlow: ../subflows/launch-logged-in.yaml
 
-- evalScript: ${output.createTag = 'e2e612-crud-' + Date.now()}
-- evalScript: ${output.editTag = 'e2e612-crud-edited-' + Date.now()}
+- evalScript: ${output.createTag = FEED_POST}
+- evalScript: ${output.editTag = FEED_EDITED_POST}
 
 - tapOn:
     id: feed_nav_graph
@@ -59,6 +59,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: feed_form_content_field
+      text: ${output.createTag}
     timeout: 20000
 - longPressOn:
     id: feed_form_content_field

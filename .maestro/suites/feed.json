@@ -1,0 +1,13 @@
+{
+  "flows": [
+    "feed-post-crud",
+    "feed-like",
+    "feed-comment",
+    "feed-photo",
+    "feed-form-validation"
+  ],
+  "apiLevel": 33,
+  "fixture": true,
+  "requiredEnvironment": [],
+  "driver": null
+}

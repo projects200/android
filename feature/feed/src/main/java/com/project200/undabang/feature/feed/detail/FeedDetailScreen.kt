@@ -86,6 +86,7 @@ fun FeedDetailScreen(
     onFeedMoreClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isFeedLikePending: Boolean = false,
 ) {
     UndabangScaffold(
         modifier = modifier.semantics { testTagsAsResourceId = true },
@@ -142,6 +143,7 @@ fun FeedDetailScreen(
                         feed = feed,
                         commentItems = commentItems,
                         currentMemberId = currentMemberId,
+                        isFeedLikePending = isFeedLikePending,
                         onFeedLikeClick = onFeedLikeClick,
                         onCommentLikeClick = onCommentLikeClick,
                         onReplyClick = onReplyClick,
@@ -158,6 +160,7 @@ private fun FeedDetailContent(
     feed: Feed,
     commentItems: List<CommentItem>,
     currentMemberId: String?,
+    isFeedLikePending: Boolean,
     onFeedLikeClick: () -> Unit,
     onCommentLikeClick: (CommentItem) -> Unit,
     onReplyClick: (CommentItem) -> Unit,
@@ -180,7 +183,7 @@ private fun FeedDetailContent(
         if (feed.feedPictures.isNotEmpty()) {
             item(key = "images") {
                 LazyRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag("feed_detail_images_count_${feed.feedPictures.size}"),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                 ) {
                     items(feed.feedPictures, key = { it.feedPictureId }) { picture ->
@@ -190,7 +193,13 @@ private fun FeedDetailContent(
                 Spacer(Modifier.height(16.dp))
             }
         }
-        item(key = "actions") { FeedActionBar(feed = feed, onLikeClick = onFeedLikeClick) }
+        item(key = "actions") {
+            FeedActionBar(
+                feed = feed,
+                onLikeClick = onFeedLikeClick,
+                modifier = if (isFeedLikePending) Modifier else Modifier.testTag("feed_detail_like_settled"),
+            )
+        }
         item(key = "divider") {
             Spacer(
                 Modifier
@@ -291,7 +300,7 @@ private fun DetailImage(
     var isLoaded by remember(picture.feedPictureId) { mutableStateOf(false) }
     AsyncImage(
         model = picture.feedPictureUrl,
-        contentDescription = null,
+        contentDescription = "feed-picture-${picture.feedPictureId}",
         contentScale = ContentScale.Crop,
         placeholder = painterResource(R.drawable.ic_feed_image_placeholder),
         error = painterResource(R.drawable.ic_feed_image_placeholder),
@@ -420,6 +429,13 @@ private fun CommentRow(
                 text = displayContent,
                 style = MaterialTheme.typography.subtext14,
                 color = ColorBlack,
+                // 서버 children에서 얻은 부모 본문과 연결하여 단순한 화면 위치를 계층 증거로 쓰지 않습니다.
+                modifier =
+                    if (item is CommentItem.ReplyData) {
+                        Modifier.testTag("feed_detail_reply_to_${item.parentContent}")
+                    } else {
+                        Modifier.testTag("feed_detail_root_comment")
+                    },
             )
             Spacer(Modifier.height(4.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {

@@ -126,4 +126,6 @@ dependencies {
     implementation(libs.kakao.map)
 
     implementation(libs.firebase.crashlytics.ktx)
+
+    "testE2eImplementation"(libs.robolectric)
 }

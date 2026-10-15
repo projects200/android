@@ -30,6 +30,9 @@ tags:
 # 사진 선택 취소: 선택기를 열었다가 아무것도 고르지 않고 시스템 뒤로가기로 빠져나옵니다
 - tapOn:
     id: feed_form_add_image_button
+- extendedWaitUntil:
+    visible: "사진|Photos"
+    timeout: 20000
 - back
 - assertVisible:
     id: feed_form_content_field

@@ -9,11 +9,6 @@ executionOrder:
     - smoke-tabs
     - exercise-form-entry
     - exercise-crud
-    - feed-post-crud
-    - feed-like
-    - feed-comment
-    - feed-photo
-    - feed-form-validation
     - login-screen
 
 testOutputDir: build/maestro

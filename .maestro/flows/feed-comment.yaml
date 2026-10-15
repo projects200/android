@@ -10,9 +10,9 @@ tags:
 # 댓글을 나중에 지우면, 삭제 시점마다 화면에 더보기 버튼이 하나만 남아 더 특정할 필요가 없습니다
 - runFlow: ../subflows/launch-logged-in.yaml
 
-- evalScript: ${output.postTag = 'e2e612-comment-post-' + Date.now()}
-- evalScript: ${output.commentTag = 'e2e612-comment-body-' + Date.now()}
-- evalScript: ${output.replyTag = 'e2e612-reply-body-' + Date.now()}
+- evalScript: ${output.postTag = FEED_POST}
+- evalScript: ${output.commentTag = FEED_COMMENT}
+- evalScript: ${output.replyTag = FEED_REPLY}
 
 # 댓글을 달 새 글 작성
 - tapOn:
@@ -75,6 +75,7 @@ tags:
 
 # 답글이 부모 댓글 바로 아래, 올바른 글에 달렸는지 확인
 - assertVisible:
+    id: ${'feed_detail_reply_to_' + output.commentTag}
     text: ${output.replyTag}
     below: ${output.commentTag}
 - assertVisible:

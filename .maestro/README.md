@@ -121,18 +121,6 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
- 
-### 기능별 확장 플로우
-
-|파일|태그|검증|
-|---|---|---|
-|`flows/feed-post-crud.yaml`|`regression`, `requires-login`|피드 작성·수정·삭제와 목록·상세 재조회|
-|`flows/feed-like.yaml`|`regression`, `requires-login`|좋아요·취소와 상세 재진입 후 저장 상태|
-|`flows/feed-comment.yaml`|`regression`, `requires-login`|댓글·답글 계층, 개수, 본인 댓글 삭제|
-|`flows/feed-photo.yaml`|`regression`, `requires-login`|Photo Picker 첨부와 상세 재조회, 기존 사진 교체|
-|`flows/feed-form-validation.yaml`|`regression`, `requires-login`|빈 본문 저장 방지와 사진 선택 취소|
-
-피드 플로우는 실행별 고유 ASCII 본문을 사용하고 같은 플로우에서 만든 글·댓글을 정리합니다. 사진 업로드는 미리보기가 아니라 상세 재조회와 이미지 로딩 성공 상태로 확인합니다.
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 
