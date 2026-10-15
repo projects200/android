@@ -51,6 +51,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
     }
 
     override fun setupViews() {
+        binding.searchBtn.isEnabled = false
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
         initMapView()
         initClickListeners()
@@ -120,6 +121,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                     map.setGestureEnable(GestureType.Tilt, false)
 
                     setMapListeners()
+                    binding.searchBtn.isEnabled = true
                 },
             )
         }

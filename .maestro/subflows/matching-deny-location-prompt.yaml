@@ -1,0 +1,12 @@
+appId: com.project200.undabang
+---
+# 다이얼로그가 없을 때 Back을 누르면 앱 페이지가 닫히므로 실제 거부 버튼이 있을 때만 누릅니다.
+- runFlow:
+    when:
+      visible:
+        id: ".*:id/permission_deny_button"
+    commands:
+      - tapOn:
+          id: ".*:id/permission_deny_button"
+- assertNotVisible:
+    id: ".*:id/permission_allow_foreground_only_button"

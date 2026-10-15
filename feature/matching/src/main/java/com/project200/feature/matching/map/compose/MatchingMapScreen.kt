@@ -26,19 +26,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kakao.vectormap.label.Label
 import com.project200.domain.model.MatchingMember
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.map.MapViewManager
 import com.project200.feature.matching.map.MatchingMapViewModel
 import com.project200.feature.matching.map.cluster.ClusterCalculator
@@ -69,6 +75,7 @@ private val ToolbarShape = RoundedCornerShape(bottomStart = 15.dp, bottomEnd = 1
  * @param onClearClick 필터 초기화 칩 클릭 시
  * @param onExercisePlaceListClick 운동 장소 목록 버튼 클릭 시
  */
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun MatchingMapScreen(
     viewModel: MatchingMapViewModel,
@@ -91,6 +98,10 @@ fun MatchingMapScreen(
     // 클러스터 계산기 / 지도 매니저(지도 준비 후 비동기 생성이라 상태로 둠)
     val clusterCalculator = remember { ClusterCalculator<MapClusterItem>() }
     var manager by remember { mutableStateOf<MapViewManager?>(null) }
+    val renderedMembers =
+        remember(context) {
+            if (MatchingFixtureEvidence.isArmed(context)) mutableStateOf("") else null
+        }
 
     MatchingMapContent(
         filterState = filterState,
@@ -99,7 +110,17 @@ fun MatchingMapScreen(
         onFilterClick = onFilterClick,
         onClearClick = onClearClick,
         onExercisePlaceListClick = onExercisePlaceListClick,
-        modifier = modifier,
+        modifier =
+            if (renderedMembers != null) {
+                modifier
+                    .semantics {
+                        testTagsAsResourceId = true
+                        contentDescription = renderedMembers.value
+                    }
+                    .testTag(if (manager == null) "matching_map_loading" else "matching_map_ready")
+            } else {
+                modifier
+            },
     ) {
         // 지도 슬롯: 호스팅 + manager 생성 + 카메라 idle/라벨 클릭 처리
         KakaoMapView(
@@ -140,7 +161,14 @@ fun MatchingMapScreen(
         val mgr = manager ?: return@LaunchedEffect
         val (members, places) = mapData
         updateClusterData(members, clusterCalculator)
-        mgr.redrawMarkers(places, clusterCalculator)
+        val rendered = mgr.redrawMarkers(places, clusterCalculator)
+        if (renderedMembers != null) {
+            // SDK가 라벨을 실제로 생성한 클러스터의 회원·장소만 E2E 준비 상태로 노출합니다.
+            renderedMembers.value =
+                rendered.joinToString(",") {
+                    "matching_marker_${it.member.memberId}_${it.location.placeId}"
+                }
+        }
     }
 }
 

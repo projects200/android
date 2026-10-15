@@ -14,6 +14,7 @@ import com.kakao.vectormap.label.LabelTextBuilder
 import com.kakao.vectormap.label.LabelTextStyle
 import com.project200.domain.model.ExercisePlace
 import com.project200.domain.model.MapBounds
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.createClusterBitmap
 import com.project200.feature.matching.map.cluster.ClusterMarkerHelper.getClusterSizePx
@@ -90,9 +91,9 @@ class MapViewManager(
     fun redrawMarkers(
         myPlaces: List<ExercisePlace>,
         clusterCalculator: ClusterCalculator<MapClusterItem>,
-    ) {
+    ): List<MapClusterItem> {
         // Manager가 내부적으로 관리하는 kakaoMap 객체에서 직접 cameraPosition을 가져옵니다.
-        val currentCameraPosition = kakaoMap.cameraPosition ?: return
+        val currentCameraPosition = kakaoMap.cameraPosition ?: return emptyList()
 
         // 현재 카메라 위치를 기반으로 클러스터를 계산합니다.
         val clusters = clusterCalculator.getClusters(currentCameraPosition)
@@ -111,16 +112,19 @@ class MapViewManager(
         }
 
         // 클러스터 마커 추가
+        val renderedMembers = if (MatchingFixtureEvidence.isArmed(context)) ArrayList<MapClusterItem>() else null
         clusters.forEach { cluster ->
-            addClusterLabel(cluster)
+            if (addClusterLabel(cluster)) renderedMembers?.addAll(cluster.items)
         }
+        return renderedMembers ?: emptyList()
     }
 
     fun getCurrentCameraPosition(): CameraPosition? {
         return kakaoMap.cameraPosition
     }
 
-    private fun addClusterLabel(cluster: Cluster<MapClusterItem>) {
+    private fun addClusterLabel(cluster: Cluster<MapClusterItem>): Boolean {
+        val layer = labelManager.layer ?: return false
         val position = LatLng.from(cluster.position.latitude, cluster.position.longitude)
 
         val backgroundBitmap =
@@ -136,7 +140,8 @@ class MapViewManager(
                 .setStyles(LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f))
                 .setRank(0)
                 .setTag(cluster)
-        labelManager.layer?.addLabel(backgroundOptions)?.let { currentLabels.add(it) }
+        val background = layer.addLabel(backgroundOptions)
+        background?.let { currentLabels.add(it) }
 
         // 텍스트 아이콘 Label
         val textOptions =
@@ -145,7 +150,9 @@ class MapViewManager(
                 .setTexts(LabelTextBuilder().addTextLine(cluster.size.toString(), 0))
                 .setRank(1)
                 .setTag(cluster)
-        labelManager.layer?.addLabel(textOptions)?.let { currentLabels.add(it) }
+        val text = layer.addLabel(textOptions)
+        text?.let { currentLabels.add(it) }
+        return background != null || text != null
     }
 
     /**

@@ -1,104 +1,115 @@
 appId: com.project200.undabang
-name: 운동 장소 등록·수정·삭제
+name: 운동 장소 키워드 검색·등록·수정·삭제
 tags:
   - regression
   - requires-login
 ---
-# 목록 → 추가 → 등록 → 목록 확인(재진입) → 이름 수정 → 재조회 확인 → 삭제 → 재진입 확인까지 한 번에 봅니다
-# 소스에 별도 장소 상세 화면이 없어(이슈 본문 확인) 목록 메뉴와 검색·편집 화면만 사용합니다
-#
-# 키워드 검색 관련 참고:
-# Maestro inputText는 안드로이드 제약으로 한글을 입력할 수 없고, ExercisePlaceSearchViewModel의 검색은
-# GetPlacesByKeywordUseCase를 통해 실제 카카오 로컬 키워드 검색 API를 호출합니다(단위 테스트 샘플 쿼리도 "헬스장").
-# 한국 업체명 기반 API라 ASCII 쿼리로 안정적인 결과를 보장할 수 없어 타이핑 검색 단계는 넣지 않습니다.
-# 대신 검색 화면 진입 시 위치 권한이 허용돼 있으면 현재 위치가 자동으로 역지오코딩되어 place_name_tv에 채워지는
-# 경로를 "결과 선택"의 대체 경로로 사용합니다. 이 경로도 실제 ExercisePlaceSearchFragment 코드 경로입니다
+# 공통 러너가 인증, 실제 peer/카탈로그 조회, 실행 소유권 스냅샷을 먼저 완료합니다.
 - runFlow: ../subflows/launch-logged-in.yaml
-
+- setLocation:
+    latitude: ${MATCHING_LATITUDE}
+    longitude: ${MATCHING_LONGITUDE}
 - tapOn:
     id: matching_nav_graph
 - runFlow: ../subflows/matching-dismiss-guides.yaml
 - extendedWaitUntil:
-    visible: "운동 장소 목록"
+    visible:
+      id: matching_map_ready
     timeout: 30000
-
-# 이번 실행을 구분할 고유 장소명 (ASCII만 허용)
-- evalScript: ${output.tag = 'e2e613-' + Date.now()}
-
+- tapOn: "현재 위치"
 - tapOn: "운동 장소 목록"
-- extendedWaitUntil:
-    visible: "운동 장소"
-    timeout: 20000
-
-- tapOn: "추가"
-# ExercisePlaceSearchFragment: 위치 권한이 있으면 현재 위치로 지도 이동 후 자동으로 주소를 역지오코딩합니다
 - extendedWaitUntil:
     visible:
-      id: "place_name_tv"
-      text: ".+"
-    timeout: 30000
-- tapOn:
-    id: "register_exercise_place_btn"
-
-- extendedWaitUntil:
-    visible: "장소명 (필수)"
+      id: places_loaded
     timeout: 20000
+- tapOn: "추가"
+- runFlow: ../subflows/matching-select-catalog-place.yaml
 - tapOn:
-    id: "place_name_input"
-# 초기값이 비어 있지 않을 수 있어(역지오코딩된 주소가 장소명으로 들어올 수 있음) 지우고 고유 태그만 남깁니다
-- eraseText: 80
-- inputText: ${output.tag}
+    id: place_name_input
+- eraseText: 200
+- inputText: ${MATCHING_PLACE_NAME}
+- hideKeyboard
 - tapOn: "주소 등록"
-
-# 등록 완료 액션은 popUpTo(matchingMapFragment)로 목록 화면을 새로 띄워 서버에서 다시 조회합니다
 - extendedWaitUntil:
-    visible: ${output.tag}
+    visible:
+      id: places_loaded
     timeout: 20000
-- assertVisible: ${output.tag}
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${MATCHING_PLACE_NAME}
 - assertVisible:
-    id: "place_address_${output.tag}"
+    id: "place_address_${MATCHING_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
 
-# 재진입 확인: 목록에서 빠져나갔다가 다시 들어와도 서버에 저장된 값이 유지되는지 봅니다
+# 목록을 새로 열어 서버가 반환한 이름과 실제 주소를 다시 확인합니다.
 - back
 - extendedWaitUntil:
     visible: "운동 장소 목록"
     timeout: 20000
 - tapOn: "운동 장소 목록"
 - extendedWaitUntil:
-    visible: ${output.tag}
+    visible:
+      id: places_loaded
     timeout: 20000
-- assertVisible: ${output.tag}
-
-# 이름 수정: 메뉴 → 수정 → 이름 교체 → 등록(수정 액션도 같은 버튼을 씁니다)
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "place_address_${MATCHING_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
 - tapOn:
-    id: "place_menu_btn_${output.tag}"
+    id: "place_menu_btn_${MATCHING_PLACE_NAME}"
 - tapOn: "수정"
 - extendedWaitUntil:
-    visible: "장소명 (필수)"
+    visible:
+      id: place_name_input
     timeout: 20000
-- evalScript: ${output.editedTag = output.tag + '-edit'}
+- assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}
 - tapOn:
-    id: "place_name_input"
-- eraseText: 80
-- inputText: ${output.editedTag}
+    id: place_name_input
+- eraseText: 200
+- inputText: ${MATCHING_EDITED_PLACE_NAME}
+- hideKeyboard
 - tapOn: "주소 등록"
-
-# 재조회 결과 확인: 수정 완료도 같은 popUpTo 액션이라 목록이 서버에서 다시 조회됩니다
 - extendedWaitUntil:
-    visible: ${output.editedTag}
+    visible:
+      id: places_loaded
     timeout: 20000
-- assertVisible: ${output.editedTag}
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_EDITED_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${MATCHING_EDITED_PLACE_NAME}
+- assertVisible:
+    id: "place_address_${MATCHING_EDITED_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
 
-# 삭제: 로컬 상태만 갱신되는 동작이라, 삭제 뒤 목록을 나갔다 재진입해 서버 상태를 다시 조회하게 합니다
+# DELETE 성공 뒤 현재 목록에서 사라진 것을 먼저 확인합니다. 진행 중에는 목록을 떠나지 않습니다.
 - tapOn:
-    id: "place_menu_btn_${output.editedTag}"
+    id: "place_menu_btn_${MATCHING_EDITED_PLACE_NAME}"
 - tapOn: "삭제"
+- extendedWaitUntil:
+    notVisible: ${MATCHING_EDITED_PLACE_NAME}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
 - back
 - extendedWaitUntil:
     visible: "운동 장소 목록"
     timeout: 20000
 - tapOn: "운동 장소 목록"
 - extendedWaitUntil:
-    visible: "운동 장소"
+    visible:
+      id: places_loaded
     timeout: 20000
-- assertNotVisible: ${output.editedTag}
+- assertNotVisible: ${MATCHING_PLACE_NAME}
+- assertNotVisible: ${MATCHING_EDITED_PLACE_NAME}
+# after_flow는 실제 GET 및 UI 서버 응답 증거에서 동일 ID·주소·좌표와 최종 부재를 검증합니다.

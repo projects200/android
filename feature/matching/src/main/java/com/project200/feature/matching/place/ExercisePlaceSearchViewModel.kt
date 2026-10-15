@@ -29,6 +29,7 @@ class ExercisePlaceSearchViewModel
         val searchResult: LiveData<BaseResult<List<KakaoPlaceInfo>>> = _searchResult
 
         private var isPlaceSelectedBySearch = false // 키워드 검색으로 선택한 장소인지 여부
+        private var addressGeneration = 0L
 
         /**
          * 주어진 위도와 경도를 사용하여 주소 정보를 가져옵니다.
@@ -37,8 +38,11 @@ class ExercisePlaceSearchViewModel
             latitude: Double,
             longitude: Double,
         ) {
+            val generation = ++addressGeneration
             viewModelScope.launch {
                 val result = getAddressFromCoordinatesUseCase(latitude, longitude)
+                // 이전 지도 이동의 응답이 사용자가 고른 검색 결과를 덮어쓰지 않게 합니다.
+                if (generation != addressGeneration) return@launch
                 if (result is BaseResult.Success) {
                     _place.value =
                         KakaoPlaceInfo(
@@ -69,6 +73,7 @@ class ExercisePlaceSearchViewModel
          * 사용자가 검색 결과에서 장소를 선택했을 때 호출됩니다.
          */
         fun selectSearchedPlace(placeInfo: KakaoPlaceInfo) {
+            addressGeneration++
             isPlaceSelectedBySearch = true
             if (placeInfo.placeName.isEmpty() || placeInfo.placeName == placeInfo.address) {
                 _place.value = placeInfo.copy(placeName = "")

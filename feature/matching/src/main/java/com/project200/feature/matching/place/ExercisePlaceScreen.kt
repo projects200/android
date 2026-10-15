@@ -69,6 +69,7 @@ fun ExercisePlaceScreen(
     onEditClick: (ExercisePlace) -> Unit,
     onDeleteClick: (ExercisePlace) -> Unit,
     modifier: Modifier = Modifier,
+    loadState: ExercisePlaceLoadState = ExercisePlaceLoadState.READY,
 ) {
     Column(
         modifier =
@@ -76,7 +77,14 @@ fun ExercisePlaceScreen(
                 .fillMaxSize()
                 .background(ColorWhite300)
                 // Maestro가 장소 주소·메뉴 버튼을 id로 잡을 수 있도록 testTag를 리소스 id로 노출합니다
-                .semantics { testTagsAsResourceId = true },
+                .semantics { testTagsAsResourceId = true }
+                .testTag(
+                    when (loadState) {
+                        ExercisePlaceLoadState.LOADING -> "places_loading"
+                        ExercisePlaceLoadState.READY -> "places_loaded"
+                        ExercisePlaceLoadState.ERROR -> "places_error"
+                    },
+                ),
     ) {
         UndabangTopBar(
             title = stringResource(R.string.exercise_place),

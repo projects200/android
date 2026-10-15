@@ -121,16 +121,6 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
- 
-### 기능별 확장 플로우
-
-|파일|태그|검증|
-|---|---|---|
-|`flows/matching-place-crud.yaml`|`regression`, `requires-login`|운동 장소 등록·수정·삭제와 재진입 후 유지|
-|`flows/matching-place-validation.yaml`|`regression`, `requires-login`|빈 이름 저장 방지와 위치 권한 거부|
-|`flows/matching-member-to-chat.yaml`|`regression`, `requires-login`|지도 회원 선택·프로필 확인·올바른 채팅방 진입|
-
-카카오맵 마커는 접근성 트리에 없으므로 위치·줌·좌표 조건으로 경로를 고정합니다. 키워드 검색은 Maestro Android의 한글 입력 제약 때문에 현재 위치 기반 장소 선택 경로를 함께 사용하며, 실제 기기에서 검색 결과 조건을 확인해야 합니다.
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 

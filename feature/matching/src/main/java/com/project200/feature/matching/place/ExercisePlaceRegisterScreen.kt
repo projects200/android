@@ -104,8 +104,8 @@ fun ExercisePlaceRegisterScreen(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
-                        .height(50.dp)
-                        .testTag("place_name_input"),
+                        .height(50.dp),
+                inputModifier = Modifier.testTag("place_name_input"),
             )
 
             Spacer(Modifier.height(30.dp))

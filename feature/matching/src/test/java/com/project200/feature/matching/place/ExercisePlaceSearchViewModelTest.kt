@@ -10,6 +10,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -204,5 +205,23 @@ class ExercisePlaceSearchViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             coVerify(exactly = 1) { mockGetAddressFromCoordinatesUseCase(37.7, 127.2) }
+        }
+
+    @Test
+    fun `늦게 도착한 역지오코딩 응답은 선택한 카탈로그 결과를 덮어쓰지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<KakaoPlaceInfo>>()
+            coEvery { mockGetAddressFromCoordinatesUseCase(any(), any()) } coAnswers { response.await() }
+            viewModel = createViewModel()
+            viewModel.fetchAddressFromCoordinates(37.5, 127.0)
+            testDispatcher.scheduler.runCurrent()
+
+            val selected = samplePlaceInfo.copy(placeName = "선택한 장소", address = "선택한 실제 주소")
+            viewModel.selectSearchedPlace(selected)
+            response.complete(BaseResult.Success(samplePlaceInfo))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.place.value).isEqualTo(selected)
+            assertThat(viewModel.placeInfoResult.value).isNull()
         }
 }

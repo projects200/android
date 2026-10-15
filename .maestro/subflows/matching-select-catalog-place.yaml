@@ -1,0 +1,41 @@
+appId: com.project200.undabang
+---
+# 실제 키워드 API와 결과 행을 사용합니다. 역지오코딩이나 딥링크로 검색을 대체하지 않습니다.
+- extendedWaitUntil:
+    visible:
+      id: search_btn
+      enabled: true
+    timeout: 30000
+- tapOn:
+    id: search_exercise_place_et
+- eraseText: 200
+- inputText: ${MATCHING_SEARCH_QUERY}
+- hideKeyboard
+- tapOn:
+    id: search_btn
+- extendedWaitUntil:
+    visible:
+      id: searched_place_rv
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      text: ${MATCHING_CATALOG_ROW_PATTERN}
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    text: ${MATCHING_CATALOG_ROW_PATTERN}
+- extendedWaitUntil:
+    visible:
+      id: place_name_tv
+      text: ${MATCHING_CATALOG_NAME_PATTERN}
+    timeout: 20000
+- assertVisible:
+    id: place_address_tv
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+- tapOn:
+    id: register_exercise_place_btn
+- extendedWaitUntil:
+    visible:
+      id: place_name_input
+    timeout: 20000
+- assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}

@@ -9,9 +9,6 @@ executionOrder:
     - smoke-tabs
     - exercise-form-entry
     - exercise-crud
-    - matching-place-crud
-    - matching-place-validation
-    - matching-member-to-chat
     - login-screen
 
 testOutputDir: build/maestro
