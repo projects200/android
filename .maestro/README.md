@@ -158,13 +158,14 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |---|---|---|
 |`push`|`refs/heads/dev`만 허용|`smoke`|
 |`push`|다른 branch/tag ref|트리거 필터에서 제외, 비밀 미제공|
-|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`|`smoke`|
+|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`smoke`|
 |`pull_request`|base가 `dev`, fork head 또는 비신뢰 작성자|비밀 없는 거절 job 실패, 인증 job 미실행|
 |`pull_request`|다른 base branch|트리거 필터에서 제외, 비밀 미제공|
 |`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression` 또는 `all`|
 |`workflow_dispatch`|다른 ref|비밀 없는 거절 job 실패, 인증 job 미실행|
 
 - 인증 suite를 실행하지 않은 skip은 인증 통과가 아닙니다. 거절 job은 미실행 상태를 명시하며 **실패**합니다. `pull_request_target`은 사용하지 않습니다.
+- 비공개 조직 멤버는 `pull_request`에서 `CONTRIBUTOR`로 표시될 수 있지만 fork head와 첫 기여 계정(`FIRST_TIME_CONTRIBUTOR`/`FIRST_TIMER`/`NONE`)은 계속 거절하므로, 커밋 이력이 없는 신규 비공개 멤버는 조직 멤버십을 공개하거나 `dev` push/수동 실행(`dev` ref)을 사용해야 합니다.
 - 세 실행 경로 모두 **`maestro-dev` 환경**과 동일 계정 concurrency group을 사용합니다. 운영자가 환경을 만들고 승인자(required reviewers), 자기 승인 방지, dev와 신뢰한 PR merge ref에 맞는 배포 branch 정책을 설정해야 합니다. 이 저장소 변경만으로 외부 보호 정책이 만들어지지 않습니다. 비밀을 환경에 두고 비신뢰 실행을 승인하지 마세요.
 - 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
 - Maestro job은 제공한 DEV 설정으로 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행합니다. JDK17, API30 Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인, 순차 플로우와 finally 정리를 사용합니다.

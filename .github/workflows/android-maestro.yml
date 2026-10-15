@@ -25,7 +25,7 @@ jobs:
     if: >-
       (github.event_name == 'pull_request' &&
        (github.event.pull_request.head.repo.full_name != github.repository ||
-        !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))) ||
+        !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association))) ||
       (github.event_name == 'push' && github.ref != 'refs/heads/dev') ||
       (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/dev')
     runs-on: ubuntu-latest
@@ -48,11 +48,13 @@ jobs:
 
   maestro:
     name: Maestro authenticated DEV UI
+    # 비공개 조직 멤버는 pull_request 이벤트에서 MEMBER 대신 CONTRIBUTOR로 표시될 수 있습니다.
+    # 신뢰 경계는 쓰기 권한이 필요한 같은 저장소 head 브랜치이며, fork와 첫 기여 계정(FIRST_TIME_CONTRIBUTOR·FIRST_TIMER·NONE)은 계속 거절합니다.
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
       (github.event_name == 'pull_request' &&
        github.event.pull_request.head.repo.full_name == github.repository &&
-       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association)) ||
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association)) ||
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     timeout-minutes: 90
