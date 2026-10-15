@@ -16,6 +16,7 @@ internal class MaestroSetupCoordinator
         private val protocol: MaestroSetupProtocol,
         private val sessionBootstrap: MaestroSessionBootstrap,
         private val fixtureCleaner: MaestroFixtureCleaner,
+        private val featureFixtures: Map<String, @JvmSuppressWildcards MaestroFeatureFixture>,
     ) {
         private val requestMutex = Mutex()
 
@@ -36,9 +37,30 @@ internal class MaestroSetupCoordinator
                                 val today = LocalDate.now()
                                 if (request.fixtureStartDate > today) throw MaestroSetupFailure("fixture_range_invalid")
                                 sessionBootstrap.authenticate(request.authState, request.memberId)
-                                fixtureCleaner.clean(request.fixtureStartDate, today)
-                                if (request.operation == "cleanup") sessionBootstrap.clearSession()
-                                protocol.writeStatus(if (request.operation == "prepare") "ready" else "cleaned")
+                                // 인증과 대상 handler 확인을 모두 마친 뒤에만 서버 정리를 시작합니다.
+                                val feature = request.featureRequest
+                                val handler =
+                                    feature?.let {
+                                        featureFixtures[it.feature] ?: throw MaestroSetupFailure("feature_fixture_missing")
+                                    }
+                                protocol.validateFeatureRecovery(feature)
+                                val variables =
+                                    if (request.operation == "prepare") {
+                                        fixtureCleaner.clean(request.fixtureStartDate, today)
+                                        if (feature != null && handler != null) {
+                                            protocol.markFeatureRecovery(feature)
+                                            handler.prepare(feature)
+                                        } else {
+                                            emptyMap()
+                                        }
+                                    } else {
+                                        if (feature != null && handler != null) handler.cleanup(feature)
+                                        fixtureCleaner.clean(request.fixtureStartDate, today)
+                                        sessionBootstrap.clearSession()
+                                        if (feature != null) protocol.completeFeatureRecovery()
+                                        emptyMap()
+                                    }
+                                protocol.writeStatus(if (request.operation == "prepare") "ready" else "cleaned", variables)
                             }
                         }
                     } catch (failure: MaestroSetupFailure) {
