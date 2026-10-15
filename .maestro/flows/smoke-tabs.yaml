@@ -62,4 +62,10 @@ tags:
     id: profile_nav_graph
     selected: true
 - assertVisible: "최근 30일 운동 횟수"
+# 작은 화면에서는 선호 운동 영역이 아래에 있어 스크롤한 뒤 확인합니다.
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_tv
+    direction: DOWN
+    timeout: 30000
 - assertVisible: "선호 운동"

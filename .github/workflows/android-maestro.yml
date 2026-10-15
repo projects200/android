@@ -1,0 +1,171 @@
+name: Android Maestro (DEV)
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "dev" ]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Dedicated-account UI regression suite
+        required: true
+        default: regression
+        type: choice
+        options:
+          - regression
+          - all
+
+permissions:
+  contents: read
+
+jobs:
+  reject-untrusted:
+    name: Authenticated suite unavailable (untrusted ref)
+    if: >-
+      (github.event_name == 'pull_request' &&
+       (github.event.pull_request.head.repo.full_name != github.repository ||
+        !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association))) ||
+      (github.event_name == 'push' && github.ref != 'refs/heads/dev') ||
+      (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse secret access and do not report an authenticated pass
+        run: |
+          echo 'Authenticated Maestro did not run: use a dev push, a trusted same-repository dev PR, or an approved manual run on dev.'
+          echo 'Authenticated Maestro did not run. This is not a test pass.' >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p build/maestro
+          printf '%s\n' 'Authenticated suite did not run: untrusted ref. No secrets were supplied.' > build/maestro/trust-status.log
+          exit 1
+      - name: Upload refusal status without secrets
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-not-run-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: build/maestro/trust-status.log
+
+  maestro:
+    name: Maestro authenticated DEV UI
+    # 비공개 조직 멤버는 pull_request 이벤트에서 MEMBER 대신 CONTRIBUTOR로 표시될 수 있습니다.
+    # 신뢰 경계는 쓰기 권한이 필요한 같은 저장소 head 브랜치이며, fork와 첫 기여 계정(FIRST_TIME_CONTRIBUTOR·FIRST_TIMER·NONE)은 계속 거절합니다.
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/dev') ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.head.repo.full_name == github.repository &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR","CONTRIBUTOR"]'), github.event.pull_request.author_association)) ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    # DEV 계정 비밀은 환경에서 읽고, 허용 ref 제한은 외부 환경 정책으로 유지합니다.
+    environment:
+      name: maestro-dev
+      deployment: false
+    concurrency:
+      group: maestro-dev-dedicated-account
+      cancel-in-progress: false
+    env:
+      MAESTRO_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Initialize safe artifact directory
+        run: |
+          mkdir -p build/maestro
+          printf '%s\n' 'Workflow started; no runtime result is implied.' > build/maestro/workflow-status.log
+
+      - name: Validate secrets and prepare private DEV configuration
+        env:
+          GOOGLE_SERVICES_JSON_DEV_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_DEV_BASE64 }}
+          COGNITO_USER_POOL_ID_DEV: ${{ secrets.COGNITO_USER_POOL_ID_DEV }}
+          COGNITO_APP_CLIENT_ID_DEV: ${{ secrets.COGNITO_APP_CLIENT_ID_DEV }}
+          COGNITO_REGION_DEV: ${{ secrets.COGNITO_REGION_DEV }}
+          KAKAO_NATIVE_APP_KEY: ${{ secrets.KAKAO_NATIVE_APP_KEY_DEV }}
+          KAKAO_REST_API_KEY: ${{ secrets.KAKAO_REST_API_KEY }}
+          MAESTRO_AUTH_STATE_JSON: ${{ secrets.MAESTRO_AUTH_STATE_JSON }}
+          MAESTRO_MEMBER_ID: ${{ secrets.MAESTRO_MEMBER_ID }}
+          MAESTRO_FIXTURE_START_DATE: ${{ secrets.MAESTRO_FIXTURE_START_DATE }}
+        run: python3 .maestro/scripts/configure-ci.py
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platform-tools'
+
+      - name: Install pinned Maestro 2.11.0
+        env:
+          MAESTRO_RELEASE_SHA256: 5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a
+        run: |
+          curl -fLsS https://github.com/mobile-dev-inc/maestro/releases/download/cli-2.11.0/maestro.zip -o "$RUNNER_TEMP/maestro.zip"
+          printf '%s  %s\n' "$MAESTRO_RELEASE_SHA256" "$RUNNER_TEMP/maestro.zip" | sha256sum --check --status
+          unzip -q "$RUNNER_TEMP/maestro.zip" -d "$RUNNER_TEMP/maestro-cli"
+          chmod +x "$RUNNER_TEMP/maestro-cli/maestro/bin/maestro"
+          echo "$RUNNER_TEMP/maestro-cli/maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Enable KVM
+        shell: bash
+        run: |
+          set -x
+          id
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          sudo udevadm settle --timeout=30
+          stat -c 'KVM node: type=%F mode=%a owner=%U group=%G' /dev/kvm
+          test -r /dev/kvm
+          test -w /dev/kvm
+
+      - name: Validate and build exact E2E APK (DEV, debug signing, unchanged ARM filters)
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
+          test -f app/build/outputs/apk/e2e/app-e2e.apk
+
+      - name: Run isolated authenticated suite on Android 11 Google APIs
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          MAESTRO_AUTH_STATE_JSON: ${{ secrets.MAESTRO_AUTH_STATE_JSON }}
+          MAESTRO_MEMBER_ID: ${{ secrets.MAESTRO_MEMBER_ID }}
+          MAESTRO_FIXTURE_START_DATE: ${{ secrets.MAESTRO_FIXTURE_START_DATE }}
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          ram-size: 4096M
+          heap-size: 512M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul
+          # API30 Google APIs는 ARM translation을 제공하지만 설치 전 실제 abilist/APK 교집합도 검사합니다.
+          script: python3 .maestro/scripts/run-tests.py --suite "$MAESTRO_SUITE" --device emulator-5554 --configure-emulator --apk app/build/outputs/apk/e2e/app-e2e.apk
+
+      - name: Remove private build configuration and record workflow status
+        if: always()
+        env:
+          WORKFLOW_STATUS: ${{ job.status }}
+        run: |
+          rm -f local.properties app/src/e2e/google-services.json
+          mkdir -p build/maestro
+          printf 'Workflow status: %s\n' "$WORKFLOW_STATUS" > build/maestro/workflow-status.log
+
+      - name: Upload only safe Maestro artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maestro-${{ env.MAESTRO_SUITE }}-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: |
+            build/maestro/**/*.xml
+            build/maestro/**/*.log
+            build/maestro/**/*.json
+            build/maestro/**/*.png

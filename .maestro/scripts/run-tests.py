@@ -170,6 +170,14 @@ class Device:
         self.require("wait-for-device")
         self.require("shell", "setprop", "persist.sys.locale", "ko-KR")
         self.require("shell", "setprop", "persist.sys.timezone", "Asia/Seoul")
+        locale = self.require("shell", "getprop", "persist.sys.locale").strip()
+        timezone = self.require("shell", "getprop", "persist.sys.timezone").strip()
+        locale_matches = locale in (b"ko-KR", b"ko_KR")
+        timezone_matches = timezone == b"Asia/Seoul"
+        print(
+            f"Locale after-setprop: locale_matches={locale_matches} timezone_matches={timezone_matches}",
+            file=sys.stderr,
+        )
         self.require("reboot")
         self.require("wait-for-device", timeout=180)
         deadline = time.monotonic() + 180
@@ -182,7 +190,13 @@ class Device:
     def verify_locale(self):
         locale = self.require("shell", "getprop", "persist.sys.locale").strip()
         timezone = self.require("shell", "getprop", "persist.sys.timezone").strip()
-        if locale not in (b"ko-KR", b"ko_KR") or timezone != b"Asia/Seoul":
+        locale_matches = locale in (b"ko-KR", b"ko_KR")
+        timezone_matches = timezone == b"Asia/Seoul"
+        print(
+            f"Locale verification: locale_matches={locale_matches} timezone_matches={timezone_matches}",
+            file=sys.stderr,
+        )
+        if not locale_matches or not timezone_matches:
             raise RunnerFailure("device-must-use-ko-KR-and-Asia-Seoul")
 
     def exercise_variables(self):
@@ -227,7 +241,7 @@ class Device:
         names = {COMPONENT, APP_ID + "/.e2e.MaestroSetupActivity"}
         if not resolved.intersection(names):
             raise RunnerFailure("installed-app-has-no-e2e-setup-component")
-        self.require("exec-out", "run-as", APP_ID, "pwd")
+        self.require("shell", "-T", "run-as", APP_ID, "pwd")
 
     def clear(self):
         self.require("shell", "am", "force-stop", APP_ID)
@@ -239,32 +253,37 @@ class Device:
         files = (REQUEST, RESULT, SESSION) if include_session else (REQUEST, RESULT)
         # export 완료 뒤 호스트가 읽을 때까지 세션 본문과 AtomicFile sidecar를 보존합니다.
         paths = [path + suffix for path in files for suffix in ("", ".new", ".bak")]
-        self.require("exec-out", "run-as", APP_ID, "rm", "-f", *paths)
+        self.require("shell", "-T", "run-as", APP_ID, "rm", "-f", *paths)
 
     def bootstrap(self, operation, credentials=None, timeout=300):
         self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         request = {"operation": operation, **(credentials or {})}
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-        # exec-out은 PTY 없이 stdin을 전달합니다. argv에는 고정 파일명/명령만 들어갑니다.
+        # shell -T는 PTY 없이 stdin과 원격 종료 상태를 전달합니다. argv에는 고정 명령만 넣습니다.
         script = "umask 077; mkdir -p files && cat > " + REQUEST
-        self.require("exec-out", "run-as", APP_ID, "sh", "-c", shlex.quote(script), payload=payload)
+        self.require("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(script), payload=payload)
         self.require("shell", "am", "start", "-W", "-n", COMPONENT)
         expected = {"prepare": "ready", "cleanup": "cleaned", "export": "exported"}[operation]
+        # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
+        probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
-            code, output, _ = self.call("exec-out", "run-as", APP_ID, "cat", RESULT)
-            if code == 0 and output:
-                try:
-                    result = json.loads(output)
-                except (ValueError, TypeError):
-                    raise RunnerFailure("invalid-bootstrap-result") from None
-                if not isinstance(result, dict) or result.get("status") != expected:
-                    # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
-                    raise RunnerFailure("bootstrap-" + operation + "-failed")
-                self.remove_private()
-                return
-            time.sleep(0.5)
+            code, output, _ = self.call("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(probe))
+            if code == 3:
+                time.sleep(0.5)
+                continue
+            if code != 0:
+                raise RunnerFailure("adb-operation-failed")
+            try:
+                result = json.loads(output)
+            except (ValueError, TypeError):
+                raise RunnerFailure("invalid-bootstrap-result") from None
+            if not isinstance(result, dict) or result.get("status") != expected:
+                # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
+                raise RunnerFailure("bootstrap-" + operation + "-failed")
+            self.remove_private()
+            return
         raise RunnerFailure("bootstrap-" + operation + "-timeout")
 
 
@@ -290,7 +309,7 @@ def export_session(device, output):
     written = False
     try:
         device.bootstrap("export")
-        payload = device.require("exec-out", "run-as", APP_ID, "cat", SESSION)
+        payload = device.require("shell", "-T", "run-as", APP_ID, "cat", SESSION)
         try:
             session = json.loads(payload)
         except (ValueError, TypeError):
