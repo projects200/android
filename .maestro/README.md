@@ -169,6 +169,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - 세 실행 경로 모두 **`maestro-dev` 환경**과 동일 계정 concurrency group을 사용합니다. 운영자가 환경을 만들고 승인자(required reviewers), 자기 승인 방지, dev와 신뢰한 PR merge ref에 맞는 배포 branch 정책을 설정해야 합니다. 이 저장소 변경만으로 외부 보호 정책이 만들어지지 않습니다. 비밀을 환경에 두고 비신뢰 실행을 승인하지 마세요.
 - 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
 - Maestro job은 제공한 DEV 설정으로 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행합니다. JDK17, API30 Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인, 순차 플로우와 finally 정리를 사용합니다.
+- SDK 설정은 `packages: 'platform-tools'`를 명시해 액션 기본 목록의 구형 `tools` 설치를 제외합니다. `sdkmanager`는 액션이 별도로 설치하는 `cmdline-tools`를 사용합니다.
 
 `maestro-dev` 환경에 등록할 비밀:
 
