@@ -170,6 +170,14 @@ class Device:
         self.require("wait-for-device")
         self.require("shell", "setprop", "persist.sys.locale", "ko-KR")
         self.require("shell", "setprop", "persist.sys.timezone", "Asia/Seoul")
+        locale = self.require("shell", "getprop", "persist.sys.locale").strip()
+        timezone = self.require("shell", "getprop", "persist.sys.timezone").strip()
+        locale_matches = locale in (b"ko-KR", b"ko_KR")
+        timezone_matches = timezone == b"Asia/Seoul"
+        print(
+            f"Locale after-setprop: locale_matches={locale_matches} timezone_matches={timezone_matches}",
+            file=sys.stderr,
+        )
         self.require("reboot")
         self.require("wait-for-device", timeout=180)
         deadline = time.monotonic() + 180
@@ -182,7 +190,13 @@ class Device:
     def verify_locale(self):
         locale = self.require("shell", "getprop", "persist.sys.locale").strip()
         timezone = self.require("shell", "getprop", "persist.sys.timezone").strip()
-        if locale not in (b"ko-KR", b"ko_KR") or timezone != b"Asia/Seoul":
+        locale_matches = locale in (b"ko-KR", b"ko_KR")
+        timezone_matches = timezone == b"Asia/Seoul"
+        print(
+            f"Locale verification: locale_matches={locale_matches} timezone_matches={timezone_matches}",
+            file=sys.stderr,
+        )
+        if not locale_matches or not timezone_matches:
             raise RunnerFailure("device-must-use-ko-KR-and-Asia-Seoul")
 
     def exercise_variables(self):
