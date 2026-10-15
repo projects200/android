@@ -72,6 +72,105 @@ class MaestroFeedFixtureTest {
     }
 
     @Test
+    fun `기준 목록 조회 실패는 변경 전 소유 저널을 남기고 정리 재시도는 저장소를 다시 호출하지 않는다`() =
+        runTest {
+            coEvery { repository.getFeeds(null, 10) } returns BaseResult.Error("SERVER_ERROR", "")
+
+            expectFailure("feed_fixture_read_failed") { fixture.prepare(request) }
+            val saved = snapshot.readBytes()
+            val journal = JSONObject(saved.toString(Charsets.UTF_8))
+            assertThat(journal.getString("memberId")).isEqualTo(request.memberId)
+            assertThat(journal.getString("runId")).isEqualTo(request.runId)
+            assertThat(journal.getString("flow")).isEqualTo(request.flow)
+            assertThat(journal.getString("phase")).isEqualTo("pre-mutation")
+            assertThat(journal.has("baseline")).isTrue()
+            assertThat(journal.isNull("baseline")).isTrue()
+
+            fixture.cleanup(request)
+            assertThat(snapshot.readBytes()).isEqualTo(saved)
+            fixture.cleanup(request)
+            assertThat(snapshot.readBytes()).isEqualTo(saved)
+            coVerify(exactly = 1) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) {
+                repository.getFeedDetail(any())
+                repository.getComments(any())
+                repository.deleteFeed(any())
+                repository.deleteComment(any())
+                repository.deleteFeedImage(any(), any())
+            }
+        }
+
+    @Test
+    fun `변경 전 저널도 다른 실행 작성자 흐름의 준비와 정리를 거부하고 보존한다`() =
+        runTest {
+            coEvery { repository.getFeeds(null, 10) } returns BaseResult.Error("SERVER_ERROR", "")
+            expectFailure("feed_fixture_read_failed") { fixture.prepare(request) }
+            val saved = snapshot.readBytes()
+
+            val otherRequests =
+                listOf(
+                    request.copy(runId = "1123456789abcdef"),
+                    request.copy(memberId = "other"),
+                    request.copy(flow = "feed-comment"),
+                )
+            for (other in otherRequests) {
+                expectFailure("feed_fixture_snapshot_mismatch") { fixture.prepare(other) }
+                expectFailure("feed_fixture_snapshot_mismatch") { fixture.cleanup(other) }
+                assertThat(snapshot.readBytes()).isEqualTo(saved)
+            }
+            coVerify(exactly = 1) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `동일 요청의 재준비는 변경 전 저널을 덮어쓰지 않는다`() =
+        runTest {
+            coEvery { repository.getFeeds(null, 10) } returns BaseResult.Error("SERVER_ERROR", "")
+            expectFailure("feed_fixture_read_failed") { fixture.prepare(request) }
+            val saved = snapshot.readBytes()
+            posts(existingFeed(42))
+
+            expectFailure("feed_fixture_snapshot_exists") { fixture.prepare(request) }
+            assertThat(snapshot.readBytes()).isEqualTo(saved)
+            coVerify(exactly = 1) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `동일 요청의 재준비는 완성된 기준 목록 저널을 덮어쓰지 않는다`() =
+        runTest {
+            posts(existingFeed(42))
+            fixture.prepare(request)
+            val saved = snapshot.readBytes()
+            posts(existingFeed(55))
+
+            expectFailure("feed_fixture_snapshot_exists") { fixture.prepare(request) }
+            assertThat(snapshot.readBytes()).isEqualTo(saved)
+            coVerify(exactly = 3) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `기준 목록은 변경 전 저널에서 읽고 실제 정리 전에 완성된 저널로 교체한다`() =
+        runTest {
+            val phases = mutableListOf<String>()
+            coEvery { repository.getFeeds(null, 10) } answers {
+                val journal = JSONObject(snapshot.readText())
+                phases.add(journal.getString("phase"))
+                if (journal.getString("phase") == "mutation-authorized") {
+                    assertThat(journal.getString("baseline")).isEqualTo("42")
+                }
+                BaseResult.Success(FeedListResult(false, listOf(existingFeed(42))))
+            }
+
+            fixture.prepare(request)
+
+            assertThat(phases).containsExactly("pre-mutation", "mutation-authorized", "mutation-authorized").inOrder()
+            assertThat(JSONObject(snapshot.readText()).getString("phase")).isEqualTo("mutation-authorized")
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
     fun `후속 공통 정리 실패 뒤 동일 요청 정리는 원본 기준 목록과 저널을 그대로 재사용한다`() =
         runTest {
             posts(existingFeed(42), existingFeed(7))
@@ -118,6 +217,83 @@ class MaestroFeedFixtureTest {
 
             expectFailure("feed_validation_unexpected_posts") { fixture.cleanup(request) }
             assertThat(snapshot.readBytes()).isEqualTo(saved)
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `완성된 저널의 기준 목록이 유실되면 변경 전 준비 실패로 간주하지 않는다`() =
+        runTest {
+            posts(existingFeed(42))
+            fixture.prepare(request)
+            val journal = JSONObject(snapshot.readText())
+            for (missing in listOf(false, true)) {
+                if (missing) journal.remove("baseline") else journal.put("baseline", JSONObject.NULL)
+                snapshot.writeText(journal.toString())
+                val saved = snapshot.readBytes()
+
+                expectFailure("feed_validation_unexpected_posts") { fixture.cleanup(request) }
+                assertThat(snapshot.readBytes()).isEqualTo(saved)
+            }
+            coVerify(exactly = 3) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `깨진 JSON이나 없거나 알 수 없는 단계는 준비와 정리를 허용하지 않는다`() =
+        runTest {
+            posts(existingFeed(42))
+            fixture.prepare(request)
+            val complete = snapshot.readText()
+            val invalidJournals =
+                listOf(
+                    "{",
+                    JSONObject(complete).apply { remove("phase") }.toString(),
+                    JSONObject(complete).put("phase", "unknown").toString(),
+                )
+            for (invalid in invalidJournals) {
+                snapshot.writeText(invalid)
+                val saved = snapshot.readBytes()
+
+                expectFailure("feed_fixture_snapshot_invalid") { fixture.prepare(request) }
+                expectFailure("feed_fixture_snapshot_invalid") { fixture.cleanup(request) }
+                assertThat(snapshot.readBytes()).isEqualTo(saved)
+            }
+            coVerify(exactly = 3) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `변경 전 단계라도 불완전하거나 완성된 증거가 섞인 저널은 정리 성공으로 간주하지 않는다`() =
+        runTest {
+            coEvery { repository.getFeeds(null, 10) } returns BaseResult.Error("SERVER_ERROR", "")
+            expectFailure("feed_fixture_read_failed") { fixture.prepare(request) }
+            val original = snapshot.readText()
+            val invalidJournals =
+                listOf(
+                    JSONObject(original).apply { remove("baseline") },
+                    JSONObject(original).put("baseline", "42"),
+                    JSONObject(original).put("mediaPath", "Pictures/other/"),
+                    JSONObject(original).put("A", JSONObject()),
+                    JSONObject(original).put("B", JSONObject()),
+                )
+            for (invalid in invalidJournals) {
+                snapshot.writeText(invalid.toString())
+                val saved = snapshot.readBytes()
+
+                expectFailure("feed_fixture_snapshot_invalid") { fixture.cleanup(request) }
+                assertThat(snapshot.readBytes()).isEqualTo(saved)
+            }
+            coVerify(exactly = 1) { repository.getFeeds(any(), any()) }
+            coVerify(exactly = 0) { repository.deleteFeed(any()) }
+        }
+
+    @Test
+    fun `변경 흐름도 저널 없이 정리를 성공으로 간주하지 않는다`() =
+        runTest {
+            for (flow in listOf("feed-post-crud", "feed-like", "feed-comment", "feed-photo")) {
+                expectFailure("feed_fixture_snapshot_invalid") { fixture.cleanup(request.copy(flow = flow)) }
+            }
+            coVerify(exactly = 0) { repository.getFeeds(any(), any()) }
             coVerify(exactly = 0) { repository.deleteFeed(any()) }
         }
 

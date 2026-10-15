@@ -30,11 +30,12 @@ internal class MaestroFeedFixture
 
         override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
             val owner = ownership(request)
-            checkSnapshot(owner)
+            if (checkSnapshot(owner) != null) throw MaestroSetupFailure("feed_fixture_snapshot_exists")
+            save(owner, "pre-mutation", emptyList(), null)
             // 촬영 메타데이터를 포함한 최종 PNG 바이트와 소유 경로를 삽입·UI 변경 전에 확정합니다.
             val images = if (owner.flow == "feed-photo") images(owner) else emptyList()
             val baseline = if (owner.flow == "feed-form-validation") baseline(owner) else null
-            save(owner, images, baseline)
+            save(owner, "mutation-authorized", images, baseline)
             cleaner.clean(owner)
             for (image in images) importImage(image, owner)
             return buildMap {
@@ -52,9 +53,14 @@ internal class MaestroFeedFixture
 
         override suspend fun cleanup(request: MaestroFeatureRequest) {
             val owner = ownership(request)
-            val saved = checkSnapshot(owner)
+            val saved =
+                checkSnapshot(owner) ?: throw MaestroSetupFailure(
+                    if (owner.flow == "feed-form-validation") "feed_validation_unexpected_posts" else "feed_fixture_snapshot_invalid",
+                )
+            // 변경을 허용하기 전 실패한 준비만 부작용 없이 정리하며 공통 정리 재시도 증거를 보존합니다.
+            if (saved.getString("phase") == "pre-mutation") return
             if (owner.flow == "feed-form-validation") {
-                if (saved == null || saved.isNull("baseline") || saved.getString("baseline") != baseline(owner)) {
+                if (saved.isNull("baseline") || saved.getString("baseline") != baseline(owner)) {
                     // 빈 본문 오류로 생긴 무표식 글을 임의로 소유한다고 판단해 삭제하지 않습니다.
                     throw MaestroSetupFailure("feed_validation_unexpected_posts")
                 }
@@ -87,11 +93,24 @@ internal class MaestroFeedFixture
             ) {
                 throw MaestroSetupFailure("feed_fixture_snapshot_mismatch")
             }
+            val phase = saved.optString("phase")
+            if (phase != "pre-mutation" && phase != "mutation-authorized") {
+                throw MaestroSetupFailure("feed_fixture_snapshot_invalid")
+            }
+            if (phase == "pre-mutation") {
+                if (
+                    saved.optString("mediaPath") != mediaPath(owner) || !saved.has("baseline") || !saved.isNull("baseline") ||
+                    saved.has("A") || saved.has("B")
+                ) {
+                    throw MaestroSetupFailure("feed_fixture_snapshot_invalid")
+                }
+            }
             return saved
         }
 
         private fun save(
             owner: MaestroFeedOwnership,
+            phase: String,
             images: List<Image>,
             baseline: String?,
         ) {
@@ -100,6 +119,7 @@ internal class MaestroFeedFixture
                     .put("memberId", owner.memberId)
                     .put("runId", owner.runId)
                     .put("flow", owner.flow)
+                    .put("phase", phase)
                     .put("mediaPath", mediaPath(owner))
                     .put("baseline", baseline ?: JSONObject.NULL)
             for (image in images) {
