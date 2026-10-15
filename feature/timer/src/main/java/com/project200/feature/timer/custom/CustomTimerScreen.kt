@@ -355,6 +355,8 @@ private fun StepCard(
                     onClick = onClick,
                 )
                 .height(60.dp)
+                // 이름의 노출 여부가 아니라 실제 강조 중인 스텝으로 전환을 검증합니다.
+                .testTag(if (highlighted) "custom_timer_active_step_${step.order}" else "custom_timer_step_${step.order}")
                 .padding(start = 12.dp, end = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -375,6 +377,7 @@ private fun StepCard(
             text = step.time.toFormattedTime(),
             style = MaterialTheme.typography.header,
             color = tint,
+            modifier = Modifier.testTag("custom_timer_step_time_${step.order}"),
         )
     }
 }

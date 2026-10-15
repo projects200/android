@@ -1,0 +1,17 @@
+appId: com.project200.undabang
+---
+# 새 스텝과 프리셋의 기본값은 01:00입니다. 호출부가 분과 초를 모두 지정합니다.
+- extendedWaitUntil:
+    visible:
+      id: minute_et
+    timeout: 10000
+- tapOn:
+    id: minute_et
+- eraseText: 2
+- inputText: "${TIMER_MINUTES}"
+- tapOn:
+    id: second_et
+- eraseText: 2
+- inputText: "${TIMER_SECONDS}"
+- tapOn:
+    id: confirm_btn

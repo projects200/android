@@ -9,11 +9,6 @@ executionOrder:
     - smoke-tabs
     - exercise-form-entry
     - exercise-crud
-    - timer-simple-preset-crud
-    - timer-simple-run
-    - timer-custom-crud
-    - timer-custom-run
-    - timer-form-validation
     - login-screen
 
 testOutputDir: build/maestro

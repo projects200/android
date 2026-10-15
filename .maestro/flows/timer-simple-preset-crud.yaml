@@ -4,76 +4,100 @@ tags:
   - regression
   - requires-login
 ---
-# 심플 타이머 프리셋을 추가·수정·삭제하고, 화면 재진입과 앱 재실행 후에도 결과가 남는지 봅니다.
-# 프리셋에는 이름이 없어 시간(mm:ss) 자체를 고유값으로 씁니다. 상한이 6개(MAX_TIMER_COUNT)라
-# 계정에 빈 자리가 있다는 전제가 필요합니다 (#611 작업 상세 8번)
+# flow별 clear 뒤 만든 로컬 프리셋만 추가·수정·삭제합니다. 같은 시간의 서버 프리셋은 다른 선택자를 씁니다.
+# 서버 프리셋을 지워 자리를 만들지 않습니다. 6개 상한 아래에 빈 자리가 있다는 전제가 필요합니다.
 - runFlow: ../subflows/launch-logged-in.yaml
 - runFlow: ../subflows/timer-open-list.yaml
 
 - tapOn: "심플 타이머"
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: simple_timer_add_cell
+    direction: DOWN
     timeout: 30000
 
-# 추가할 시간을 실행마다 다르게 만듭니다. 5~54초 범위라 분 자리는 항상 00으로 고정됩니다
-- evalScript: ${output.presetSec = (Date.now() % 50) + 5}
-- evalScript: ${output.presetLabel = '00:' + ('0' + output.presetSec).slice(-2)}
-- evalScript: ${output.presetSec2 = output.presetSec + 1}
-- evalScript: ${output.presetLabel2 = '00:' + ('0' + output.presetSec2).slice(-2)}
-
-# 추가: AddCell -> 다이얼로그에서 초만 바꾸고 확인
+# 시간값은 로컬 행 안에서만 식별자로 씁니다. 새 격리 실행에는 같은 시간의 로컬 행이 없어야 합니다.
+- evalScript: ${output.presetSec = 41}
+- evalScript: ${output.presetLabel = '00:41'}
+- evalScript: ${output.presetSec2 = 42}
+- evalScript: ${output.presetLabel2 = '00:42'}
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec}"
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec2}"
 - tapOn:
     id: simple_timer_add_cell
-- extendedWaitUntil:
-    visible:
-      id: second_et
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.presetSec}
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_local_preset_${output.presetSec}"
+    direction: UP
     timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: ${output.presetSec}
-- tapOn:
-    id: confirm_btn
-- assertVisible: ${output.presetLabel}
+- assertVisible:
+    id: "simple_timer_local_preset_${output.presetSec}"
+    text: ${output.presetLabel}
 
 # 화면 재진입: 목록으로 나갔다가 다시 들어와도 유지되는지
 - back
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_add_card
+    visible: "심플 타이머"
     timeout: 30000
 - tapOn: "심플 타이머"
-- extendedWaitUntil:
-    visible: ${output.presetLabel}
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_local_preset_${output.presetSec}"
+    direction: DOWN
     timeout: 30000
+- assertVisible:
+    id: "simple_timer_local_preset_${output.presetSec}"
+    text: ${output.presetLabel}
 
-# 수정: 카드 메뉴에서 수정 선택 후 초를 바꿉니다. 메뉴 아이콘은 프리셋마다 시간값으로 구분합니다
+# 수정 전에도 대상 시간이 다른 로컬 행에 쓰이지 않았는지 확인합니다.
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec2}"
 - tapOn:
-    id: "simple_timer_menu_${output.presetSec}"
+    id: "simple_timer_local_menu_${output.presetSec}"
 - tapOn: "수정"
-- extendedWaitUntil:
-    visible:
-      id: second_et
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.presetSec2}
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_local_preset_${output.presetSec2}"
+    direction: DOWN
     timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: ${output.presetSec2}
-- tapOn:
-    id: confirm_btn
-- assertVisible: ${output.presetLabel2}
+- assertVisible:
+    id: "simple_timer_local_preset_${output.presetSec2}"
+    text: ${output.presetLabel2}
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec}"
 
 # 앱 재실행 후에도 수정 결과가 남는지. clearState를 쓰면 세션이 지워지므로 launch-logged-in만 다시 돈다
 - runFlow: ../subflows/launch-logged-in.yaml
 - runFlow: ../subflows/timer-open-list.yaml
 - tapOn: "심플 타이머"
-- extendedWaitUntil:
-    visible: ${output.presetLabel2}
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_local_preset_${output.presetSec2}"
+    direction: DOWN
     timeout: 30000
+- assertVisible:
+    id: "simple_timer_local_preset_${output.presetSec2}"
+    text: ${output.presetLabel2}
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec}"
 
 # 삭제: 심플 프리셋은 별도 확인 다이얼로그 없이 바로 지워집니다 (SimpleTimerViewModel.deleteTimerItem)
 - tapOn:
-    id: "simple_timer_menu_${output.presetSec2}"
+    id: "simple_timer_local_menu_${output.presetSec2}"
 - tapOn: "삭제"
-- assertNotVisible: ${output.presetLabel2}
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.presetSec2}"
+- assertNotVisible:
+    id: "simple_timer_local_menu_${output.presetSec2}"

@@ -10,8 +10,15 @@ tags:
 - runFlow: ../subflows/launch-logged-in.yaml
 - runFlow: ../subflows/timer-open-list.yaml
 
-- evalScript: ${output.tag = 'e2e611c' + Date.now()}
+- evalScript: ${output.tag = 'e2e611c-' + E2E_RUN_ID}
 
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"
 - tapOn:
     id: custom_timer_add_card
 - extendedWaitUntil:
@@ -30,35 +37,25 @@ tags:
 - inputText: "StepA"
 - tapOn:
     id: custom_timer_form_new_step_time
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "5"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "5"
 - tapOn:
     id: custom_timer_form_add_step_btn
 
-# 스텝2: StepB, 5초 (footer가 비워진 채 재사용됨)
+# 스텝2: StepB, 5초 (footer의 시간 기본값도 다시 덮어씁니다)
 - tapOn:
     id: custom_timer_form_new_step_name_field
 - inputText: "StepB"
 - tapOn:
     id: custom_timer_form_new_step_time
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "5"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "5"
 - tapOn:
     id: custom_timer_form_add_step_btn
 
@@ -72,21 +69,38 @@ tags:
     timeout: 20000
 - assertVisible:
     id: custom_timer_step_name_0
+    text: "StepA"
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "00:05"
 - assertVisible:
     id: custom_timer_step_name_1
+    text: "StepB"
+- assertVisible:
+    id: custom_timer_step_time_1
+    text: "00:05"
 
 # 재진입 확인: 목록으로 나갔다가 이름(ASCII 태그)으로 다시 들어옵니다
 - back
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_add_card
+    visible: "심플 타이머"
     timeout: 30000
-- tapOn: ${output.tag}
+- scrollUntilVisible:
+    element:
+      id: "custom_timer_local_${output.tag}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "custom_timer_local_${output.tag}"
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
-- assertVisible: "StepA"
-- assertVisible: "StepB"
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: "StepA"
+- assertVisible:
+    id: custom_timer_step_name_1
+    text: "StepB"
 
 # 수정: 이름 변경 + StepA 이름 변경 + StepB 시간 변경 + 순서 변경
 - tapOn:
@@ -109,20 +123,16 @@ tags:
 
 - tapOn:
     id: custom_timer_form_step_time_1
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "6"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "6"
 
 # 순서 변경: 첫 스텝(order 0) 핸들을 아래로 스와이프합니다. order 필드는 유지된 채 위치만 바뀌어
 # 제출 시 getStepsWithFinalOrder()가 위치 기준으로 order를 다시 매깁니다.
-# 실제 기기에서 reorderable 라이브러리가 swipe 제스처로 드래그가 걸리는지는 미실행 상태라 확인하지 못했습니다
+# 키보드를 내려 핸들과 다음 스텝 사이의 실제 드래그 경로를 확보합니다.
+- hideKeyboard
 - swipe:
     from:
       id: custom_timer_form_step_handle_0
@@ -134,17 +144,45 @@ tags:
     visible: "${output.tag}-ed"
     timeout: 20000
 
-# 순서가 실제로 바뀌었다면 order=0 자리에는 이제 StepB가, order=1 자리에는 StepA2가 와야 합니다
-- copyTextFrom:
+# 제출 직후와 목록 재진입 뒤에 위치별 이름·시간을 모두 확인합니다.
+- assertVisible:
     id: custom_timer_step_name_0
-- evalScript: ${output.firstStepName = maestro.copiedText}
-- assertTrue:
-    condition: ${output.firstStepName == 'StepB'}
-    label: 드래그 순서 변경으로 첫 스텝이 StepB로 바뀌었는지 확인
+    text: "StepB"
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "00:06"
 - assertVisible:
     id: custom_timer_step_name_1
-- assertVisible: "StepA2"
-- assertVisible: "00:06"
+    text: "StepA2"
+- assertVisible:
+    id: custom_timer_step_time_1
+    text: "00:05"
+- back
+- extendedWaitUntil:
+    visible: "심플 타이머"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: "custom_timer_local_${output.tag}-ed"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "custom_timer_local_${output.tag}-ed"
+- extendedWaitUntil:
+    visible: "${output.tag}-ed"
+    timeout: 20000
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: "StepB"
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "00:06"
+- assertVisible:
+    id: custom_timer_step_name_1
+    text: "StepA2"
+- assertVisible:
+    id: custom_timer_step_time_1
+    text: "00:05"
 
 # 삭제 후 목록에서 제거되는지
 - tapOn:
@@ -152,7 +190,12 @@ tags:
 - tapOn: "삭제하기"
 - tapOn: "확인"
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_add_card
+    visible: "심플 타이머"
     timeout: 20000
-- assertNotVisible: "${output.tag}-ed"
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}-ed"

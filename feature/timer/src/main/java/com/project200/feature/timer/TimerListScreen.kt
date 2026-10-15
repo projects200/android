@@ -76,7 +76,7 @@ fun TimerListScreen(
             customTimers.forEach { timer ->
                 key(timer.localId) {
                     CustomTimerCard(
-                        name = timer.name,
+                        timer = timer,
                         onClick = { onCustomTimerClick(timer) },
                     )
                 }
@@ -131,7 +131,7 @@ private fun SimpleTimerCard(
 
 @Composable
 private fun CustomTimerCard(
-    name: String,
+    timer: CustomTimer,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -148,11 +148,13 @@ private fun CustomTimerCard(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ),
+                )
+                // 실행 표식이 서버 제목과 겹쳐도 새로 만든 로컬 행만 선택합니다.
+                .testTag(if (timer.serverId == null) "custom_timer_local_${timer.name}" else "custom_timer_${timer.localId}"),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = name,
+            text = timer.name,
             style = MaterialTheme.typography.header,
             color = ColorBlack,
         )

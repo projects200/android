@@ -11,33 +11,31 @@ tags:
 
 # 1) 심플 타이머: 0초는 저장되지 않습니다 (SimpleTimerFragment의 newTime <= 0 가드)
 - tapOn: "심플 타이머"
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: simple_timer_add_cell
+    direction: DOWN
     timeout: 30000
 - tapOn:
     id: simple_timer_add_cell
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "0"
-- tapOn:
-    id: minute_et
-- eraseText
-- inputText: "0"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "0"
 - assertVisible: "타이머를 1초 이상으로 설정해주세요"
+- assertNotVisible:
+    id: simple_timer_local_preset_0
 - back
 
 # 2) 커스텀 타이머: 제목이 비면 저장되지 않습니다
 - extendedWaitUntil:
-    visible:
+    visible: "심플 타이머"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
       id: custom_timer_add_card
+    direction: DOWN
     timeout: 30000
 - tapOn:
     id: custom_timer_add_card
@@ -59,24 +57,26 @@ tags:
 # 3) 커스텀 타이머: 스텝 시간이 5초 미만이면 그 값이 반영되지 않습니다 (TimePickerDialog 단계에서 차단)
 - tapOn:
     id: custom_timer_form_new_step_time
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "3"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "3"
 - assertVisible: "스텝의 시간을 5초 이상으로 설정해주세요."
 # 기본값(60초 = 01:00)이 그대로 남아 있어야 거부가 확인됩니다
-- assertVisible: "01:00"
+- copyTextFrom:
+    id: custom_timer_form_new_step_time
+- assertTrue:
+    condition: ${maestro.copiedText == '01:00'}
+    label: 거부한 footer 시간이 기본값 01:00을 유지하는지 확인
+- assertVisible:
+    id: custom_timer_form_title_field
 
 # 4) 커스텀 타이머: 제목은 채우고, 이미 추가된 스텝의 이름을 비우면 저장되지 않습니다
+- evalScript: ${output.tag = 'e2e611v-' + E2E_RUN_ID}
 - tapOn:
     id: custom_timer_form_title_field
-- inputText: "e2e611v"
+- inputText: ${output.tag}
 - tapOn:
     id: custom_timer_form_step_name_0
 - eraseText
@@ -88,7 +88,12 @@ tags:
 # 아무것도 저장하지 않고 나갑니다
 - back
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_add_card
+    visible: "심플 타이머"
     timeout: 20000
-- assertNotVisible: "e2e611v"
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"

@@ -4,15 +4,18 @@ tags:
   - regression
   - requires-login
 ---
-# 시작·일시정지·재개·단계 전환·종료, 반복 모드의 대표 경로를 확인합니다 (#611 작업 상세 5번).
-# 두 단계 모두 5초(도메인 최소값)로 짧게 만들어 전체 실행을 11~12초 안에 끝냅니다.
-# 심플과 달리 커스텀은 "종료" 버튼이 실제로 있어(완료 기준 3번) 버튼 경로로 첫 단계/정지 복귀를 확인합니다.
-# 자연 종료(두 단계가 모두 끝나 isTimerFinished)는 뒤쪽 반복-해제 구간에서 별도로 확인합니다
+# 같은 길이의 두 스텝으로 실행·정지·재개·활성 스텝 전환을 실제 상태에서 관찰합니다.
 - runFlow: ../subflows/launch-logged-in.yaml
 - runFlow: ../subflows/timer-open-list.yaml
-
-- evalScript: ${output.tag = 'e2e611r' + Date.now()}
-
+- evalScript: ${output.tag = 'e2e611r-' + E2E_RUN_ID}
+- evalScript: ${output.stepSec = 30}
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"
 - tapOn:
     id: custom_timer_add_card
 - extendedWaitUntil:
@@ -28,162 +31,183 @@ tags:
 - inputText: "StepA"
 - tapOn:
     id: custom_timer_form_new_step_time
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "5"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
 - tapOn:
     id: custom_timer_form_add_step_btn
-
 - tapOn:
     id: custom_timer_form_new_step_name_field
 - inputText: "StepB"
 - tapOn:
     id: custom_timer_form_new_step_time
-- extendedWaitUntil:
-    visible:
-      id: second_et
-    timeout: 10000
-- tapOn:
-    id: second_et
-- eraseText
-- inputText: "5"
-- tapOn:
-    id: confirm_btn
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
 - tapOn:
     id: custom_timer_form_add_step_btn
-
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_remaining_time
+      text: "00:30"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible:
+    id: custom_timer_repeat_off
 
-# 시작: 버튼 텍스트가 시작 <-> 일시 정지로 토글되는 선례(smoke-tabs 등과 동일하게 텍스트 셀렉터 사용)
+# 반복을 시작 전에 켭니다. 마지막 스텝에 도착한 뒤 뒤늦게 켜지 않습니다.
+- tapOn:
+    id: custom_timer_repeat_off
+- assertVisible:
+    id: custom_timer_repeat_on
 - tapOn: "시작"
 - extendedWaitUntil:
     visible: "일시 정지"
     timeout: 10000
-
-# 진행 확인
+- assertVisible:
+    id: custom_timer_active_step_0
 - copyTextFrom:
     id: custom_timer_remaining_time
-- evalScript: ${output.r1 = maestro.copiedText}
+- evalScript: ${output.running1 = maestro.copiedText}
 - extendedWaitUntil:
-    visible:
-      id: __e2e611_sleep_anchor__
-    timeout: 1500
-    optional: true
+    notVisible:
+      id: custom_timer_remaining_time
+      text: ${output.running1}
+    timeout: 10000
 - copyTextFrom:
     id: custom_timer_remaining_time
-- evalScript: ${output.progressed = (parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)) < (parseInt(output.r1.split(':')[0], 10) * 60 + parseInt(output.r1.split(':')[1], 10))}
+- evalScript: ${output.runningSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
 - assertTrue:
-    condition: ${output.progressed}
-    label: 실행 중 남은 시간이 줄어드는지 확인
+    condition: ${output.runningSeconds > 0 && output.runningSeconds < (parseInt(output.running1.split(':')[0], 10) * 60 + parseInt(output.running1.split(':')[1], 10))}
+    label: 첫 스텝 실행 중 남은 시간이 감소하는지 확인
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_active_step_0
 
-# 일시정지 -> 재개
 - tapOn: "일시 정지"
 - extendedWaitUntil:
     visible: "시작"
     timeout: 10000
 - copyTextFrom:
     id: custom_timer_remaining_time
-- evalScript: ${output.p1 = maestro.copiedText}
-- extendedWaitUntil:
-    visible:
-      id: __e2e611_sleep_anchor__
-    timeout: 1200
-    optional: true
+- evalScript: ${output.paused1 = maestro.copiedText}
+- evalScript: ${output.pauseUntil = Date.now() + 2000}
+- repeat:
+    while:
+      true: ${Date.now() < output.pauseUntil}
+    commands:
+      - assertVisible: "시작"
+      - assertVisible:
+          id: custom_timer_active_step_0
+      - copyTextFrom:
+          id: custom_timer_remaining_time
+      - assertTrue:
+          condition: ${output.paused1 == maestro.copiedText}
+          label: 일시정지 중 스텝과 남은 시간이 유지되는지 확인
 - copyTextFrom:
     id: custom_timer_remaining_time
 - assertTrue:
-    condition: ${output.p1 == maestro.copiedText}
-    label: 일시정지 중 남은 시간이 유지되는지 확인
+    condition: ${output.paused1 == maestro.copiedText}
+    label: 관찰 구간 끝에도 일시정지 시간이 같은지 확인
 
 - tapOn: "시작"
 - extendedWaitUntil:
     visible: "일시 정지"
     timeout: 10000
-
-# 단계 전환: StepA(5초)가 끝나기 직전에 읽고, StepB로 넘어간 직후 다시 읽어 값이 늘어나는지 봅니다.
-# 정확한 초 대신 "리셋으로 인한 증가"라는 상태 신호로 판정합니다
-- extendedWaitUntil:
-    visible:
-      id: __e2e611_sleep_anchor__
-    timeout: 4000
-    optional: true
 - copyTextFrom:
     id: custom_timer_remaining_time
-- evalScript: ${output.beforeTransition = maestro.copiedText}
+- evalScript: ${output.resumed1 = maestro.copiedText}
 - extendedWaitUntil:
-    visible:
-      id: __e2e611_sleep_anchor__
-    timeout: 3000
-    optional: true
+    notVisible:
+      id: custom_timer_remaining_time
+      text: ${output.resumed1}
+    timeout: 10000
 - copyTextFrom:
     id: custom_timer_remaining_time
-- evalScript: ${output.transitioned = (parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)) > (parseInt(output.beforeTransition.split(':')[0], 10) * 60 + parseInt(output.beforeTransition.split(':')[1], 10))}
+- evalScript: ${output.resumedSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
 - assertTrue:
-    condition: ${output.transitioned}
-    label: 스텝 전환으로 남은 시간이 다시 늘어났는지 확인
-- assertVisible: "StepB"
-
-# 반복 모드 대표 경로: 켠 상태로 StepB(약 2~3초 남음)가 끝나 한 바퀴를 다 돌아도 멈추지 않아야 합니다
-- tapOn:
-    id: custom_timer_repeat_off
-- extendedWaitUntil:
-    visible:
-      id: custom_timer_repeat_on
-    timeout: 5000
-- extendedWaitUntil:
-    visible:
-      id: __e2e611_sleep_anchor__
-    timeout: 5000
-    optional: true
+    condition: ${output.resumedSeconds > 0 && output.resumedSeconds < (parseInt(output.resumed1.split(':')[0], 10) * 60 + parseInt(output.resumed1.split(':')[1], 10))}
+    label: 재개 후 같은 스텝에서 남은 시간이 감소하는지 확인
+- assertVisible:
+    id: custom_timer_active_step_0
 - assertVisible: "일시 정지"
 
-# 반복 해제 후 종료 버튼으로 첫 스텝/정지 상태 복귀를 확인합니다 (완료 기준 3번)
-- tapOn:
+# StepA -> StepB -> StepA를 강조 상태로 확인합니다. 두 이름은 항상 보여 전환 증거가 아닙니다.
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_active_step_1
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
     id: custom_timer_repeat_on
 - extendedWaitUntil:
     visible:
-      id: custom_timer_repeat_off
-    timeout: 5000
+      id: custom_timer_active_step_0
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_repeat_on
+
+# 명시 종료: 반복을 해제하고 종료 버튼으로 첫 스텝/정지/초기 시간에 복귀합니다.
+- tapOn:
+    id: custom_timer_repeat_on
+- assertVisible:
+    id: custom_timer_repeat_off
 - tapOn: "종료"
 - extendedWaitUntil:
     visible: "시작"
     timeout: 10000
-- copyTextFrom:
-    id: custom_timer_remaining_time
-- assertTrue:
-    condition: ${maestro.copiedText == '00:05'}
-    label: 종료 후 첫 스텝(5초) 길이로 되돌아갔는지 확인
 - assertVisible:
-    id: custom_timer_step_name_0
+    id: custom_timer_active_step_0
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_remaining_time
+      text: "00:30"
+    timeout: 10000
 
-# 자연 종료: 반복 없이 두 단계를 끝까지 흘려보내 isTimerFinished 경로로 첫 단계/정지에 복귀하는지 봅니다
+# 자연 종료는 별도 실행합니다. 시작 상태만 다시 기다려 즉시 통과하지 않도록 실행과 StepB를 먼저 확인합니다.
 - tapOn: "시작"
 - extendedWaitUntil:
+    visible: "일시 정지"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_active_step_1
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_repeat_off
+- extendedWaitUntil:
     visible: "시작"
-    timeout: 15000
-- copyTextFrom:
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible:
     id: custom_timer_remaining_time
-- assertTrue:
-    condition: ${maestro.copiedText == '00:05'}
-    label: 자연 종료 후 첫 스텝 길이로 리셋되는지 확인
+    text: "00:30"
 
-# 정리: 생성한 커스텀 타이머를 삭제합니다
 - tapOn:
     id: custom_timer_menu_btn
 - tapOn: "삭제하기"
 - tapOn: "확인"
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_add_card
+    visible: "심플 타이머"
     timeout: 20000
-- assertNotVisible: ${output.tag}
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"
