@@ -58,8 +58,10 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/dev')
     runs-on: ubuntu-latest
     timeout-minutes: 90
-    # 이 환경에 승인자와 dev/PR merge ref 정책을 설정해야 DEV 계정 비밀을 공개할 수 있습니다.
-    environment: maestro-dev
+    # DEV 계정 비밀은 환경에서 읽고, 허용 ref 제한은 외부 환경 정책으로 유지합니다.
+    environment:
+      name: maestro-dev
+      deployment: false
     concurrency:
       group: maestro-dev-dedicated-account
       cancel-in-progress: false
