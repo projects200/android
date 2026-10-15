@@ -1,0 +1,11 @@
+appId: com.project200.undabang
+---
+# 최초 이력·누락 이력 성공과 해당 방의 실제 onOpen을 모두 확인합니다.
+- extendedWaitUntil:
+    visible:
+      id: chatting_message_rv
+      text: "${READY_SELECTOR}"
+    timeout: 60000
+- assertVisible:
+    id: chatting_message_et
+    enabled: true

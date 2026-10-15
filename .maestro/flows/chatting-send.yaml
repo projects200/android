@@ -1,58 +1,24 @@
 appId: com.project200.undabang
-name: 채팅방 메시지 전송 (A 역할)
+name: 두 계정 실제 UI 메시지 전송
 tags:
   - regression
   - requires-login
   - requires-two-devices
 ---
-# chatting-receive.yaml과 짝으로 돌아가는 플로우입니다. PEER_NICKNAME과 MESSAGE는
-# 받는 쪽과 반드시 같은 값을 공유해야 하므로 evalScript 기본값을 쓰지 않고 -e로만 주입받습니다.
-# 이 기기가 만든 타임스탬프를 상대 기기가 알 방법이 없어 각자 evalScript로 채우면
-# 두 플로우가 서로 다른 문구를 보게 됩니다. 두 기기 실행 순서와 명령은 README-chatting.md를 따릅니다
-- runFlow: ../subflows/launch-logged-in.yaml
-
-- tapOn:
-    id: chatting_nav_graph
-
-# 목록 조회는 최초 조회가 성공한 뒤에만 신뢰합니다. 폴링 주기(15초)와 콜드 스타트를 감안해
-# smoke-tabs보다 더 길게 기다립니다
-- extendedWaitUntil:
-    visible:
-      text: "(?s).*${PEER_NICKNAME}님과의 채팅"
-    timeout: 40000
-
-- tapOn:
-    text: "(?s).*${PEER_NICKNAME}님과의 채팅"
-
-- extendedWaitUntil:
-    visible:
-      id: chatting_message_et
-    timeout: 30000
-
-# 차단하거나 상대가 나간 방이면 입력창이 비활성화되고 힌트가 바뀝니다(ChatInputState).
-# 전송 전에 활성 상태인지 가볍게 확인합니다. 차단·퇴장 여부 자체를 준비하는 절차는
-# README-chatting.md의 전용 방 준비 항목에서 다룹니다
-- assertVisible:
-    id: chatting_message_et
-    enabled: true
-
+# 드라이버가 상대방의 준비·부재를 확인한 뒤 실행합니다. 재진입하지 않습니다.
+- runFlow: ../subflows/chatting-ready.yaml
+- assertNotVisible:
+    id: outgoing_message_tv
+    text: "${MESSAGE_SELECTOR}"
 - tapOn:
     id: chatting_message_et
 - inputText: "${MESSAGE}"
 - tapOn:
     id: send_btn
-
-# 말풍선이 올라오거나 입력창이 비는 것은 이 화면의 UI 상태일 뿐 전달 증명이 아닙니다.
-# 전달 성공 판정은 여기서 하지 않고 상대 계정의 chatting-receive.yaml 쪽에서 확인합니다.
-# 여기서는 내 쪽 화면에 방금 보낸 문구가 그대로 올라왔는지만 스모크로 봅니다
-- assertVisible:
-    id: message_tv
-    text: "${MESSAGE}"
-
-# 메시지별 삭제 UI가 없어 보낸 문구를 따로 지울 수 없습니다. 방도 반복 실행마다 재사용하는
-# 전용 픽스처라 메뉴의 '나가기'로 탈퇴하지 않습니다. 일반 뒤로가기만 써서 데이터를 보존합니다
-- back
 - extendedWaitUntil:
     visible:
-      id: chatting_nav_graph
-    timeout: 30000
+      id: outgoing_message_tv
+      text: "${MESSAGE_SELECTOR}"
+    timeout: 60000
+- hideKeyboard
+# 상대의 실제 수신 검증 전에는 일반 뒤로가기도 하지 않습니다.

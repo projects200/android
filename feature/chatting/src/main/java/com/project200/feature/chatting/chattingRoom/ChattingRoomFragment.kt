@@ -32,6 +32,7 @@ import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
 import com.project200.presentation.utils.MenuStyler
 import com.project200.presentation.utils.UiUtils.dpToPx
+import com.project200.undabang.feature.chatting.BuildConfig
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -198,6 +199,15 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (BuildConfig.DEBUG) {
+                    launch {
+                        viewModel.isReady.collect { ready ->
+                            // 방 ID·상대 ID와 실제 이력/소켓 준비 상태를 함께 노출합니다.
+                            binding.chattingMessageRv.contentDescription =
+                                "chat-${if (ready) "ready" else "loading"}:${args.roomId}:peer:${args.memberId}"
+                        }
+                    }
+                }
                 launch {
                     viewModel.chatState.collect { state ->
                         val isEnabled: Boolean

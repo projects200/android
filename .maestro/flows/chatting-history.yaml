@@ -1,81 +1,24 @@
 appId: com.project200.undabang
-name: 채팅방 재진입 이력 유지 확인
+name: 방을 비운 동안 온 메시지와 기존 이력 유지
 tags:
   - regression
   - requires-login
   - requires-two-devices
 ---
-# 재진입 이력 유지와 '방을 비운 동안 도착한 메시지' 두 완료 기준을 한 플로우에서 봅니다.
-# EXISTING_MESSAGE는 이 플로우를 시작하기 전에 이미 주고받아 이력에 있는 문구이고(예: 앞서 돌린
-# chatting-send/receive의 MESSAGE), AWAY_MESSAGE는 아래 일시 정지 구간 동안 상대가 별도로
-# chatting-send.yaml을 돌려 새로 보내는 문구입니다. 정확한 두 기기 실행 순서와 타이밍은
-# README-chatting.md를 따릅니다. 세 값 모두 외부에서 -e로만 주입받습니다
-- runFlow: ../subflows/launch-logged-in.yaml
-
-- tapOn:
-    id: chatting_nav_graph
-
+# 드라이버가 실제 소켓 종료→상대 UI 전송→목록 수신→동일 방 재진입 순서를 보장합니다.
+- runFlow: ../subflows/chatting-ready.yaml
 - extendedWaitUntil:
     visible:
-      text: "(?s).*${PEER_NICKNAME}님과의 채팅"
-    timeout: 40000
-
-- tapOn:
-    text: "(?s).*${PEER_NICKNAME}님과의 채팅"
-
-- extendedWaitUntil:
-    visible:
-      id: chatting_message_et
+      id: incoming_message_tv
+      text: "${AWAY_MESSAGE_SELECTOR}"
     timeout: 30000
-
-# 1. 이전에 주고받은 메시지가 최초 진입 때부터 보이는지 확인합니다 (이력 유지)
+- scrollUntilVisible:
+    element:
+      id: incoming_message_tv
+      text: "${EXISTING_MESSAGE_SELECTOR}"
+    direction: UP
+    timeout: 30000
+    centerElement: true
 - assertVisible:
-    id: message_tv
-    text: "${EXISTING_MESSAGE}"
-
-# 일반 뒤로가기로 방을 비웁니다. 실제 나가기(메뉴의 action_exit)는 쓰지 않습니다.
-# ChattingRoomFragment.onPause는 즉시 끊지 않고 5초 유예 뒤 소켓을 해제합니다
-# (ChattingRoomViewModel.scheduleDisconnect, DISCONNECT_GRACE_PERIOD_MS)
-- back
-- extendedWaitUntil:
-    visible:
-      id: chatting_nav_graph
-    timeout: 30000
-
-# 2. Maestro에는 고정 시간 sleep 명령이 없습니다. 존재하지 않는 셀렉터를 optional로 기다려
-# 5초 유예 시간을 확실히 넘기는 시간을 법니다. 이 대기 구간 동안 상대 기기가 AWAY_MESSAGE를
-# 보내도록 README-chatting.md에 타이밍을 맞춰 둡니다
-- extendedWaitUntil:
-    visible:
-      id: __maestro_pause_marker_never_exists__
-    timeout: 8000
-    optional: true
-
-- tapOn:
-    text: "(?s).*${PEER_NICKNAME}님과의 채팅"
-
-- extendedWaitUntil:
-    visible:
-      id: chatting_message_et
-    timeout: 30000
-
-# 3. 방을 비운 동안 도착한 메시지가 재진입 때 표시되는지 확인합니다.
-# 재진입은 ChattingRoomFragment를 새로 만들어 ViewModel.setId → loadInitialMessages가
-# 최신 메시지를 REST로 다시 불러오므로, 소켓이 끊겨 있던 사이 메시지도 여기서 채워집니다
-- extendedWaitUntil:
-    visible:
-      id: message_tv
-      text: "${AWAY_MESSAGE}"
-    timeout: 30000
-
-# 4. 재진입 후에도 이전 이력이 사라지지 않았는지 다시 확인합니다
-- assertVisible:
-    id: message_tv
-    text: "${EXISTING_MESSAGE}"
-
-# 메시지별 삭제 UI가 없고 방은 재사용하는 전용 픽스처라 탈퇴하지 않습니다
-- back
-- extendedWaitUntil:
-    visible:
-      id: chatting_nav_graph
-    timeout: 30000
+    id: incoming_message_tv
+    text: "${EXISTING_MESSAGE_SELECTOR}"

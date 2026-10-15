@@ -15,7 +15,7 @@
         app:layout_constraintGuide_percent="0.3" />
 
     <TextView
-        android:id="@+id/message_tv"
+        android:id="@+id/outgoing_message_tv"
         style="@style/content_regular"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -36,8 +36,8 @@
         android:layout_height="wrap_content"
         android:layout_marginEnd="5dp"
         android:textColor="@color/gray200"
-        app:layout_constraintBottom_toBottomOf="@id/message_tv"
-        app:layout_constraintEnd_toStartOf="@id/message_tv"
+        app:layout_constraintBottom_toBottomOf="@id/outgoing_message_tv"
+        app:layout_constraintEnd_toStartOf="@id/outgoing_message_tv"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintHorizontal_chainStyle="packed"
         app:layout_constraintStart_toStartOf="@+id/guideline_start" />

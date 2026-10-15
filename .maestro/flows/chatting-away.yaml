@@ -1,0 +1,13 @@
+appId: com.project200.undabang
+name: 채팅방 일반 뒤로가기 및 실제 소켓 종료 확인
+---
+- runFlow: ../subflows/chatting-ready.yaml
+- hideKeyboard
+- back
+- extendedWaitUntil:
+    visible:
+      id: chatting_room_rv
+      text: "${DISCONNECTED_SELECTOR}"
+    timeout: 40000
+- assertNotVisible:
+    id: chatting_message_et

@@ -1,0 +1,12 @@
+{
+  "flows": ["chatting-send", "chatting-receive", "chatting-list-refresh", "chatting-history"],
+  "apiLevel": 30,
+  "fixture": true,
+  "requiredEnvironment": [
+    "MAESTRO_PEER_AUTH_STATE_JSON",
+    "MAESTRO_PEER_MEMBER_ID",
+    "MAESTRO_PEER_FIXTURE_START_DATE",
+    "MAESTRO_CHAT_ROOM_ID"
+  ],
+  "driver": "chatting"
+}

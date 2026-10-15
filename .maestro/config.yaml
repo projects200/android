@@ -11,9 +11,4 @@ executionOrder:
     - exercise-crud
     - login-screen
 
-# chatting-send/receive/history/list-refresh.yaml(태그 requires-two-devices)는 계정 2개와
-# 기기 2대가 동시에 필요해 여기 순서에 넣지 않습니다. maestro test .maestro/ 같은 단일 기기
-# 전체 실행에서는 --exclude-tags=requires-two-devices로 빼고, 실행 방법은
-# .maestro/README-chatting.md를 따로 둡니다
-
 testOutputDir: build/maestro
