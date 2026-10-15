@@ -3,7 +3,9 @@
 
 import argparse
 import datetime
+import importlib.util
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -26,6 +28,7 @@ COMPONENT = APP_ID + "/com.project200.undabang.e2e.MaestroSetupActivity"
 REQUEST = "files/maestro-request.json"
 RESULT = "files/maestro-result.json"
 SESSION = "files/maestro-session.json"
+RECOVERY = "files/maestro-feature-recovery.json"
 MAESTRO_VERSION = "2.11.0"
 FLOWS = {
     "smoke": ("smoke-tabs", "login-screen"),
@@ -38,6 +41,17 @@ TOOL_ENV_KEYS = (
     "ANDROID_SDK_ROOT", "ANDROID_ADB_SERVER_PORT", "ADB_SERVER_SOCKET",
     "ADB_VENDOR_KEYS", "TMPDIR", "TMP", "TEMP", "SYSTEMROOT",
 )
+FEATURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
+FLOW_NAME = re.compile(r"[a-z][a-z0-9-]*")
+VARIABLE_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
+REQUIRED_ENVIRONMENT = frozenset({
+    "MAESTRO_PEER_AUTH_STATE_JSON", "MAESTRO_PEER_MEMBER_ID",
+    "MAESTRO_PEER_FIXTURE_START_DATE", "MAESTRO_CHAT_ROOM_ID",
+    "MAESTRO_MATCHING_LEFT_TOP_LATITUDE", "MAESTRO_MATCHING_LEFT_TOP_LONGITUDE",
+    "MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE", "MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE",
+    "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
+    "MAESTRO_MATCHING_MARKER_POINT", "MAESTRO_MATCHING_ROOM_ID",
+})
 
 
 class RunnerFailure(Exception):
@@ -78,10 +92,13 @@ def command(argv, env, timeout=60, payload=None):
         raise RunnerFailure("tool-unavailable") from None
 
 
-def read_credentials():
-    keys = ("MAESTRO_AUTH_STATE_JSON", "MAESTRO_MEMBER_ID", "MAESTRO_FIXTURE_START_DATE")
-    if any(not os.environ.get(key, "").strip() for key in keys):
-        raise RunnerFailure("missing-required-session-secrets")
+def read_credentials(prefix="MAESTRO_"):
+    if prefix not in ("MAESTRO_", "MAESTRO_PEER_"):
+        raise RunnerFailure("invalid-credentials-prefix")
+    keys = tuple(prefix + name for name in ("AUTH_STATE_JSON", "MEMBER_ID", "FIXTURE_START_DATE"))
+    missing = [key for key in keys if not os.environ.get(key, "").strip()]
+    if missing:
+        raise RunnerFailure("missing-required-session-secrets: " + ", ".join(missing))
     try:
         auth = json.loads(os.environ[keys[0]])
         start = datetime.date.fromisoformat(os.environ[keys[2]])
@@ -96,6 +113,125 @@ def read_credentials():
     return {"authState": auth, "memberId": os.environ[keys[1]], "fixtureStartDate": start.isoformat()}
 
 
+def discover_suites():
+    directory = ROOT / ".maestro" / "suites"
+    descriptors = {}
+    if not directory.exists():
+        return descriptors
+    if directory.is_symlink() or not directory.is_dir():
+        raise RunnerFailure("invalid-suite-directory")
+    owned_flows = set(flow for flows in FLOWS.values() for flow in flows)
+    for path in sorted(directory.iterdir()):
+        if path.suffix != ".json":
+            raise RunnerFailure("invalid-suite-descriptor-file")
+        name = path.stem
+        if (not FEATURE_NAME.fullmatch(name) or name in {*FLOWS, "ci"}
+                or path.is_symlink() or not path.is_file()):
+            raise RunnerFailure("invalid-suite-descriptor")
+        try:
+            descriptor = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            raise RunnerFailure("invalid-suite-descriptor") from None
+        if not isinstance(descriptor, dict) or set(descriptor) != {
+            "flows", "apiLevel", "fixture", "requiredEnvironment", "driver",
+        }:
+            raise RunnerFailure("invalid-suite-descriptor")
+        flows = descriptor["flows"]
+        environment = descriptor["requiredEnvironment"]
+        driver = descriptor["driver"]
+        if (not isinstance(flows, list) or not flows
+                or any(not isinstance(flow, str) or not FLOW_NAME.fullmatch(flow) for flow in flows)
+                or len(set(flows)) != len(flows) or owned_flows.intersection(flows)
+                or type(descriptor["apiLevel"]) is not int or not 30 <= descriptor["apiLevel"] <= 99
+                or type(descriptor["fixture"]) is not bool
+                or not isinstance(environment, list)
+                or any(not isinstance(key, str) or key not in REQUIRED_ENVIRONMENT for key in environment)
+                or len(set(environment)) != len(environment)
+                or (driver is not None and driver != name)):
+            raise RunnerFailure("invalid-suite-descriptor")
+        for flow in flows:
+            flow_path = ROOT / ".maestro" / "flows" / (flow + ".yaml")
+            if flow_path.is_symlink() or not flow_path.is_file():
+                raise RunnerFailure("selected-flow-file-missing")
+        module = ROOT / ".maestro" / "scripts" / "features" / (name + ".py")
+        if module.is_symlink() or (driver is not None and not module.is_file()):
+            raise RunnerFailure("invalid-feature-module")
+        owned_flows.update(flows)
+        descriptors[name] = {"name": name, **descriptor}
+    return descriptors
+
+
+def builtin_suite(flows):
+    return {"name": None, "flows": list(flows), "apiLevel": 30, "fixture": False,
+            "requiredEnvironment": [], "driver": None}
+
+
+def select_suites(name):
+    descriptors = discover_suites()
+    if name in ("ci", "all"):
+        suites = [builtin_suite(("smoke-tabs",))]
+        if name == "all":
+            suites.append(builtin_suite(FLOWS["regression"]))
+        suites.extend(descriptors.values())
+        suites.append(builtin_suite(("login-screen",)))
+    elif name in FLOWS:
+        suites = [builtin_suite(FLOWS[name])]
+    elif name in descriptors:
+        suites = [descriptors[name]]
+    else:
+        raise RunnerFailure("unknown-selected-suite")
+    for flow in selected_flows(suites):
+        path = ROOT / ".maestro" / "flows" / (flow + ".yaml")
+        if path.is_symlink() or not path.is_file():
+            raise RunnerFailure("selected-flow-file-missing")
+    return suites
+
+
+def selected_flows(suites):
+    return [flow for suite in suites for flow in suite["flows"]]
+
+
+def required_api(suites):
+    return max(suite["apiLevel"] for suite in suites)
+
+
+def read_required_environment(suites):
+    required = sorted({key for suite in suites for key in suite["requiredEnvironment"]})
+    missing = [key for key in required if not os.environ.get(key, "").strip()]
+    if missing:
+        raise RunnerFailure("missing-required-environment: " + ", ".join(missing))
+    values = {key: os.environ[key] for key in required}
+    if "MAESTRO_PEER_AUTH_STATE_JSON" in values:
+        read_credentials("MAESTRO_PEER_")
+    return values
+
+
+def safe_variables(variables):
+    if not isinstance(variables, dict):
+        raise RunnerFailure("invalid-feature-variables")
+    for key, value in variables.items():
+        if (not isinstance(key, str) or not VARIABLE_NAME.fullmatch(key)
+                or re.search(r"AUTH|TOKEN|FCM|SECRET|PASSWORD|SESSION", key)
+                or not isinstance(value, str) or len(value) > 4096
+                or any(ord(character) < 32 for character in value)
+                or re.search(r"eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.", value)):
+            raise RunnerFailure("invalid-feature-variables")
+    return dict(variables)
+
+
+def feature_metadata(operation, feature, flow, run_id, parameters):
+    if all(value is None for value in (feature, flow, run_id, parameters)):
+        return {}
+    if (operation not in ("prepare", "cleanup")
+            or not isinstance(feature, str) or not FEATURE_NAME.fullmatch(feature)
+            or not isinstance(flow, str) or not FLOW_NAME.fullmatch(flow)
+            or not isinstance(run_id, str) or not re.fullmatch(r"[a-f0-9]{16,32}", run_id)
+            or not isinstance(parameters, dict)
+            or any(not isinstance(key, str) or not isinstance(value, str) for key, value in parameters.items())):
+        raise RunnerFailure("invalid-feature-metadata")
+    return {"feature": feature, "flow": flow, "runId": run_id, "parameters": parameters}
+
+
 class Redactor:
     def __init__(self, credentials):
         values = []
@@ -107,7 +243,7 @@ class Redactor:
             elif isinstance(value, list):
                 for item in value:
                     collect(item)
-            elif isinstance(value, str) and len(value) >= 4:
+            elif isinstance(value, str) and value:
                 values.extend((value, json.dumps(value, ensure_ascii=False)[1:-1]))
 
         collect(credentials or {})
@@ -244,6 +380,13 @@ class Device:
         self.require("shell", "-T", "run-as", APP_ID, "pwd")
 
     def clear(self):
+        # 이전 실행의 복구 snapshot이 있으면 새 실행도 pm clear로 이를 지우지 않습니다.
+        probe = "if [ -e " + RECOVERY + " ] || [ -e " + RECOVERY + ".bak ] || [ -e " + RECOVERY + ".new ]; then exit 4; fi"
+        code, _, _ = self.call("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(probe))
+        if code == 4:
+            raise RunnerFailure("pending-feature-restoration-refuses-app-data-clear")
+        if code != 0:
+            raise RunnerFailure("adb-operation-failed")
         self.require("shell", "am", "force-stop", APP_ID)
         output = self.require("shell", "pm", "clear", APP_ID)
         if output.strip() != b"Success":
@@ -255,10 +398,14 @@ class Device:
         paths = [path + suffix for path in files for suffix in ("", ".new", ".bak")]
         self.require("shell", "-T", "run-as", APP_ID, "rm", "-f", *paths)
 
-    def bootstrap(self, operation, credentials=None, timeout=300):
+    def bootstrap(self, operation, credentials=None, timeout=300, feature=None, flow=None,
+                  run_id=None, parameters=None):
+        if operation not in ("prepare", "cleanup", "export"):
+            raise RunnerFailure("invalid-bootstrap-operation")
+        metadata = feature_metadata(operation, feature, flow, run_id, parameters)
+        request = {"operation": operation, **(credentials or {}), **metadata}
         self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
-        request = {"operation": operation, **(credentials or {})}
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         # shell -T는 PTY 없이 stdin과 원격 종료 상태를 전달합니다. argv에는 고정 명령만 넣습니다.
         script = "umask 077; mkdir -p files && cat > " + REQUEST
@@ -282,8 +429,9 @@ class Device:
             if not isinstance(result, dict) or result.get("status") != expected:
                 # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
                 raise RunnerFailure("bootstrap-" + operation + "-failed")
+            variables = safe_variables(result.get("variables", {}))
             self.remove_private()
-            return
+            return variables
         raise RunnerFailure("bootstrap-" + operation + "-timeout")
 
 
@@ -384,7 +532,7 @@ def maestro_result(report):
         raise RunnerFailure("maestro-assertion-failed")
 
 
-def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None):
+def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
     maestro = shutil.which("maestro")
     if not maestro:
         raise RunnerFailure("maestro-unavailable")
@@ -403,8 +551,10 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
         code, stdout, stderr = command([maestro, "--version"], env)
         if code != 0 or MAESTRO_VERSION not in stdout.decode("utf-8", "replace").split():
             raise RunnerFailure("maestro-version-must-be-2.11.0")
-        variables = device.exercise_variables()
-        if flow == "exercise-crud" and variables["EXERCISE_START_DATE"].replace(".", "-") < fixture_start_date:
+        explicit = safe_variables(variables or {})
+        variables = {**device.exercise_variables(), **explicit}
+        if flow == "exercise-crud" and (not fixture_start_date or
+                variables["EXERCISE_START_DATE"].replace(".", "-") < fixture_start_date):
             raise RunnerFailure("fixture-start-date-excludes-flow-record-date")
         report = raw / "report.xml"
         argv = [
@@ -439,73 +589,193 @@ def interrupt(_signum, _frame):
     raise RunInterrupted("run-interrupted")
 
 
+def load_feature_module(suite):
+    if not suite["name"]:
+        return None
+    path = ROOT / ".maestro" / "scripts" / "features" / (suite["name"] + ".py")
+    if not path.is_file():
+        return None
+    spec = importlib.util.spec_from_file_location("maestro_feature_" + suite["name"], path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    if suite["driver"] and not callable(getattr(module, "run_suite", None)):
+        raise RunnerFailure("invalid-feature-driver")
+    return module
+
+
+def core_module():
+    # importlib로 로드하는 회귀 테스트도 실행 모듈과 같은 공개 API를 받습니다.
+    if __name__ in sys.modules:
+        return sys.modules[__name__]
+    module = type(sys)("maestro_core", __doc__)
+    module.__dict__.update(globals())
+    return module
+
+
+def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, parameters, hooks):
+    started = time.monotonic()
+    errors = []
+    run_id = uuid.uuid4().hex[:16]
+    ownership = output / flow
+    ownership.mkdir(parents=True, exist_ok=True)
+    (ownership / "ownership.log").write_text("E2E_RUN_ID=" + run_id + "\n", encoding="utf-8")
+    variables = {"E2E_RUN_ID": run_id}
+    metadata = ({"feature": suite["name"], "flow": flow, "run_id": run_id, "parameters": parameters}
+                if suite["fixture"] else {})
+    prepared = False
+    safe_to_continue = True
+    try:
+        device.clear()
+        if flow != "login-screen":
+            # prepare 중 부분 변경이 발생해도 동일 ownership으로 cleanup을 요청합니다.
+            prepared = True
+            added = safe_variables(device.bootstrap("prepare", credentials, **metadata))
+            if "E2E_RUN_ID" in added and added["E2E_RUN_ID"] != run_id:
+                raise RunnerFailure("invalid-feature-variables")
+            variables.update(added)
+        if hooks and callable(getattr(hooks, "before_flow", None)):
+            try:
+                added = safe_variables(hooks.before_flow(
+                    core_module(), device, flow, dict(variables), credentials, run_id,
+                ))
+                if "E2E_RUN_ID" in added and added["E2E_RUN_ID"] != run_id:
+                    raise RunnerFailure("invalid-feature-variables")
+                variables.update(added)
+            except RunnerFailure:
+                raise
+            except Exception:
+                raise RunnerFailure("feature-hook-failed") from None
+        run_maestro(device, flow, output, redactor, args.flow_timeout,
+                    credentials["fixtureStartDate"] if credentials else None, variables=variables)
+        if hooks and callable(getattr(hooks, "after_flow", None)):
+            try:
+                hooks.after_flow(core_module(), device, flow, dict(variables), credentials, run_id)
+            except RunnerFailure:
+                raise
+            except Exception:
+                raise RunnerFailure("feature-hook-failed") from None
+    except RunInterrupted:
+        errors.append("run-interrupted")
+        safe_to_continue = False
+    except RunnerFailure as failure:
+        errors.append(str(failure))
+    except Exception:
+        errors.append("runner-operation-failed")
+    finally:
+        handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
+        try:
+            cleanup_failed = False
+            if prepared:
+                try:
+                    device.bootstrap("cleanup", credentials, **metadata)
+                except Exception:
+                    errors.append("fixture-cleanup-failed")
+                    cleanup_failed = True
+                    safe_to_continue = False
+            if cleanup_failed:
+                # pm clear는 복구 snapshot도 지우므로 정리 실패 뒤에는 다음 flow도 실행하지 않습니다.
+                errors.append("private-state-preserved-for-recovery")
+            else:
+                try:
+                    device.clear()
+                except Exception:
+                    errors.append("final-app-data-clear-failed")
+                    safe_to_continue = False
+        finally:
+            for sig, handler in handlers.items():
+                signal.signal(sig, handler)
+    return (flow, time.monotonic() - started, errors), safe_to_continue
+
+
+def validate_driver_results(flows, results):
+    if not isinstance(results, (list, tuple)):
+        return [(flow, 0, ["invalid-driver-results"]) for flow in flows]
+    reported = {}
+    invalid = False
+    for item in results:
+        if not isinstance(item, (list, tuple)) or len(item) != 3:
+            invalid = True
+            continue
+        flow, duration, errors = item
+        if (not isinstance(flow, str) or flow not in flows or flow in reported
+                or type(duration) not in (int, float) or not math.isfinite(duration) or duration < 0
+                or not isinstance(errors, list)
+                or any(not isinstance(error, str) or not re.fullmatch(r"[a-z][a-z0-9-]*", error) for error in errors)):
+            invalid = True
+            continue
+        reported[flow] = (flow, duration, errors)
+    return [(flow, reported[flow][1], [*reported[flow][2], "invalid-driver-results"])
+            if invalid and flow in reported else reported.get(flow, (flow, 0, ["driver-flow-not-reported"]))
+            for flow in flows]
+
+
 def run_suite(args):
-    selected = FLOWS[args.suite]
     output = ROOT / "build" / "maestro" / (datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
     output.mkdir(parents=True, mode=0o700)
+    args.output = output
     results = []
-    credentials = None
-    device = None
+    selected = []
     try:
-        if any(flow != "login-screen" for flow in selected):
-            credentials = read_credentials()
-        for flow in selected:
-            if not (ROOT / ".maestro" / "flows" / (flow + ".yaml")).is_file():
-                raise RunnerFailure("selected-flow-file-missing")
-        device = Device(args.device)
-        if args.configure_emulator:
-            device.configure_emulator()
-        device.verify_locale()
-        if args.apk:
-            device.install(Path(args.apk).resolve())
-        # 일반 debug/release 앱은 이 확인을 통과하지 못하며 pm clear도 하지 않습니다.
-        device.verify_setup()
-        redactor = Redactor(credentials)
-        for flow in selected:
-            started = time.monotonic()
-            errors = []
-            interrupted = False
-            try:
-                device.clear()
-                if flow != "login-screen":
-                    device.bootstrap("prepare", credentials)
-                run_maestro(device, flow, output, redactor, args.flow_timeout,
-                            credentials["fixtureStartDate"] if credentials else None)
-            except RunInterrupted:
-                errors.append("run-interrupted")
-                interrupted = True
-            except RunnerFailure as failure:
-                errors.append(str(failure))
-            except Exception:
-                errors.append("runner-operation-failed")
-            finally:
-                # 중단 신호가 정리 중 다시 들어와도 삭제/로컬 비밀 제거를 중간에 끊지 않습니다.
-                handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
+        suites = select_suites(args.suite)
+        selected = selected_flows(suites)
+        environment = read_required_environment(suites)
+        credentials = read_credentials() if any(flow != "login-screen" for flow in selected) else None
+        peer = read_credentials("MAESTRO_PEER_") if "MAESTRO_PEER_AUTH_STATE_JSON" in environment else None
+        redactor = Redactor({"primary": credentials, "peer": peer, "feature": environment})
+        # 모듈의 import/계약 오류도 장치 초기화나 서버 변경 전에 검출합니다.
+        modules = {suite["name"]: load_feature_module(suite) for suite in suites}
+        device = None
+        continue_run = True
+        for suite in suites:
+            parameters = {key: environment[key] for key in suite["requiredEnvironment"]}
+            hooks = modules[suite["name"]]
+            if not continue_run:
+                results.extend((flow, 0, ["not-executed-after-unsafe-cleanup-or-interruption"])
+                               for flow in suite["flows"])
+                continue
+            if suite["driver"]:
                 try:
-                    if flow != "login-screen":
-                        try:
-                            device.bootstrap("cleanup", credentials)
-                        except Exception:
-                            errors.append("fixture-cleanup-failed")
-                    try:
-                        device.clear()
-                    except Exception:
-                        errors.append("final-app-data-clear-failed")
-                finally:
-                    for sig, handler in handlers.items():
-                        signal.signal(sig, handler)
-                results.append((flow, time.monotonic() - started, errors))
-                write_report(output, results)
-            print(flow + (": FAILED (" + "; ".join(errors) + ")" if errors else ": PASSED"))
-            if interrupted:
-                break
+                    returned = hooks.run_suite(args, core_module())
+                    driver_results = validate_driver_results(suite["flows"], returned)
+                except RunInterrupted:
+                    driver_results = [(flow, 0, ["run-interrupted"]) for flow in suite["flows"]]
+                except Exception:
+                    driver_results = [(flow, 0, ["feature-driver-failed"]) for flow in suite["flows"]]
+                results.extend(driver_results)
+                continue_run = not any(errors for _, _, errors in driver_results)
+                device = None
+            else:
+                if device is None:
+                    device = Device(args.device)
+                    if args.configure_emulator:
+                        device.configure_emulator()
+                    device.verify_locale()
+                    if args.apk:
+                        device.install(Path(args.apk).resolve())
+                    # 일반 debug/release 앱은 이 확인을 통과하지 못하며 pm clear도 하지 않습니다.
+                    device.verify_setup()
+                for flow in suite["flows"]:
+                    if not continue_run:
+                        results.append((flow, 0, ["not-executed-after-unsafe-cleanup-or-interruption"]))
+                        continue
+                    result, continue_run = run_ordinary_flow(
+                        args, device, suite, flow, output, redactor, credentials, parameters, hooks,
+                    )
+                    results.append(result)
+                    write_report(output, results)
+            write_report(output, results)
     except RunnerFailure as failure:
         results.append(("host-setup", 0, [str(failure)]))
-        print("Host setup: FAILED (" + str(failure) + ")", file=sys.stderr)
     except Exception:
         results.append(("host-setup", 0, ["runner-operation-failed"]))
     finally:
+        reported = {name for name, _, _ in results}
+        results.extend((flow, 0, ["not-executed-host-setup-failed"])
+                       for flow in selected if flow not in reported)
         write_report(output, results)
+    for flow, _, errors in results:
+        print(flow + (": FAILED (" + "; ".join(errors) + ")" if errors else ": PASSED"))
     print("Safe artifacts: " + str(output.relative_to(ROOT)))
     return 1 if not results or any(errors for _, _, errors in results) else 0
 
@@ -513,9 +783,11 @@ def run_suite(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     operation = parser.add_mutually_exclusive_group(required=True)
-    operation.add_argument("--suite", choices=tuple(FLOWS))
+    operation.add_argument("--suite", help="smoke, regression, login, ci, all, or a discovered feature")
     operation.add_argument("--export-session", metavar="ABSOLUTE_PRIVATE_PATH")
     parser.add_argument("--device", help="ADB serial; required when multiple devices are connected")
+    parser.add_argument("--peer-device", help="Second ADB serial for the two-account chat driver")
+    parser.add_argument("--preflight", action="store_true", help="Validate selected inputs and emit the required emulator API")
     parser.add_argument("--apk", help="Install this exact e2e APK after checking effective ARM ABI support")
     parser.add_argument("--flow-timeout", type=int, default=900, help="Per-flow Maestro timeout in seconds")
     parser.add_argument("--configure-emulator", action="store_true", help="Set ko-KR/Asia-Seoul and reboot a rootable emulator")
@@ -525,6 +797,28 @@ def main():
     signal.signal(signal.SIGINT, interrupt)
     signal.signal(signal.SIGTERM, interrupt)
     try:
+        if args.preflight:
+            if not args.suite:
+                raise RunnerFailure("preflight-requires-suite")
+            suites = select_suites(args.suite)
+            selected = selected_flows(suites)
+            api = required_api(suites)
+            print("Selected flows: " + ", ".join(selected))
+            print("Required emulator API: " + str(api))
+            try:
+                read_required_environment(suites)
+                if any(flow != "login-screen" for flow in selected):
+                    read_credentials()
+            except RunnerFailure as failure:
+                output = ROOT / "build" / "maestro" / "preflight"
+                output.mkdir(parents=True, exist_ok=True)
+                write_report(output, [(flow, 0, [str(failure), "not-executed-input-preflight-failed"])
+                                      for flow in selected])
+                raise
+            if os.environ.get("GITHUB_OUTPUT"):
+                with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+                    handle.write("api-level=" + str(api) + "\n")
+            return 0
         if args.export_session:
             output = secure_export_path(args.export_session)
             device = Device(args.device)
