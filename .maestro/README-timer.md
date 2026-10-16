@@ -39,7 +39,11 @@ python3 .maestro/scripts/run-tests.py --suite timer --device emulator-5554 \
 
 ## 시간 입력과 실행 상태
 
-`subflows/timer-set-time.yaml`은 실제 `minute_et`와 `second_et`를 모두 지우고 호출부의 분·초를 입력합니다. 기본값 01:00이 짧은 타이머에 섞이지 않습니다. 제품의 60초 기본값은 바꾸지 않습니다.
+`subflows/timer-set-time.yaml`은 실제 `minute_et`와 `second_et`의 오른쪽(`point: "90%, 50%"`, 화면이 아닌 선택한 필드 기준)을 누른 뒤 두 자리를 지웁니다. 두 필드는 폭 100dp·중앙 정렬·최대 두 자리이므로 숫자 뒤에서 삭제하며, 포커스 시 `selectAll()`이 탭으로 해제되어도 뒷자리가 남지 않게 합니다. 분·초를 두 자리로 입력한 뒤 각 필드의 요청값을 확인하고 나서만 확인 버튼을 누릅니다. 제품의 60초 기본값과 범위 제한은 바꾸지 않습니다.
+
+Maestro 2.11.0의 [`YamlElementSelector`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-orchestra/src/main/java/maestro/orchestra/yaml/YamlElementSelector.kt)와 [`Orchestra.tapOnElement`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-orchestra/src/main/java/maestro/orchestra/Orchestra.kt)가 필드 상대 좌표를 지원합니다. 같은 버전의 [`MaestroDriverService.eraseAllText`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-android/src/androidTest/java/dev/mobile/maestro/MaestroDriverService.kt)는 선택 필드의 전체 교체가 아니라 Delete 키를 반복합니다.
+
+`timer-hide-keyboard.yaml`은 실제 CI의 Gboard 리소스가 보일 때만 키보드를 내립니다. 같은 버전의 Android `hideKeyboard`는 키보드가 없어도 Back을 보내므로 무조건 호출하면 폼이나 다이얼로그가 닫힐 수 있습니다. 커스텀 CRUD·실행은 키보드를 내리고 폼의 스텝 시간을 확인한 뒤 `custom_timer_form_submit_btn`을 누릅니다. 생성·수정 뒤에는 폼 필드가 사라지고 기존 상세 선택자가 나타나야 통과합니다. 빈 제목·빈 이름 검증도 같은 제출 버튼으로 검사하며 IME의 ‘완료’를 제출로 취급하지 않습니다.
 
 진행·재개는 현재 시간 텍스트가 바뀔 때까지 필수 대기한 뒤 양수 감소를 비교합니다. 일시정지는 최소 2초 관찰 구간 동안 실제 시간·정지 상태를 반복 단언합니다. 존재하지 않는 선택자의 선택적 타임아웃을 sleep으로 사용하지 않습니다.
 
@@ -49,4 +53,4 @@ python3 .maestro/scripts/run-tests.py --suite timer --device emulator-5554 \
 
 ## 검증 상태
 
-이 변경 작업에서는 빌드·테스트·lint·Maestro·adb를 실행하지 않았습니다. 문서와 소스의 정적 대조는 런타임 성공 증거가 아닙니다. 통합 후 실제 CI에서 다섯 플로우 이름, API30 선택자 노출, 6개 상한 실패, 같은 시간의 서버 프리셋 보존, 핸들 드래그와 재진입 순서, 중단 뒤 로컬 정리, 자연 종료와 반복 전환을 확인해야 합니다. 서버 타이머가 실제로 비어 있거나 인증 입력이 준비됐다고 가정하지 않습니다.
+입력 수정 전 [CI 실행](https://github.com/projects200/android/actions/runs/38859583606)에서 공유 Python 테스트·E2E 빌드·단위 테스트와 기본 smoke는 통과했지만, 타이머 다섯 플로우는 실패했습니다. 현재의 입력·제출 수정은 정적으로 확인했으며 수정 후 실행 검증은 남아 있습니다. 프리셋 6개 상한은 별도 계정 준비 조건이고, 기존 서버 데이터를 삭제하거나 플로우를 생략해 통과시키지 않습니다. 로컬에서는 빌드·테스트·Maestro를 실행하지 않았습니다.

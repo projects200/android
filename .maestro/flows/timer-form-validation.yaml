@@ -48,7 +48,9 @@ tags:
 - inputText: "StepA"
 - tapOn:
     id: custom_timer_form_add_step_btn
-- tapOn: "완료"
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- tapOn:
+    id: custom_timer_form_submit_btn
 - assertVisible: "타이머 제목을 입력해주세요."
 # 토스트가 사라져도 화면은 폼에 남아있어야 합니다 (저장되지 않고 이동도 하지 않음)
 - assertVisible:
@@ -80,7 +82,9 @@ tags:
 - tapOn:
     id: custom_timer_form_step_name_0
 - eraseText
-- tapOn: "완료"
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- tapOn:
+    id: custom_timer_form_submit_btn
 - assertVisible: "모든 스텝의 이름을 설정해주세요."
 - assertVisible:
     id: custom_timer_form_title_field

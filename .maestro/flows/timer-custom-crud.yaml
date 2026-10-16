@@ -59,11 +59,23 @@ tags:
 - tapOn:
     id: custom_timer_form_add_step_btn
 
+- runFlow: ../subflows/timer-hide-keyboard.yaml
 - assertVisible: "StepA"
 - assertVisible: "StepB"
-- tapOn: "완료"
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:05"
+- assertVisible:
+    id: custom_timer_form_step_time_1
+    text: "00:05"
+- tapOn:
+    id: custom_timer_form_submit_btn
 
 # 생성 성공 시 상세 화면으로 이동합니다 (popUpTo로 폼이 스택에서 빠짐)
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
@@ -132,14 +144,19 @@ tags:
 # 순서 변경: 첫 스텝(order 0) 핸들을 아래로 스와이프합니다. order 필드는 유지된 채 위치만 바뀌어
 # 제출 시 getStepsWithFinalOrder()가 위치 기준으로 order를 다시 매깁니다.
 # 키보드를 내려 핸들과 다음 스텝 사이의 실제 드래그 경로를 확보합니다.
-- hideKeyboard
+- runFlow: ../subflows/timer-hide-keyboard.yaml
 - swipe:
     from:
       id: custom_timer_form_step_handle_0
     direction: DOWN
     duration: 1000
 
-- tapOn: "완료"
+- tapOn:
+    id: custom_timer_form_submit_btn
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
 - extendedWaitUntil:
     visible: "${output.tag}-ed"
     timeout: 20000

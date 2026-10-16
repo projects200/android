@@ -50,7 +50,19 @@ tags:
       TIMER_SECONDS: ${output.stepSec}
 - tapOn:
     id: custom_timer_form_add_step_btn
-- tapOn: "완료"
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:30"
+- assertVisible:
+    id: custom_timer_form_step_time_1
+    text: "00:30"
+- tapOn:
+    id: custom_timer_form_submit_btn
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000

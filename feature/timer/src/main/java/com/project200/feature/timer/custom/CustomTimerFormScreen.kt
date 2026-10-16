@@ -96,7 +96,10 @@ fun CustomTimerFormScreen(
                         text = stringResource(com.project200.undabang.presentation.R.string.complete),
                         onClick = onCompleteClick,
                         isCompact = true,
-                        modifier = Modifier.padding(end = 20.dp),
+                        modifier =
+                            Modifier
+                                .padding(end = 20.dp)
+                                .testTag("custom_timer_form_submit_btn"),
                     )
                 },
             )
