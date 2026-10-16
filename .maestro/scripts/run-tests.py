@@ -274,7 +274,32 @@ class Redactor:
 ANDROID_XML = "{http://schemas.android.com/apk/res/android}"
 
 
-def aapt_xml(output):
+def ime_diagnostic(stage, **details):
+    # 호출부는 공개 IME 식별자·고정 분류·개수만 전달합니다. 원문/환경/stderr는 제외합니다.
+    print("IME metadata: " + json.dumps({"stage": stage, **details}, sort_keys=True), file=sys.stderr)
+
+
+def ime_attribute_names(nodes):
+    names = set()
+    allowed = {
+        "name", "resource", "imeSubtypeLocale", "imeSubtypeMode", "languageTag",
+        "isAsciiCapable", "subtypeId", "isAuxiliary", "overridesImplicitlyEnabledSubtype",
+    }
+    for node in nodes:
+        for key in node.attrib:
+            local = key.rsplit("}", 1)[-1].rsplit(":", 1)[-1]
+            if local not in allowed:
+                continue
+            form = (
+                "expanded" if key.startswith(ANDROID_XML) else
+                "android-prefix" if key.startswith("android:") else
+                "bare" if key == local else "other-namespace"
+            )
+            names.add(form + ":" + local)
+    return sorted(names)
+
+
+def aapt_xml(output, document="metadata"):
     # AAPT2 Debug::DumpXml의 들여쓰기와 공개 Android 속성만 읽습니다.
     root = None
     stack = []
@@ -290,11 +315,13 @@ def aapt_xml(output):
             elif root is None:
                 root = node
             else:
+                ime_diagnostic("xml", document=document, status="multiple-roots")
                 raise RunnerFailure("emulator-ime-metadata-unavailable")
             stack.append((depth, node))
         elif line.lstrip().startswith("A: "):
             attribute = re.fullmatch(r"\s*A: (.+?)(?:\(0x[0-9a-fA-F]+\))?=(.*)", line)
             if not attribute or not stack:
+                ime_diagnostic("xml", document=document, status="invalid-attribute")
                 raise RunnerFailure("emulator-ime-metadata-unavailable")
             name, value = attribute[1], attribute[2].split(' (Raw: "', 1)[0]
             namespace = "http://schemas.android.com/apk/res/android:"
@@ -304,7 +331,13 @@ def aapt_xml(output):
                 value = value[1:-1]
             stack[-1][1].set(name, value)
     if root is None:
+        ime_diagnostic("xml", document=document, status="missing-root")
         raise RunnerFailure("emulator-ime-metadata-unavailable")
+    ime_diagnostic(
+        "xml", document=document, status="parsed",
+        root=root.tag if root.tag in ("manifest", "input-method") else "other",
+        android_attribute_names=ime_attribute_names(root.iter()),
+    )
     return root
 
 
@@ -312,16 +345,30 @@ def ime_resource_id(manifest, ime):
     package, service = ime.split("/", 1)
     service = package + service if service.startswith(".") else service
     resources = []
+    services = manifest.findall("./application/service")
+    matching_services = 0
     if manifest.tag == "manifest" and manifest.get("package") == package:
-        for node in manifest.findall("./application/service"):
+        for node in services:
             name = node.get(ANDROID_XML + "name", "")
             name = package + name if name.startswith(".") else name
             if name == service:
+                matching_services += 1
                 resources.extend(
                     item.get(ANDROID_XML + "resource", "")
                     for item in node.findall("meta-data")
                     if item.get(ANDROID_XML + "name") == "android.view.im"
                 )
+    ime_diagnostic(
+        "ime-resource", package_matches=manifest.get("package") == package,
+        selected_service=service if re.fullmatch(r"[A-Za-z0-9_.$]+", service) else "invalid",
+        service_count=len(services), matching_service_count=matching_services,
+        service_attribute_names=ime_attribute_names(services),
+        metadata_attribute_names=ime_attribute_names(
+            item for node in services for item in node.findall("meta-data")
+        ),
+        resource_count=len(resources),
+        numeric_resource_ids=[item for item in resources if re.fullmatch(r"@0x[0-9a-fA-F]{8}", item)],
+    )
     if len(resources) != 1 or not re.fullmatch(r"@0x[0-9a-fA-F]{8}", resources[0]):
         raise RunnerFailure("emulator-ime-metadata-unavailable")
     return resources[0][1:]
@@ -330,14 +377,20 @@ def ime_resource_id(manifest, ime):
 def ime_resource_path(output, resource_id):
     selected = False
     paths = set()
+    resource_matches = 0
     for line in output.splitlines():
         resource = re.match(r"\s*resource (0x[0-9a-fA-F]{8}) \S+", line)
         if resource:
             selected = resource[1].lower() == resource_id.lower()
+            resource_matches += selected
         elif selected:
             path = re.search(r"\(file\) (\S+) type=XML\b", line)
             if path:
                 paths.add(path[1])
+    ime_diagnostic(
+        "resource-path", selected_resource=resource_id if re.fullmatch(r"0x[0-9a-fA-F]{8}", resource_id) else "invalid",
+        matching_resource_count=resource_matches, path_count=len(paths),
+    )
     # 로케일별 XML이 다르면 실제 Android resource resolution을 추측하지 않습니다.
     if len(paths) != 1:
         raise RunnerFailure("emulator-ime-metadata-unavailable")
@@ -366,6 +419,10 @@ def ascii_ime_subtype(metadata):
             # 0은 계산식, -1은 자동 선택입니다. 실제 선언 ID만 사용합니다.
             if -0x80000000 <= subtype <= 0x7fffffff and subtype not in (0, -1):
                 candidates.append(subtype)
+    ime_diagnostic(
+        "ascii-subtype", root=metadata.tag if metadata.tag == "input-method" else "other",
+        subtype_count=len(metadata.findall("subtype")), candidate_count=len(candidates),
+    )
     if len(candidates) != 1:
         raise RunnerFailure("emulator-ascii-subtype-unavailable")
     return candidates[0]
@@ -373,32 +430,44 @@ def ascii_ime_subtype(metadata):
 
 def installed_ascii_subtype(device):
     ime = device.require("shell", "settings", "get", "secure", "default_input_method").decode().strip()
-    if not re.fullmatch(r"[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+", ime):
+    valid_ime = re.fullmatch(r"[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+", ime) is not None
+    ime_diagnostic("default-ime", valid=valid_ime, component=ime if valid_ime else "invalid")
+    if not valid_ime:
         raise RunnerFailure("emulator-ime-metadata-unavailable")
     aapt = shutil.which("aapt2")
+    tool_source = "path" if aapt else "unavailable"
     if not aapt:
         sdk = device.env.get("ANDROID_HOME") or device.env.get("ANDROID_SDK_ROOT")
         candidates = sorted((Path(sdk) / "build-tools").glob("*/aapt2")) if sdk else []
         aapt = next((str(path) for path in reversed(candidates) if os.access(path, os.X_OK)), None)
+        tool_source = "sdk" if aapt else "unavailable"
+    ime_diagnostic("aapt-tool", source=tool_source)
     if not aapt:
         raise RunnerFailure("emulator-ascii-input-requires-aapt2")
     paths = device.require("shell", "pm", "path", ime.split("/", 1)[0]).decode().splitlines()
-    if len(paths) != 1 or not paths[0].startswith("package:/") or not paths[0].endswith(".apk"):
+    valid_apk = len(paths) == 1 and paths[0].startswith("package:/") and paths[0].endswith(".apk")
+    ime_diagnostic("apk-paths", count=len(paths), valid_single_apk=valid_apk)
+    if not valid_apk:
         raise RunnerFailure("emulator-ime-metadata-unavailable")
     with tempfile.TemporaryDirectory(prefix="undabang-ime-") as temporary:
         apk = str(Path(temporary) / "keyboard.apk")
+        ime_diagnostic("apk-pull", status="started")
         device.require("pull", paths[0][len("package:"):], apk)
+        ime_diagnostic("apk-pull", status="completed")
 
-        def dump(*args):
+        def dump(operation, *args):
+            ime_diagnostic("aapt", operation=operation, command=args[0], status="started")
             code, output, _ = command([aapt, "dump", *args, apk], device.env)
+            ime_diagnostic("aapt", operation=operation, command=args[0], exit_code=code, status="completed")
             if code != 0:
                 raise RunnerFailure("emulator-ime-metadata-unavailable")
             return output.decode("utf-8", "replace")
 
-        manifest = aapt_xml(dump("xmltree", "--file", "AndroidManifest.xml"))
+        manifest = aapt_xml(dump("manifest", "xmltree", "--file", "AndroidManifest.xml"), "manifest")
         resource = ime_resource_id(manifest, ime)
-        path = ime_resource_path(dump("resources"), resource)
-        return ime, ascii_ime_subtype(aapt_xml(dump("xmltree", "--file", path)))
+        path = ime_resource_path(dump("resources", "resources"), resource)
+        metadata = aapt_xml(dump("input-method", "xmltree", "--file", path), "input-method")
+        return ime, ascii_ime_subtype(metadata)
 
 
 class Device:
@@ -518,6 +587,20 @@ class Device:
             raise RunnerFailure("invalid-e2e-apk") from None
         arm_abis = abis.intersection({"armeabi-v7a", "arm64-v8a"})
         effective = set(self.require("shell", "getprop", "ro.product.cpu.abilist").decode().strip().split(","))
+        # 설치 실패 원인 분리를 위한 임시 진단: 공개 ABI 이름과 개수만 출력합니다.
+        public_abis = {
+            "arm64-v8a", "armeabi-v7a", "armeabi", "x86_64", "x86", "riscv64", "mips", "mips64",
+        }
+        print("ABI compatibility: " + json.dumps({
+            "apk_abis": sorted(abis.intersection(public_abis)),
+            "apk_other_abi_count": len(abis - public_abis),
+            "apk_arm_abis": sorted(arm_abis.intersection(public_abis)),
+            "apk_arm_other_abi_count": len(arm_abis - public_abis),
+            "device_abis": sorted(effective.intersection(public_abis)),
+            "device_other_abi_count": len(effective - public_abis),
+            "empty_apk_arm": not arm_abis,
+            "has_arm_intersection": bool(effective.intersection(arm_abis)),
+        }, sort_keys=True), file=sys.stderr)
         if not arm_abis or not effective.intersection(arm_abis):
             raise RunnerFailure("device-abi-does-not-support-apk-arm-libraries")
         # 같은 ID의 release 앱과 서명이 다르면 설치 실패를 유지합니다. 자동 제거하지 않습니다.
