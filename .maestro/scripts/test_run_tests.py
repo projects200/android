@@ -288,6 +288,82 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_profile_prepare_discloses_only_fixed_reviewed_failures(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("profile_baseline_text_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-text-unsupported"),
+            ("profile_fcm_token_timeout", "bootstrap-prepare-failed-profile-fcm-token-timeout"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_profile_prepare_unknown_and_non_string_reasons_remain_generic(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "profile_unknown_failure",
+            "profile_baseline_text_unsupported-" + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET,
+            {"code": "profile_baseline_text_unsupported", "private": SYNTHETIC_SECRET},
+            ["profile_fcm_token_timeout", SYNTHETIC_SECRET],
+            None,
+            7,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(case=index):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode("utf-8")
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_reviewed_profile_reason_outside_failed_profile_prepare_remains_generic(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("prepare", "profile", "exported", "bootstrap-prepare-failed"),
+            ("prepare", "profile", None, "bootstrap-prepare-failed"),
+            ("prepare", "matching", "failed", "bootstrap-prepare-failed"),
+            ("cleanup", "profile", "failed", "bootstrap-cleanup-failed"),
+            ("prepare", None, "failed", "bootstrap-prepare-failed"),
+        )
+        for operation, feature, status, expected in cases:
+            with self.subTest(operation=operation, feature=feature, status=status):
+                self.transport.result = json.dumps({
+                    "status": status, "reason": "profile_fcm_token_timeout", "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                metadata = {}
+                if feature is not None:
+                    metadata = {
+                        "feature": feature, "flow": feature + "-edit",
+                        "run_id": "0123456789abcdef", "parameters": {},
+                    }
+                self.assert_failure(
+                    expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):
         self.transport.allow_run_as = False
         self.assert_failure("adb-operation-failed", self.device.verify_setup)

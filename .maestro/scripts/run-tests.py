@@ -52,6 +52,27 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
     "MAESTRO_MATCHING_MARKER_POINT", "MAESTRO_MATCHING_ROOM_ID",
 })
+PROFILE_PREPARE_FAILURES = {
+    "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
+    "profile_fixture_read_failed": "bootstrap-prepare-failed-profile-fixture-read-failed",
+    "profile_baseline_text_unsupported": "bootstrap-prepare-failed-profile-baseline-text-unsupported",
+    "profile_preferences_invalid": "bootstrap-prepare-failed-profile-preferences-invalid",
+    "profile_preference_baseline_unavailable":
+        "bootstrap-prepare-failed-profile-preference-baseline-unavailable",
+    "profile_catalog_invalid": "bootstrap-prepare-failed-profile-catalog-invalid",
+    "profile_unselected_exercise_missing": "bootstrap-prepare-failed-profile-unselected-exercise-missing",
+    "profile_fcm_token_timeout": "bootstrap-prepare-failed-profile-fcm-token-timeout",
+    "profile_fcm_registration_failed": "bootstrap-prepare-failed-profile-fcm-registration-failed",
+    "profile_fcm_registration_timeout": "bootstrap-prepare-failed-profile-fcm-registration-timeout",
+    "profile_fcm_settings_timeout": "bootstrap-prepare-failed-profile-fcm-settings-timeout",
+    "profile_notifications_invalid": "bootstrap-prepare-failed-profile-notifications-invalid",
+    "profile_fcm_storage_failed": "bootstrap-prepare-failed-profile-fcm-storage-failed",
+    "profile_fcm_identity_changed": "bootstrap-prepare-failed-profile-fcm-identity-changed",
+    "profile_snapshot_write_failed": "bootstrap-prepare-failed-profile-snapshot-write-failed",
+    "profile_fixture_write_failed": "bootstrap-prepare-failed-profile-fixture-write-failed",
+    "profile_notification_prepare_failed": "bootstrap-prepare-failed-profile-notification-prepare-failed",
+    "profile_request_invalid": "bootstrap-prepare-failed-profile-request-invalid",
+}
 
 
 class RunnerFailure(Exception):
@@ -729,8 +750,12 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
-                raise RunnerFailure("bootstrap-" + operation + "-failed")
+                # 앱의 reason도 외부 입력이므로 검토된 프로필 준비 코드만 고정 오류로 공개합니다.
+                failure = "bootstrap-" + operation + "-failed"
+                if (operation == "prepare" and feature == "profile" and isinstance(result, dict)
+                        and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
+                    failure = PROFILE_PREPARE_FAILURES.get(result["reason"], failure)
+                raise RunnerFailure(failure)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
             return variables
