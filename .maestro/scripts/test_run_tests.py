@@ -546,16 +546,61 @@ class EmulatorInputTests(unittest.TestCase):
         )
         self.assertEqual(runner.ascii_ime_subtype(metadata), -2)
 
-    def test_refuses_missing_ambiguous_and_implicit_subtypes(self):
+    def test_selects_android_derived_id_when_subtype_id_is_absent_or_zero(self):
+        for declaration in ("", ' android:subtypeId="0"', ' android:subtypeId="0x0"'):
+            with self.subTest(declaration=declaration):
+                metadata = self.input_method(
+                    '<subtype android:imeSubtypeLocale="en_US" android:imeSubtypeMode="keyboard"'
+                    ' android:isAsciiCapable="true"' + declaration + ' />',
+                )
+                self.assertEqual(runner.ascii_ime_subtype(metadata), 38405219)
+
+    def test_derived_id_uses_raw_locale_and_extra_value_not_language_tag(self):
+        cases = (
+            ('android:languageTag="en-US"', "", 1095049687),
+            (
+                'android:imeSubtypeLocale="en_US" android:languageTag="en-US"',
+                ' android:imeSubtypeExtraValue="\U0001f600"', 1315231776,
+            ),
+        )
+        for locale, extra, expected in cases:
+            with self.subTest(locale=locale, extra=extra):
+                metadata = self.input_method(
+                    '<subtype ' + locale + ' android:imeSubtypeMode="keyboard"'
+                    ' android:isAsciiCapable="true"' + extra + ' />',
+                )
+                self.assertEqual(runner.ascii_ime_subtype(metadata), expected)
+
+    def test_java_string_hash_uses_utf16_units_and_signed_int_overflow(self):
+        for value, expected in (
+            ("", 0), ("Aa", 2112), ("\U0001f600", 1772899),
+            ("\ud800", 55296), ("zzzzzz", -685785664),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(runner.java_string_hash(value), expected)
+
+    def test_derived_id_matches_framework_defaults_and_ascii_compatibility_hash(self):
+        self.assertEqual(runner.android_subtype_id({}), 28668735)
+        self.assertEqual(runner.android_subtype_id({"isAsciiCapable": "true"}), 888732016)
+        self.assertEqual(
+            runner.android_subtype_id({"isAsciiCapable": "true", "imeSubtypeExtraValue": "\uffff"}),
+            -1453882095,
+        )
+        attributes = {"imeSubtypeLocale": "en_US", "imeSubtypeMode": "keyboard"}
+        self.assertEqual(runner.android_subtype_id(attributes), 1802354156)
+
+    def test_refuses_missing_ambiguous_automatic_and_unsupported_subtypes(self):
         keyboard = (
             '<subtype android:imeSubtypeLocale="en_US" android:imeSubtypeMode="keyboard"'
             ' android:isAsciiCapable="true" android:subtypeId="{}" />'
         )
         cases = (
             "",
-            keyboard.format(0),
             keyboard.format(-1),
             keyboard.format("@integer/english_id"),
+            keyboard.format("0x100000000"),
+            keyboard.format(0) + keyboard.format(101),
+            keyboard.format(0).replace('/>', 'android:imeSubtypeExtraValue="@0x7f010001" />'),
             keyboard.format(101) + keyboard.format(102),
             keyboard.format(101).replace('isAsciiCapable="true"', 'isAsciiCapable="false"'),
             keyboard.format(101).replace('en_US', 'ko_KR'),
