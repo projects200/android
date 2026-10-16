@@ -39,14 +39,14 @@ tags:
 - tapOn:
     id: feed_form_complete_button
 
-# 목록에서 확인. 정렬 순서를 가정하지 않고 스크롤로 찾습니다
+# 새 글은 보존된 키 항목보다 앞에 오므로 위로 찾습니다.
 - extendedWaitUntil:
     visible:
       id: "feed_content|feed_empty"
     timeout: 30000
 - scrollUntilVisible:
     element: ${output.createTag}
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - assertVisible: ${output.createTag}
 

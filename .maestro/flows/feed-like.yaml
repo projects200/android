@@ -39,9 +39,10 @@ tags:
     visible:
       id: "feed_content|feed_empty"
     timeout: 30000
+# 새 글은 보존된 키 항목보다 앞에 오므로 위로 찾습니다.
 - scrollUntilVisible:
     element: ${output.tag}
-    direction: DOWN
+    direction: UP
     timeout: 20000
 - tapOn: ${output.tag}
 - extendedWaitUntil:
