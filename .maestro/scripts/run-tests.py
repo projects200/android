@@ -271,6 +271,136 @@ class Redactor:
         return text, sensitive
 
 
+ANDROID_XML = "{http://schemas.android.com/apk/res/android}"
+
+
+def aapt_xml(output):
+    # AAPT2 Debug::DumpXml의 들여쓰기와 공개 Android 속성만 읽습니다.
+    root = None
+    stack = []
+    for line in output.splitlines():
+        element = re.fullmatch(r"(\s*)E: ([\w-]+) \(line=\d+\)", line)
+        if element:
+            depth = len(element[1])
+            while stack and stack[-1][0] >= depth:
+                stack.pop()
+            node = ET.Element(element[2])
+            if stack:
+                stack[-1][1].append(node)
+            elif root is None:
+                root = node
+            else:
+                raise RunnerFailure("emulator-ime-metadata-unavailable")
+            stack.append((depth, node))
+        elif line.lstrip().startswith("A: "):
+            attribute = re.fullmatch(r"\s*A: (.+?)(?:\(0x[0-9a-fA-F]+\))?=(.*)", line)
+            if not attribute or not stack:
+                raise RunnerFailure("emulator-ime-metadata-unavailable")
+            name, value = attribute[1], attribute[2].split(' (Raw: "', 1)[0]
+            namespace = "http://schemas.android.com/apk/res/android:"
+            if name.startswith(namespace):
+                name = ANDROID_XML + name[len(namespace):]
+            if value.startswith('"') and value.endswith('"'):
+                value = value[1:-1]
+            stack[-1][1].set(name, value)
+    if root is None:
+        raise RunnerFailure("emulator-ime-metadata-unavailable")
+    return root
+
+
+def ime_resource_id(manifest, ime):
+    package, service = ime.split("/", 1)
+    service = package + service if service.startswith(".") else service
+    resources = []
+    if manifest.tag == "manifest" and manifest.get("package") == package:
+        for node in manifest.findall("./application/service"):
+            name = node.get(ANDROID_XML + "name", "")
+            name = package + name if name.startswith(".") else name
+            if name == service:
+                resources.extend(
+                    item.get(ANDROID_XML + "resource", "")
+                    for item in node.findall("meta-data")
+                    if item.get(ANDROID_XML + "name") == "android.view.im"
+                )
+    if len(resources) != 1 or not re.fullmatch(r"@0x[0-9a-fA-F]{8}", resources[0]):
+        raise RunnerFailure("emulator-ime-metadata-unavailable")
+    return resources[0][1:]
+
+
+def ime_resource_path(output, resource_id):
+    selected = False
+    paths = set()
+    for line in output.splitlines():
+        resource = re.match(r"\s*resource (0x[0-9a-fA-F]{8}) \S+", line)
+        if resource:
+            selected = resource[1].lower() == resource_id.lower()
+        elif selected:
+            path = re.search(r"\(file\) (\S+) type=XML\b", line)
+            if path:
+                paths.add(path[1])
+    # 로케일별 XML이 다르면 실제 Android resource resolution을 추측하지 않습니다.
+    if len(paths) != 1:
+        raise RunnerFailure("emulator-ime-metadata-unavailable")
+    return paths.pop()
+
+
+def ascii_ime_subtype(metadata):
+    candidates = []
+    if metadata.tag == "input-method":
+        for node in metadata.findall("subtype"):
+            attributes = {key.removeprefix(ANDROID_XML): value for key, value in node.attrib.items()}
+            locale = attributes.get("languageTag") or attributes.get("imeSubtypeLocale", "")
+            if (locale.replace("_", "-").lower() != "en-us"
+                    or attributes.get("imeSubtypeMode") != "keyboard"
+                    or attributes.get("isAsciiCapable") != "true"
+                    or attributes.get("isAuxiliary", "false") != "false"
+                    or attributes.get("overridesImplicitlyEnabledSubtype", "false") != "false"):
+                continue
+            try:
+                value = attributes.get("subtypeId", "0")
+                subtype = int(value, 16 if value.startswith("0x") else 10)
+            except ValueError:
+                continue
+            if 0x80000000 <= subtype <= 0xffffffff:
+                subtype -= 0x100000000
+            # 0은 계산식, -1은 자동 선택입니다. 실제 선언 ID만 사용합니다.
+            if -0x80000000 <= subtype <= 0x7fffffff and subtype not in (0, -1):
+                candidates.append(subtype)
+    if len(candidates) != 1:
+        raise RunnerFailure("emulator-ascii-subtype-unavailable")
+    return candidates[0]
+
+
+def installed_ascii_subtype(device):
+    ime = device.require("shell", "settings", "get", "secure", "default_input_method").decode().strip()
+    if not re.fullmatch(r"[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+", ime):
+        raise RunnerFailure("emulator-ime-metadata-unavailable")
+    aapt = shutil.which("aapt2")
+    if not aapt:
+        sdk = device.env.get("ANDROID_HOME") or device.env.get("ANDROID_SDK_ROOT")
+        candidates = sorted((Path(sdk) / "build-tools").glob("*/aapt2")) if sdk else []
+        aapt = next((str(path) for path in reversed(candidates) if os.access(path, os.X_OK)), None)
+    if not aapt:
+        raise RunnerFailure("emulator-ascii-input-requires-aapt2")
+    paths = device.require("shell", "pm", "path", ime.split("/", 1)[0]).decode().splitlines()
+    if len(paths) != 1 or not paths[0].startswith("package:/") or not paths[0].endswith(".apk"):
+        raise RunnerFailure("emulator-ime-metadata-unavailable")
+    with tempfile.TemporaryDirectory(prefix="undabang-ime-") as temporary:
+        apk = str(Path(temporary) / "keyboard.apk")
+        device.require("pull", paths[0][len("package:"):], apk)
+
+        def dump(*args):
+            code, output, _ = command([aapt, "dump", *args, apk], device.env)
+            if code != 0:
+                raise RunnerFailure("emulator-ime-metadata-unavailable")
+            return output.decode("utf-8", "replace")
+
+        manifest = aapt_xml(dump("xmltree", "--file", "AndroidManifest.xml"))
+        resource = ime_resource_id(manifest, ime)
+        path = ime_resource_path(dump("resources"), resource)
+        return ime, ascii_ime_subtype(aapt_xml(dump("xmltree", "--file", path)))
+
+
 class Device:
     def __init__(self, serial):
         adb = shutil.which("adb")
@@ -319,9 +449,33 @@ class Device:
         deadline = time.monotonic() + 180
         while time.monotonic() < deadline:
             if self.require("shell", "getprop", "sys.boot_completed").strip() == b"1":
+                self.configure_ascii_input()
                 return
             time.sleep(1)
         raise RunnerFailure("emulator-boot-timeout")
+
+    def configure_ascii_input(self):
+        ime, subtype = installed_ascii_subtype(self)
+        enabled = self.require("shell", "settings", "get", "secure", "enabled_input_methods").decode().strip()
+        entries = enabled.split(":")
+        if sum(entry.split(";", 1)[0] == ime for entry in entries) != 1:
+            raise RunnerFailure("emulator-ascii-input-not-configured")
+        configured = ":".join(
+            ime + ";" + str(subtype) if entry.split(";", 1)[0] == ime else entry
+            for entry in entries
+        )
+        # Maestro는 비ASCII 입력 후 ime set으로 복원하므로 자동 선택 후보도 영어 하나로 제한합니다.
+        self.require("shell", "settings", "put", "secure", "enabled_input_methods", shlex.quote(configured))
+        self.require("shell", "settings", "put", "secure", "selected_input_method_subtype", str(subtype))
+        self.verify_ascii_input(ime, subtype)
+
+    def verify_ascii_input(self, ime, subtype):
+        selected = self.require("shell", "settings", "get", "secure", "default_input_method").decode().strip()
+        enabled = self.require("shell", "settings", "get", "secure", "enabled_input_methods").decode().strip()
+        current = self.require("shell", "settings", "get", "secure", "selected_input_method_subtype").decode().strip()
+        entries = [entry for entry in enabled.split(":") if entry.split(";", 1)[0] == ime]
+        if selected != ime or entries != [ime + ";" + str(subtype)] or current != str(subtype):
+            raise RunnerFailure("emulator-ascii-input-not-configured")
 
     def verify_locale(self):
         locale = self.require("shell", "getprop", "persist.sys.locale").strip()
