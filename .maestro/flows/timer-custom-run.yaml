@@ -1,0 +1,239 @@
+appId: com.project200.undabang
+name: 커스텀 타이머 실행·단계 전환·반복·종료
+tags:
+  - regression
+  - requires-login
+---
+# 같은 길이의 두 스텝으로 실행·정지·재개·활성 스텝 전환을 실제 상태에서 관찰합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- evalScript: ${output.tag = 'e2e611r-' + E2E_RUN_ID}
+- evalScript: ${output.stepSec = 30}
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- tapOn:
+    id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: ${output.tag}
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: ${output.tag}
+
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepA"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepA"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepB"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepB"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:30"
+- assertVisible:
+    id: custom_timer_form_step_time_1
+    text: "00:30"
+- tapOn:
+    id: custom_timer_form_submit_btn
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_remaining_time
+      text: "00:30"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible:
+    id: custom_timer_repeat_off
+
+# 반복을 시작 전에 켭니다. 마지막 스텝에 도착한 뒤 뒤늦게 켜지 않습니다.
+- tapOn:
+    id: custom_timer_repeat_off
+- assertVisible:
+    id: custom_timer_repeat_on
+- tapOn: "시작"
+- extendedWaitUntil:
+    visible: "일시 정지"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- evalScript: ${output.running1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_remaining_time
+      text: ${output.running1}
+    timeout: 10000
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- evalScript: ${output.runningSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.runningSeconds > 0 && output.runningSeconds < (parseInt(output.running1.split(':')[0], 10) * 60 + parseInt(output.running1.split(':')[1], 10))}
+    label: 첫 스텝 실행 중 남은 시간이 감소하는지 확인
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_active_step_0
+
+- tapOn: "일시 정지"
+- extendedWaitUntil:
+    visible: "시작"
+    timeout: 10000
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- evalScript: ${output.paused1 = maestro.copiedText}
+- evalScript: ${output.pauseUntil = Date.now() + 2000}
+- repeat:
+    while:
+      true: ${Date.now() < output.pauseUntil}
+    commands:
+      - assertVisible: "시작"
+      - assertVisible:
+          id: custom_timer_active_step_0
+      - copyTextFrom:
+          id: custom_timer_remaining_time
+      - assertTrue:
+          condition: ${output.paused1 == maestro.copiedText}
+          label: 일시정지 중 스텝과 남은 시간이 유지되는지 확인
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- assertTrue:
+    condition: ${output.paused1 == maestro.copiedText}
+    label: 관찰 구간 끝에도 일시정지 시간이 같은지 확인
+
+- tapOn: "시작"
+- extendedWaitUntil:
+    visible: "일시 정지"
+    timeout: 10000
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- evalScript: ${output.resumed1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_remaining_time
+      text: ${output.resumed1}
+    timeout: 10000
+- copyTextFrom:
+    id: custom_timer_remaining_time
+- evalScript: ${output.resumedSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.resumedSeconds > 0 && output.resumedSeconds < (parseInt(output.resumed1.split(':')[0], 10) * 60 + parseInt(output.resumed1.split(':')[1], 10))}
+    label: 재개 후 같은 스텝에서 남은 시간이 감소하는지 확인
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible: "일시 정지"
+
+# StepA -> StepB -> StepA를 강조 상태로 확인합니다. 두 이름은 항상 보여 전환 증거가 아닙니다.
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_active_step_1
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_repeat_on
+# 제한 시간은 마지막 UI 조작(재개)부터 누적되므로 두 스텝 전체에 15초 여유를 둡니다.
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_active_step_0
+    timeout: ${(output.stepSec * 2 + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_repeat_on
+
+# 명시 종료: 반복을 해제하고 종료 버튼으로 첫 스텝/정지/초기 시간에 복귀합니다.
+- tapOn:
+    id: custom_timer_repeat_on
+- assertVisible:
+    id: custom_timer_repeat_off
+- tapOn: "종료"
+- extendedWaitUntil:
+    visible: "시작"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_remaining_time
+      text: "00:30"
+    timeout: 10000
+
+# 자연 종료는 별도 실행합니다. 시작 상태만 다시 기다려 즉시 통과하지 않도록 실행과 StepB를 먼저 확인합니다.
+- tapOn: "시작"
+- extendedWaitUntil:
+    visible: "일시 정지"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_active_step_1
+    timeout: ${(output.stepSec + 15) * 1000}
+- assertVisible: "일시 정지"
+- assertVisible:
+    id: custom_timer_repeat_off
+# 제한 시간은 마지막 UI 조작(시작)부터 누적되므로 두 스텝 전체에 15초 여유를 둡니다.
+- extendedWaitUntil:
+    visible: "시작"
+    timeout: ${(output.stepSec * 2 + 15) * 1000}
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible:
+    id: custom_timer_remaining_time
+    text: "00:30"
+
+- tapOn:
+    id: custom_timer_menu_btn
+- tapOn: "삭제하기"
+- tapOn: "확인"
+- extendedWaitUntil:
+    visible: "심플 타이머"
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible:
+    id: "custom_timer_local_${output.tag}"

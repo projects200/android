@@ -21,11 +21,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.project200.domain.model.CustomTimer
@@ -38,6 +42,7 @@ import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.header
 import com.project200.undabang.feature.timer.R
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TimerListScreen(
     customTimers: List<CustomTimer>,
@@ -51,7 +56,8 @@ fun TimerListScreen(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(ColorBackground),
+                .background(ColorBackground)
+                .semantics { testTagsAsResourceId = true },
     ) {
         UndabangTopBar(
             title = stringResource(R.string.timer_title),
@@ -70,7 +76,7 @@ fun TimerListScreen(
             customTimers.forEach { timer ->
                 key(timer.localId) {
                     CustomTimerCard(
-                        name = timer.name,
+                        timer = timer,
                         onClick = { onCustomTimerClick(timer) },
                     )
                 }
@@ -125,7 +131,7 @@ private fun SimpleTimerCard(
 
 @Composable
 private fun CustomTimerCard(
-    name: String,
+    timer: CustomTimer,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -142,11 +148,13 @@ private fun CustomTimerCard(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ),
+                )
+                // 실행 표식이 서버 제목과 겹쳐도 새로 만든 로컬 행만 선택합니다.
+                .testTag(if (timer.serverId == null) "custom_timer_local_${timer.name}" else "custom_timer_${timer.localId}"),
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            text = name,
+            text = timer.name,
             style = MaterialTheme.typography.header,
             color = ColorBlack,
         )
@@ -181,7 +189,9 @@ private fun AddCustomTimerCard(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
-                ),
+                )
+                // 비어있을 때만 라벨 텍스트가 붙어, 항목이 있으면 아이콘만 남아 선택자가 없어진다
+                .testTag("custom_timer_add_card"),
     ) {
         if (isEmpty) {
             // 빈 상태: 가운데 텍스트 + 우측 plus

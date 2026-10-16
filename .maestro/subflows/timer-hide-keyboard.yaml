@@ -1,0 +1,10 @@
+appId: com.project200.undabang
+---
+# Maestro 2.11.0의 Android hideKeyboard는 무조건 Back을 보냅니다.
+# 실제 CI의 Gboard가 보일 때만 실행해, 이미 닫힌 키보드 대신 폼/다이얼로그를 닫지 않습니다.
+- runFlow:
+    when:
+      visible:
+        id: "com.google.android.inputmethod.latin:id/.*"
+    commands:
+      - hideKeyboard
