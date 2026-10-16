@@ -30,11 +30,17 @@ tags:
 - tapOn:
     id: custom_timer_form_title_field
 - inputText: ${output.tag}
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: ${output.tag}
 
 # 스텝1: StepA, 5초
 - tapOn:
     id: custom_timer_form_new_step_name_field
 - inputText: "StepA"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepA"
 - tapOn:
     id: custom_timer_form_new_step_time
 - runFlow:
@@ -49,6 +55,9 @@ tags:
 - tapOn:
     id: custom_timer_form_new_step_name_field
 - inputText: "StepB"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepB"
 - tapOn:
     id: custom_timer_form_new_step_time
 - runFlow:
@@ -127,11 +136,17 @@ tags:
     id: custom_timer_form_title_field
 - eraseText
 - inputText: "${output.tag}-ed"
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: "${output.tag}-ed"
 
 - tapOn:
     id: custom_timer_form_step_name_0
 - eraseText
 - inputText: "StepA2"
+- assertVisible:
+    id: custom_timer_form_step_name_0
+    text: "StepA2"
 
 - tapOn:
     id: custom_timer_form_step_time_1
