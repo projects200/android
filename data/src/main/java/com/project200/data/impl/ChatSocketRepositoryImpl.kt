@@ -72,8 +72,10 @@ class ChatSocketRepositoryImpl
         override val opponentStatusChanges = _opponentStatusChanges.asSharedFlow()
 
         private val memberId: String? = spManager.getMemberId()
+
         @Volatile
         private var currentChatRoomId: Long = -1L
+
         @Volatile
         private var isUserInChatRoom = false
         private var retryCount = AtomicInteger(0)
