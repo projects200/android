@@ -413,5 +413,155 @@ class SessionTransportTests(unittest.TestCase):
         self.assertEqual(unrelated.read_bytes(), b"keep")
 
 
+class EmulatorInputTests(unittest.TestCase):
+    def input_method(self, subtypes):
+        return runner.ET.fromstring(
+            '<input-method xmlns:android="http://schemas.android.com/apk/res/android">'
+            + subtypes + '</input-method>',
+        )
+
+    def test_missing_metadata_tool_fails_before_keyboard_changes(self):
+        device = object.__new__(runner.Device)
+        device.env = {}
+        device.require = mock.Mock(return_value=b"example.keyboard/.SelectedIme\n")
+        with mock.patch.object(runner.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-input-requires-aapt2"):
+                runner.installed_ascii_subtype(device)
+        self.assertEqual(device.require.call_count, 1)
+
+    def test_failed_apk_metadata_read_is_not_an_ascii_fallback(self):
+        device = object.__new__(runner.Device)
+        device.env = {}
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n", b"package:/system/app/Keyboard/Keyboard.apk\n", b"",
+        ])
+        with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
+            with mock.patch.object(runner, "command", return_value=(1, b"", b"unsupported")):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    runner.installed_ascii_subtype(device)
+
+    def test_selects_declared_english_ascii_keyboard_not_korean_or_voice(self):
+        metadata = self.input_method(
+            '<subtype android:imeSubtypeLocale="ko_KR" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="101" />'
+            '<subtype android:languageTag="en-US" android:imeSubtypeMode="voice"'
+            ' android:isAsciiCapable="true" android:subtypeId="102" />'
+            '<subtype android:languageTag="en-US" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="0xfffffffe" />',
+        )
+        self.assertEqual(runner.ascii_ime_subtype(metadata), -2)
+
+    def test_refuses_missing_ambiguous_and_implicit_subtypes(self):
+        keyboard = (
+            '<subtype android:imeSubtypeLocale="en_US" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="{}" />'
+        )
+        cases = (
+            "",
+            keyboard.format(0),
+            keyboard.format(-1),
+            keyboard.format("@integer/english_id"),
+            keyboard.format(101) + keyboard.format(102),
+            keyboard.format(101).replace('isAsciiCapable="true"', 'isAsciiCapable="false"'),
+            keyboard.format(101).replace('en_US', 'ko_KR'),
+            keyboard.format(101).replace('/>', 'android:isAuxiliary="true" />'),
+            keyboard.format(101).replace('/>', 'android:overridesImplicitlyEnabledSubtype="true" />'),
+        )
+        for subtypes in cases:
+            with self.subTest(subtypes=subtypes):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-subtype-unavailable"):
+                    runner.ascii_ime_subtype(self.input_method(subtypes))
+
+    def test_reads_public_metadata_for_the_selected_service_only(self):
+        dump = '''N: android=http://schemas.android.com/apk/res/android (line=1)
+  E: manifest (line=1)
+    A: package="example.keyboard"
+      E: application (line=2)
+          E: service (line=3)
+            A: http://schemas.android.com/apk/res/android:name(0x01010003)=".OtherIme"
+              E: meta-data (line=4)
+                A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+                A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010001
+          E: service (line=5)
+            A: http://schemas.android.com/apk/res/android:name(0x01010003)=".SelectedIme"
+              E: meta-data (line=6)
+                A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+                A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010002
+'''
+        manifest = runner.aapt_xml(dump)
+        self.assertEqual(
+            runner.ime_resource_id(manifest, "example.keyboard/.SelectedIme"), "0x7f010002",
+        )
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            runner.ime_resource_id(manifest, "example.keyboard/.MissingIme")
+
+    def test_resolves_metadata_resource_without_guessing_its_filename(self):
+        resources = '''Package name=example.keyboard id=7f
+  type xml id=01 entryCount=2
+    resource 0x7f010001 xml/unrelated
+      () (file) res/xml/a.xml type=XML
+    resource 0x7f010002 xml/renamed
+      () (file) res/x9.xml type=XML
+'''
+        self.assertEqual(runner.ime_resource_path(resources, "0x7f010002"), "res/x9.xml")
+        for table in (
+            resources.replace("0x7f010002", "0x7f010003"),
+            resources + "      (ko) (file) res/ko.xml type=XML\n",
+        ):
+            with self.subTest(table=table):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    runner.ime_resource_path(table, "0x7f010002")
+
+    def test_physical_device_refusal_precedes_all_configuration(self):
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(return_value=b"0\n")
+        with self.assertRaisesRegex(runner.RunnerFailure, "configure-emulator-refuses-physical-devices"):
+            device.configure_emulator()
+        self.assertEqual(device.require.call_count, 1)
+
+    def test_restricts_only_selected_ime_and_preserves_other_enabled_methods(self):
+        selected = "example.keyboard/.SelectedIme"
+        device = object.__new__(runner.Device)
+        settings = {
+            "default_input_method": selected,
+            "enabled_input_methods": selected + ";101;102:example.voice/.VoiceIme;201",
+            "selected_input_method_subtype": "101",
+        }
+
+        def call(*args, **_kwargs):
+            # adb shell이 연결한 인자를 원격 셸처럼 해석한 뒤 실제 설정 상태를 바꿉니다.
+            parsed = shlex.split(" ".join(args))
+            if parsed[:2] != ["shell", "settings"] or parsed[3] != "secure":
+                raise AssertionError("Unexpected settings operation")
+            if parsed[2] == "get":
+                return 0, (settings[parsed[4]] + "\n").encode(), b""
+            if parsed[2] == "put":
+                settings[parsed[4]] = parsed[5]
+                return 0, b"", b""
+            raise AssertionError("Unexpected settings operation")
+
+        device.call = call
+        with mock.patch.object(runner, "installed_ascii_subtype", return_value=(selected, 103)):
+            device.configure_ascii_input()
+        self.assertEqual(settings, {
+            "default_input_method": selected,
+            "enabled_input_methods": selected + ";103:example.voice/.VoiceIme;201",
+            "selected_input_method_subtype": "103",
+        })
+
+    def test_rejects_readback_when_keyboard_configuration_did_not_apply(self):
+        selected = "example.keyboard/.SelectedIme"
+        device = object.__new__(runner.Device)
+        for outputs in (
+            [selected.encode(), (selected + ";103").encode(), b"102"],
+            [selected.encode(), (selected + ";103;104").encode(), b"103"],
+            [b"other.keyboard/.Ime", (selected + ";103").encode(), b"103"],
+        ):
+            with self.subTest(outputs=outputs):
+                device.require = mock.Mock(side_effect=outputs)
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-input-not-configured"):
+                    device.verify_ascii_input(selected, 103)
+
+
 if __name__ == "__main__":
     unittest.main()
