@@ -5,7 +5,6 @@ import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.SimpleTimerDTO
-import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -67,13 +66,13 @@ class MaestroTimerFixtureTest {
     fun `모든 타이머 플로우의 cleanup은 서버를 조회하거나 삭제하지 않는다`() =
         runTest {
             for (
-            flow in listOf(
-                "timer-simple-preset-crud",
-                "timer-simple-run",
-                "timer-custom-crud",
-                "timer-custom-run",
-                "timer-form-validation",
-            )
+                flow in listOf(
+                    "timer-simple-preset-crud",
+                    "timer-simple-run",
+                    "timer-custom-crud",
+                    "timer-custom-run",
+                    "timer-form-validation",
+                )
             ) {
                 fixture.cleanup(request.copy(flow = flow))
             }
@@ -331,7 +330,8 @@ class MaestroTimerFixtureTest {
 
     private fun deleted(): BaseResponse<Unit?> = BaseResponse(true, "200", "")
 
-    private fun operation() = MaestroSetupRequest.FixtureOperation("prepare", mockk(), "member", LocalDate.of(2026, 1, 1), request)
+    private fun operation() =
+        MaestroSetupRequest.FixtureOperation("prepare", mockk(), "member", LocalDate.of(2026, 1, 1), request)
 
     private suspend fun expectFailure(
         reason: String,
