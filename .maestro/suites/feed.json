@@ -6,7 +6,7 @@
     "feed-photo",
     "feed-form-validation"
   ],
-  "apiLevel": 33,
+  "apiLevel": 34,
   "fixture": true,
   "requiredEnvironment": [],
   "driver": null
