@@ -66,6 +66,7 @@ jobs:
     concurrency:
       group: maestro-dev-dedicated-account
       cancel-in-progress: false
+      queue: max
     env:
       MAESTRO_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'ci' }}
     steps:
