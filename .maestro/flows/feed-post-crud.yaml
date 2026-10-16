@@ -5,9 +5,8 @@ tags:
   - requires-login
 ---
 # 실행마다 고유한 ASCII 본문으로 글을 쓰고 목록·상세에서 같은 내용이 보이는지 확인합니다
-# 수정은 longPress + "전체 선택"으로 기존 본문을 지우고 새 고유 본문으로 완전히 바꿉니다
-# (Maestro 공식 레시피 "Clearing large text blocks"와 같은 방식입니다. "전체 선택"은 안드로이드
-# 시스템 텍스트 선택 툴바의 고정 번역이라 화면마다 따로 확인할 필요가 없습니다)
+# 수정은 longPress + "모두 선택"으로 기존 본문을 지우고 새 고유 본문으로 완전히 바꿉니다
+# "모두 선택"은 API 34 실행 38915419012의 android:id/floating_toolbar_menu_item_text에서 확인했습니다
 # 삭제까지 같은 플로우에서 마쳐 이번 실행이 만든 글이 남지 않게 합니다
 - runFlow: ../subflows/launch-logged-in.yaml
 
@@ -68,9 +67,13 @@ tags:
     timeout: 20000
 - longPressOn:
     id: feed_form_content_field
-- tapOn: "전체 선택"
+- tapOn: "모두 선택"
 - runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: ${output.editTag}
+# 부분 교체된 본문이 저장되지 않도록 수정값도 고유 본문 전체와 일치해야 합니다.
+- assertVisible:
+    id: feed_form_content_field
+    text: ${output.editTag}
 - tapOn:
     id: feed_form_complete_button
 

@@ -65,6 +65,8 @@ tags:
 - inputText: ${output.commentTag}
 - tapOn:
     id: feed_detail_comment_send_button
+# 키보드를 닫아 댓글 목록이 입력창 위에 좁게 잘리지 않도록 합니다.
+- hideKeyboard
 - assertVisible: ${output.commentTag}
 - assertVisible:
     id: feed_detail_comments_count
@@ -72,6 +74,12 @@ tags:
 - assertNotVisible: "아직 댓글이 없습니다."
 
 # 답글 달기 — 이 시점에는 댓글이 하나뿐이라 "답글" 레이블이 유일합니다
+# 키보드가 닫힌 목록에서 답글을 완전히 보이게 한 뒤 탭합니다.
+- scrollUntilVisible:
+    element: "답글"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
 - tapOn: "답글"
 - assertVisible: ".*님에게 답글 작성 중"
 - tapOn:
@@ -80,6 +88,8 @@ tags:
 - inputText: ${output.replyTag}
 - tapOn:
     id: feed_detail_comment_send_button
+# 답글 검증과 삭제도 키보드에 가리지 않은 목록에서 진행합니다.
+- hideKeyboard
 
 # 답글이 부모 댓글 바로 아래, 올바른 글에 달렸는지 확인
 - assertVisible:
