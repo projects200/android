@@ -429,16 +429,111 @@ class EmulatorInputTests(unittest.TestCase):
                 runner.installed_ascii_subtype(device)
         self.assertEqual(device.require.call_count, 1)
 
-    def test_failed_apk_metadata_read_is_not_an_ascii_fallback(self):
+    def test_failed_apk_metadata_read_reports_stage_without_tool_output_or_environment(self):
+        secret = "synthetic-private-metadata"
         device = object.__new__(runner.Device)
-        device.env = {}
+        device.env = {"PRIVATE_SETTING": secret}
         device.require = mock.Mock(side_effect=[
-            b"example.keyboard/.SelectedIme\n", b"package:/system/app/Keyboard/Keyboard.apk\n", b"",
+            b"example.keyboard/.SelectedIme\n",
+            ("package:/system/app/" + secret + "/Keyboard.apk\n").encode(), b"",
         ])
-        with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
-            with mock.patch.object(runner, "command", return_value=(1, b"", b"unsupported")):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with mock.patch.object(runner.shutil, "which", return_value="/private/" + secret + "/aapt2"):
+                with mock.patch.object(runner, "command", return_value=(7, secret.encode(), secret.encode())):
+                    with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                        runner.installed_ascii_subtype(device)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertNotIn(secret, stderr.getvalue())
+        records = self.diagnostic_records(stderr)
+        self.assertEqual(records[-1], {
+            "stage": "aapt", "operation": "manifest", "command": "xmltree",
+            "status": "completed", "exit_code": 7,
+        })
+
+    def diagnostic_records(self, stderr):
+        return [json.loads(line.removeprefix("IME metadata: ")) for line in stderr.getvalue().splitlines()]
+
+    def test_invalid_default_ime_reports_only_invalid_state(self):
+        secret = "synthetic-private-invalid-ime\nextra-private-line"
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(return_value=secret.encode())
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.installed_ascii_subtype(device)
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr), [
+            {"stage": "default-ime", "valid": False, "component": "invalid"},
+        ])
+
+    def test_multiple_apk_paths_report_count_without_paths(self):
+        secret = "synthetic-private-apk-path"
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n",
+            ("package:/private/" + secret + "/base.apk\n"
+             "package:/private/" + secret + "/split.apk\n").encode(),
+        ])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
                 with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
                     runner.installed_ascii_subtype(device)
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr)[-1], {
+            "stage": "apk-paths", "count": 2, "valid_single_apk": False,
+        })
+
+    def test_unrecognized_attribute_namespace_reports_schema_without_loosening_selection(self):
+        secret = "synthetic-private-other-service"
+        dump = '''E: manifest (line=1)
+  A: package="example.keyboard"
+    E: application (line=2)
+        E: service (line=3)
+          A: android:name(0x01010003)="''' + secret + '''"
+            E: meta-data (line=4)
+              A: android:name(0x01010003)="android.view.im"
+              A: android:resource(0x01010025)=@0x7f010001
+'''
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            manifest = runner.aapt_xml(dump, "manifest")
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.ime_resource_id(manifest, "example.keyboard/.SelectedIme")
+        self.assertNotIn(secret, stderr.getvalue())
+        xml, selection = self.diagnostic_records(stderr)
+        self.assertEqual(xml["root"], "manifest")
+        self.assertEqual(xml["android_attribute_names"], ["android-prefix:name", "android-prefix:resource"])
+        self.assertEqual(selection["matching_service_count"], 0)
+        self.assertEqual(selection["resource_count"], 0)
+
+    def test_missing_xml_root_reports_document_without_dumping_body(self):
+        secret = "synthetic-private-non-xml-output"
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.aapt_xml(secret, "manifest")
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr), [
+            {"stage": "xml", "document": "manifest", "status": "missing-root"},
+        ])
+
+    def test_ambiguous_resource_paths_report_count_without_values(self):
+        secret = "synthetic-private-resource"
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/''' + secret + '''.xml type=XML
+  (ko) (file) res/other.xml type=XML
+'''
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.ime_resource_path(resources, "0x7f010002")
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr), [{
+            "stage": "resource-path", "selected_resource": "0x7f010002",
+            "matching_resource_count": 1, "path_count": 2,
+        }])
 
     def test_selects_declared_english_ascii_keyboard_not_korean_or_voice(self):
         metadata = self.input_method(
