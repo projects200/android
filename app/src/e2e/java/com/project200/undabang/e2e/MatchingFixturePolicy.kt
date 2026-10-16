@@ -9,8 +9,10 @@ internal object MatchingFixturePolicy {
         marker: String,
     ): Boolean =
         place.id !in baselineIds &&
-            (place.name == marker ||
-                (place.name.length == marker.length + 5 && place.name.startsWith(marker) && place.name.endsWith("-edit")))
+            (
+                place.name == marker ||
+                    (place.name.length == marker.length + 5 && place.name.startsWith(marker) && place.name.endsWith("-edit"))
+            )
 
     fun ownsRoom(
         roomId: Long,

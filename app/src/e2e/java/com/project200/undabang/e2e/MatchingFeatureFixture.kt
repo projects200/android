@@ -167,11 +167,15 @@ internal class MatchingFeatureFixture
             val remaining = read(api.getExercisePlaces())
             if (remaining.any { MatchingFixturePolicy.ownsPlace(it, baselineIds, marker) } ||
                 baseline.any { old -> remaining.singleOrNull { it.id == old.id } != old }
-            ) fail("matching_place_baseline_changed")
+            ) {
+                fail("matching_place_baseline_changed")
+            }
             val remainingRooms = read(api.getChattingRooms()).associate { it.chatRoomId to it.otherMemberId }
             if (baselineRooms.any { (id, peer) -> remainingRooms[id] != peer } ||
                 remainingRooms.keys != baselineRooms.keys
-            ) fail("matching_room_baseline_changed")
+            ) {
+                fail("matching_room_baseline_changed")
+            }
             // 공통 정리·세션 해제 뒤 호스트의 최종 pm clear까지 증거를 보존해 같은 소유권으로 재시도합니다.
         }
 
@@ -199,7 +203,9 @@ internal class MatchingFeatureFixture
                             it.getDouble("latitude") != state.getDouble("catalogLatitude") ||
                             it.getDouble("longitude") != state.getDouble("catalogLongitude")
                     }
-                ) fail("matching_crud_catalog_value_changed")
+                ) {
+                    fail("matching_crud_catalog_value_changed")
+                }
             }
             if (request.flow == "matching-member-to-chat") {
                 val chats = events.filter { it.getString("type") == "chat" }
@@ -211,7 +217,9 @@ internal class MatchingFeatureFixture
                     } ||
                     chats.single().getLong("roomId") != state.getLong("roomId") ||
                     owners[state.getLong("roomId")] != state.getString("peerId")
-                ) fail("matching_chat_identity_or_denial_failed")
+                ) {
+                    fail("matching_chat_identity_or_denial_failed")
+                }
             }
         }
 
@@ -240,7 +248,9 @@ internal class MatchingFeatureFixture
             if (request.feature != "matching" ||
                 request.flow !in setOf("matching-place-crud", "matching-place-validation", "matching-member-to-chat") ||
                 !Regex("[a-f0-9]{8,32}").matches(request.runId)
-            ) fail("matching_request_invalid")
+            ) {
+                fail("matching_request_invalid")
+            }
         }
 
         private fun readState(request: MaestroFeatureRequest): JSONObject {
@@ -248,7 +258,9 @@ internal class MatchingFeatureFixture
             val state = readJson(stateFile())
             if (state.getString("memberId") != request.memberId || state.getString("runId") != request.runId ||
                 state.getString("flow") != request.flow
-            ) fail("matching_snapshot_identity_invalid")
+            ) {
+                fail("matching_snapshot_identity_invalid")
+            }
             return state
         }
 
