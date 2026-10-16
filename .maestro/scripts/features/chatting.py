@@ -69,7 +69,7 @@ class PeerEmulator:
             self.process = subprocess.Popen(
                 [emulator, "-avd", names[0], "-read-only", "-port", str(port),
                  "-no-window", "-no-audio", "-no-boot-anim", "-no-snapshot",
-                 "-gpu", "swiftshader_indirect", "-timezone", "Asia/Seoul"],
+                 "-gpu", "swiftshader", "-timezone", "Asia/Seoul"],
                 cwd=core.ROOT, env=env, stdin=subprocess.DEVNULL,
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
             )
