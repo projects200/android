@@ -49,7 +49,7 @@ tags:
 - assertVisible:
     id: chatting_noti_switch
     checked: true
-# apiLevel33 descriptor에서 실제 POST_NOTIFICATIONS 권한을 거부합니다.
+# apiLevel34 descriptor에서 실제 POST_NOTIFICATIONS 권한을 거부합니다.
 - runFlow: ../subflows/profile-notification-denied.yaml
 - tapOn:
     id: profile_nav_graph

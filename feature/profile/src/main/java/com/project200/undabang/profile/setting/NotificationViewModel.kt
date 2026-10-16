@@ -72,7 +72,10 @@ class NotificationViewModel
             }
         }
 
-        fun onSwitchToggled(type: NotificationType, isEnabled: Boolean) {
+        fun onSwitchToggled(
+            type: NotificationType,
+            isEnabled: Boolean,
+        ) {
             if (busy || _syncState.value != NotificationSyncState.Ready || type == NotificationType.UNKNOWN) return
             if (!_hasDevicePermission.value) {
                 if (isEnabled) {
@@ -92,7 +95,10 @@ class NotificationViewModel
             }
         }
 
-        private suspend fun persist(type: NotificationType, enabled: Boolean) {
+        private suspend fun persist(
+            type: NotificationType,
+            enabled: Boolean,
+        ) {
             _syncState.value = NotificationSyncState.Saving
             // 전체 목록의 UNKNOWN 재전송은 원래 서버 type을 잃습니다. 변경한 행만 PATCH합니다.
             when (val result = updateNotiSettingUseCase(listOf(NotificationState(type, enabled)))) {
