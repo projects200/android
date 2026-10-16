@@ -128,7 +128,7 @@ python3 .maestro/scripts/run-tests.py --suite login --device emulator-5554
 
 `^maestro-e2e-[a-f0-9]{32}(-edited)?$`에 정확히 맞는 제목은 **검증된 전용 계정에서 이 suite만 소유**합니다. 일반 기록 제목에 이 패턴을 사용하지 마세요. 준비/정리는 시작일~기기 오늘의 월별 운동 횟수를 읽고 기록이 있는 날짜만 조회하여 이 제목만 삭제합니다. 다른 제목·다른 계정·범위 밖 기록은 삭제하지 않습니다. 서버 오류나 계정 불일치 시 삭제를 진행하지 않습니다.
 
-UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 직렬화하고 이전 job을 자동 취소하지 않습니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
+UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 한 번에 하나만 실행합니다. `cancel-in-progress: false`로 실행 중인 job을 자동 취소하지 않으며, `queue: max`로 최대 100개의 pending job을 대기시킵니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
 
 ## suite와 플로우(#607, #608)
 
@@ -233,7 +233,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`MAESTRO_MATCHING_MARKER_POINT`|전용 emulator에서 보정한 실제 지도 marker 위치|
 |`MAESTRO_MATCHING_ROOM_ID`|matching 두 계정의 검증할 기존 전용 방(정리 시 보존)|
 
-peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 pending 슬롯은 하나이므로 여러 PR을 동시에 게시하면 이전 pending job이 취소될 수 있습니다. 컨트롤러는 순차 게시/관찰하거나 취소된 실행을 명시적으로 다시 실행해야 합니다.
+peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 `queue: max`는 최대 100개의 pending job을 대기시키며, 용량을 넘는 job은 취소됩니다. FIFO 순서는 workflow dispatch 순서가 아니라 job이 concurrency 대기에 들어간 순서입니다([공식 문서](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)).
 
 비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
 
