@@ -45,7 +45,11 @@ tags:
     timeout: 20000
 - tapOn:
     id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepA"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepA"
 - tapOn:
     id: custom_timer_form_add_step_btn
 - runFlow: ../subflows/timer-hide-keyboard.yaml
@@ -78,7 +82,11 @@ tags:
 - evalScript: ${output.tag = 'e2e611v-' + E2E_RUN_ID}
 - tapOn:
     id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: ${output.tag}
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: ${output.tag}
 - tapOn:
     id: custom_timer_form_step_name_0
 - eraseText

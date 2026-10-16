@@ -29,6 +29,7 @@ tags:
 # 제목
 - tapOn:
     id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: ${output.tag}
 - assertVisible:
     id: custom_timer_form_title_field
@@ -37,6 +38,7 @@ tags:
 # 스텝1: StepA, 5초
 - tapOn:
     id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepA"
 - assertVisible:
     id: custom_timer_form_new_step_name_field
@@ -54,6 +56,7 @@ tags:
 # 스텝2: StepB, 5초 (footer의 시간 기본값도 다시 덮어씁니다)
 - tapOn:
     id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepB"
 - assertVisible:
     id: custom_timer_form_new_step_name_field
@@ -135,6 +138,7 @@ tags:
 - tapOn:
     id: custom_timer_form_title_field
 - eraseText
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "${output.tag}-ed"
 - assertVisible:
     id: custom_timer_form_title_field
@@ -143,6 +147,7 @@ tags:
 - tapOn:
     id: custom_timer_form_step_name_0
 - eraseText
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepA2"
 - assertVisible:
     id: custom_timer_form_step_name_0

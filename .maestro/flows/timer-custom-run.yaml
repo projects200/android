@@ -24,6 +24,7 @@ tags:
     timeout: 20000
 - tapOn:
     id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: ${output.tag}
 - assertVisible:
     id: custom_timer_form_title_field
@@ -31,6 +32,7 @@ tags:
 
 - tapOn:
     id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepA"
 - assertVisible:
     id: custom_timer_form_new_step_name_field
@@ -46,6 +48,7 @@ tags:
     id: custom_timer_form_add_step_btn
 - tapOn:
     id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepB"
 - assertVisible:
     id: custom_timer_form_new_step_name_field
