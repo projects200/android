@@ -420,6 +420,47 @@ class EmulatorInputTests(unittest.TestCase):
             + subtypes + '</input-method>',
         )
 
+    def installed_subtype_from_dumps(self, resources, metadata, sdk=b"30\n"):
+        manifest = '''E: manifest (line=1)
+  A: package="example.keyboard"
+    E: application (line=2)
+        E: service (line=3)
+          A: http://schemas.android.com/apk/res/android:name(0x01010003)=".SelectedIme"
+            E: meta-data (line=4)
+              A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+              A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010002
+'''
+        device = object.__new__(runner.Device)
+        device.env = {}
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n", b"package:/system/app/Keyboard.apk\n", b"", sdk,
+        ])
+
+        def dump(argv, _env):
+            if argv[1:3] == ["dump", "resources"]:
+                return 0, resources.encode(), b""
+            if argv[1:4] == ["dump", "xmltree", "--file"]:
+                output = manifest if argv[4] == "AndroidManifest.xml" else metadata[argv[4]]
+                return 0, output.encode(), b""
+            raise AssertionError("Unexpected metadata operation")
+
+        with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
+            with mock.patch.object(runner, "command", side_effect=dump) as command:
+                result = runner.installed_ascii_subtype(device)
+        self.assertEqual(
+            device.require.call_args_list.count(mock.call("shell", "getprop", "ro.build.version.sdk")), 1,
+        )
+        xml_paths = [call.args[0][4] for call in command.call_args_list if call.args[0][2] == "xmltree"]
+        return result, xml_paths
+
+    def subtype_dump(self, subtype):
+        return '''E: input-method (line=1)
+  E: subtype (line=2)
+    A: http://schemas.android.com/apk/res/android:imeSubtypeLocale(0x01010399)="en_US"
+    A: http://schemas.android.com/apk/res/android:imeSubtypeMode(0x0101039a)="keyboard"
+    A: http://schemas.android.com/apk/res/android:isAsciiCapable(0x010103e9)=true
+    A: http://schemas.android.com/apk/res/android:subtypeId(0x010103c1)=''' + str(subtype) + "\n"
+
     def test_missing_metadata_tool_fails_before_keyboard_changes(self):
         device = object.__new__(runner.Device)
         device.env = {}
@@ -519,21 +560,28 @@ class EmulatorInputTests(unittest.TestCase):
             {"stage": "xml", "document": "manifest", "status": "missing-root"},
         ])
 
-    def test_ambiguous_resource_paths_report_count_without_values(self):
+    def test_collects_configured_resource_paths_without_logging_values(self):
         secret = "synthetic-private-resource"
-        resources = '''resource 0x7f010002 xml/metadata
+        for config in ("ko", "private/config"):
+            with self.subTest(config=config):
+                resources = '''resource 0x7f010002 xml/metadata
   () (file) res/''' + secret + '''.xml type=XML
-  (ko) (file) res/other.xml type=XML
+  (''' + config + ''') (file) res/other.xml type=XML
 '''
-        stderr = io.StringIO()
-        with contextlib.redirect_stderr(stderr):
-            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
-                runner.ime_resource_path(resources, "0x7f010002")
-        self.assertNotIn(secret, stderr.getvalue())
-        self.assertEqual(self.diagnostic_records(stderr), [{
-            "stage": "resource-path", "selected_resource": "0x7f010002",
-            "matching_resource_count": 1, "path_count": 2,
-        }])
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    self.assertEqual(
+                        runner.ime_resource_path(resources, "0x7f010002", 30),
+                        ["res/" + secret + ".xml", "res/other.xml"],
+                    )
+                self.assertNotIn(secret, stderr.getvalue())
+                self.assertNotIn("private/config", stderr.getvalue())
+                self.assertEqual(self.diagnostic_records(stderr), [{
+                    "stage": "resource-path", "selected_resource": "0x7f010002",
+                    "matching_resource_count": 1, "path_count": 2,
+                    "configs": ["", config if config == "ko" else "invalid"],
+                    "sdk_level": 30, "rule": "all-variants-agree",
+                }])
 
     def test_selects_declared_english_ascii_keyboard_not_korean_or_voice(self):
         metadata = self.input_method(
@@ -643,14 +691,75 @@ class EmulatorInputTests(unittest.TestCase):
     resource 0x7f010002 xml/renamed
       () (file) res/x9.xml type=XML
 '''
-        self.assertEqual(runner.ime_resource_path(resources, "0x7f010002"), "res/x9.xml")
+        self.assertEqual(runner.ime_resource_path(resources, "0x7f010002", 30), ["res/x9.xml"])
         for table in (
             resources.replace("0x7f010002", "0x7f010003"),
-            resources + "      (ko) (file) res/ko.xml type=XML\n",
+            resources + "    resource 0x7f010002 xml/duplicate\n      () (file) res/x9.xml type=XML\n",
+            resources.replace("      () (file) res/x9.xml type=XML\n", ""),
+            resources + "      () (file) res/other.xml type=XML\n",
+            resources + "      () (file) res/x9.xml type=XML\n",
+            resources + "      (ko) (file) res/ko.xml type=XML\n      (ko) (file) res/other.xml type=XML\n",
         ):
             with self.subTest(table=table):
                 with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
-                    runner.ime_resource_path(table, "0x7f010002")
+                    runner.ime_resource_path(table, "0x7f010002", 30)
+
+    def test_selects_highest_supported_version_metadata(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (v28) (file) res/v28.xml type=XML
+'''
+        metadata = {"res/default.xml": self.subtype_dump(101), "res/v28.xml": self.subtype_dump(102)}
+        for sdk, path, subtype in ((30, "res/v28.xml", 102), (27, "res/default.xml", 101)):
+            with self.subTest(sdk=sdk):
+                self.assertEqual(runner.ime_resource_path(resources, "0x7f010002", sdk), [path])
+                result, xml_paths = self.installed_subtype_from_dumps(resources, metadata, str(sdk).encode())
+                self.assertEqual(result, ("example.keyboard/.SelectedIme", subtype))
+                self.assertEqual(xml_paths, ["AndroidManifest.xml", path])
+
+    def test_refuses_version_metadata_newer_than_device(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  (v31) (file) res/v31.xml type=XML
+'''
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            runner.ime_resource_path(resources, "0x7f010002", 30)
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            self.installed_subtype_from_dumps(resources, {})
+
+    def test_accepts_locale_variants_only_when_all_subtype_ids_agree(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (ko) (file) res/ko.xml type=XML
+'''
+        metadata = {"res/default.xml": self.subtype_dump(101), "res/ko.xml": self.subtype_dump(101)}
+        result, xml_paths = self.installed_subtype_from_dumps(resources, metadata)
+        self.assertEqual(result, ("example.keyboard/.SelectedIme", 101))
+        self.assertEqual(xml_paths, ["AndroidManifest.xml", "res/default.xml", "res/ko.xml"])
+
+        metadata["res/ko.xml"] = self.subtype_dump(102)
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-subtype-unavailable"):
+            self.installed_subtype_from_dumps(resources, metadata)
+
+    def test_refuses_locale_variants_with_invalid_or_unavailable_subtype_metadata(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (ko) (file) res/ko.xml type=XML
+'''
+        for output, failure in (
+            ("", "emulator-ime-metadata-unavailable"),
+            ("E: input-method (line=1)\n", "emulator-ascii-subtype-unavailable"),
+            (self.subtype_dump(-1), "emulator-ascii-subtype-unavailable"),
+        ):
+            with self.subTest(failure=failure, output=output):
+                metadata = {"res/default.xml": self.subtype_dump(101), "res/ko.xml": output}
+                with self.assertRaisesRegex(runner.RunnerFailure, failure):
+                    self.installed_subtype_from_dumps(resources, metadata)
+
+    def test_refuses_invalid_device_sdk_metadata(self):
+        for sdk in (b"", b"invalid\n", b"30.0\n"):
+            with self.subTest(sdk=sdk):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    self.installed_subtype_from_dumps("", {}, sdk)
 
     def test_physical_device_refusal_precedes_all_configuration(self):
         device = object.__new__(runner.Device)
