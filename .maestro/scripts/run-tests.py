@@ -275,7 +275,7 @@ ANDROID_XML = "{http://schemas.android.com/apk/res/android}"
 
 
 def ime_diagnostic(stage, **details):
-    # 호출부는 공개 IME 식별자·고정 분류·개수만 전달합니다. 원문/환경/stderr는 제외합니다.
+    # 공개 IME 식별자·검증된 qualifier·SDK·고정 분류·개수만 전달하며 원문/경로/환경/stderr는 제외합니다.
     print("IME metadata: " + json.dumps({"stage": stage, **details}, sort_keys=True), file=sys.stderr)
 
 
@@ -374,9 +374,9 @@ def ime_resource_id(manifest, ime):
     return resources[0][1:]
 
 
-def ime_resource_path(output, resource_id):
+def ime_resource_path(output, resource_id, sdk_level):
     selected = False
-    paths = set()
+    variants = []
     resource_matches = 0
     for line in output.splitlines():
         resource = re.match(r"\s*resource (0x[0-9a-fA-F]{8}) \S+", line)
@@ -384,17 +384,35 @@ def ime_resource_path(output, resource_id):
             selected = resource[1].lower() == resource_id.lower()
             resource_matches += selected
         elif selected:
-            path = re.search(r"\(file\) (\S+) type=XML\b", line)
-            if path:
-                paths.add(path[1])
+            variant = re.match(r"\s*\(([^)]*)\) \(file\) (\S+) type=XML\b", line)
+            if variant:
+                variants.append((variant[1], variant[2]))
+    configs = [config for config, _ in variants]
+    version_only = all(not config or re.fullmatch(r"v[0-9]+", config) for config in configs)
+    rule = "version" if version_only else "all-variants-agree"
+    if len(variants) == 1 and not configs[0]:
+        rule = "single"
     ime_diagnostic(
         "resource-path", selected_resource=resource_id if re.fullmatch(r"0x[0-9a-fA-F]{8}", resource_id) else "invalid",
-        matching_resource_count=resource_matches, path_count=len(paths),
+        matching_resource_count=resource_matches, path_count=len(variants),
+        configs=sorted(config if re.fullmatch(r"[A-Za-z0-9+-]*", config) else "invalid" for config in configs),
+        sdk_level=sdk_level, rule=rule,
     )
-    # 로케일별 XML이 다르면 실제 Android resource resolution을 추측하지 않습니다.
-    if len(paths) != 1:
+    if resource_matches != 1 or not variants or len(configs) != len(set(configs)):
         raise RunnerFailure("emulator-ime-metadata-unavailable")
-    return paths.pop()
+    if version_only:
+        selected_path = None
+        selected_version = -1
+        for config, path in variants:
+            version = int(config[1:]) if config else 0
+            if selected_version < version <= sdk_level:
+                selected_path = path
+                selected_version = version
+        if selected_path is None:
+            raise RunnerFailure("emulator-ime-metadata-unavailable")
+        return [selected_path]
+    # 버전 외 qualifier는 해석하지 않고 모든 XML의 subtype ID가 같은지 호출부에서 확인합니다.
+    return [path for _, path in variants]
 
 
 def java_string_hash(value):
@@ -503,9 +521,18 @@ def installed_ascii_subtype(device):
 
         manifest = aapt_xml(dump("manifest", "xmltree", "--file", "AndroidManifest.xml"), "manifest")
         resource = ime_resource_id(manifest, ime)
-        path = ime_resource_path(dump("resources", "resources"), resource)
-        metadata = aapt_xml(dump("input-method", "xmltree", "--file", path), "input-method")
-        return ime, ascii_ime_subtype(metadata)
+        try:
+            sdk_level = int(device.require("shell", "getprop", "ro.build.version.sdk"))
+        except ValueError:
+            raise RunnerFailure("emulator-ime-metadata-unavailable") from None
+        paths = ime_resource_path(dump("resources", "resources"), resource, sdk_level)
+        subtypes = set()
+        for path in paths:
+            metadata = aapt_xml(dump("input-method", "xmltree", "--file", path), "input-method")
+            subtypes.add(ascii_ime_subtype(metadata))
+        if len(subtypes) != 1:
+            raise RunnerFailure("emulator-ascii-subtype-unavailable")
+        return ime, subtypes.pop()
 
 
 class Device:
