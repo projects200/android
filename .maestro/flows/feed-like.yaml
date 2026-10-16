@@ -26,6 +26,7 @@ tags:
     timeout: 30000
 - tapOn:
     id: feed_form_content_field
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: ${output.tag}
 # 잘못 입력된 본문을 저장 전에 잡아 목록 갱신 실패와 구분합니다.
 - assertVisible:

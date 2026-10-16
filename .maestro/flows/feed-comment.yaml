@@ -29,6 +29,7 @@ tags:
     timeout: 30000
 - tapOn:
     id: feed_form_content_field
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: ${output.postTag}
 # 잘못 입력된 본문을 저장 전에 잡아 목록 갱신 실패와 구분합니다.
 - assertVisible:
@@ -59,6 +60,7 @@ tags:
 # 댓글 작성
 - tapOn:
     id: feed_detail_comment_input
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: ${output.commentTag}
 - tapOn:
     id: feed_detail_comment_send_button
@@ -73,6 +75,7 @@ tags:
 - assertVisible: ".*님에게 답글 작성 중"
 - tapOn:
     id: feed_detail_comment_input
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: ${output.replyTag}
 - tapOn:
     id: feed_detail_comment_send_button
