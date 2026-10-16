@@ -30,6 +30,8 @@ maestro --version
 
 러너는 [AAPT2의 공개 `dump xmltree`/`dump resources`](https://developer.android.com/tools/aapt2#dump)로 **현재 설치된** IME service의 `android.view.im` XML을 찾습니다. 그 XML에 선언된 `en-US`/`en_US`, `keyboard`, `isAsciiCapable=true`인 비보조 subtype 하나를 선택합니다. 명시적 ID는 그대로 사용하고, ID가 없거나 0이면 [Android `InputMethodSubtype`의 계산 규칙](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r83/core/java/android/view/inputmethod/InputMethodSubtype.java#L293-L310)에 따라 원래 locale·mode·extra 문자열과 boolean 기본값을 Java UTF-16/signed 32-bit hash로 계산합니다. `languageTag`를 locale 대신 hash에 넣거나 해석하지 못한 resource 참조를 문자열로 hash하지 않습니다. ID·APK 내부 파일명·Gboard private 설정을 추측하지 않습니다. Android의 [`selected_input_method_subtype` 설정과 observer](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-11.0.0_r48/services/core/java/com/android/server/inputmethod/InputMethodManagerService.java#L1111-L1118)를 사용하며 현재 IME의 enabled subtype도 영어 하나로 제한합니다. 이 제한은 Maestro의 비ASCII 입력 후 `ime set` 복원에서도 한국어 자동 선택으로 돌아가지 않게 합니다. 다른 enabled IME는 보존합니다.
 
+XML config가 기본값 또는 `v<버전>`뿐이면 기기 SDK 이하에서 가장 높은 버전을 선택합니다(기본값은 0). 로케일 등 다른 qualifier가 하나라도 있으면 config를 추측해 고르지 않고 모든 XML의 유일한 영어 ASCII subtype ID가 같을 때만 진행하며, 중복 config·적용 가능한 버전 없음·variant 간 ID 불일치는 거절합니다.
+
 `aapt2`가 없으면 `emulator-ascii-input-requires-aapt2`, 단일 APK/공개 metadata를 해석할 수 없으면 `emulator-ime-metadata-unavailable`, 유일한 영어 ASCII subtype의 ID를 확인할 수 없으면 `emulator-ascii-subtype-unavailable`로 setup을 중단합니다. 설정 readback이 다르면 `emulator-ascii-input-not-configured`로 실패합니다. 실제 UI 입력의 정확성은 기존 플로우의 값 assertion으로 계속 확인하며 이 설정만으로 E2E 통과를 주장하지 않습니다.
 
 ## DEV 빌드 준비
