@@ -11,7 +11,7 @@ Maestro는 APK 밖에서 실제 화면을 조작하는 블랙박스 테스트입
 - 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM, 선택된 descriptor의 최대 `apiLevel`(기본 **30**, 프로필·피드 **33**)인 `google_apis` `x86_64` 이미지를 사용합니다.
 - ARM APK 필터(`armeabi-v7a`, `arm64-v8a`)는 그대로 유지합니다. [공식 ARM translation 안내](https://android-developers.googleblog.com/2020/03/run-arm-apps-on-android-emulator.html)는 Android 11 Google APIs 이미지의 ARM 실행을 설명합니다. 모든 x86 이미지가 이를 지원하는 것은 아닙니다. 러너의 `--apk`는 APK의 실제 ARM 라이브러리와 기기 `ro.product.cpu.abilist`의 교집합을 **설치 전에** 검사하며, 지원 ABI가 없으면 실패합니다.
 - `--device`에는 `adb devices`의 serial을 사용합니다. 생략하면 연결된 정상 기기가 정확히 하나여야 합니다.
-- `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 거절합니다. 옵션 없이 실행할 때는 기기의 설정을 먼저 맞춰야 합니다.
+- `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. 재부팅 후에는 현재 IME의 공개 APK metadata에서 영어(`en-US`) ASCII keyboard subtype을 찾아 선택합니다. **앱/UI 언어는 한국어이고 시간대는 서울인 상태를 유지합니다.** SDK Build Tools의 `aapt2`가 PATH 또는 `ANDROID_HOME`/`ANDROID_SDK_ROOT` 아래 `build-tools/<version>/`에 있어야 합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 설정 전에 거절하며, 옵션 없이 실행할 때는 입력기를 포함한 기기 설정을 먼저 맞춰야 합니다.
 
 설치 예시(개발자가 실행할 명령이며 이 변경 작업에서 실행한 검증이 아닙니다):
 
@@ -23,6 +23,14 @@ maestro --version
 ```
 
 [실제로 게시된 `cli-2.11.0` 릴리스](https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.11.0)를 고정합니다. CI는 릴리스 ZIP의 SHA-256 `5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a`도 검사합니다. 러너는 다른 CLI 버전을 거절합니다.
+
+### 한국어 UI와 ASCII 입력
+
+고정한 [Maestro AndroidDriver의 `inputText`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-client/src/main/java/maestro/drivers/AndroidDriver.kt#L546-L558)는 ASCII를 [Android keycode](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-android/src/androidTest/java/dev/mobile/maestro/MaestroDriverService.kt#L517-L576)로 보냅니다. 한국어 Gboard에서는 이 키가 한글 자모로 바뀔 수 있습니다. 같은 버전의 `pasteText`도 `inputText`로 돌아가므로 대안이 아닙니다.
+
+러너는 [AAPT2의 공개 `dump xmltree`/`dump resources`](https://developer.android.com/tools/aapt2#dump)로 **현재 설치된** IME service의 `android.view.im` XML을 찾습니다. 그 XML에 선언된 `en-US`/`en_US`, `keyboard`, `isAsciiCapable=true`인 비보조 subtype 하나의 명시적 ID만 사용합니다. ID·APK 내부 파일명·Gboard private 설정을 추측하지 않습니다. Android의 [`selected_input_method_subtype` 설정과 observer](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-11.0.0_r48/services/core/java/com/android/server/inputmethod/InputMethodManagerService.java#L1111-L1118)를 사용하며 현재 IME의 enabled subtype도 영어 하나로 제한합니다. 이 제한은 Maestro의 비ASCII 입력 후 `ime set` 복원에서도 한국어 자동 선택으로 돌아가지 않게 합니다. 다른 enabled IME는 보존합니다.
+
+`aapt2`가 없으면 `emulator-ascii-input-requires-aapt2`, 단일 APK/공개 metadata를 해석할 수 없으면 `emulator-ime-metadata-unavailable`, 유일한 명시적 영어 ASCII subtype이 없으면 `emulator-ascii-subtype-unavailable`로 setup을 중단합니다. 설정 readback이 다르면 `emulator-ascii-input-not-configured`로 실패합니다. 실제 UI 입력의 정확성은 기존 플로우의 값 assertion으로 계속 확인하며 이 설정만으로 E2E 통과를 주장하지 않습니다.
 
 ## DEV 빌드 준비
 
@@ -241,9 +249,9 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 ## 검증 상태와 남은 외부 준비
 
-이번 공유 기능 통합에서는 **로컬 unittest·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증을 실행하지 않았습니다.** 관련 소스와 계약을 정적으로 읽었으며, 명령 예시와 추가한 테스트는 실행 성공 증거가 아닙니다.
+기존 공유 기능 통합은 원격 CI에서 Python 회귀 테스트와 E2E 빌드·단위 테스트를 실행했습니다. 타이머의 기본 smoke는 통과했지만 기능 플로우는 실패했고, 피드·프로필은 API33 이미지와 ARM APK의 ABI 불일치로 설치 전에 중단됐습니다. 현재 ASCII 입력 수정은 정적 확인만 했으며 수정 후 CI 검증은 남아 있습니다. 로컬에서는 저장소 코드를 실행하지 않았습니다.
 
-저장소 루트에서 실행할 표준 라이브러리 회귀 테스트 명령(이 작업에서는 미실행):
+저장소 루트에서 사용하는 표준 라이브러리 회귀 테스트 명령:
 
 ```bash
 python3 -m unittest discover -s .maestro/scripts -p 'test_*.py'
@@ -253,6 +261,7 @@ fi
 ```
 
 `test_run_tests.py`의 로컬 셸 하네스는 실제 adb/기기/계정 없이 stdin 전달, 원격 종료 상태, JSON 검증과 실패 시 export 파일 제거를 검사합니다. 하네스 통과도 실기기 export 증거는 아닙니다. 후속 기기 검증에서는 인증된 세션/member ID 쌍, 비ASCII JSON 왕복과 private 파일 제거를 별도로 확인해야 합니다.
-`test_feature_suites.py`와 `MaestroFeatureFixtureTest`는 descriptor/API 선택, 입력 선검사, 소유권 및 복구 실패 시 clear 중단, hook 실패 후 teardown, driver 누락 결과를 검사합니다. coordinator 회귀 테스트는 기능 cleanup 성공 뒤 운동 정리 또는 세션 제거가 실패하면 recovery 완료/성공 응답을 쓰지 않고, 동일 ownership으로 인증·기능 cleanup·후속 정리를 다시 수행하는지 검사합니다. 기능별 snapshot 보존과 반복 복구는 각 기능 fixture 테스트가 담당합니다. 테스트는 이 작업에서 실행하지 않았습니다.
+공통 입력 회귀 테스트는 공개 IME metadata의 service/resource 연결, 영어 ASCII subtype 선택과 모호한/자동 ID 거절, 다른 enabled IME 보존, 설정 미반영과 물리 기기 거절 경계를 검사합니다. 이 입력 수정의 unittest·에뮬레이터·Maestro 실행도 수행하지 않았습니다.
+`test_feature_suites.py`와 `MaestroFeatureFixtureTest`는 descriptor/API 선택, 입력 선검사, 소유권 및 복구 실패 시 clear 중단, hook 실패 후 teardown, driver 누락 결과를 검사합니다. coordinator 회귀 테스트는 기능 cleanup 성공 뒤 운동 정리 또는 세션 제거가 실패하면 recovery 완료/성공 응답을 쓰지 않고, 동일 ownership으로 인증·기능 cleanup·후속 정리를 다시 수행하는지 검사합니다. 기능별 snapshot 보존과 반복 복구는 각 기능 fixture 테스트가 담당하며, 단위 테스트 통과만으로 실제 서버 복구를 검증했다고 보지 않습니다.
 
 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 기본 CI 비밀, 선택 기능의 실제 peer/room/지도 입력, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 일반 smoke 성공은 기능 성공 증거가 아닙니다. 실제 flow 이름별 원격 결과, API33 미디어/권한·알림, 채팅 두 기기, 서버 복구 실패 경로를 확인해야 합니다. prepare/cleanup의 refresh 결과를 GitHub Secret에 되쓰지 않으므로 갱신 토큰 rotation/만료 정책에 따라 다시 내보내기가 필요할 수 있습니다. 영구 인증이나 미검증 password-login을 제공하지 않습니다.
