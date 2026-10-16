@@ -18,8 +18,7 @@ internal class MaestroFeedOwnership(
     val comment = "maestro-feed-$runId-$flow-comment"
     val reply = "maestro-feed-$runId-$flow-reply"
 
-    fun owns(feed: Feed): Boolean =
-        feed.memberId == memberId && (feed.feedContent == post || feed.feedContent == editedPost)
+    fun owns(feed: Feed): Boolean = feed.memberId == memberId && (feed.feedContent == post || feed.feedContent == editedPost)
 
     companion object {
         private val RUN_ID = Regex("[0-9a-f]{16}")
