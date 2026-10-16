@@ -39,7 +39,7 @@ python3 .maestro/scripts/run-tests.py --suite timer --device emulator-5554 \
 
 ## 시간 입력과 실행 상태
 
-`subflows/timer-set-time.yaml`은 실제 `minute_et`와 `second_et`의 오른쪽(`point: "90%, 50%"`, 화면이 아닌 선택한 필드 기준)을 누른 뒤 두 자리를 지웁니다. 두 필드는 폭 100dp·중앙 정렬·최대 두 자리이므로 숫자 뒤에서 삭제하며, 포커스 시 `selectAll()`이 탭으로 해제되어도 뒷자리가 남지 않게 합니다. 분·초를 두 자리로 입력한 뒤 각 필드의 요청값을 확인하고 나서만 확인 버튼을 누릅니다. 제품의 60초 기본값과 범위 제한은 바꾸지 않습니다.
+`subflows/timer-set-time.yaml`은 실제 `minute_et`의 `point: "75%, 50%"`와 `second_et`의 `point: "90%, 50%"`(화면이 아닌 선택한 필드 기준)를 누른 뒤 두 자리를 지웁니다. 320dp 너비 화면에서 분·초 필드 겹침이 관찰되어, 분 탭은 초 필드 밖인 75% 지점을 사용합니다. 두 필드는 폭 100dp·중앙 정렬·최대 두 자리이므로 숫자 뒤에서 삭제하며, 포커스 시 `selectAll()`이 탭으로 해제되어도 뒷자리가 남지 않게 합니다. 분·초를 두 자리로 입력한 뒤 각 필드의 요청값을 확인하고 나서만 확인 버튼을 누릅니다. 제품의 60초 기본값과 범위 제한은 바꾸지 않습니다.
 
 Maestro 2.11.0의 [`YamlElementSelector`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-orchestra/src/main/java/maestro/orchestra/yaml/YamlElementSelector.kt)와 [`Orchestra.tapOnElement`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-orchestra/src/main/java/maestro/orchestra/Orchestra.kt)가 필드 상대 좌표를 지원합니다. 같은 버전의 [`MaestroDriverService.eraseAllText`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-android/src/androidTest/java/dev/mobile/maestro/MaestroDriverService.kt)는 선택 필드의 전체 교체가 아니라 Delete 키를 반복합니다.
 
