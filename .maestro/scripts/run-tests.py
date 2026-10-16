@@ -397,6 +397,47 @@ def ime_resource_path(output, resource_id):
     return paths.pop()
 
 
+def java_string_hash(value):
+    # Java String은 Unicode code point가 아니라 UTF-16 code unit으로 int 연산합니다.
+    utf16 = value.encode("utf-16-be", errors="surrogatepass")
+    result = 0
+    for index in range(0, len(utf16), 2):
+        result = (31 * result + (utf16[index] << 8 | utf16[index + 1])) & 0xffffffff
+    return result - 0x100000000 if result >= 0x80000000 else result
+
+
+def android_subtype_id(attributes):
+    value = attributes.get("subtypeId", "0")
+    subtype = int(value, 16 if value.startswith("0x") else 10)
+    if not -0x80000000 <= subtype <= 0xffffffff:
+        raise ValueError("invalid-subtype-id")
+    if subtype >= 0x80000000:
+        subtype -= 0x100000000
+    if subtype != 0:
+        return subtype
+
+    # InputMethodSubtype.hashCodeInternal: ID 생략/0은 원래 locale·mode·extra로 계산합니다.
+    strings = [
+        attributes.get(name, "")
+        for name in ("imeSubtypeLocale", "imeSubtypeMode", "imeSubtypeExtraValue")
+    ]
+    if any(value.startswith(("@", "?")) for value in strings):
+        # Android getString의 resource 참조는 해석하지 못하므로 ID를 추측하지 않습니다.
+        raise ValueError("unresolved-subtype-string")
+    values = [java_string_hash(value) for value in strings]
+    values.extend(
+        1231 if attributes.get(name, "false") == "true" else 1237
+        for name in ("isAuxiliary", "overridesImplicitlyEnabledSubtype")
+    )
+    # ASCII 미지원 subtype의 기존 5항 hash는 Android와 동일하게 보존합니다.
+    if attributes.get("isAsciiCapable", "false") == "true":
+        values.append(1231)
+    result = 1
+    for value in values:
+        result = (31 * result + value) & 0xffffffff
+    return result - 0x100000000 if result >= 0x80000000 else result
+
+
 def ascii_ime_subtype(metadata):
     candidates = []
     if metadata.tag == "input-method":
@@ -410,14 +451,11 @@ def ascii_ime_subtype(metadata):
                     or attributes.get("overridesImplicitlyEnabledSubtype", "false") != "false"):
                 continue
             try:
-                value = attributes.get("subtypeId", "0")
-                subtype = int(value, 16 if value.startswith("0x") else 10)
+                subtype = android_subtype_id(attributes)
             except ValueError:
                 continue
-            if 0x80000000 <= subtype <= 0xffffffff:
-                subtype -= 0x100000000
-            # 0은 계산식, -1은 자동 선택입니다. 실제 선언 ID만 사용합니다.
-            if -0x80000000 <= subtype <= 0x7fffffff and subtype not in (0, -1):
+            # -1은 설정의 자동 선택 sentinel이므로 구체적인 subtype으로 선택할 수 없습니다.
+            if subtype != -1:
                 candidates.append(subtype)
     ime_diagnostic(
         "ascii-subtype", root=metadata.tag if metadata.tag == "input-method" else "other",
