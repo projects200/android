@@ -31,6 +31,10 @@ tags:
 - tapOn:
     id: feed_form_content_field
 - inputText: ${output.createTag}
+# 잘못 입력된 본문을 저장 전에 잡아 목록 갱신 실패와 구분합니다.
+- assertVisible:
+    id: feed_form_content_field
+    text: ${output.createTag}
 - tapOn:
     id: feed_form_complete_button
 
