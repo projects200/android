@@ -587,6 +587,20 @@ class Device:
             raise RunnerFailure("invalid-e2e-apk") from None
         arm_abis = abis.intersection({"armeabi-v7a", "arm64-v8a"})
         effective = set(self.require("shell", "getprop", "ro.product.cpu.abilist").decode().strip().split(","))
+        # 설치 실패 원인 분리를 위한 임시 진단: 공개 ABI 이름과 개수만 출력합니다.
+        public_abis = {
+            "arm64-v8a", "armeabi-v7a", "armeabi", "x86_64", "x86", "riscv64", "mips", "mips64",
+        }
+        print("ABI compatibility: " + json.dumps({
+            "apk_abis": sorted(abis.intersection(public_abis)),
+            "apk_other_abi_count": len(abis - public_abis),
+            "apk_arm_abis": sorted(arm_abis.intersection(public_abis)),
+            "apk_arm_other_abi_count": len(arm_abis - public_abis),
+            "device_abis": sorted(effective.intersection(public_abis)),
+            "device_other_abi_count": len(effective - public_abis),
+            "empty_apk_arm": not arm_abis,
+            "has_arm_intersection": bool(effective.intersection(arm_abis)),
+        }, sort_keys=True), file=sys.stderr)
         if not arm_abis or not effective.intersection(arm_abis):
             raise RunnerFailure("device-abi-does-not-support-apk-arm-libraries")
         # 같은 ID의 release 앱과 서명이 다르면 설치 실패를 유지합니다. 자동 제거하지 않습니다.
