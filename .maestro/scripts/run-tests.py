@@ -397,6 +397,47 @@ def ime_resource_path(output, resource_id):
     return paths.pop()
 
 
+def java_string_hash(value):
+    # Java String은 Unicode code point가 아니라 UTF-16 code unit으로 int 연산합니다.
+    utf16 = value.encode("utf-16-be", errors="surrogatepass")
+    result = 0
+    for index in range(0, len(utf16), 2):
+        result = (31 * result + (utf16[index] << 8 | utf16[index + 1])) & 0xffffffff
+    return result - 0x100000000 if result >= 0x80000000 else result
+
+
+def android_subtype_id(attributes):
+    value = attributes.get("subtypeId", "0")
+    subtype = int(value, 16 if value.startswith("0x") else 10)
+    if not -0x80000000 <= subtype <= 0xffffffff:
+        raise ValueError("invalid-subtype-id")
+    if subtype >= 0x80000000:
+        subtype -= 0x100000000
+    if subtype != 0:
+        return subtype
+
+    # InputMethodSubtype.hashCodeInternal: ID 생략/0은 원래 locale·mode·extra로 계산합니다.
+    strings = [
+        attributes.get(name, "")
+        for name in ("imeSubtypeLocale", "imeSubtypeMode", "imeSubtypeExtraValue")
+    ]
+    if any(value.startswith(("@", "?")) for value in strings):
+        # Android getString의 resource 참조는 해석하지 못하므로 ID를 추측하지 않습니다.
+        raise ValueError("unresolved-subtype-string")
+    values = [java_string_hash(value) for value in strings]
+    values.extend(
+        1231 if attributes.get(name, "false") == "true" else 1237
+        for name in ("isAuxiliary", "overridesImplicitlyEnabledSubtype")
+    )
+    # ASCII 미지원 subtype의 기존 5항 hash는 Android와 동일하게 보존합니다.
+    if attributes.get("isAsciiCapable", "false") == "true":
+        values.append(1231)
+    result = 1
+    for value in values:
+        result = (31 * result + value) & 0xffffffff
+    return result - 0x100000000 if result >= 0x80000000 else result
+
+
 def ascii_ime_subtype(metadata):
     candidates = []
     if metadata.tag == "input-method":
@@ -410,14 +451,11 @@ def ascii_ime_subtype(metadata):
                     or attributes.get("overridesImplicitlyEnabledSubtype", "false") != "false"):
                 continue
             try:
-                value = attributes.get("subtypeId", "0")
-                subtype = int(value, 16 if value.startswith("0x") else 10)
+                subtype = android_subtype_id(attributes)
             except ValueError:
                 continue
-            if 0x80000000 <= subtype <= 0xffffffff:
-                subtype -= 0x100000000
-            # 0은 계산식, -1은 자동 선택입니다. 실제 선언 ID만 사용합니다.
-            if -0x80000000 <= subtype <= 0x7fffffff and subtype not in (0, -1):
+            # -1은 설정의 자동 선택 sentinel이므로 구체적인 subtype으로 선택할 수 없습니다.
+            if subtype != -1:
                 candidates.append(subtype)
     ime_diagnostic(
         "ascii-subtype", root=metadata.tag if metadata.tag == "input-method" else "other",
@@ -587,6 +625,20 @@ class Device:
             raise RunnerFailure("invalid-e2e-apk") from None
         arm_abis = abis.intersection({"armeabi-v7a", "arm64-v8a"})
         effective = set(self.require("shell", "getprop", "ro.product.cpu.abilist").decode().strip().split(","))
+        # 설치 실패 원인 분리를 위한 임시 진단: 공개 ABI 이름과 개수만 출력합니다.
+        public_abis = {
+            "arm64-v8a", "armeabi-v7a", "armeabi", "x86_64", "x86", "riscv64", "mips", "mips64",
+        }
+        print("ABI compatibility: " + json.dumps({
+            "apk_abis": sorted(abis.intersection(public_abis)),
+            "apk_other_abi_count": len(abis - public_abis),
+            "apk_arm_abis": sorted(arm_abis.intersection(public_abis)),
+            "apk_arm_other_abi_count": len(arm_abis - public_abis),
+            "device_abis": sorted(effective.intersection(public_abis)),
+            "device_other_abi_count": len(effective - public_abis),
+            "empty_apk_arm": not arm_abis,
+            "has_arm_intersection": bool(effective.intersection(arm_abis)),
+        }, sort_keys=True), file=sys.stderr)
         if not arm_abis or not effective.intersection(arm_abis):
             raise RunnerFailure("device-abi-does-not-support-apk-arm-libraries")
         # 같은 ID의 release 앱과 서명이 다르면 설치 실패를 유지합니다. 자동 제거하지 않습니다.
