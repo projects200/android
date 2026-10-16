@@ -14,7 +14,11 @@ internal object MaestroProfilePolicy {
         val restore: List<GetPreferredExerciseDTO>,
     )
 
-    fun validateText(nickname: String, gender: String, bio: String?) {
+    fun validateText(
+        nickname: String,
+        gender: String,
+        bio: String?,
+    ) {
         // Maestro Android inputText로 원문을 정확히 복구할 수 있는 전용 계정만 허용합니다.
         if (!nicknamePattern.matches(nickname) || gender !in genders ||
             bio == null || bio.length > 4096 || !bioPattern.matches(bio)
@@ -65,10 +69,11 @@ internal object MaestroProfilePolicy {
         }
         return PreferenceRecovery(
             deleteIds = added.map { it.preferredExerciseId },
-            restore = baseline.filter {
-                val actual = currentById.getValue(it.preferredExerciseId)
-                it.skillLevel != actual.skillLevel || it.daysOfWeek != actual.daysOfWeek
-            },
+            restore =
+                baseline.filter {
+                    val actual = currentById.getValue(it.preferredExerciseId)
+                    it.skillLevel != actual.skillLevel || it.daysOfWeek != actual.daysOfWeek
+                },
         )
     }
 
