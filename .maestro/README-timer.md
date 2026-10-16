@@ -37,7 +37,11 @@ python3 .maestro/scripts/run-tests.py --suite timer --device emulator-5554 \
 
 심플 CRUD 내부 재실행은 `launch-logged-in.yaml`의 `clearState:false`를 유지합니다. 중간 prepare나 clear를 넣지 않으므로 실제 Room 저장과 인증 유지가 검증 대상입니다.
 
-## 시간 입력과 실행 상태
+## 텍스트·시간 입력과 실행 상태
+
+`timer-ascii-keyboard.yaml`은 포커스된 Gboard의 실제 자판을 확인합니다. 첫 키가 `비읍`이면 관찰된 `다음 언어` 키를 한 번 누르고, 같은 위치의 `q/Q`를 확인한 뒤 ASCII 제목·이름을 입력합니다. secure subtype 설정값만으로 영문 입력을 보장하지 않으며, 입력 직후 필드의 정확한 문자열도 검사합니다. 다른 자판을 추측해서 넘기거나 `pasteText`로 우회하지 않습니다.
+
+`timer-clear-text.yaml`은 기존 제목·이름을 길게 눌러 선택하고, `모두 선택` 메뉴가 있으면 누른 뒤 삭제합니다. 한 단어가 이미 전체 선택된 경우에는 해당 메뉴가 없습니다. 가운데 커서 앞만 지워 기존 문자열의 뒷부분이 남는 문제를 피하며, 교체 후 정확한 값과 빈 이름의 저장 거부는 기존 UI 검증으로 확인합니다.
 
 `subflows/timer-set-time.yaml`은 실제 `minute_et`의 `point: "75%, 50%"`와 `second_et`의 `point: "90%, 50%"`(화면이 아닌 선택한 필드 기준)를 누른 뒤 두 자리를 지웁니다. 320dp 너비 화면에서 분·초 필드 겹침이 관찰되어, 분 탭은 초 필드 밖인 75% 지점을 사용합니다. 두 필드는 폭 100dp·중앙 정렬·최대 두 자리이므로 숫자 뒤에서 삭제하며, 포커스 시 `selectAll()`이 탭으로 해제되어도 뒷자리가 남지 않게 합니다. 분·초를 두 자리로 입력한 뒤 각 필드의 요청값을 확인하고 나서만 확인 버튼을 누릅니다. 제품의 60초 기본값과 범위 제한은 바꾸지 않습니다.
 
@@ -47,10 +51,10 @@ Maestro 2.11.0의 [`YamlElementSelector`](https://github.com/mobile-dev-inc/Maes
 
 진행·재개는 현재 시간 텍스트가 바뀔 때까지 필수 대기한 뒤 양수 감소를 비교합니다. 일시정지는 최소 2초 관찰 구간 동안 실제 시간·정지 상태를 반복 단언합니다. 존재하지 않는 선택자의 선택적 타임아웃을 sleep으로 사용하지 않습니다.
 
-`custom_timer_active_step_<order>`는 실제 강조 중인 `currentStepIndex`를 반영합니다. StepA/StepB 이름의 단순 노출이나 남은 시간 증가만으로 전환을 통과시키지 않습니다. 반복을 시작 전에 켠 뒤 StepB→StepA 동안 실행 상태와 반복 상태를 확인합니다. 반복 없는 자연 종료는 별도 실행에서 실행 상태와 StepB 도달을 먼저 확인한 후 정지·첫 스텝·초기 시간으로 판정합니다. Fragment가 `isTimerFinished`를 받으면 즉시 reset하므로 순간적인 finished 플래그의 태그를 기다리지 않습니다. 단계/완료 대기 상한은 설정한 스텝 길이와 15초 여유로 계산합니다.
+`custom_timer_active_step_<order>`는 실제 강조 중인 `currentStepIndex`를 반영합니다. StepA/StepB 이름의 단순 노출이나 남은 시간 증가만으로 전환을 통과시키지 않습니다. 반복을 시작 전에 켠 뒤 StepB→StepA 동안 실행 상태와 반복 상태를 확인합니다. 반복 없는 자연 종료는 별도 실행에서 실행 상태와 StepB 도달을 먼저 확인한 후 정지·첫 스텝·초기 시간으로 판정합니다. Fragment가 `isTimerFinished`를 받으면 즉시 reset하므로 순간적인 finished 플래그의 태그를 기다리지 않습니다. Maestro의 대기 제한은 마지막 UI 조작부터 누적되므로 첫 전환은 한 스텝+15초, 반복 복귀·자연 종료는 두 스텝+15초로 계산합니다.
 
 커스텀 두 스텝은 같은 30초입니다. 이 suite는 서로 다른 길이의 단계에 대한 서비스 구현의 정확성을 입증하지 않습니다. 드래그는 실제 `draggableHandle`에서 시작하는 swipe이며 순서 단언을 생략하지 않습니다.
 
 ## 검증 상태
 
-입력 수정 전 [CI 실행](https://github.com/projects200/android/actions/runs/38859583606)에서 공유 Python 테스트·E2E 빌드·단위 테스트와 기본 smoke는 통과했지만, 타이머 다섯 플로우는 실패했습니다. 현재의 입력·제출 수정은 정적으로 확인했으며 수정 후 실행 검증은 남아 있습니다. 프리셋 6개 상한은 별도 계정 준비 조건이고, 기존 서버 데이터를 삭제하거나 플로우를 생략해 통과시키지 않습니다. 로컬에서는 빌드·테스트·Maestro를 실행하지 않았습니다.
+`441155ae`의 [Maestro CI](https://github.com/projects200/android/actions/runs/38882786646)에서 기본 smoke 두 개와 심플 CRUD·실행·입력 유효성 검사가 통과했습니다. 영문 제목·단계명 입력과 커스텀 생성도 통과했지만, CRUD 제목 교체에 기존 문자열이 남았고 반복 복귀 대기는 두 번째 단계가 끝나기 전에 종료됐습니다. 같은 커밋의 [일반 CI](https://github.com/projects200/android/actions/runs/38882786596)는 성공했습니다. 전체 선택·누적 대기 수정 후 다섯 플로우 전체 통과는 확인 필요입니다. 기존 서버 데이터를 삭제하거나 플로우를 생략해 통과시키지 않습니다. 로컬에서는 빌드·테스트·Maestro를 실행하지 않았습니다.

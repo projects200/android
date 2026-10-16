@@ -173,10 +173,11 @@ tags:
 - assertVisible: "일시 정지"
 - assertVisible:
     id: custom_timer_repeat_on
+# 제한 시간은 마지막 UI 조작(재개)부터 누적되므로 두 스텝 전체에 15초 여유를 둡니다.
 - extendedWaitUntil:
     visible:
       id: custom_timer_active_step_0
-    timeout: ${(output.stepSec + 15) * 1000}
+    timeout: ${(output.stepSec * 2 + 15) * 1000}
 - assertVisible: "일시 정지"
 - assertVisible:
     id: custom_timer_repeat_on
@@ -212,9 +213,10 @@ tags:
 - assertVisible: "일시 정지"
 - assertVisible:
     id: custom_timer_repeat_off
+# 제한 시간은 마지막 UI 조작(시작)부터 누적되므로 두 스텝 전체에 15초 여유를 둡니다.
 - extendedWaitUntil:
     visible: "시작"
-    timeout: ${(output.stepSec + 15) * 1000}
+    timeout: ${(output.stepSec * 2 + 15) * 1000}
 - assertVisible:
     id: custom_timer_active_step_0
 - assertVisible:

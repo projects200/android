@@ -135,18 +135,20 @@ tags:
       id: custom_timer_form_title_field
     timeout: 20000
 
-- tapOn:
-    id: custom_timer_form_title_field
-- eraseText
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_title_field
 - runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "${output.tag}-ed"
 - assertVisible:
     id: custom_timer_form_title_field
     text: "${output.tag}-ed"
 
-- tapOn:
-    id: custom_timer_form_step_name_0
-- eraseText
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_step_name_0
 - runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "StepA2"
 - assertVisible:

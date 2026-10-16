@@ -87,9 +87,10 @@ tags:
 - assertVisible:
     id: custom_timer_form_title_field
     text: ${output.tag}
-- tapOn:
-    id: custom_timer_form_step_name_0
-- eraseText
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_step_name_0
 - runFlow: ../subflows/timer-hide-keyboard.yaml
 - tapOn:
     id: custom_timer_form_submit_btn
