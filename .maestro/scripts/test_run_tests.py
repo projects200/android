@@ -288,6 +288,46 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
+        self.transport.result = b'{"status":"failed","reason":"matching_peer_unavailable"}'
+        self.assert_failure(
+            "bootstrap-prepare-failed-matching-peer-unavailable",
+            lambda: self.device.bootstrap(
+                "prepare",
+                CREDENTIALS,
+                feature="matching",
+                flow="matching-place-crud",
+                run_id="0123456789abcdef",
+                parameters={},
+            ),
+        )
+        self.assert_no_credential_arguments()
+
+    def test_matching_failure_reason_is_not_exposed_outside_prepare(self):
+        cases = (
+            ("cleanup", "matching_peer_unavailable", "bootstrap-cleanup-failed"),
+            ("prepare", "matching_unknown_failure", "bootstrap-prepare-failed"),
+            ("prepare", "matching_peer_unavailable", "bootstrap-prepare-failed"),
+        )
+        for operation, reason, expected in cases:
+            with self.subTest(operation=operation, reason=reason):
+                self.transport.result = json.dumps(
+                    {"status": "failed", "reason": reason},
+                ).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda operation=operation: self.device.bootstrap(
+                        operation,
+                        CREDENTIALS,
+                        feature="exercise" if operation == "prepare" and reason == "matching_peer_unavailable" else "matching",
+                        flow="matching-place-crud",
+                        run_id="0123456789abcdef",
+                        parameters={},
+                    ),
+                )
+        self.assert_no_credential_arguments()
+
+
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):
         self.transport.allow_run_as = False
         self.assert_failure("adb-operation-failed", self.device.verify_setup)
