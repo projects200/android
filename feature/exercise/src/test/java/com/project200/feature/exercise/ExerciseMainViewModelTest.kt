@@ -635,8 +635,10 @@ class ExerciseMainViewModelTest {
     @Test
     fun `생성 대기 날짜는 완료 날짜와 대기 표시 목록에 함께 포함된다`() =
         runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
             coEvery { mockGetExerciseCountUseCase(any(), any()) } returns
                 BaseResult.Success(listOf(ExerciseCount(today, 1, syncPending = true)))
+            viewModel.refreshData()
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat(viewModel.exerciseDates.value).contains(today)
             assertThat(viewModel.pendingDates.value).contains(today)
@@ -645,12 +647,14 @@ class ExerciseMainViewModelTest {
     @Test
     fun `오프라인 조회 실패는 오류 상태로 구분하되 갱신 실패 토스트를 반복하지 않는다`() =
         runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
             coEvery { mockNetworkMonitor.isCurrentlyConnected() } returns false
             val offline = BaseResult.Error("NETWORK_ERROR", "네트워크 연결 오류")
             coEvery { mockGetExerciseCountUseCase(any(), any()) } returns offline
             coEvery { mockGetExerciseRecordListUseCase(any()) } returns offline
             coEvery { mockGetScoreUseCase() } returns offline
             coEvery { mockGetScorePolicyUseCase() } returns offline
+            viewModel.refreshData()
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.exerciseListError.value).isEqualTo(offline)
