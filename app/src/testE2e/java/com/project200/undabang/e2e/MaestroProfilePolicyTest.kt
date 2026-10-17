@@ -62,7 +62,7 @@ class MaestroProfilePolicyTest {
                 }
             assertEquals("profile_baseline_nickname_unsupported", failure.reason)
         }
-        for ((bio, reason) in
+        val unsupportedBios =
             listOf(
                 null to "profile_baseline_bio_null",
                 "" to "profile_baseline_bio_empty",
@@ -70,7 +70,7 @@ class MaestroProfilePolicyTest {
                 "tab\tbio" to "profile_baseline_bio_control_characters",
                 "a".repeat(51) to "profile_baseline_bio_too_long",
             )
-        ) {
+        for ((bio, reason) in unsupportedBios) {
             val failure =
                 assertThrows(MaestroSetupFailure::class.java) {
                     MaestroProfilePolicy.validateText("OriginalUser", "MALE", bio)
