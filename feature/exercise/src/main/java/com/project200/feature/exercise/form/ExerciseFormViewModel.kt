@@ -429,7 +429,12 @@ class ExerciseFormViewModel
                 when (val createResult = createExerciseRecordUseCase(record)) {
                     is BaseResult.Success -> {
                         // 기록 생성 성공 시, 이미지 업로드 로직 호출
-                        handleSuccessfulRecordCreation(createResult.data.recordId, newImageUris, createResult.data.earnedPoints, createResult.refreshError)
+                        handleSuccessfulRecordCreation(
+                            createResult.data.recordId,
+                            newImageUris,
+                            createResult.data.earnedPoints,
+                            createResult.refreshError,
+                        )
                     }
                     is BaseResult.Error -> {
                         // 기록 생성 실패

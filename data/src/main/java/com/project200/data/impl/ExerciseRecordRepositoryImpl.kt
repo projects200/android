@@ -46,7 +46,12 @@ class ExerciseRecordRepositoryImpl
         // 갱신 응답이 자신의 쓰기 뒤에 반영되어 새 값을 되돌리지 않도록 요청과 반영을 함께 직렬화합니다.
         private val mutex = Mutex()
 
-        override suspend fun getExerciseCountByRange(startDate: LocalDate, endDate: LocalDate, refresh: Boolean, localOnly: Boolean): BaseResult<List<ExerciseCount>> =
+        override suspend fun getExerciseCountByRange(
+            startDate: LocalDate,
+            endDate: LocalDate,
+            refresh: Boolean,
+            localOnly: Boolean,
+        ): BaseResult<List<ExerciseCount>> =
             serialized {
                 cachedRead(
                     refresh = refresh,
@@ -57,13 +62,19 @@ class ExerciseRecordRepositoryImpl
                         apiCallBuilder(
                             ioDispatcher,
                             { remoteDataSource.getExerciseCountsByRange(startDate, endDate) },
-                            { dto: List<GetExerciseCountByRangeDTO>? -> dto?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.") },
+                            { dto: List<GetExerciseCountByRangeDTO>? ->
+                                dto?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.")
+                            },
                         )
                     },
                 )
             }
 
-        override suspend fun getExerciseRecordList(date: LocalDate, refresh: Boolean, localOnly: Boolean): BaseResult<List<ExerciseListItem>> =
+        override suspend fun getExerciseRecordList(
+            date: LocalDate,
+            refresh: Boolean,
+            localOnly: Boolean,
+        ): BaseResult<List<ExerciseListItem>> =
             serialized {
                 cachedRead(
                     refresh = refresh,
@@ -89,8 +100,13 @@ class ExerciseRecordRepositoryImpl
                     refresh = refresh && serverId != null,
                     localOnly = localOnly || serverId == null,
                     owner = memberId,
-                    read = { localDataSource.getDetailByLocalId(recordId, it) ?: serverId?.let { id -> localDataSource.getDetailByServerId(id, it) } },
-                    save = { owner, data -> localDataSource.saveSyncedDetail(serverId!!, data, owner, recordId.takeIf { it.toLongOrNull() == null }) },
+                    read = {
+                        localDataSource.getDetailByLocalId(recordId, it)
+                            ?: serverId?.let { id -> localDataSource.getDetailByServerId(id, it) }
+                    },
+                    save = { owner, data ->
+                        localDataSource.saveSyncedDetail(serverId!!, data, owner, recordId.takeIf { it.toLongOrNull() == null })
+                    },
                     remote = { serverId?.let { remoteDetail(it) } ?: localOnlyError() },
                 )
             }
@@ -122,14 +138,21 @@ class ExerciseRecordRepositoryImpl
                     is BaseResult.Success -> {
                         save(memberId, result.data)
                         val snapshot = read(memberId)
-                        if (!localDataSource.isCurrentMember(memberId)) accountChangedError()
-                        else snapshot?.let { BaseResult.Success(it) } ?: cacheError()
+                        if (!localDataSource.isCurrentMember(memberId)) {
+                            accountChangedError()
+                        } else {
+                            snapshot?.let { BaseResult.Success(it) } ?: cacheError()
+                        }
                     }
                     is BaseResult.Error -> {
                         val snapshot = read(memberId)
-                        if (!localDataSource.isCurrentMember(memberId)) accountChangedError()
-                        else if (snapshot == null) result
-                        else BaseResult.Success(snapshot, refreshError = result, isCachedSnapshot = true)
+                        if (!localDataSource.isCurrentMember(memberId)) {
+                            accountChangedError()
+                        } else if (snapshot == null) {
+                            result
+                        } else {
+                            BaseResult.Success(snapshot, refreshError = result, isCachedSnapshot = true)
+                        }
                     }
                 }
             } catch (e: CancellationException) {
@@ -144,11 +167,12 @@ class ExerciseRecordRepositoryImpl
             serialized {
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = writeMemberId()
-                val result = apiCallBuilder(
-                    ioDispatcher,
-                    { remoteDataSource.postExerciseRecord(record.toPostExerciseDTO()) },
-                    { dto: PostExerciseResponseDTO? -> dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.") },
-                )
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        { remoteDataSource.postExerciseRecord(record.toPostExerciseDTO()) },
+                        { dto: PostExerciseResponseDTO? -> dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.") },
+                    )
                 if (result !is BaseResult.Success) return@serialized result
                 var id = result.data.recordId
                 val error = cacheAfterWrite(memberId, enabled) {
@@ -163,11 +187,12 @@ class ExerciseRecordRepositoryImpl
                 val memberId = writeMemberId()
                 val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
                 val previous = if (enabled) localDataSource.getDetailByServerId(id, memberId) else null
-                val result = apiCallBuilder(
-                    ioDispatcher,
-                    { remoteDataSource.patchExerciseRecord(id, record.toPatchExerciseDTO()) },
-                    { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("운동 기록 수정 응답 데이터가 없습니다.") },
-                )
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        { remoteDataSource.patchExerciseRecord(id, record.toPatchExerciseDTO()) },
+                        { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("운동 기록 수정 응답 데이터가 없습니다.") },
+                    )
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
@@ -184,23 +209,27 @@ class ExerciseRecordRepositoryImpl
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = writeMemberId()
                 val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
-                val imageUris = images.mapNotNull {
-                    try {
-                        it.toUri()
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        Timber.w(e, "Invalid URI string: $it")
-                        null
+                val imageUris =
+                    images.mapNotNull {
+                        try {
+                            it.toUri()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            Timber.w(e, "Invalid URI string: $it")
+                            null
+                        }
                     }
-                }
                 val imageParts = imageUris.mapNotNull { it.toMultipartBodyPart(context, "pictures") }
-                if (imageParts.isEmpty() && imageUris.isNotEmpty()) return@serialized BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
-                val result = apiCallBuilder(
-                    ioDispatcher,
-                    { remoteDataSource.postExerciseImages(id, imageParts) },
-                    { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.") },
-                )
+                if (imageParts.isEmpty() && imageUris.isNotEmpty()) {
+                    return@serialized BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
+                }
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        { remoteDataSource.postExerciseImages(id, imageParts) },
+                        { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.") },
+                    )
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
@@ -227,8 +256,15 @@ class ExerciseRecordRepositoryImpl
                 val result = apiCallBuilder(ioDispatcher, { remoteDataSource.deleteExerciseImages(id, imageIds) }, { Unit })
                 if (result !is BaseResult.Success) return@serialized result
                 val error = cacheAfterWrite(memberId, enabled) {
-                    if (previous != null) localDataSource.reconcileRecord(id, previous.copy(pictures = previous.pictures?.filterNot { it.id in imageIds }), memberId)
-                    else localDataSource.invalidateImages(id, memberId)
+                    if (previous != null) {
+                        localDataSource.reconcileRecord(
+                            id,
+                            previous.copy(pictures = previous.pictures?.filterNot { it.id in imageIds }),
+                            memberId,
+                        )
+                    } else {
+                        localDataSource.invalidateImages(id, memberId)
+                    }
                 }
                 BaseResult.Success(Unit, error)
             }

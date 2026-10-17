@@ -635,7 +635,8 @@ class ExerciseMainViewModelTest {
     @Test
     fun `생성 대기 날짜는 완료 날짜와 대기 표시 목록에 함께 포함된다`() =
         runTest {
-            coEvery { mockGetExerciseCountUseCase(any(), any()) } returns BaseResult.Success(listOf(ExerciseCount(today, 1, syncPending = true)))
+            coEvery { mockGetExerciseCountUseCase(any(), any()) } returns
+                BaseResult.Success(listOf(ExerciseCount(today, 1, syncPending = true)))
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat(viewModel.exerciseDates.value).contains(today)
             assertThat(viewModel.pendingDates.value).contains(today)
@@ -671,7 +672,8 @@ class ExerciseMainViewModelTest {
             viewModel.scrollPosition = 321
             val changed = listOf(item("returned-local", selected))
             coEvery { mockGetExerciseRecordListUseCase(selected, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
-            coEvery { mockGetExerciseCountUseCase(any(), any(), false, true) } returns BaseResult.Success(listOf(ExerciseCount(selected, 1)))
+            coEvery { mockGetExerciseCountUseCase(any(), any(), false, true) } returns
+                BaseResult.Success(listOf(ExerciseCount(selected, 1)))
 
             viewModel.onScreenStopped()
             viewModel.onScreenStarted()

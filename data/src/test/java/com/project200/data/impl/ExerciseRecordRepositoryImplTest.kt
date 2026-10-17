@@ -76,7 +76,15 @@ class ExerciseRecordRepositoryImplTest {
         every { flags.isOfflineCacheEnabled() } returns true
         every { network.isCurrentlyConnected() } returns true
         local = ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), database.exerciseRecordDao(), preferences)
-        repository = ExerciseRecordRepositoryImpl(remote, local, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+        repository =
+            ExerciseRecordRepositoryImpl(
+                remote,
+                local,
+                flags,
+                network,
+                UnconfinedTestDispatcher(),
+                RuntimeEnvironment.getApplication(),
+            )
     }
 
     @After
@@ -125,7 +133,9 @@ class ExerciseRecordRepositoryImplTest {
             assertThat((repository.getExerciseCountByRange(date, nextDate) as BaseResult.Success).data).isEmpty()
             assertThat((repository.getExerciseRecordList(nextDate.plusDays(1)) as BaseResult.Error).errorCode).isEqualTo("NETWORK_ERROR")
             assertThat((repository.getExerciseDetail("missing-local") as BaseResult.Error).errorCode).isEqualTo("NETWORK_ERROR")
-            assertThat((repository.getExerciseCountByRange(nextDate.plusDays(1), nextDate.plusDays(2)) as BaseResult.Error).errorCode).isEqualTo("NETWORK_ERROR")
+            assertThat(
+                (repository.getExerciseCountByRange(nextDate.plusDays(1), nextDate.plusDays(2)) as BaseResult.Error).errorCode,
+            ).isEqualTo("NETWORK_ERROR")
             coVerify(exactly = 0) { remote.getExerciseList(any()) }
             coVerify(exactly = 0) { remote.getExerciseRecordDetail(any()) }
         }
@@ -155,13 +165,23 @@ class ExerciseRecordRepositoryImplTest {
             every { flags.isOfflineCacheEnabled() } returns false
             every { network.isCurrentlyConnected() } returns false
             val brokenLocal = mockk<ExerciseRecordLocalDataSource>()
-            val legacy = ExerciseRecordRepositoryImpl(remote, brokenLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            val legacy =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    brokenLocal,
+                    flags,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
             coEvery { remote.getExerciseCountsByRange(date, nextDate) } returns response(listOf(GetExerciseCountByRangeDTO(date, 1)))
             coEvery { remote.getExerciseList(date) } returns response(listOf(itemDto()))
             coEvery { remote.getExerciseRecordDetail(7L) } returns response(detailDto())
             coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
 
-            assertThat((legacy.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.single().count).isEqualTo(1)
+            assertThat(
+                (legacy.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.single().count,
+            ).isEqualTo(1)
             assertThat((legacy.getExerciseRecordList(date, refresh = false) as BaseResult.Success).data.single().recordId).isEqualTo("7")
             assertThat((legacy.getExerciseDetail("7") as BaseResult.Success).data.title).isEqualTo("운동")
             val created = legacy.createExerciseRecord(record()) as BaseResult.Success
@@ -180,9 +200,25 @@ class ExerciseRecordRepositoryImplTest {
     fun `로컬 전용 생성 대기는 목록 캘린더 상세에 보이지만 서버 쓰기를 하지 않는다`() =
         runTest {
             database.exerciseRecordDao().upsertListItems(
-                listOf(ExerciseListItemEntity(memberId, "local-only", null, SyncState.CREATE_PENDING, date, 0, "대기 운동", "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)),
+                listOf(
+                    ExerciseListItemEntity(
+                        memberId,
+                        "local-only",
+                        null,
+                        SyncState.CREATE_PENDING,
+                        date,
+                        0,
+                        "대기 운동",
+                        "OTHER",
+                        date.atTime(9, 0),
+                        date.atTime(10, 0),
+                        null,
+                    ),
+                ),
             )
-            database.exerciseRecordDao().upsertDetail(record().toSyncedEntity(memberId, "local-only", 7L).copy(serverId = null, syncState = SyncState.CREATE_PENDING))
+            database.exerciseRecordDao().upsertDetail(
+                record().toSyncedEntity(memberId, "local-only", 7L).copy(serverId = null, syncState = SyncState.CREATE_PENDING),
+            )
             every { network.isCurrentlyConnected() } returns false
 
             val item = (repository.getExerciseRecordList(date) as BaseResult.Success).data.single()
@@ -194,10 +230,16 @@ class ExerciseRecordRepositoryImplTest {
             assertThat(count.syncPending).isTrue()
             assertThat(detail.canModify).isFalse()
             assertThat(detail.syncPending).isTrue()
-            assertThat((repository.updateExerciseRecord(record(), item.recordId) as BaseResult.Error).errorCode).isEqualTo("LOCAL_ONLY_RECORD")
+            assertThat(
+                (repository.updateExerciseRecord(record(), item.recordId) as BaseResult.Error).errorCode,
+            ).isEqualTo("LOCAL_ONLY_RECORD")
             assertThat((repository.deleteExerciseRecord(item.recordId) as BaseResult.Error).errorCode).isEqualTo("LOCAL_ONLY_RECORD")
-            assertThat((repository.deleteExerciseRecordImages(item.recordId, listOf(1L)) as BaseResult.Error).errorCode).isEqualTo("LOCAL_ONLY_RECORD")
-            assertThat((repository.uploadExerciseRecordImages(item.recordId, emptyList()) as BaseResult.Error).errorCode).isEqualTo("LOCAL_ONLY_RECORD")
+            assertThat(
+                (repository.deleteExerciseRecordImages(item.recordId, listOf(1L)) as BaseResult.Error).errorCode,
+            ).isEqualTo("LOCAL_ONLY_RECORD")
+            assertThat(
+                (repository.uploadExerciseRecordImages(item.recordId, emptyList()) as BaseResult.Error).errorCode,
+            ).isEqualTo("LOCAL_ONLY_RECORD")
             coVerify(exactly = 0) { remote.patchExerciseRecord(any(), any()) }
             coVerify(exactly = 0) { remote.deleteExerciseRecord(any()) }
         }
@@ -217,20 +259,27 @@ class ExerciseRecordRepositoryImplTest {
             assertThat(id).isNotEqualTo("7")
             assertThat(created.earnedPoints).isEqualTo(3)
             assertThat((repository.getExerciseRecordList(date, refresh = false) as BaseResult.Success).data.single().recordId).isEqualTo(id)
-            assertThat((repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.sumOf { it.count }).isEqualTo(1)
+            assertThat(
+                (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.sumOf { it.count },
+            ).isEqualTo(1)
 
             repository.updateExerciseRecord(record(nextDate).copy(title = "옮긴 운동"), id)
             assertThat((repository.getExerciseRecordList(date, refresh = false) as BaseResult.Success).data).isEmpty()
-            assertThat((repository.getExerciseRecordList(nextDate, refresh = false) as BaseResult.Success).data.single().recordId).isEqualTo(id)
+            assertThat(
+                (repository.getExerciseRecordList(nextDate, refresh = false) as BaseResult.Success).data.single().recordId,
+            ).isEqualTo(id)
             assertThat((repository.getExerciseDetail(id, refresh = false) as BaseResult.Success).data.title).isEqualTo("옮긴 운동")
-            val movedCounts = (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.associate { it.date to it.count }
+            val movedCounts =
+                (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.associate { it.date to it.count }
             assertThat(movedCounts[date]).isEqualTo(0)
             assertThat(movedCounts[nextDate]).isEqualTo(1)
 
             repository.deleteExerciseRecord(id)
             assertThat((repository.getExerciseRecordList(nextDate, refresh = false) as BaseResult.Success).data).isEmpty()
             assertThat(repository.getExerciseDetail(id, refresh = false)).isInstanceOf(BaseResult.Error::class.java)
-            assertThat((repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.sumOf { it.count }).isEqualTo(0)
+            assertThat(
+                (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.sumOf { it.count },
+            ).isEqualTo(0)
             coVerify(exactly = 0) { remote.getExerciseList(any()) }
             coVerify(exactly = 0) { remote.getExerciseRecordDetail(any()) }
         }
@@ -238,7 +287,12 @@ class ExerciseRecordRepositoryImplTest {
     @Test
     fun `자신의 이미지 삭제는 썸네일과 상세를 맞추고 업로드 후 조회 실패는 이미지 캐시를 무효화한다`() =
         runTest {
-            val id = local.reconcileRecord(7L, record().copy(pictures = listOf(ExerciseRecordPicture(1L, "one"), ExerciseRecordPicture(2L, "two"))), memberId)!!
+            val id =
+                local.reconcileRecord(
+                    7L,
+                    record().copy(pictures = listOf(ExerciseRecordPicture(1L, "one"), ExerciseRecordPicture(2L, "two"))),
+                    memberId,
+                )!!
             coEvery { remote.deleteExerciseImages(7L, listOf(1L)) } returns response<Unit?>(null)
             repository.deleteExerciseRecordImages(id, listOf(1L))
             assertThat(local.getListByDate(date).single().imageUrl).containsExactly("two")
@@ -261,9 +315,10 @@ class ExerciseRecordRepositoryImplTest {
                 image.writeBytes(imageBytes)
                 val parts = slot<List<MultipartBody.Part>>()
                 coEvery { remote.postExerciseImages(7L, capture(parts)) } returns response(ExerciseIdDto(7L))
-                coEvery { remote.getExerciseRecordDetail(7L) } returns response(
-                    detailDto().copy(pictureDataList = listOf(PictureData(11L, "https://server/photo.jpg", "photo", "jpg"))),
-                )
+                coEvery { remote.getExerciseRecordDetail(7L) } returns
+                    response(
+                        detailDto().copy(pictureDataList = listOf(PictureData(11L, "https://server/photo.jpg", "photo", "jpg"))),
+                    )
 
                 val result = repository.uploadExerciseRecordImages(id, listOf(Uri.fromFile(image).toString())) as BaseResult.Success
                 assertThat(result.data).isEqualTo(id)
@@ -351,16 +406,42 @@ class ExerciseRecordRepositoryImplTest {
             local.replaceCountsByRange(date, date, listOf(com.project200.domain.model.ExerciseCount(date, 1)))
             local.replaceSyncedListByDate(date, listOf(itemDto().toModel()))
             val dao = database.exerciseRecordDao()
-            dao.upsertListItems(listOf(dao.getListItem(memberId, id)!!.copy(memberId = "member-b", localId = "other-member", serverId = 8L)))
+            dao.upsertListItems(
+                listOf(dao.getListItem(memberId, id)!!.copy(memberId = "member-b", localId = "other-member", serverId = 8L)),
+            )
             dao.upsertDetail(record().toSyncedEntity("member-b", "other-member", 8L))
             listOf(SyncState.CREATE_PENDING, SyncState.UPDATE_PENDING, SyncState.DELETE_PENDING).forEachIndexed { index, state ->
                 val pendingId = "pending-$index"
-                dao.upsertListItems(listOf(ExerciseListItemEntity(memberId, pendingId, null, state, date, index, "대기", "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)))
+                dao.upsertListItems(
+                    listOf(
+                        ExerciseListItemEntity(
+                            memberId,
+                            pendingId,
+                            null,
+                            state,
+                            date,
+                            index,
+                            "대기",
+                            "OTHER",
+                            date.atTime(9, 0),
+                            date.atTime(10, 0),
+                            null,
+                        ),
+                    ),
+                )
                 dao.upsertDetail(record().toSyncedEntity(memberId, pendingId, 20L + index).copy(syncState = state))
             }
             val failingLocal = spyk(local)
             coEvery { failingLocal.reconcileDeletedRecord(7L, memberId) } throws IOException("Room 쓰기 실패")
-            val writer = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            val writer =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    failingLocal,
+                    flags,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
             val result = writer.deleteExerciseRecord(id) as BaseResult.Success
             assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
@@ -390,7 +471,15 @@ class ExerciseRecordRepositoryImplTest {
             val failingDao = spyk(database.exerciseRecordDao())
             coEvery { failingDao.deleteSyncedDetails(memberId) } throws IOException("정리 실패")
             val failingLocal = spyk(ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), failingDao, preferences))
-            val reader = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            val reader =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    failingLocal,
+                    flags,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
             every { network.isCurrentlyConnected() } returns false
             assertThat(reader.getExerciseRecordList(date, refresh = false)).isInstanceOf(BaseResult.Error::class.java)
             assertThat(invalidatedMembers).contains(memberId)
@@ -405,7 +494,9 @@ class ExerciseRecordRepositoryImplTest {
             val loaded = repository.getExerciseRecordList(date, refresh = false) as BaseResult.Success
             assertThat(loaded.data.single().title).isEqualTo("운동")
             assertThat((repository.getExerciseRecordList(date, refresh = false) as BaseResult.Success).data).isEqualTo(loaded.data)
-            assertThat(repository.getExerciseRecordList(nextDate, refresh = false, localOnly = true)).isInstanceOf(BaseResult.Error::class.java)
+            assertThat(
+                repository.getExerciseRecordList(nextDate, refresh = false, localOnly = true),
+            ).isInstanceOf(BaseResult.Error::class.java)
             coVerify(exactly = 1) { remote.getExerciseList(date) }
             coVerify(exactly = 0) { remote.getExerciseList(nextDate) }
         }
@@ -456,7 +547,15 @@ class ExerciseRecordRepositoryImplTest {
             val failingLocal = spyk(local)
             coEvery { failingLocal.reconcileDeletedRecord(7L, memberId) } throws failure
             every { preferences.setExerciseCacheInvalidated(memberId, true) } throws IOException("무효 표시 저장 실패")
-            val writer = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            val writer =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    failingLocal,
+                    flags,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
 
             val result = writer.deleteExerciseRecord(id) as BaseResult.Success
@@ -494,7 +593,9 @@ class ExerciseRecordRepositoryImplTest {
     @Test
     fun `복귀 전용 미적중은 온라인에서도 캘린더와 상세 서버를 요청하지 않는다`() =
         runTest {
-            assertThat(repository.getExerciseCountByRange(date, nextDate, refresh = false, localOnly = true)).isInstanceOf(BaseResult.Error::class.java)
+            assertThat(
+                repository.getExerciseCountByRange(date, nextDate, refresh = false, localOnly = true),
+            ).isInstanceOf(BaseResult.Error::class.java)
             assertThat(repository.getExerciseDetail("7", refresh = false, localOnly = true)).isInstanceOf(BaseResult.Error::class.java)
             coVerify(exactly = 0) { remote.getExerciseCountsByRange(any(), any()) }
             coVerify(exactly = 0) { remote.getExerciseRecordDetail(any()) }
@@ -505,8 +606,12 @@ class ExerciseRecordRepositoryImplTest {
         runTest {
             coEvery { remote.getExerciseCountsByRange(date, nextDate) } returns response(listOf(GetExerciseCountByRangeDTO(date, 1)))
             coEvery { remote.getExerciseRecordDetail(7L) } returns response(detailDto())
-            assertThat((repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.single().count).isEqualTo(1)
-            assertThat((repository.getExerciseDetail("7", refresh = false) as BaseResult.Success).data).isEqualTo(local.getDetailByServerId(7L))
+            assertThat(
+                (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.single().count,
+            ).isEqualTo(1)
+            assertThat(
+                (repository.getExerciseDetail("7", refresh = false) as BaseResult.Success).data,
+            ).isEqualTo(local.getDetailByServerId(7L))
             coVerify(exactly = 1) { remote.getExerciseCountsByRange(date, nextDate) }
             coVerify(exactly = 1) { remote.getExerciseRecordDetail(7L) }
         }
@@ -520,13 +625,14 @@ class ExerciseRecordRepositoryImplTest {
             coEvery { remote.postExerciseImages(7L, any()) } returns response(ExerciseIdDto(7L))
             coEvery { remote.deleteExerciseImages(7L, any()) } returns response<Unit?>(null)
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-            val writes: List<suspend () -> BaseResult<*>> = listOf(
-                { repository.createExerciseRecord(record()) },
-                { repository.updateExerciseRecord(record(), "7") },
-                { repository.uploadExerciseRecordImages("7", emptyList()) },
-                { repository.deleteExerciseRecordImages("7", listOf(1L)) },
-                { repository.deleteExerciseRecord("7") },
-            )
+            val writes: List<suspend () -> BaseResult<*>> =
+                listOf(
+                    { repository.createExerciseRecord(record()) },
+                    { repository.updateExerciseRecord(record(), "7") },
+                    { repository.uploadExerciseRecordImages("7", emptyList()) },
+                    { repository.deleteExerciseRecordImages("7", listOf(1L)) },
+                    { repository.deleteExerciseRecord("7") },
+                )
             writes.forEach { write ->
                 invalidatedMembers.clear()
                 assertThat(write()).isInstanceOf(BaseResult.Success::class.java)
@@ -556,7 +662,15 @@ class ExerciseRecordRepositoryImplTest {
             val failingLocal = spyk(local)
             coEvery { failingLocal.reconcileDeletedRecord(7L, memberId) } throws IOException("Room 반영 실패")
             every { preferences.setExerciseCacheInvalidated(memberId, true) } throws CancellationException("무효 표시 취소")
-            val writer = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            val writer =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    failingLocal,
+                    flags,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
 
             try {

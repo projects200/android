@@ -46,7 +46,8 @@ interface ExerciseRecordDao {
     /** 날짜를 옮긴 대기 행과 목록/상세 중 한쪽에만 있는 대기 행도 보호합니다. */
     @Query(
         "SELECT serverId FROM exercise_list_item WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced " +
-            "UNION SELECT serverId FROM exercise_record_detail WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
+            "UNION SELECT serverId FROM exercise_record_detail " +
+            "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
     )
     suspend fun getAllPendingServerIds(memberId: String, synced: SyncState = SyncState.SYNCED): List<Long>
 

@@ -128,7 +128,8 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
                             // 운동 기록이 있는 날 표시
                             if (exerciseCompleteDates.contains(data.date)) {
-                                exerciseCompleteIv.contentDescription = if (data.date in pendingDates) getString(R.string.exercise_sync_pending) else null
+                                exerciseCompleteIv.contentDescription =
+                                    if (data.date in pendingDates) getString(R.string.exercise_sync_pending) else null
                                 exerciseCompleteIv.apply {
                                     alpha = 0f
                                     isVisible = true
@@ -314,7 +315,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                     if (viewModel.selectedDate.value != day.date) {
                         viewModel.onDateSelected(day.date)
                         this@ExerciseMainFragment.binding.let { mainBinding ->
-                            mainBinding.scrollView.smoothScrollTo(0, mainBinding.exerciseCntScoreCl.height.plus(mainBinding.topBarCl.height))
+                            mainBinding.scrollView.smoothScrollTo(
+                                0,
+                                mainBinding.exerciseCntScoreCl.height.plus(mainBinding.topBarCl.height),
+                            )
                         }
                     }
                 }
