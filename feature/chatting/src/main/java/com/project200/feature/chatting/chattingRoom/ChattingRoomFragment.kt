@@ -36,6 +36,7 @@ import com.project200.undabang.feature.chatting.BuildConfig
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -201,10 +202,13 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 if (BuildConfig.DEBUG) {
                     launch {
-                        viewModel.isReady.collect { ready ->
-                            // 방 ID·상대 ID와 실제 이력/소켓 준비 상태를 함께 노출합니다.
+                        combine(viewModel.isReady, viewModel.readinessDebugState) { ready, debugState ->
+                            ready to debugState
+                        }.collect { (ready, debugState) ->
+                            // 방 ID·상대 ID와 각 준비 조건을 함께 노출합니다.
                             binding.chattingMessageRv.contentDescription =
-                                "chat-${if (ready) "ready" else "loading"}:${args.roomId}:peer:${args.memberId}"
+                                "chat-${if (ready) "ready" else "loading"}:" +
+                                    "${args.roomId}:peer:${args.memberId}:$debugState"
                         }
                     }
                 }

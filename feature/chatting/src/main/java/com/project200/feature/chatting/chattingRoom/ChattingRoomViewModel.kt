@@ -63,6 +63,22 @@ class ChattingRoomViewModel
                 loaded && synced && connection.roomId == chatRoomId &&
                     connection.status == ChatSocketStatus.Connected && state == ChatInputState.Active
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+        val readinessDebugState: StateFlow<String> =
+            combine(
+                historyLoaded,
+                historySynced,
+                socketConnection,
+                chatState,
+            ) { loaded, synced, connection, state ->
+                "historyLoaded=$loaded,historySynced=$synced," +
+                    "socketRoom=${connection.roomId},socket=${connection.status.name}," +
+                    "chatState=${state.debugName()}"
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(),
+                "historyLoaded=false,historySynced=false,socketRoom=-1,socket=Disconnected,chatState=Active",
+            )
+
 
         private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
         val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
@@ -279,6 +295,7 @@ class ChattingRoomViewModel
                             updateAndEmitMessages(result.data.messages + _messages.value)
                             prevChatId = result.data.messages.firstOrNull()?.chatId
                         }
+
                         hasNextMessages = result.data.hasNext
                     }
 
@@ -299,6 +316,13 @@ class ChattingRoomViewModel
             super.onCleared()
             disconnect()
         }
+        private fun ChatInputState.debugName(): String =
+            when (this) {
+                ChatInputState.Active -> "Active"
+                ChatInputState.OpponentBlocked -> "OpponentBlocked"
+                ChatInputState.OpponentLeft -> "OpponentLeft"
+            }
+
 
         companion object {
             const val DEFAULT_ID = -1L
