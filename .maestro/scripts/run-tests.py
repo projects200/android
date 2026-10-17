@@ -841,6 +841,48 @@ def save_failure_logcat(device, destination, redactor):
 
 
 
+def save_failure_anr(device, destination):
+    try:
+        code, output, _ = device.call("shell", "dumpsys", "activity", "lastanr", timeout=30)
+        if code != 0:
+            return
+        report = output.decode("utf-8", "replace")
+        process = re.search(r"^ANR in ([A-Za-z0-9_.:]+)(?:\s|$)", report, re.MULTILINE)
+        process_name = process.group(1) if process else None
+        category = {
+            "com.android.systemui": "system-ui", APP_ID: "application",
+        }.get(process_name, "other" if process_name else "unknown")
+        reason = re.search(r"^Reason: ([^\n]*)", report, re.MULTILINE)
+        reason_category = "unknown"
+        if reason:
+            for prefix, name in (
+                ("Input dispatching timed out", "input-dispatch"),
+                ("Broadcast of Intent", "broadcast"),
+                ("executing service", "service"),
+                ("ContentProvider not responding", "content-provider"),
+            ):
+                if reason.group(1).startswith(prefix):
+                    reason_category = name
+                    break
+        load = re.search(r"^Load: ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?)$",
+                         report, re.MULTILINE)
+        cpu = re.search(r"^\s*([0-9]+(?:\.[0-9]+)?)% TOTAL:", report, re.MULTILINE)
+        # 마지막 ANR은 이전 사건일 수 있습니다. 원문·PID·창 제목·Intent는 공개하지 않습니다.
+        summary = {
+            "process": category, "reason": reason_category,
+            "load_average": [float(value) for value in load.groups()] if load else None,
+            "total_cpu_percent": float(cpu.group(1)) if cpu else None,
+        }
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "last-anr-summary.json").write_text(
+            json.dumps(summary, sort_keys=True) + "\n", encoding="utf-8",
+        )
+    except RunInterrupted:
+        raise
+    except (RunnerFailure, OSError):
+        return
+
+
 def maestro_result(report):
     try:
         root = ET.parse(report).getroot()
@@ -891,6 +933,7 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
             code, stdout, stderr = command(argv, env, timeout=timeout)
             if code != 0:
                 save_failure_logcat(device, output / flow, redactor)
+                save_failure_anr(device, output / flow)
                 raise RunnerFailure("maestro-flow-failed")
             maestro_result(report)
         finally:

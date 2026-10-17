@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import re
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -106,6 +107,9 @@ class ChatDriverTests(unittest.TestCase):
         self.assertTrue(all(not errors for _, _, errors in results))
         flow_events = [event for event in self.events if event[0] == "flow"]
         stages = [event[3] for event in flow_events]
+        messages = {event[4]["MESSAGE"] for event in flow_events}
+        self.assertEqual(len(messages), 3)
+        self.assertTrue(all(re.fullmatch(r"[123]-[0-9]{1,10}", message) for message in messages))
         for barrier, sender, receiver in (
             ("a-to-b-receiver-barrier", "a-to-b-send", "a-to-b-live-receive"),
             ("b-to-a-receiver-barrier", "b-to-a-send", "b-to-a-live-receive"),
@@ -125,6 +129,64 @@ class ChatDriverTests(unittest.TestCase):
             self.assertIn(("locale", actor), self.events)
             self.assertTrue(any(event[:2] == ("install", actor) for event in self.events))
         self.assertEqual(len([event for event in self.events if event[0] == "prepare"]), 2)
+
+    def test_live_reply_then_list_and_history_use_the_exact_messages_and_actors(self):
+        results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all(not errors for _, _, errors in results))
+        flows = [event for event in self.events if event[0] == "flow"]
+        first = flows[0][4]["MESSAGE"]
+        message_id = first.removeprefix("1-")
+        reply, away = "2-" + message_id, "3-" + message_id
+        self.assertEqual(
+            [(event[1], event[2], event[3], event[4]["MESSAGE"]) for event in flows],
+            [
+                ("device-b", "chatting-open", "a-to-b-open-receiver", first),
+                ("device-b", "chatting-ready", "a-to-b-receiver-barrier", first),
+                ("device-a", "chatting-open", "a-to-b-open-sender", first),
+                ("device-a", "chatting-send", "a-to-b-send", first),
+                ("device-b", "chatting-receive", "a-to-b-live-receive", first),
+                ("device-a", "chatting-ready", "b-to-a-receiver-barrier", reply),
+                ("device-b", "chatting-send", "b-to-a-send", reply),
+                ("device-a", "chatting-receive", "b-to-a-live-receive", reply),
+                ("device-a", "chatting-away", "a-leave-before-list", reply),
+                ("device-a", "chatting-list-refresh", "a-received-list", reply),
+                ("device-b", "chatting-receive", "history-existing-before-leave", first),
+                ("device-b", "chatting-away", "history-receiver-away", away),
+                ("device-a", "chatting-open", "history-open-sender", away),
+                ("device-a", "chatting-send", "history-away-send", away),
+                ("device-b", "chatting-list-refresh", "history-away-list", away),
+                ("device-b", "chatting-open", "history-reenter", away),
+                ("device-b", "chatting-history", "history-retained-and-away", away),
+            ],
+        )
+        for _, actor, _, _, variables in flows:
+            peer = "b" if actor == "device-a" else "a"
+            self.assertEqual(variables["MESSAGE_SELECTOR"], chatting.selector(variables["MESSAGE"]))
+            self.assertEqual(variables["READY_SELECTOR"], chatting.selector("chat-ready:200:peer:" + peer))
+            self.assertEqual(variables["ROOM_SELECTOR"], chatting.selector("chat-room:200:peer:" + peer))
+        history = flows[-1][4]
+        self.assertEqual(history["EXISTING_MESSAGE_SELECTOR"], chatting.selector(first))
+        self.assertEqual(history["AWAY_MESSAGE_SELECTOR"], chatting.selector(away))
+
+    def test_each_acceptance_failure_stops_the_protocol_without_passing_that_scenario(self):
+        for stage, owner, passed in (
+            ("a-to-b-send", "chatting-send", set()),
+            ("b-to-a-send", "chatting-send", set()),
+            ("b-to-a-live-receive", "chatting-receive", set()),
+            ("a-received-list", "chatting-list-refresh", {"chatting-send", "chatting-receive"}),
+            ("history-away-list", "chatting-history", set(chatting.FLOWS) - {"chatting-history"}),
+            ("history-retained-and-away", "chatting-history", set(chatting.FLOWS) - {"chatting-history"}),
+        ):
+            with self.subTest(stage=stage):
+                self.events.clear()
+                self.failure_stage = stage
+                results = chatting.run_suite(self.args, self.core)
+                errors = {name: reasons for name, _, reasons in results}
+                self.assertIn("chat-" + stage + "-failed", errors[owner])
+                self.assertIn("chat-scenario-not-completed", errors[owner])
+                self.assertEqual({name for name, reasons in errors.items() if not reasons}, passed)
+                self.assertEqual([event for event in self.events if event[0] == "flow"][-1][3], stage)
+                self.assertEqual(len([event for event in self.events if event[0] == "cleanup"]), 2)
 
     def test_failed_live_receipt_cannot_pass_dependent_scenarios(self):
         self.failure_stage = "a-to-b-live-receive"

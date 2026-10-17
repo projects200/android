@@ -15,12 +15,15 @@ tags:
 # 한국어 Gboard에서는 ASCII keycode가 한글 자모로 입력되므로 영문 레이아웃을 먼저 확인합니다.
 - runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: "${MESSAGE}"
+- assertVisible:
+    id: chatting_message_et
+    text: "${MESSAGE_SELECTOR}"
 - tapOn:
     id: send_btn
+- hideKeyboard
 - extendedWaitUntil:
     visible:
       id: outgoing_message_tv
       text: "${MESSAGE_SELECTOR}"
     timeout: 60000
-- hideKeyboard
 # 상대의 실제 수신 검증 전에는 일반 뒤로가기도 하지 않습니다.

@@ -7,7 +7,7 @@
 | --- | --- |
 | `chatting-send` | A→B와 B→A를 각각 입력창·전송 버튼으로 보내고 outgoing 서버 에코를 확인 |
 | `chatting-receive` | 송신 전에 수신자의 준비·메시지 부재를 확인하고, 재진입 없이 양방향 incoming 말풍선을 확인 |
-| `chatting-list-refresh` | B의 M1 미리보기를 B의 답장 전에 확인하고, A의 M2 미리보기도 정확한 방·상대 행에서 확인 |
+| `chatting-list-refresh` | 양방향 실시간 수신 뒤 A의 M2 미리보기와 B가 방을 비운 동안 받은 M3 미리보기를 정확한 방·상대 행에서 확인 |
 | `chatting-history` | B의 기존 M1 확인→일반 뒤로가기→실제 소켓 종료→A의 UI M3 전송→B 목록 M3 확인→같은 방 재진입 후 M3와 M1 확인 |
 
 `chatting-open`, `chatting-ready`, `chatting-away`는 드라이버의 단계 플로우입니다.
@@ -81,11 +81,11 @@ DEV 인증·REST·WebSocket 서비스 접근도 필요합니다. 연결 실패�
    실제 WebSocket `onOpen` 상태여야 접미사 없는 `chat-ready:<room>:peer:<member>`가 노출됩니다.
    입력창 활성이나 임의 대기 시간만으로 준비를 대신하지 않습니다.
 3. B에서 M1 부재를 확인한 뒤 A가 UI로 M1을 보냅니다. B는 같은 화면·ViewModel·소켓을 유지한 채
-   incoming M1을 확인합니다. B의 목록 미리보기를 확인한 다음 B가 UI로 M2를 답장합니다.
-   A도 M2 부재를 송신 전에 확인하고 재진입 없이 incoming M2를 받습니다.
-4. 이력 단계에서 B는 M1을 먼저 확인하고 키보드를 숨긴 뒤 일반 뒤로가기를 사용합니다.
-   목록 표시·입력창 부재·실제 `onClosed`/`onFailure` 종료 확인이 끝나야 A의 M3 전송을 허용합니다.
-   B는 밖에 남아 같은 행의 M3 미리보기를 확인한 뒤에만 재진입합니다.
+   incoming M1을 확인하고 바로 M2를 답장합니다. A도 M2 부재를 송신 전에 확인하고 재진입 없이
+   incoming M2를 받습니다. A가 방을 나간 뒤 목록의 M2 미리보기를 확인합니다.
+4. 이력 단계에서 B는 M1을 먼저 확인하고 일반 뒤로가기를 사용합니다. 목록 표시·입력창 부재·
+   실제 `onClosed`/`onFailure` 종료 확인이 끝나야 A의 M3 전송을 허용합니다. B는 밖에 남아 같은
+   행의 M3 미리보기를 확인한 뒤에만 재진입합니다.
 5. B는 최신 incoming M3와 앞서 받은 incoming M1을 모두 확인합니다. M1이 화면 밖이면
    메시지 목록을 위로 스크롤합니다. 전송은 REST API로 대체하지 않습니다.
 
@@ -110,7 +110,7 @@ DEV 인증·REST·WebSocket 서비스 접근도 필요합니다. 연결 실패�
 - 목록은 정확한 방 부모의 `last_message_tv`와 상대 닉네임 레이블을 함께 확인합니다.
   공간 기준 `below`나 닉네임 부분 일치는 쓰지 않습니다.
 - 외부 닉네임/ID/메시지는 Java regex literal로 인용합니다. 닉네임의 정규식 특수문자도
-  다른 상대를 선택하지 않습니다. M1·M2·M3는 같은 run ID의 짧은 ASCII 고유 문구입니다.
+  다른 상대를 선택하지 않습니다. M1·M2·M3는 같은 실행의 숫자 식별자를 공유하는 짧은 `1-<숫자>`·`2-<숫자>`·`3-<숫자>`입니다.
 
 위의 방·준비·소켓 machine 레이블과 빈 목록 확인용 수집은 채팅 모듈 `BuildConfig.DEBUG`
 안에서만 실행합니다. 라이브러리 convention은 BuildConfig를 생성하고, 앱 `e2e` 변형은
@@ -121,6 +121,9 @@ callback을 시작하지 않으며, 기존 닉네임·미리보기·빈 화면 �
 자료는 공통 artifact 디렉터리의 `chatting/<단계>/<a|b>/<flow>/`에 분리됩니다.
 공통 Redactor에는 **파싱한 양쪽 credentials와 방 ID**를 넣습니다. 원본 logcat,
 bootstrap 요청/세션 파일, 토큰, socket ticket URL은 업로드하지 않습니다.
+실패 시 `last-anr-summary.json`은 마지막 시스템 ANR의 프로세스·원인 **분류**와 숫자 CPU/load만
+기록합니다. 원본 dumpsys·PID·창 제목·Intent는 저장하지 않습니다. 마지막 기록은 이전 사건일 수
+있으므로 현재 hierarchy와 함께 판단합니다. 읽기/쓰기 실패는 원래 UI 실패를 대체하지 않습니다.
 상위 report는 네 시나리오를 모두 기재합니다. 예를 들어 수신 실패는
 `chat-a-to-b-live-receive-failed`이고, 이후 미완료 시나리오는 `chat-scenario-not-completed`로
 실패합니다. smoke나 선행 단계 성공을 채팅 전체 성공으로 계산하지 않습니다.
@@ -138,43 +141,39 @@ cleanup 실패 시 해당 기기의 private recovery marker를 지우거나 `pm 
 
 ## 검증 범위
 
-upstream `d33810cc`의 일반 [CI run `39010694430`](https://github.com/projects200/android/actions/runs/39010694430)은 통과했습니다.
-앞선 `01ef57a1`이 들여쓰기·빈 줄 네 오류를 정리했고, `d33810cc`는 준비 완료 마커에서 진단 접미사를 분리했습니다.
-두 Kotlin 파일의 기능 코드는 기존 로컬 수정과 같으며, 대조한 diff에는 설명 주석만 남습니다.
-같은 head의 [Maestro run `39010694372`](https://github.com/projects200/android/actions/runs/39010694372)은 실패했습니다.
-`smoke-tabs`, 양쪽 actor 준비, B의 방 진입·준비 확인, A의 방 진입을 통과한 뒤
-`a-to-b-send` 단계에서 실패했습니다. 드라이버는 단계 실패를 즉시 전파하므로 앞의 세 UI 단계가
-통과했음을 구분할 수 있습니다. `chatting-send`에는 `chat-a-to-b-send-failed`·
-`chat-scenario-not-completed`, 나머지 세 채팅 시나리오에는 `chat-scenario-not-completed`가 남았습니다.
-송신 플로우는 준비 재확인·기존 메시지 부재·입력·전송 버튼·outgoing 표시 대기를 포함하므로,
-단계 코드만으로 실제 네트워크 송신 실패나 특정 UI 명령 실패를 확정하지 않습니다.
-이후 feed/timer/login 11개 플로우는 `not-executed-after-unsafe-cleanup-or-interruption`으로
-기록됐으며 실행되지 않았습니다. 공통 `run_suite`는 채팅 드라이버 결과에 오류가 하나라도
-있으면 후속 실행을 중단하므로, 이 표기만으로 실제 cleanup 실패나 interruption을 확정할 수는
-없습니다. 이 실행의 채팅 결과에는 별도의 fixture cleanup·final clear·peer stop 실패 코드나
-`chat-run-interrupted`가 없습니다. 11개를 독립적인 UI 실패로 계산하지 않습니다.
-기존 단계별 artifact의 로그·스크린샷 등은 추가 확인이 필요합니다.
-**실제 UI 실패 원인은 아직 확인되지 않았으며, 전체 CI나 채팅이 통과한 상태가 아닙니다.**
+upstream `ad0d097b`의 일반 [CI run `39016562465`](https://github.com/projects200/android/actions/runs/39016562465)은 통과했습니다.
+그러나 아래 두 실제 Maestro 실행은 실패했습니다. 일반 CI나 준비 단계 성공은 채팅 성공의 증거가 아닙니다.
 
-진단 출력 디렉터리를 먼저 만드는 수정은 upstream `698c2f9e`에 이미 포함돼 있습니다.
-이 로컬 변경은 `save_failure_logcat`에서 발생한 운영 오류(`RunnerFailure`·`OSError`)만
-격리해 원래 `maestro-flow-failed`를 유지하도록 했습니다. `RunInterrupted`는 그대로
-전파하며 `KeyboardInterrupt`도 잡지 않습니다. 다른 진단·정리 경로는 바꾸지 않았습니다.
-500줄·30초 logcat 수집 제한, 기존 필터·Redactor, 원본 로그 비공개 방침도 유지했습니다.
-실제 파일시스템과 Redactor를 쓰는 기존 회귀 테스트 두 개(첫 중첩 단계의 정제된 진단 보존,
-logcat 비정상 종료)를 유지했습니다. 수집 중 `RunnerFailure("tool-timeout")`, 기기 진단
-파일만의 `OSError`, `RunInterrupted` 전파를 각각 확인하는 테스트 세 개를 추가했습니다.
-앞의 두 경우는 실제 console 파일과 원래 실패 코드를 확인하며, 쓰기 오류의 합성 비공개
-문구가 공개되지 않는지도 확인합니다. **운영 오류 격리와 회귀 테스트는 로컬 변경이며 미실행입니다.**
+| 실제 실행 | 관측한 실패 |
+| --- | --- |
+| `d33810cc` / [run `39010694372`](https://github.com/projects200/android/actions/runs/39010694372) | 양쪽 방 진입 뒤 `a-to-b-send`의 정확한 outgoing 대기 실패. 실패 hierarchy에는 한국어 Gboard의 `비읍` 키와 ASCII 메시지가 한글 자모로 바뀐 outgoing 말풍선이 있습니다. |
+| `ad0d097b` / [run `39016562471`](https://github.com/projects200/android/actions/runs/39016562471) | B의 방 진입·준비를 통과한 뒤 A의 `launch-logged-in.yaml`이 `matching_nav_graph`를 60초 안에 찾지 못했습니다. 실패 hierarchy에는 **System UI 응답 없음** 팝업과 시스템 상태 표시줄만 있고 앱 노드는 없습니다. `device-log.log`는 AndroidRuntime 한 줄뿐입니다. |
 
-게시된 Kotlin 변경은 준비 마커를 기존 정확한 방·상대 selector로 유지하며 상세 상태는
-로딩 중에만 노출합니다. 준비 조건·flow 구독·DEBUG 수집 수명과 기존 Python/주고받기
-selector·assertion은 바꾸지 않았습니다. 일반 CI 통과는 게시된 코드의 결과이며,
-아직 게시하지 않은 logcat 운영 오류 격리나 실제 B UI 실패 해결을 검증한 결과는 아닙니다.
-이 로컬 변경에서는 코드·설치·빌드·테스트·lint/formatter·adb·emulator·Maestro를 실행하지
-않았습니다. 커밋·push나 PR 게시도 하지 않았습니다.
-기존 ViewModel 회귀 테스트는 REST 100→조기 소켓 102→누락 101의 커서·정렬·중복 제거와
-상대 프로필→Back의 유예 내 복귀 후 준비 상태·소켓 재연결 부재를 확인하도록 작성됐습니다.
-컨트롤러는 단계별 artifact에서 실제 실패한 UI 명령과 방·상대 식별자, 소켓 상태를 확인해야
-합니다. 이후 승인된 CI에서 실제 두 계정/기기의 네 시나리오와 단계별 실패 전파·복구 보존을 검증해야 합니다.
-정적 소스와 문서는 실제 CI 통과나 UI 성공의 증거가 아닙니다.
+최신 자료는 System UI ANR가 화면을 막았음을 보여주지만 ANR를 유발한 원인·시점이나
+A의 실제 인증/진입 상태를 확정하지 못합니다. MainActivity는 업데이트 확인·인증 진입이
+끝날 때까지 splash를 유지하고 `Content`에서 navigation을 만듭니다. 현재 hierarchy만으로
+로그인 손실이나 member ID 문제로 단정하지 않으며 인증·계정·앱 진입 코드는 변경하지 않았습니다.
+이전 실행의 outgoing 말풍선도 송신자 식별 자체가 동작했음을 보여줍니다.
+
+이 변경은 기존 `6d8aa4a1` 수정과 `ad0d097b`의 변경을 함께 반영합니다.
+숫자 메시지·입력창 정확한 값 assertion·B가 나가지 않고 즉시 답장하는 upstream 순서를
+유지하고, 기존 `feed-ascii-keyboard.yaml` 호출 뒤 입력하도록 했습니다. 제거됐던 정확한
+outgoing 서버 에코 대기(기존 60초)를 복구했습니다. 양방향 incoming·A의 M2 목록·B의 M3
+목록·재진입 뒤 기존 M1/새 M3 확인은 유지합니다.
+
+최신 ANR의 원인은 아직 확정할 수 없어 재시도·추가 UI 대기·ANR 팝업 닫기 대신 실패 진단만
+추가했습니다. 기존 logcat 필터는 시스템 ANR를 수집하지 않으므로 실패 시 별도 30초 제한의
+`dumpsys activity lastanr`에서 고정 분류·숫자 부하만 추출합니다. 원문은 공개하거나 파일로
+쓰지 않습니다. 이전 `save_failure_logcat` 운영 오류 격리와 기존 다섯 회귀 테스트는 보존하며,
+새 진단도 `RunnerFailure`·`OSError`만 격리하고 `RunInterrupted`는 그대로 전파합니다.
+진단 분류·민감 원문 배제·운영 오류·중단 테스트와 새 교환 순서의 정확한 actor/메시지,
+각 송수신·목록·이력 실패의 시나리오 전파 테스트를 추가했습니다.
+
+**이 변경에 대한 로컬 코드·설치·빌드·테스트·lint/formatter·adb·emulator·Maestro 실행은
+없습니다. 아래 원격 검증이 끝나기 전에는 전체 CI·채팅 성공을 주장하지 않습니다.**
+정적 확인 범위는 실패 hierarchy/로그, bootstrap 인증→앱 진입→방 준비 경로, 전체 Python
+교환 순서와 실패 계약, 송신 helper/입력/outgoing 및 기존 incoming·목록·이력 selector입니다.
+컨트롤러는 Python 회귀 테스트와 일반 CI를 확인하고, 같은 실제 두 계정·기기로 네 시나리오를
+실행해야 합니다. ANR가 재발하면 같은 단계 hierarchy와 `last-anr-summary.json`의 분류·부하를
+대조해야 합니다. 새 비밀값이나 대체 계정은 필요하다고 확인되지 않았으며, 정상 응답하는
+두 기기와 기존 DEV 인증·REST·WebSocket 접근이 실제 검증의 외부 전제입니다.
