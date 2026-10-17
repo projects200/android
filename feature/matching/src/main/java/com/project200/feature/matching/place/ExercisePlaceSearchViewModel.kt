@@ -25,8 +25,8 @@ class ExercisePlaceSearchViewModel
         private val _placeInfoResult = MutableLiveData<BaseResult<KakaoPlaceInfo>>()
         val placeInfoResult: LiveData<BaseResult<KakaoPlaceInfo>> = _placeInfoResult
 
-        private val _searchResult = MutableLiveData<BaseResult<List<KakaoPlaceInfo>>>()
-        val searchResult: LiveData<BaseResult<List<KakaoPlaceInfo>>> = _searchResult
+        private val _searchResult = MutableLiveData<BaseResult<List<KakaoPlaceInfo>>?>()
+        val searchResult: LiveData<BaseResult<List<KakaoPlaceInfo>>?> = _searchResult
 
         private var isPlaceSelectedBySearch = false // 키워드 검색으로 선택한 장소인지 여부
         private var addressGeneration = 0L

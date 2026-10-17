@@ -220,7 +220,7 @@ class ExercisePlaceSearchViewModelTest {
             viewModel.selectSearchedPlace(sampleSearchResults.first())
 
             val replayed = mutableListOf<BaseResult<List<KakaoPlaceInfo>>?>()
-            val observer = Observer<BaseResult<List<KakaoPlaceInfo>>> { replayed.add(it) }
+            val observer = Observer<BaseResult<List<KakaoPlaceInfo>>?> { replayed.add(it) }
             viewModel.searchResult.observeForever(observer)
             try {
                 assertThat(viewModel.searchResult.value).isNull()
