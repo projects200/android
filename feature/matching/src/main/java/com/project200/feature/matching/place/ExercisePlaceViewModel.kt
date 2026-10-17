@@ -17,6 +17,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+enum class ExercisePlaceLoadState {
+    LOADING,
+    READY,
+    ERROR,
+}
+
 @HiltViewModel
 class ExercisePlaceViewModel
     @Inject
@@ -27,16 +33,22 @@ class ExercisePlaceViewModel
         private val _places = MutableStateFlow<List<ExercisePlace>>(emptyList())
         val places: StateFlow<List<ExercisePlace>> = _places.asStateFlow()
 
+        private val _loadState = MutableStateFlow(ExercisePlaceLoadState.LOADING)
+        val loadState: StateFlow<ExercisePlaceLoadState> = _loadState.asStateFlow()
+
         private val _errorToast = MutableSharedFlow<ExercisePlaceErrorType>()
         val errorToast: SharedFlow<ExercisePlaceErrorType> = _errorToast.asSharedFlow()
 
         fun getExercisePlaces() {
             viewModelScope.launch {
+                _loadState.value = ExercisePlaceLoadState.LOADING
                 when (val result = getExercisePlaceUseCase()) {
                     is BaseResult.Success -> {
                         _places.value = result.data
+                        _loadState.value = ExercisePlaceLoadState.READY
                     }
                     is BaseResult.Error -> {
+                        _loadState.value = ExercisePlaceLoadState.ERROR
                         _errorToast.emit(ExercisePlaceErrorType.LOAD_FAILED)
                     }
                 }
@@ -45,11 +57,14 @@ class ExercisePlaceViewModel
 
         fun deleteExercisePlace(placeId: Long) {
             viewModelScope.launch {
+                _loadState.value = ExercisePlaceLoadState.LOADING
                 when (deleteExercisePlaceUseCase(placeId)) {
                     is BaseResult.Success -> {
                         _places.value = _places.value.filterNot { it.id == placeId }
+                        _loadState.value = ExercisePlaceLoadState.READY
                     }
                     is BaseResult.Error -> {
+                        _loadState.value = ExercisePlaceLoadState.ERROR
                         _errorToast.emit(ExercisePlaceErrorType.DELETE_FAILED)
                     }
                 }

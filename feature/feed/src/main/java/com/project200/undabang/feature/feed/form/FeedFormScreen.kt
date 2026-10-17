@@ -31,12 +31,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -55,6 +59,8 @@ import com.project200.presentation.compose.theme.subtext14
 import com.project200.undabang.feature.feed.R
 import com.project200.undabang.presentation.R as PresentationR
 
+// Maestro가 id 셀렉터로 잡을 수 있도록 testTagsAsResourceId를 켭니다 (FeedListScreen과 동일한 방식)
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun FeedFormScreen(
     isEditMode: Boolean,
@@ -74,7 +80,7 @@ fun FeedFormScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title =
@@ -87,7 +93,7 @@ fun FeedFormScreen(
                         text = stringResource(PresentationR.string.complete),
                         onClick = onCompleteClick,
                         isCompact = true,
-                        modifier = Modifier.padding(end = 20.dp),
+                        modifier = Modifier.padding(end = 20.dp).testTag("feed_form_complete_button"),
                     )
                 },
             )
@@ -126,7 +132,8 @@ fun FeedFormScreen(
                         Modifier
                             .fillMaxWidth()
                             .padding(start = 60.dp)
-                            .defaultMinSize(minHeight = 60.dp),
+                            .defaultMinSize(minHeight = 60.dp)
+                            .testTag("feed_form_content_field"),
                     decorationBox = { inner ->
                         if (content.isEmpty()) {
                             Text(
@@ -143,7 +150,7 @@ fun FeedFormScreen(
 
                 AddImageButton(
                     onClick = onAddImageClick,
-                    modifier = Modifier.padding(start = 60.dp),
+                    modifier = Modifier.padding(start = 60.dp).testTag("feed_form_add_image_button"),
                 )
 
                 Spacer(Modifier.height(16.dp))
@@ -302,7 +309,8 @@ private fun ImageCard(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onDelete,
-                    ),
+                    )
+                    .testTag("feed_form_remove_image_button"),
         )
     }
 }

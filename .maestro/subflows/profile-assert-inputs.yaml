@@ -1,0 +1,24 @@
+appId: com.project200.undabang
+---
+# 중복 확인·저장 직전에 실제 입력을 대조합니다. 원문 보관용 output 값은 덮어쓰지 않습니다.
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+# 빈 소개는 hint를 복사하지 않고 실제 입력의 빈 상태를 확인합니다.
+- assertVisible:
+    id: "${EXPECTED_INTRODUCTION === '' ? 'profile_edit_introduction_empty' : 'profile_edit_introduction_present'}"
+- runFlow:
+    when:
+      true: ${EXPECTED_INTRODUCTION !== ''}
+    commands:
+      - copyTextFrom:
+          id: profile_edit_introduction_field
+      - assertTrue: ${maestro.copiedText === EXPECTED_INTRODUCTION}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: UP
+- copyTextFrom:
+    id: profile_edit_nickname_field
+- assertTrue: ${maestro.copiedText === EXPECTED_NICKNAME}

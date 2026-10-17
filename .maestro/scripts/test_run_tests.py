@@ -215,6 +215,27 @@ class SessionTransportTests(unittest.TestCase):
         self.transport.result = b'{"status":"exported"}'
         self.transport.session = json.dumps(SESSION_DATA, ensure_ascii=False).encode("utf-8")
 
+    def test_feature_metadata_uses_private_stdin_and_returns_safe_variables(self):
+        self.transport.result = b'{"status":"ready","variables":{"E2E_MARKER":"run-owned"}}'
+        parameters = {"MAESTRO_PEER_MEMBER_ID": "synthetic-peer"}
+        result = self.device.bootstrap(
+            "prepare", CREDENTIALS, feature="matching", flow="matching-map",
+            run_id="0123456789abcdef", parameters=parameters,
+        )
+        request = json.loads(self.transport.request_bytes)
+        self.assertEqual(request["parameters"], parameters)
+        self.assertEqual(request["runId"], "0123456789abcdef")
+        self.assertEqual(result, {"E2E_MARKER": "run-owned"})
+        self.assert_no_credential_arguments()
+        for argv, env in self.transport.calls:
+            self.assertFalse(any("synthetic-peer" in value for value in (*argv, *env.values())))
+
+    def test_bootstrap_refuses_sensitive_return_variables(self):
+        self.transport.result = b'{"status":"ready","variables":{"FCM_TOKEN":"private"}}'
+        self.assert_failure(
+            "invalid-feature-variables", lambda: self.device.bootstrap("prepare", CREDENTIALS),
+        )
+
     def test_prepare_transfers_exact_request_then_waits_for_ready(self):
         self.device.bootstrap("prepare", CREDENTIALS)
         expected = json.dumps(
@@ -266,6 +287,186 @@ class SessionTransportTests(unittest.TestCase):
                 )
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
+
+    def test_profile_prepare_discloses_only_fixed_reviewed_failures(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("profile_baseline_nickname_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-nickname-unsupported"),
+            ("profile_baseline_gender_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-gender-unsupported"),
+            ("profile_baseline_bio_null", "bootstrap-prepare-failed-profile-baseline-bio-null"),
+            ("profile_baseline_bio_too_long", "bootstrap-prepare-failed-profile-baseline-bio-too-long"),
+            ("profile_baseline_bio_control_characters",
+             "bootstrap-prepare-failed-profile-baseline-bio-control-characters"),
+            ("profile_fcm_token_timeout", "bootstrap-prepare-failed-profile-fcm-token-timeout"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_profile_prepare_unknown_and_non_string_reasons_remain_generic(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "profile_unknown_failure",
+            "profile_baseline_text_unsupported",
+            "profile_baseline_nickname_unsupported-" + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET,
+            {"code": "profile_baseline_bio_null", "private": SYNTHETIC_SECRET},
+            ["profile_baseline_bio_control_characters", SYNTHETIC_SECRET],
+            None,
+            7,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(case=index):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode("utf-8")
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_reviewed_profile_reason_outside_failed_profile_prepare_remains_generic(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("prepare", "profile", "exported", "bootstrap-prepare-failed"),
+            ("prepare", "profile", None, "bootstrap-prepare-failed"),
+            ("prepare", "matching", "failed", "bootstrap-prepare-failed"),
+            ("cleanup", "profile", "failed", "bootstrap-cleanup-failed"),
+            ("prepare", None, "failed", "bootstrap-prepare-failed"),
+        )
+        for reason in ("profile_baseline_bio_null", "profile_fcm_token_timeout"):
+            for operation, feature, status, expected in cases:
+                with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
+                    payload = json.dumps({
+                        "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.transport.result = payload
+                    metadata = {}
+                    if feature is not None:
+                        metadata = {
+                            "feature": feature,
+                            "flow": "profile-preferred-exercise" if feature == "profile" else "matching-place-crud",
+                            "run_id": "0123456789abcdef", "parameters": {},
+                        }
+                    self.assert_failure(
+                        expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                    self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("matching_peer_unavailable", "bootstrap-prepare-failed-matching-peer-unavailable"),
+            ("matching_existing_peer_room_required", "bootstrap-prepare-failed-matching-existing-peer-room-required"),
+            ("matching_api_read_failed", "bootstrap-prepare-failed-matching-api-read-failed"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "message": SYNTHETIC_SECRET,
+                    "variables": {"MATCHING_PEER_ID": SYNTHETIC_SECRET},
+                    "details": {"response": SYNTHETIC_SECRET},
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare",
+                        CREDENTIALS,
+                        feature="matching",
+                        flow="matching-place-crud",
+                        run_id="0123456789abcdef",
+                        parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_failure_reason_is_not_exposed_outside_prepare(self):
+        self.transport.pending_sleeps = 0
+        metadata = {"flow": "matching-place-crud", "run_id": "0123456789abcdef", "parameters": {}}
+        matching = {"feature": "matching", **metadata}
+        profile = {"feature": "profile", **metadata, "flow": "profile-preferred-exercise"}
+        cases = (
+            ("matching-cleanup", "cleanup", matching, "failed"),
+            ("other-feature", "prepare", {"feature": "exercise", **metadata}, "failed"),
+            ("profile-prepare", "prepare", profile, "failed"),
+            ("absent-feature", "prepare", {}, "failed"),
+            ("wrong-status", "prepare", matching, "exported"),
+            ("absent-status", "prepare", matching, None),
+            ("export", "export", {}, "failed"),
+        )
+        for name, operation, arguments, status in cases:
+            with self.subTest(case=name):
+                result = {"reason": "matching_peer_unavailable", "details": SYNTHETIC_SECRET}
+                if status is not None:
+                    result["status"] = status
+                payload = json.dumps(result, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-" + operation + "-failed",
+                    lambda operation=operation: self.device.bootstrap(
+                        operation, CREDENTIALS if operation != "export" else None, **arguments,
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_prepare_rejects_unreviewed_or_malformed_reasons(self):
+        self.transport.pending_sleeps = 0
+        known = "matching_peer_unavailable"
+        reasons = (
+            "matching_unknown_failure",
+            "setup_failed",
+            known + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET + known,
+            SYNTHETIC_SECRET,
+            {"reason": known, "secret": SYNTHETIC_SECRET},
+            [known, SYNTHETIC_SECRET],
+            None,
+            1,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(reason_index=index):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "details": SYNTHETIC_SECRET,
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="matching", flow="matching-place-crud",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
 
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):
         self.transport.allow_run_as = False
@@ -390,6 +591,681 @@ class SessionTransportTests(unittest.TestCase):
         self.device.remove_private(include_session=True)
         self.assertTrue(all(not path.exists() for path in groups[runner.SESSION]))
         self.assertEqual(unrelated.read_bytes(), b"keep")
+
+
+class MaestroFailureArtifactTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(
+            prefix="maestro-failure-test-", dir=Path("/tmp").resolve(),
+        )
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name) / "chatting" / "a-to-b-open-receiver" / "b"
+        self.flow = "chatting-open"
+        self.destination = self.output / self.flow
+        self.escaped_secret = json.dumps(SYNTHETIC_SECRET, ensure_ascii=False)[1:-1]
+        self.console = ("Maestro UI assertion failed: " + SYNTHETIC_SECRET).encode("utf-8")
+        self.device = SimpleNamespace(
+            serial="failure-test", exercise_variables=mock.Mock(return_value={}), call=mock.Mock(),
+        )
+
+        def command(argv, _env, timeout=60, payload=None):
+            if argv[1:] == ["--version"]:
+                return 0, runner.MAESTRO_VERSION.encode("utf-8"), b""
+            if argv[1:2] == ["test"]:
+                return 1, self.console, b""
+            raise AssertionError("Unexpected Maestro operation")
+
+        patches = (
+            mock.patch.object(runner, "command", side_effect=command),
+            mock.patch.object(runner, "shutil", SimpleNamespace(which=lambda _name: "test-maestro")),
+        )
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_first_nested_failure_preserves_redacted_diagnostics_and_original_failure(self):
+        unrelated = "I/Other: synthetic-unrelated-device-line"
+        self.device.call.return_value = (
+            0,
+            ("E/OkHttp: WebSocket handshake failed: " + self.escaped_secret + "\n"
+             + unrelated + "\n").encode("utf-8"),
+            b"",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        diagnostic = (self.destination / "device-log.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(diagnostic, "E/OkHttp: WebSocket handshake failed: [REDACTED]")
+        for content in (console, diagnostic):
+            self.assertNotIn(SYNTHETIC_SECRET, content)
+            self.assertNotIn(self.escaped_secret, content)
+            self.assertNotIn(unrelated, content)
+
+    def test_unavailable_logcat_preserves_original_failure_and_console(self):
+        self.device.call.return_value = (
+            1, ("E/WebSocket: " + self.escaped_secret).encode("utf-8"),
+            b"synthetic-private-logcat-error",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_capture_failure_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = runner.RunnerFailure("tool-timeout")
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_write_failure_preserves_original_failure_without_private_error(self):
+        self.device.call.return_value = (
+            0, ("E/OkHttp: " + self.escaped_secret).encode("utf-8"), b"",
+        )
+        private_error = "synthetic-private-device-log-error: " + SYNTHETIC_SECRET
+        write_text = Path.write_text
+
+        def fail_device_log_write(path, *args, **kwargs):
+            if path == self.destination / "device-log.log":
+                raise OSError(private_error)
+            return write_text(path, *args, **kwargs)
+
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with mock.patch.object(Path, "write_text", new=fail_device_log_write):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    runner.run_maestro(
+                        self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                    )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(published.getvalue(), "")
+        for private in (private_error, SYNTHETIC_SECRET, self.escaped_secret):
+            self.assertNotIn(private, str(caught.exception) + console + published.getvalue())
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_interruption_propagates_unchanged(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.side_effect = interruption
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunInterrupted) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_system_ui_anr_summary_keeps_only_categories_and_load(self):
+        private = "synthetic-private-window-and-intent"
+        report = (
+            "ACTIVITY MANAGER LAST ANR (dumpsys activity lastanr)\n"
+            "ANR in com.android.systemui\nPID: 6175\n"
+            "Reason: Broadcast of Intent { " + private + " }\n"
+            "Load: 14.67 / 12.04 / 6.64\n"
+            "  98.5% TOTAL: 70% user + 28.5% kernel\n"
+            "Subject: " + self.escaped_secret + "\n"
+        )
+        self.device.call.side_effect = [(0, b"", b""), (0, report.encode("utf-8"), b"")]
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+            {
+                "process": "system-ui", "reason": "broadcast",
+                "load_average": [14.67, 12.04, 6.64], "total_cpu_percent": 98.5,
+            },
+        )
+        for path in self.destination.iterdir():
+            content = path.read_text(encoding="utf-8")
+            for value in (
+                private, self.escaped_secret, SYNTHETIC_SECRET, "com.android.systemui", "6175",
+            ):
+                self.assertNotIn(value, content)
+
+    def test_application_anr_summary_uses_fixed_reason_categories(self):
+        for reason, category in (
+            ("Input dispatching timed out (synthetic-private-window)", "input-dispatch"),
+            ("executing service synthetic.private.service", "service"),
+            ("ContentProvider not responding: synthetic.private.provider", "content-provider"),
+        ):
+            with self.subTest(category=category):
+                self.device.call.return_value = (
+                    0, ("ANR in " + runner.APP_ID + "\nReason: " + reason + "\n").encode("utf-8"), b"",
+                )
+                runner.save_failure_anr(self.device, self.destination)
+                self.assertEqual(
+                    json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+                    {
+                        "process": "application", "reason": category,
+                        "load_average": None, "total_cpu_percent": None,
+                    },
+                )
+
+    def test_anr_summary_does_not_publish_other_process_or_reason_text(self):
+        self.device.call.return_value = (
+            0, b"ANR in synthetic.private.process\nReason: private-user-content\n", b"",
+        )
+        runner.save_failure_anr(self.device, self.destination)
+        self.assertEqual(
+            json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+            {"process": "other", "reason": "unknown", "load_average": None, "total_cpu_percent": None},
+        )
+
+    def test_missing_anr_report_is_unknown_not_an_application_failure(self):
+        self.device.call.return_value = (0, b"<no ANR has occurred>\n", b"")
+        runner.save_failure_anr(self.device, self.destination)
+        self.assertEqual(
+            json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+            {"process": "unknown", "reason": "unknown", "load_average": None, "total_cpu_percent": None},
+        )
+
+    def test_unavailable_anr_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8")),
+        ]
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+    def test_anr_capture_failure_preserves_original_failure_and_console(self):
+        for failure in (runner.RunnerFailure("tool-timeout"), OSError(SYNTHETIC_SECRET)):
+            with self.subTest(failure=type(failure).__name__):
+                self.device.call.side_effect = [(0, b"", b""), failure]
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    with self.assertRaises(runner.RunnerFailure) as caught:
+                        runner.run_maestro(
+                            self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                        )
+                self.assertEqual(str(caught.exception), "maestro-flow-failed")
+                self.assertEqual(
+                    (self.destination / "console.log").read_text(encoding="utf-8"),
+                    "Maestro UI assertion failed: [REDACTED]",
+                )
+                self.assertEqual(published.getvalue(), "")
+                self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+    def test_anr_write_failure_preserves_original_failure_without_private_error(self):
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b""),
+        ]
+        write_text = Path.write_text
+
+        def fail_anr_write(path, *args, **kwargs):
+            if path == self.destination / "last-anr-summary.json":
+                raise OSError(SYNTHETIC_SECRET)
+            return write_text(path, *args, **kwargs)
+
+        published = io.StringIO()
+        with mock.patch.object(Path, "write_text", new=fail_anr_write):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    runner.run_maestro(
+                        self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                    )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+    def test_anr_interruption_propagates_unchanged(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.side_effect = [(0, b"", b""), interruption]
+        with self.assertRaises(runner.RunInterrupted) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+
+class EmulatorInputTests(unittest.TestCase):
+    def input_method(self, subtypes):
+        return runner.ET.fromstring(
+            '<input-method xmlns:android="http://schemas.android.com/apk/res/android">'
+            + subtypes + '</input-method>',
+        )
+
+    def installed_subtype_from_dumps(self, resources, metadata, sdk=b"30\n"):
+        manifest = '''E: manifest (line=1)
+  A: package="example.keyboard"
+    E: application (line=2)
+        E: service (line=3)
+          A: http://schemas.android.com/apk/res/android:name(0x01010003)=".SelectedIme"
+            E: meta-data (line=4)
+              A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+              A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010002
+'''
+        device = object.__new__(runner.Device)
+        device.env = {}
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n", b"package:/system/app/Keyboard.apk\n", b"", sdk,
+        ])
+
+        def dump(argv, _env):
+            if argv[1:3] == ["dump", "resources"]:
+                return 0, resources.encode(), b""
+            if argv[1:4] == ["dump", "xmltree", "--file"]:
+                output = manifest if argv[4] == "AndroidManifest.xml" else metadata[argv[4]]
+                return 0, output.encode(), b""
+            raise AssertionError("Unexpected metadata operation")
+
+        with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
+            with mock.patch.object(runner, "command", side_effect=dump) as command:
+                result = runner.installed_ascii_subtype(device)
+        self.assertEqual(
+            device.require.call_args_list.count(mock.call("shell", "getprop", "ro.build.version.sdk")), 1,
+        )
+        xml_paths = [call.args[0][4] for call in command.call_args_list if call.args[0][2] == "xmltree"]
+        return result, xml_paths
+
+    def subtype_dump(self, subtype):
+        return '''E: input-method (line=1)
+  E: subtype (line=2)
+    A: http://schemas.android.com/apk/res/android:imeSubtypeLocale(0x01010399)="en_US"
+    A: http://schemas.android.com/apk/res/android:imeSubtypeMode(0x0101039a)="keyboard"
+    A: http://schemas.android.com/apk/res/android:isAsciiCapable(0x010103e9)=true
+    A: http://schemas.android.com/apk/res/android:subtypeId(0x010103c1)=''' + str(subtype) + "\n"
+
+    def test_missing_metadata_tool_fails_before_keyboard_changes(self):
+        device = object.__new__(runner.Device)
+        device.env = {}
+        device.require = mock.Mock(return_value=b"example.keyboard/.SelectedIme\n")
+        with mock.patch.object(runner.shutil, "which", return_value=None):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-input-requires-aapt2"):
+                runner.installed_ascii_subtype(device)
+        self.assertEqual(device.require.call_count, 1)
+
+    def test_failed_apk_metadata_read_reports_stage_without_tool_output_or_environment(self):
+        secret = "synthetic-private-metadata"
+        device = object.__new__(runner.Device)
+        device.env = {"PRIVATE_SETTING": secret}
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n",
+            ("package:/system/app/" + secret + "/Keyboard.apk\n").encode(), b"",
+        ])
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            with mock.patch.object(runner.shutil, "which", return_value="/private/" + secret + "/aapt2"):
+                with mock.patch.object(runner, "command", return_value=(7, secret.encode(), secret.encode())):
+                    with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                        runner.installed_ascii_subtype(device)
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertNotIn(secret, stderr.getvalue())
+        records = self.diagnostic_records(stderr)
+        self.assertEqual(records[-1], {
+            "stage": "aapt", "operation": "manifest", "command": "xmltree",
+            "status": "completed", "exit_code": 7,
+        })
+
+    def diagnostic_records(self, stderr):
+        return [json.loads(line.removeprefix("IME metadata: ")) for line in stderr.getvalue().splitlines()]
+
+    def test_invalid_default_ime_reports_only_invalid_state(self):
+        secret = "synthetic-private-invalid-ime\nextra-private-line"
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(return_value=secret.encode())
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.installed_ascii_subtype(device)
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr), [
+            {"stage": "default-ime", "valid": False, "component": "invalid"},
+        ])
+
+    def test_multiple_apk_paths_report_count_without_paths(self):
+        secret = "synthetic-private-apk-path"
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(side_effect=[
+            b"example.keyboard/.SelectedIme\n",
+            ("package:/private/" + secret + "/base.apk\n"
+             "package:/private/" + secret + "/split.apk\n").encode(),
+        ])
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with mock.patch.object(runner.shutil, "which", return_value="test-aapt2"):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    runner.installed_ascii_subtype(device)
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr)[-1], {
+            "stage": "apk-paths", "count": 2, "valid_single_apk": False,
+        })
+
+    def test_unrecognized_attribute_namespace_reports_schema_without_loosening_selection(self):
+        secret = "synthetic-private-other-service"
+        dump = '''E: manifest (line=1)
+  A: package="example.keyboard"
+    E: application (line=2)
+        E: service (line=3)
+          A: android:name(0x01010003)="''' + secret + '''"
+            E: meta-data (line=4)
+              A: android:name(0x01010003)="android.view.im"
+              A: android:resource(0x01010025)=@0x7f010001
+'''
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            manifest = runner.aapt_xml(dump, "manifest")
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.ime_resource_id(manifest, "example.keyboard/.SelectedIme")
+        self.assertNotIn(secret, stderr.getvalue())
+        xml, selection = self.diagnostic_records(stderr)
+        self.assertEqual(xml["root"], "manifest")
+        self.assertEqual(xml["android_attribute_names"], ["android-prefix:name", "android-prefix:resource"])
+        self.assertEqual(selection["matching_service_count"], 0)
+        self.assertEqual(selection["resource_count"], 0)
+
+    def test_missing_xml_root_reports_document_without_dumping_body(self):
+        secret = "synthetic-private-non-xml-output"
+        stderr = io.StringIO()
+        with contextlib.redirect_stderr(stderr):
+            with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                runner.aapt_xml(secret, "manifest")
+        self.assertNotIn(secret, stderr.getvalue())
+        self.assertEqual(self.diagnostic_records(stderr), [
+            {"stage": "xml", "document": "manifest", "status": "missing-root"},
+        ])
+
+    def test_collects_configured_resource_paths_without_logging_values(self):
+        secret = "synthetic-private-resource"
+        for config in ("ko", "private/config"):
+            with self.subTest(config=config):
+                resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/''' + secret + '''.xml type=XML
+  (''' + config + ''') (file) res/other.xml type=XML
+'''
+                stderr = io.StringIO()
+                with contextlib.redirect_stderr(stderr):
+                    self.assertEqual(
+                        runner.ime_resource_path(resources, "0x7f010002", 30),
+                        ["res/" + secret + ".xml", "res/other.xml"],
+                    )
+                self.assertNotIn(secret, stderr.getvalue())
+                self.assertNotIn("private/config", stderr.getvalue())
+                self.assertEqual(self.diagnostic_records(stderr), [{
+                    "stage": "resource-path", "selected_resource": "0x7f010002",
+                    "matching_resource_count": 1, "path_count": 2,
+                    "configs": ["", config if config == "ko" else "invalid"],
+                    "sdk_level": 30, "rule": "all-variants-agree",
+                }])
+
+    def test_selects_declared_english_ascii_keyboard_not_korean_or_voice(self):
+        metadata = self.input_method(
+            '<subtype android:imeSubtypeLocale="ko_KR" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="101" />'
+            '<subtype android:languageTag="en-US" android:imeSubtypeMode="voice"'
+            ' android:isAsciiCapable="true" android:subtypeId="102" />'
+            '<subtype android:languageTag="en-US" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="0xfffffffe" />',
+        )
+        self.assertEqual(runner.ascii_ime_subtype(metadata), -2)
+
+    def test_selects_android_derived_id_when_subtype_id_is_absent_or_zero(self):
+        for declaration in ("", ' android:subtypeId="0"', ' android:subtypeId="0x0"'):
+            with self.subTest(declaration=declaration):
+                metadata = self.input_method(
+                    '<subtype android:imeSubtypeLocale="en_US" android:imeSubtypeMode="keyboard"'
+                    ' android:isAsciiCapable="true"' + declaration + ' />',
+                )
+                self.assertEqual(runner.ascii_ime_subtype(metadata), 38405219)
+
+    def test_derived_id_uses_raw_locale_and_extra_value_not_language_tag(self):
+        cases = (
+            ('android:languageTag="en-US"', "", 1095049687),
+            (
+                'android:imeSubtypeLocale="en_US" android:languageTag="en-US"',
+                ' android:imeSubtypeExtraValue="\U0001f600"', 1315231776,
+            ),
+        )
+        for locale, extra, expected in cases:
+            with self.subTest(locale=locale, extra=extra):
+                metadata = self.input_method(
+                    '<subtype ' + locale + ' android:imeSubtypeMode="keyboard"'
+                    ' android:isAsciiCapable="true"' + extra + ' />',
+                )
+                self.assertEqual(runner.ascii_ime_subtype(metadata), expected)
+
+    def test_java_string_hash_uses_utf16_units_and_signed_int_overflow(self):
+        for value, expected in (
+            ("", 0), ("Aa", 2112), ("\U0001f600", 1772899),
+            ("\ud800", 55296), ("zzzzzz", -685785664),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(runner.java_string_hash(value), expected)
+
+    def test_derived_id_matches_framework_defaults_and_ascii_compatibility_hash(self):
+        self.assertEqual(runner.android_subtype_id({}), 28668735)
+        self.assertEqual(runner.android_subtype_id({"isAsciiCapable": "true"}), 888732016)
+        self.assertEqual(
+            runner.android_subtype_id({"isAsciiCapable": "true", "imeSubtypeExtraValue": "\uffff"}),
+            -1453882095,
+        )
+        attributes = {"imeSubtypeLocale": "en_US", "imeSubtypeMode": "keyboard"}
+        self.assertEqual(runner.android_subtype_id(attributes), 1802354156)
+
+    def test_refuses_missing_ambiguous_automatic_and_unsupported_subtypes(self):
+        keyboard = (
+            '<subtype android:imeSubtypeLocale="en_US" android:imeSubtypeMode="keyboard"'
+            ' android:isAsciiCapable="true" android:subtypeId="{}" />'
+        )
+        cases = (
+            "",
+            keyboard.format(-1),
+            keyboard.format("@integer/english_id"),
+            keyboard.format("0x100000000"),
+            keyboard.format(0) + keyboard.format(101),
+            keyboard.format(0).replace('/>', 'android:imeSubtypeExtraValue="@0x7f010001" />'),
+            keyboard.format(101) + keyboard.format(102),
+            keyboard.format(101).replace('isAsciiCapable="true"', 'isAsciiCapable="false"'),
+            keyboard.format(101).replace('en_US', 'ko_KR'),
+            keyboard.format(101).replace('/>', 'android:isAuxiliary="true" />'),
+            keyboard.format(101).replace('/>', 'android:overridesImplicitlyEnabledSubtype="true" />'),
+        )
+        for subtypes in cases:
+            with self.subTest(subtypes=subtypes):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-subtype-unavailable"):
+                    runner.ascii_ime_subtype(self.input_method(subtypes))
+
+    def test_reads_public_metadata_for_the_selected_service_only(self):
+        dump = '''N: android=http://schemas.android.com/apk/res/android (line=1)
+  E: manifest (line=1)
+    A: package="example.keyboard"
+      E: application (line=2)
+          E: service (line=3)
+            A: http://schemas.android.com/apk/res/android:name(0x01010003)=".OtherIme"
+              E: meta-data (line=4)
+                A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+                A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010001
+          E: service (line=5)
+            A: http://schemas.android.com/apk/res/android:name(0x01010003)=".SelectedIme"
+              E: meta-data (line=6)
+                A: http://schemas.android.com/apk/res/android:name(0x01010003)="android.view.im"
+                A: http://schemas.android.com/apk/res/android:resource(0x01010025)=@0x7f010002
+'''
+        manifest = runner.aapt_xml(dump)
+        self.assertEqual(
+            runner.ime_resource_id(manifest, "example.keyboard/.SelectedIme"), "0x7f010002",
+        )
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            runner.ime_resource_id(manifest, "example.keyboard/.MissingIme")
+
+    def test_resolves_metadata_resource_without_guessing_its_filename(self):
+        resources = '''Package name=example.keyboard id=7f
+  type xml id=01 entryCount=2
+    resource 0x7f010001 xml/unrelated
+      () (file) res/xml/a.xml type=XML
+    resource 0x7f010002 xml/renamed
+      () (file) res/x9.xml type=XML
+'''
+        self.assertEqual(runner.ime_resource_path(resources, "0x7f010002", 30), ["res/x9.xml"])
+        for table in (
+            resources.replace("0x7f010002", "0x7f010003"),
+            resources + "    resource 0x7f010002 xml/duplicate\n      () (file) res/x9.xml type=XML\n",
+            resources.replace("      () (file) res/x9.xml type=XML\n", ""),
+            resources + "      () (file) res/other.xml type=XML\n",
+            resources + "      () (file) res/x9.xml type=XML\n",
+            resources + "      (ko) (file) res/ko.xml type=XML\n      (ko) (file) res/other.xml type=XML\n",
+        ):
+            with self.subTest(table=table):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    runner.ime_resource_path(table, "0x7f010002", 30)
+
+    def test_selects_highest_supported_version_metadata(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (v28) (file) res/v28.xml type=XML
+'''
+        metadata = {"res/default.xml": self.subtype_dump(101), "res/v28.xml": self.subtype_dump(102)}
+        for sdk, path, subtype in ((30, "res/v28.xml", 102), (27, "res/default.xml", 101)):
+            with self.subTest(sdk=sdk):
+                self.assertEqual(runner.ime_resource_path(resources, "0x7f010002", sdk), [path])
+                result, xml_paths = self.installed_subtype_from_dumps(resources, metadata, str(sdk).encode())
+                self.assertEqual(result, ("example.keyboard/.SelectedIme", subtype))
+                self.assertEqual(xml_paths, ["AndroidManifest.xml", path])
+
+    def test_refuses_version_metadata_newer_than_device(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  (v31) (file) res/v31.xml type=XML
+'''
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            runner.ime_resource_path(resources, "0x7f010002", 30)
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+            self.installed_subtype_from_dumps(resources, {})
+
+    def test_accepts_locale_variants_only_when_all_subtype_ids_agree(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (ko) (file) res/ko.xml type=XML
+'''
+        metadata = {"res/default.xml": self.subtype_dump(101), "res/ko.xml": self.subtype_dump(101)}
+        result, xml_paths = self.installed_subtype_from_dumps(resources, metadata)
+        self.assertEqual(result, ("example.keyboard/.SelectedIme", 101))
+        self.assertEqual(xml_paths, ["AndroidManifest.xml", "res/default.xml", "res/ko.xml"])
+
+        metadata["res/ko.xml"] = self.subtype_dump(102)
+        with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-subtype-unavailable"):
+            self.installed_subtype_from_dumps(resources, metadata)
+
+    def test_refuses_locale_variants_with_invalid_or_unavailable_subtype_metadata(self):
+        resources = '''resource 0x7f010002 xml/metadata
+  () (file) res/default.xml type=XML
+  (ko) (file) res/ko.xml type=XML
+'''
+        for output, failure in (
+            ("", "emulator-ime-metadata-unavailable"),
+            ("E: input-method (line=1)\n", "emulator-ascii-subtype-unavailable"),
+            (self.subtype_dump(-1), "emulator-ascii-subtype-unavailable"),
+        ):
+            with self.subTest(failure=failure, output=output):
+                metadata = {"res/default.xml": self.subtype_dump(101), "res/ko.xml": output}
+                with self.assertRaisesRegex(runner.RunnerFailure, failure):
+                    self.installed_subtype_from_dumps(resources, metadata)
+
+    def test_refuses_invalid_device_sdk_metadata(self):
+        for sdk in (b"", b"invalid\n", b"30.0\n"):
+            with self.subTest(sdk=sdk):
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ime-metadata-unavailable"):
+                    self.installed_subtype_from_dumps("", {}, sdk)
+
+    def test_physical_device_refusal_precedes_all_configuration(self):
+        device = object.__new__(runner.Device)
+        device.require = mock.Mock(return_value=b"0\n")
+        with self.assertRaisesRegex(runner.RunnerFailure, "configure-emulator-refuses-physical-devices"):
+            device.configure_emulator()
+        self.assertEqual(device.require.call_count, 1)
+
+    def test_restricts_only_selected_ime_and_preserves_other_enabled_methods(self):
+        selected = "example.keyboard/.SelectedIme"
+        device = object.__new__(runner.Device)
+        settings = {
+            "default_input_method": selected,
+            "enabled_input_methods": selected + ";101;102:example.voice/.VoiceIme;201",
+            "selected_input_method_subtype": "101",
+        }
+
+        def call(*args, **_kwargs):
+            # adb shell이 연결한 인자를 원격 셸처럼 해석한 뒤 실제 설정 상태를 바꿉니다.
+            parsed = shlex.split(" ".join(args))
+            if parsed[:2] != ["shell", "settings"] or parsed[3] != "secure":
+                raise AssertionError("Unexpected settings operation")
+            if parsed[2] == "get":
+                return 0, (settings[parsed[4]] + "\n").encode(), b""
+            if parsed[2] == "put":
+                settings[parsed[4]] = parsed[5]
+                return 0, b"", b""
+            raise AssertionError("Unexpected settings operation")
+
+        device.call = call
+        with mock.patch.object(runner, "installed_ascii_subtype", return_value=(selected, 103)):
+            device.configure_ascii_input()
+        self.assertEqual(settings, {
+            "default_input_method": selected,
+            "enabled_input_methods": selected + ";103:example.voice/.VoiceIme;201",
+            "selected_input_method_subtype": "103",
+        })
+
+    def test_rejects_readback_when_keyboard_configuration_did_not_apply(self):
+        selected = "example.keyboard/.SelectedIme"
+        device = object.__new__(runner.Device)
+        for outputs in (
+            [selected.encode(), (selected + ";103").encode(), b"102"],
+            [selected.encode(), (selected + ";103;104").encode(), b"103"],
+            [b"other.keyboard/.Ime", (selected + ";103").encode(), b"103"],
+        ):
+            with self.subTest(outputs=outputs):
+                device.require = mock.Mock(side_effect=outputs)
+                with self.assertRaisesRegex(runner.RunnerFailure, "emulator-ascii-input-not-configured"):
+                    device.verify_ascii_input(selected, 103)
 
 
 if __name__ == "__main__":

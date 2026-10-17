@@ -1,0 +1,130 @@
+appId: com.project200.undabang
+name: 심플 타이머 실행과 일시정지·재개·자연 종료
+tags:
+  - regression
+  - requires-login
+---
+# flow별 clear 뒤 이 실행이 만든 로컬 프리셋만 선택합니다. 서버 프리셋은 같은 시간이 있어도 건드리지 않습니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- tapOn: "심플 타이머"
+- scrollUntilVisible:
+    element:
+      id: simple_timer_add_cell
+    direction: DOWN
+    timeout: 30000
+
+# 진행·일시정지·재개를 관찰할 여유를 두되 실제 자연 종료까지 검증합니다.
+- evalScript: ${output.runSec = 45}
+- evalScript: ${output.runLabel = '00:45'}
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.runSec}"
+- tapOn:
+    id: simple_timer_add_cell
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.runSec}
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_local_preset_${output.runSec}"
+    direction: UP
+    timeout: 10000
+- assertVisible:
+    id: "simple_timer_local_preset_${output.runSec}"
+    text: ${output.runLabel}
+
+# 프리셋 탭은 setAndStartTimer를 통해 바로 실행합니다.
+- tapOn:
+    id: "simple_timer_local_preset_${output.runSec}"
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_pause_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.running1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: simple_timer_remaining_time
+      text: ${output.running1}
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.runningSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.runningSeconds > 0 && output.runningSeconds < (parseInt(output.running1.split(':')[0], 10) * 60 + parseInt(output.running1.split(':')[1], 10))}
+    label: 실행 상태에서 남은 시간이 감소하는지 확인
+- assertVisible:
+    id: simple_timer_pause_icon
+
+# 2초 동안 실제 화면을 반복 관찰합니다. 가짜 선택자 타임아웃이나 선택적 단언은 쓰지 않습니다.
+- tapOn:
+    id: simple_timer_pause_icon
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_play_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.paused1 = maestro.copiedText}
+- evalScript: ${output.pauseUntil = Date.now() + 2000}
+- repeat:
+    while:
+      true: ${Date.now() < output.pauseUntil}
+    commands:
+      - assertVisible:
+          id: simple_timer_play_icon
+      - copyTextFrom:
+          id: simple_timer_remaining_time
+      - assertTrue:
+          condition: ${output.paused1 == maestro.copiedText}
+          label: 일시정지 중 남은 시간이 유지되는지 확인
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- assertTrue:
+    condition: ${output.paused1 == maestro.copiedText}
+    label: 관찰 구간 끝에도 일시정지 시간이 같은지 확인
+
+- tapOn:
+    id: simple_timer_play_icon
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_pause_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.resumed1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: simple_timer_remaining_time
+      text: ${output.resumed1}
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.resumedSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.resumedSeconds > 0 && output.resumedSeconds < (parseInt(output.resumed1.split(':')[0], 10) * 60 + parseInt(output.resumed1.split(':')[1], 10))}
+    label: 재개 상태에서 남은 시간이 다시 감소하는지 확인
+- assertVisible:
+    id: simple_timer_pause_icon
+
+# 실행 상태를 먼저 확인했으므로 재생 아이콘 복귀와 00:00은 실제 자연 종료를 나타냅니다.
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_play_icon
+    timeout: ${(output.runSec + 15) * 1000}
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_remaining_time
+      text: "00:00"
+    timeout: 10000
+
+- tapOn:
+    id: "simple_timer_local_menu_${output.runSec}"
+- tapOn: "삭제"
+- assertNotVisible:
+    id: "simple_timer_local_preset_${output.runSec}"
+- assertNotVisible:
+    id: "simple_timer_local_menu_${output.runSec}"

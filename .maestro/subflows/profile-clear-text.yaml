@@ -1,0 +1,12 @@
+appId: com.project200.undabang
+---
+# matching-clear-text와 같은 선택 삭제로 커서 뒤의 기존 닉네임·소개도 모두 지웁니다.
+# 한 단어 전체가 이미 선택되면 '모두 선택' 메뉴가 없을 수 있습니다.
+- longPressOn:
+    id: ${FIELD_ID}
+- runFlow:
+    when:
+      visible: "모두 선택"
+    commands:
+      - tapOn: "모두 선택"
+- eraseText

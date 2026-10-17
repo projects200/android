@@ -44,6 +44,7 @@ class FeedDetailFragment : Fragment() {
                 val comments by viewModel.comments.collectAsStateWithLifecycle()
                 val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
                 val isMyFeed by viewModel.isMyFeed.collectAsStateWithLifecycle()
+                val isFeedLikePending by viewModel.isFeedLikePending.collectAsStateWithLifecycle()
                 val currentMemberId by viewModel.currentMemberId.collectAsStateWithLifecycle()
                 val replyTarget by viewModel.replyTarget.collectAsStateWithLifecycle()
 
@@ -59,6 +60,7 @@ class FeedDetailFragment : Fragment() {
                     isLoading = isLoading,
                     isLoadError = isLoadError.value,
                     isMyFeed = isMyFeed,
+                    isFeedLikePending = isFeedLikePending,
                     currentMemberId = currentMemberId,
                     replyTarget = replyTarget,
                     commentInput = commentInput,

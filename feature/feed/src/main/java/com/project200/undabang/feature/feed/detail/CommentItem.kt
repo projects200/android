@@ -33,6 +33,7 @@ sealed class CommentItem {
     data class ReplyData(
         val reply: Reply,
         val parentCommentId: Long,
+        val parentContent: String,
     ) : CommentItem() {
         override val commentId: Long = reply.commentId
         override val memberId: String = reply.memberId
@@ -52,7 +53,7 @@ fun List<Comment>.toCommentItems(): List<CommentItem> {
     for (comment in this) {
         result.add(CommentItem.CommentData(comment))
         for (reply in comment.children) {
-            result.add(CommentItem.ReplyData(reply, comment.commentId))
+            result.add(CommentItem.ReplyData(reply, comment.commentId, comment.content))
         }
     }
     return result

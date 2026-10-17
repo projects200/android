@@ -101,6 +101,7 @@
     <string name="noti_active">알림이 활성화되었습니다.</string>
     <string name="noti_permission_announce">알림을 받으려면 앱 설정에서 권한을 허용해주세요.</string>
     <string name="noti_deactive">알림이 비활성화되었습니다.</string>
+    <string name="noti_state_failed">알림 설정을 확인하지 못했습니다.</string>
     
     <string name="unblock">차단 해제</string>
     <string name="block_members_empty">아직 차단된 계정이 없어요</string>

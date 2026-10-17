@@ -265,21 +265,19 @@ class ExerciseRecordRepositoryImpl
                 null
             }
 
-        private fun invalidateAfterWrite(memberId: String?) {
+        private fun invalidateAfterWrite(memberId: String?): BaseResult.Error? =
             try {
                 memberId?.let { localDataSource.invalidateCache(it) }
+                null
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 Timber.e(e, "운동 기록 캐시 무효 상태 저장 실패")
+                cacheError(e)
             }
-        }
 
         private suspend fun cacheAfterWrite(memberId: String?, enabled: Boolean, block: suspend () -> Unit): BaseResult.Error? {
-            if (!enabled) {
-                invalidateAfterWrite(memberId)
-                return null
-            }
+            if (!enabled) return invalidateAfterWrite(memberId)
             return try {
                 block()
                 null

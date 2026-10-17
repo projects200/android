@@ -29,6 +29,7 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.spyk
+import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -410,12 +411,83 @@ class ExerciseRecordRepositoryImplTest {
         }
 
     @Test
-    fun `플래그 OFF 서버 성공은 무효 표시 저장 실패로 실패하지 않는다`() =
+    fun `플래그 OFF의 모든 서버 쓰기는 무효 표시 저장 실패를 성공 경고로 반환하고 재시도하지 않는다`() =
         runTest {
             every { flags.isOfflineCacheEnabled() } returns false
-            every { preferences.setExerciseCacheInvalidated(any(), true) } throws IOException("저장 실패")
+            val failure = IOException("무효 표시 저장 실패")
+            every { preferences.setExerciseCacheInvalidated(memberId, true) } throws failure
+            coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
+            coEvery { remote.patchExerciseRecord(7L, any()) } returns response(ExerciseIdDto(7L))
+            coEvery { remote.postExerciseImages(7L, any()) } returns response(ExerciseIdDto(7L))
+            coEvery { remote.deleteExerciseImages(7L, any()) } returns response<Unit?>(null)
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-            assertThat(repository.deleteExerciseRecord("7")).isInstanceOf(BaseResult.Success::class.java)
+
+            val created = repository.createExerciseRecord(record()) as BaseResult.Success
+            val updated = repository.updateExerciseRecord(record(), "7") as BaseResult.Success
+            val uploaded = repository.uploadExerciseRecordImages("7", emptyList()) as BaseResult.Success
+            val imagesDeleted = repository.deleteExerciseRecordImages("7", listOf(1L)) as BaseResult.Success
+            val deleted = repository.deleteExerciseRecord("7") as BaseResult.Success
+
+            listOf(created, updated, uploaded, imagesDeleted, deleted).forEach { result ->
+                assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
+                assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
+                assertThat(result.isCachedSnapshot).isFalse()
+            }
+            assertThat(created.data.recordId).isEqualTo("7")
+            assertThat(created.data.earnedPoints).isEqualTo(3)
+            assertThat(updated.data).isEqualTo("7")
+            assertThat(uploaded.data).isEqualTo("7")
+            assertThat(imagesDeleted.data).isEqualTo(Unit)
+            assertThat(deleted.data).isEqualTo(Unit)
+            assertThat(invalidatedMembers).isEmpty()
+            verify(exactly = 5) { preferences.setExerciseCacheInvalidated(memberId, true) }
+            coVerify(exactly = 1) { remote.postExerciseRecord(any()) }
+            coVerify(exactly = 1) { remote.patchExerciseRecord(7L, any()) }
+            coVerify(exactly = 1) { remote.postExerciseImages(7L, any()) }
+            coVerify(exactly = 1) { remote.deleteExerciseImages(7L, listOf(1L)) }
+            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
+        }
+
+    @Test
+    fun `플래그 ON 캐시 반영과 무효 표시 저장이 함께 실패해도 서버 성공과 반영 오류를 반환한다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            val failure = IOException("Room 반영 실패")
+            val failingLocal = spyk(local)
+            coEvery { failingLocal.reconcileDeletedRecord(7L, memberId) } throws failure
+            every { preferences.setExerciseCacheInvalidated(memberId, true) } throws IOException("무효 표시 저장 실패")
+            val writer = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
+
+            val result = writer.deleteExerciseRecord(id) as BaseResult.Success
+
+            assertThat(result.data).isEqualTo(Unit)
+            assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
+            assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
+            assertThat(result.isCachedSnapshot).isFalse()
+            assertThat(invalidatedMembers).isEmpty()
+            verify(exactly = 1) { preferences.setExerciseCacheInvalidated(memberId, true) }
+            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
+        }
+
+    @Test
+    fun `플래그 OFF 쓰기 중 계정이 바뀌어도 무효 표시 실패는 원래 회원의 경고로 반환한다`() =
+        runTest {
+            every { flags.isOfflineCacheEnabled() } returns false
+            val failure = IOException("원래 회원 무효 표시 저장 실패")
+            every { preferences.setExerciseCacheInvalidated("member-a", true) } throws failure
+            coEvery { remote.deleteExerciseRecord(7L) } coAnswers {
+                memberId = "member-b"
+                response<Unit?>(null)
+            }
+
+            val result = repository.deleteExerciseRecord("7") as BaseResult.Success
+
+            assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
+            assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
+            verify(exactly = 1) { preferences.setExerciseCacheInvalidated("member-a", true) }
+            verify(exactly = 0) { preferences.setExerciseCacheInvalidated("member-b", any()) }
+            assertThat(invalidatedMembers).isEmpty()
             coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
         }
 
@@ -470,6 +542,25 @@ class ExerciseRecordRepositoryImplTest {
             coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
             try {
                 repository.deleteExerciseRecord("7")
+                throw AssertionError("취소가 전파되지 않았습니다")
+            } catch (expected: CancellationException) {
+                assertThat(expected.message).isEqualTo("무효 표시 취소")
+            }
+            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
+        }
+
+    @Test
+    fun `플래그 ON 반영 실패 후 무효 표시의 취소는 캐시 경고로 숨기지 않는다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            val failingLocal = spyk(local)
+            coEvery { failingLocal.reconcileDeletedRecord(7L, memberId) } throws IOException("Room 반영 실패")
+            every { preferences.setExerciseCacheInvalidated(memberId, true) } throws CancellationException("무효 표시 취소")
+            val writer = ExerciseRecordRepositoryImpl(remote, failingLocal, flags, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication())
+            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
+
+            try {
+                writer.deleteExerciseRecord(id)
                 throw AssertionError("취소가 전파되지 않았습니다")
             } catch (expected: CancellationException) {
                 assertThat(expected.message).isEqualTo("무효 표시 취소")

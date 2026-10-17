@@ -1,0 +1,170 @@
+appId: com.project200.undabang
+name: 선호 운동 설정 - 추가·변경·검증과 복구
+tags:
+  - regression
+  - requires-login
+---
+# API가 원본 ID를 보관하고 실제 미선택 catalog type 하나만 이번 실행에 배정합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: profile_nav_graph
+- extendedWaitUntil:
+    visible: "최근 30일 운동 횟수"
+    timeout: 30000
+- runFlow: ../subflows/profile-open-preferences.yaml
+- assertVisible:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    checked: false
+- tapOn:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+- assertVisible:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    checked: true
+- runFlow: ../subflows/profile-preference-detail.yaml
+# 요일과 숙련도 누락은 모두 실제 저장 검증에 막혀야 합니다.
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "요일과 숙련도를 모두 선택해주세요"
+    timeout: 10000
+- tapOn:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "요일과 숙련도를 모두 선택해주세요"
+    timeout: 10000
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+    direction: DOWN
+- tapOn:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "선호 운동이 저장되었습니다"
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      text: ${E2E_PROFILE_ADDED_NAME}
+    direction: DOWN
+    timeout: 15000
+- assertVisible: ${E2E_PROFILE_ADDED_NAME}
+# 첫 저장의 실제 재조회 결과입니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- assertVisible:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    checked: true
+- runFlow: ../subflows/profile-preference-detail.yaml
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+    checked: true
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
+    checked: false
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+    direction: DOWN
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+    checked: true
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
+    direction: UP
+- tapOn:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "선호 운동이 저장되었습니다"
+    timeout: 15000
+# 월+수 변경을 재조회로 확인한 뒤 월요일만 해제합니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- runFlow: ../subflows/profile-preference-detail.yaml
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+    checked: true
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
+    checked: true
+- tapOn:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "선호 운동이 저장되었습니다"
+    timeout: 15000
+# 수요일만 남긴 값도 실제 재조회 뒤 확인합니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- runFlow: ../subflows/profile-preference-detail.yaml
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+    checked: false
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
+    checked: true
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+    direction: DOWN
+- assertVisible:
+    id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
+    checked: true
+- back
+- back
+# 화면 밖의 선택도 ID별로 스크롤해서 모두 해제합니다. 이 변경은 저장하지 않습니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- tapOn:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+- evalScript: ${output.baselineTypeIds = E2E_PROFILE_BASELINE_TYPE_IDS.split(','); output.typeIndex = 0}
+- repeat:
+    times: ${output.baselineTypeIds.length}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: preferred_exercise_type_start
+          direction: UP
+      - scrollUntilVisible:
+          element:
+            id: preferred_exercise_type_${output.baselineTypeIds[output.typeIndex]}
+          direction: DOWN
+      - assertVisible:
+          id: preferred_exercise_type_${output.baselineTypeIds[output.typeIndex]}
+          checked: true
+      - tapOn:
+          id: preferred_exercise_type_${output.baselineTypeIds[output.typeIndex]}
+      - evalScript: ${output.typeIndex = output.typeIndex + 1}
+- tapOn: "다음"
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "최소 하나의 운동을 선택해주세요"
+    timeout: 10000
+- back
+- back
+- scrollUntilVisible:
+    element:
+      id: nickname_tv
+    direction: UP
+- assertVisible: "최근 30일 운동 횟수"
+# 이번 실행이 추가한 type만 해제합니다. 기존 레코드를 삭제·재생성하지 않습니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- assertVisible:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    checked: true
+- tapOn:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+- tapOn: "다음"
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "선호 운동이 저장되었습니다"
+    timeout: 15000
+- assertNotVisible: ${E2E_PROFILE_ADDED_NAME}
+# 최종 부재는 offscreen 판정이 아니라 로드된 type 선택 상태와 API finally 대조로 확인합니다.
+- runFlow: ../subflows/profile-open-preferences.yaml
+- assertVisible:
+    id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
+    checked: false
+- back
+- scrollUntilVisible:
+    element:
+      id: nickname_tv
+    direction: UP
+- assertVisible: "최근 30일 운동 횟수"

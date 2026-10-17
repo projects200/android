@@ -1,0 +1,17 @@
+appId: com.project200.undabang
+---
+# API 33+ 네이티브 Photo Picker. before_flow가 전체 MediaStore를 검사한 A/B 정렬만 사용합니다.
+# 매번 새 picker를 열므로 A는 0, B는 1입니다. 선택자 불일치/확인 실패는 숨기지 않습니다.
+- extendedWaitUntil:
+    visible:
+      id: ".*:id/icon_thumbnail"
+    timeout: 20000
+- tapOn:
+    id: ".*:id/icon_thumbnail"
+    index: ${IMAGE_INDEX}
+- tapOn:
+    text: "(?i)add.*|추가.*"
+- extendedWaitUntil:
+    visible:
+      id: feed_form_remove_image_button
+    timeout: 20000

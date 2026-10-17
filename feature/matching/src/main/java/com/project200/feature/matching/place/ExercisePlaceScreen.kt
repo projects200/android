@@ -30,13 +30,17 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -56,6 +60,7 @@ import com.project200.presentation.compose.theme.subtext12
 import com.project200.undabang.feature.matching.R
 import com.project200.undabang.presentation.R as PresentationR
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ExercisePlaceScreen(
     places: List<ExercisePlace>,
@@ -64,12 +69,22 @@ fun ExercisePlaceScreen(
     onEditClick: (ExercisePlace) -> Unit,
     onDeleteClick: (ExercisePlace) -> Unit,
     modifier: Modifier = Modifier,
+    loadState: ExercisePlaceLoadState = ExercisePlaceLoadState.READY,
 ) {
     Column(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(ColorWhite300),
+                .background(ColorWhite300)
+                // Maestro가 장소 주소·메뉴 버튼을 id로 잡을 수 있도록 testTag를 리소스 id로 노출합니다
+                .semantics { testTagsAsResourceId = true }
+                .testTag(
+                    when (loadState) {
+                        ExercisePlaceLoadState.LOADING -> "places_loading"
+                        ExercisePlaceLoadState.READY -> "places_loaded"
+                        ExercisePlaceLoadState.ERROR -> "places_error"
+                    },
+                ),
     ) {
         UndabangTopBar(
             title = stringResource(R.string.exercise_place),
@@ -178,11 +193,15 @@ private fun ExercisePlaceItem(
                 text = place.address,
                 style = MaterialTheme.typography.subtext12,
                 color = ColorGray100,
+                // 주소는 실행마다 달라져 문자열로 잡을 수 없어 장소명을 이어붙인 id로 구분합니다
+                modifier = Modifier.testTag("place_address_" + place.name),
             )
         }
         MenuButton(
             onEditClick = onEditClick,
             onDeleteClick = onDeleteClick,
+            // 목록에 여러 장소가 있어도 이번 실행이 등록한 장소의 메뉴만 집어 탭할 수 있게 id를 분리합니다
+            modifier = Modifier.testTag("place_menu_btn_" + place.name),
         )
     }
 }

@@ -26,6 +26,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -180,6 +181,28 @@ class MatchingMapViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.initialMapPosition.value).isEqualTo(sampleMapPosition)
+            assertThat(viewModel.initialMapPositionLoaded.value).isTrue()
+        }
+
+    @Test
+    fun `저장 위치 조회 완료 전 null은 기본 위치로 확정하지 않는다`() =
+        runTest {
+            val savedPosition = CompletableDeferred<MapPosition?>()
+            coEvery { mockGetLastMapPositionUseCase() } coAnswers { savedPosition.await() }
+            coEvery { mockGetExercisePlaceUseCase() } returns BaseResult.Success(sampleExercisePlaces)
+            coEvery { mockGetExerciseTypesUseCase() } returns BaseResult.Success(sampleExerciseTypes)
+            createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.initialMapPosition.value).isNull()
+            assertThat(viewModel.initialMapPositionLoaded.value).isFalse()
+            viewModel.saveLastLocation(1.0, 1.0, 10)
+            testDispatcher.scheduler.runCurrent()
+            coVerify(exactly = 0) { mockSaveLastMapPositionUseCase(any()) }
+
+            savedPosition.complete(sampleMapPosition)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.initialMapPosition.value).isEqualTo(sampleMapPosition)
+            assertThat(viewModel.initialMapPositionLoaded.value).isTrue()
         }
 
     @Test

@@ -32,9 +32,11 @@ import com.project200.presentation.utils.KeyboardControlInterface
 import com.project200.presentation.utils.KeyboardUtils.hideKeyboard
 import com.project200.presentation.utils.MenuStyler
 import com.project200.presentation.utils.UiUtils.dpToPx
+import com.project200.undabang.feature.chatting.BuildConfig
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingRoomBinding
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
@@ -198,6 +200,21 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (BuildConfig.DEBUG) {
+                    launch {
+                        combine(viewModel.isReady, viewModel.readinessDebugState) { ready, debugState ->
+                            ready to debugState
+                        }.collect { (ready, debugState) ->
+                            // 방·상대 일치용 준비 마커는 고정하고, 진단 상태는 로딩 중에만 노출합니다.
+                            binding.chattingMessageRv.contentDescription =
+                                if (ready) {
+                                    "chat-ready:${args.roomId}:peer:${args.memberId}"
+                                } else {
+                                    "chat-loading:${args.roomId}:peer:${args.memberId}:$debugState"
+                                }
+                        }
+                    }
+                }
                 launch {
                     viewModel.chatState.collect { state ->
                         val isEnabled: Boolean
