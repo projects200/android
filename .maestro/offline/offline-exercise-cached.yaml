@@ -1,0 +1,9 @@
+appId: com.project200.undabang
+name: 실제 단절 후 재실행한 캘린더 목록 상세 캐시
+---
+# 호스트가 두 라디오와 현재 기본망의 단절을 확인한 뒤 실행합니다.
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- runFlow: assert-exercise-record.yaml

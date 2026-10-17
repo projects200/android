@@ -16,6 +16,7 @@ internal class MaestroSetupCoordinator
         private val protocol: MaestroSetupProtocol,
         private val sessionBootstrap: MaestroSessionBootstrap,
         private val fixtureCleaner: MaestroFixtureCleaner,
+        private val offlineFixtures: MaestroOfflineFixtures,
     ) {
         private val requestMutex = Mutex()
 
@@ -39,6 +40,27 @@ internal class MaestroSetupCoordinator
                                 fixtureCleaner.clean(request.fixtureStartDate, today)
                                 if (request.operation == "cleanup") sessionBootstrap.clearSession()
                                 protocol.writeStatus(if (request.operation == "prepare") "ready" else "cleaned")
+                            }
+                            is MaestroSetupRequest.OfflineOperation -> {
+                                offlineFixtures.validateDate(request.run)
+                                if (request.operation == "offline-observe") {
+                                    sessionBootstrap.verifyCurrent(request.memberId)
+                                    offlineFixtures.observe(request.run, request.stage ?: throw MaestroSetupFailure("invalid_request"))
+                                    protocol.writeStatus("observed")
+                                } else {
+                                    sessionBootstrap.authenticate(
+                                        request.authState ?: throw MaestroSetupFailure("invalid_request"),
+                                        request.memberId,
+                                    )
+                                    offlineFixtures.clean(request.run)
+                                    if (request.operation == "offline-prepare") {
+                                        offlineFixtures.requireCacheEnabled()
+                                        protocol.writeStatus("ready")
+                                    } else {
+                                        sessionBootstrap.clearSession()
+                                        protocol.writeStatus("cleaned")
+                                    }
+                                }
                             }
                         }
                     } catch (failure: MaestroSetupFailure) {

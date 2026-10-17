@@ -1,0 +1,9 @@
+appId: com.project200.undabang
+name: 실제 서버 업로드 완료 뒤에도 미저장 폼과 화면 값 유지
+---
+# 호스트의 독립 GET이 create/75초 update/delete/중복 부재를 확인한 뒤 실행합니다.
+# 이 단계도 앱을 재실행하지 않아 서버 결과가 작성 중 폼을 대체하는 오류를 잡습니다.
+- runFlow: assert-timer-draft.yaml
+- back
+- back
+- runFlow: assert-timer-list.yaml

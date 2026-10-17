@@ -530,4 +530,72 @@ class ExerciseMainViewModelTest {
                 viewModel.exerciseList.removeObserver(observer)
             }
         }
+
+    @Test
+    fun `운동 목록 네트워크 오류는 성공한 빈 목록과 구분하고 새 요청에서 해제한다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } returns BaseResult.Error("NETWORK_ERROR", "network")
+
+            viewModel.refreshData()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseListError.value?.errorCode).isEqualTo("NETWORK_ERROR")
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+
+            val response = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } coAnswers { response.await() }
+            viewModel.refreshData()
+            assertThat(viewModel.exerciseListError.value).isNull()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.exerciseListError.value).isNull()
+
+            response.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.exerciseListError.value).isNull()
+            assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+        }
+
+    @Test
+    fun `점수 조회 네트워크 토스트만으로 운동 목록 오류 상태를 만들지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Error("NETWORK_ERROR", "score network")
+
+            viewModel.refreshData()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseListError.value).isNull()
+            assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+        }
+
+    @Test
+    fun `이전 날짜에서 늦게 온 네트워크 오류는 현재 날짜 오류로 노출하지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            val previous = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } coAnswers { previous.await() }
+            viewModel.refreshData()
+            testDispatcher.scheduler.runCurrent()
+
+            viewModel.onDateSelected(today.minusDays(1))
+            testDispatcher.scheduler.runCurrent()
+            previous.complete(BaseResult.Error("NETWORK_ERROR", "old date network"))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.selectedDate.value).isEqualTo(today.minusDays(1))
+            assertThat(viewModel.exerciseListError.value).isNull()
+        }
+
+    @Test
+    fun `첫 목록 요청의 실패도 추가 새로고침 없이 오류 객체로 노출한다`() =
+        runTest {
+            val failure = BaseResult.Error("NETWORK_ERROR", "first request")
+            coEvery { mockGetExerciseRecordListUseCase.invoke(today) } returns failure
+
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseListError.value).isEqualTo(failure)
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+        }
 }

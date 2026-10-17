@@ -1,0 +1,20 @@
+appId: com.project200.undabang
+---
+- runFlow:
+    file: edit-timer.yaml
+    env:
+      EDIT_TIMER_TITLE: "${TIMER_UPDATED_TITLE}"
+      EXPECTED_TIMER_TIME: "01:15"
+- tapOn:
+    id: custom_timer_title
+- eraseText: 255
+- inputText: "${TIMER_DRAFT_TITLE}"
+- hideKeyboard
+- runFlow:
+    file: set-timer-time.yaml
+    env:
+      TIMER_TIME_FIELD: custom_timer_step_time_0
+      TIMER_MINUTES: "02"
+      TIMER_SECONDS: "00"
+- runFlow: assert-timer-draft.yaml
+# 완료는 누르지 않습니다. 연결 복귀와 실제 업로드 뒤에도 이 입력이 유지되어야 합니다.

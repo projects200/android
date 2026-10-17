@@ -1,0 +1,26 @@
+appId: com.project200.undabang
+---
+- scrollUntilVisible:
+    element:
+      text: "${EDIT_TIMER_TITLE}"
+    direction: UP
+    timeout: 30000
+- tapOn: "${EDIT_TIMER_TITLE}"
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_menu
+    timeout: 30000
+- tapOn:
+    id: custom_timer_menu
+- tapOn: 수정하기
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_title
+      text: "${EDIT_TIMER_TITLE}"
+    timeout: 30000
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: offline-step
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "${EXPECTED_TIMER_TIME}"

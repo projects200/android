@@ -237,6 +237,31 @@ class SessionTransportTests(unittest.TestCase):
         self.assertFalse((self.transport.root / runner.RESULT).exists())
         self.assert_no_credential_arguments()
 
+    def test_offline_observation_keeps_running_process_and_sends_no_auth_state(self):
+        self.transport.result = b'{"status":"observed"}'
+        request = {
+            "memberId": CREDENTIALS["memberId"], "runId": "0123456789abcdef0123456789abcdef",
+            "startedAt": "2026-10-15T09:00:00", "endedAt": "2026-10-15T10:00:00",
+            "stage": "timers-synced",
+        }
+        self.device.bootstrap("offline-observe", request)
+        self.assertEqual(json.loads(self.transport.request_bytes), {"operation": "offline-observe", **request})
+        self.assertFalse(any("force-stop" in argv for argv, _env in self.transport.calls))
+        self.assertNotIn("authState", json.loads(self.transport.request_bytes))
+        self.assertEqual(self.transport.request_mode, 0o600)
+        self.assert_no_credential_arguments()
+
+    def test_offline_prerequisite_failures_use_only_allowlisted_messages(self):
+        self.transport.pending_sleeps = 0
+        for reason, expected in (
+            ("offline_cache_flag_disabled", "offline-suite-requires-enabled-cache-flag"),
+            ("offline_upload_not_observed", "offline-suite-requires-real-server-upload"),
+            (SYNTHETIC_SECRET, "bootstrap-offline-observe-failed"),
+        ):
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode()
+                self.assert_failure(expected, lambda: self.device.bootstrap("offline-observe", {"stage": "timers-synced"}))
+
     def test_empty_and_malformed_results_fail_without_polling_again(self):
         self.transport.pending_sleeps = 0
         for payload in (b"", b" \n\t", b'{"status":', b"not-json"):
@@ -390,6 +415,278 @@ class SessionTransportTests(unittest.TestCase):
         self.device.remove_private(include_session=True)
         self.assertTrue(all(not path.exists() for path in groups[runner.SESSION]))
         self.assertEqual(unrelated.read_bytes(), b"keep")
+
+
+class NetworkClock:
+    def __init__(self):
+        self.now = 0
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.now += seconds
+
+
+class RadioDevice:
+    def __init__(self):
+        self.values = {"wifi_on": b"0", "mobile_data": b"1", "airplane_mode_on": b"0"}
+        self.calls = []
+        self.external_network = False
+        self.failed_radio = None
+        self.report = None
+
+    def require(self, *args):
+        self.calls.append(args)
+        if args[:4] == ("shell", "settings", "get", "global"):
+            return self.values[args[4]] + b"\n"
+        if args == ("shell", "dumpsys", "connectivity"):
+            if self.report is not None:
+                return self.report
+            connected = self.external_network or any(self.values[key] == b"1" for key in ("wifi_on", "mobile_data"))
+            active = b"100" if connected else b"none"
+            return b"Active default network: " + active + b"\nHistory: VALIDATED network 99\n"
+        if args[:2] == ("shell", "svc"):
+            if args[2] == self.failed_radio:
+                raise runner.RunnerFailure("adb-operation-failed")
+            key = {"wifi": "wifi_on", "data": "mobile_data"}[args[2]]
+            self.values[key] = b"1" if args[3] == "enable" else b"0"
+            return b""
+        raise AssertionError("Unexpected radio command")
+
+
+class OfflineNetworkTests(unittest.TestCase):
+    def setUp(self):
+        self.device = RadioDevice()
+        self.clock = NetworkClock()
+        patch = mock.patch.object(runner, "time", self.clock)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_disconnect_checks_current_network_and_restores_original_radios(self):
+        original = dict(self.device.values)
+        network = runner.NetworkState(self.device)
+        network.disconnect()
+        self.assertFalse(network.connected())
+        self.assertEqual(self.device.values["mobile_data"], b"0")
+        network.restore()
+        self.assertEqual(self.device.values, original)
+        self.assertTrue(network.connected())
+        self.assertNotIn(("shell", "svc", "wifi", "enable"), self.device.calls)
+
+    def test_ethernet_or_other_active_network_prevents_false_offline_success(self):
+        network = runner.NetworkState(self.device)
+        self.device.external_network = True
+        with self.assertRaisesRegex(runner.RunnerFailure, "^device-network-transition-not-observed$"):
+            network.disconnect()
+        self.assertEqual(self.clock.now, 30)
+        network.restore()
+        self.assertEqual(self.device.values["mobile_data"], b"1")
+
+    def test_restore_attempts_both_radios_when_one_command_fails(self):
+        network = runner.NetworkState(self.device)
+        network.disconnect()
+        self.device.failed_radio = "wifi"
+        with self.assertRaisesRegex(runner.RunnerFailure, "^device-network-restore-failed$"):
+            network.restore()
+        self.assertEqual(self.device.values["mobile_data"], b"1")
+        self.assertIn(("shell", "svc", "data", "enable"), self.device.calls)
+
+    def test_unknown_settings_and_reports_fail_before_radio_changes(self):
+        for report in (b"", b"History: Active default network: 100\n", b"Active default network: none\nActive default network: 100\n"):
+            with self.subTest(report=report):
+                self.device.report = report
+                with self.assertRaisesRegex(runner.RunnerFailure, "^unsupported-device-connectivity-report$"):
+                    runner.NetworkState(self.device)
+        self.device.values["mobile_data"] = b"null"
+        with self.assertRaisesRegex(runner.RunnerFailure, "^unsupported-device-network-settings$"):
+            runner.NetworkState(self.device)
+        self.assertFalse(any(args[:2] == ("shell", "svc") for args in self.device.calls))
+
+    def test_initially_offline_device_is_not_silently_reconfigured(self):
+        self.device.values["mobile_data"] = b"0"
+        with self.assertRaisesRegex(runner.RunnerFailure, "^offline-suite-requires-initial-online-network$"):
+            runner.NetworkState(self.device)
+        self.assertFalse(any(args[:2] == ("shell", "svc") for args in self.device.calls))
+
+
+class OfflineSuiteTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="maestro-offline-unit-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        for phase in runner.OFFLINE_PHASES["offline-custom-timers"]:
+            path = self.root / ".maestro" / "offline" / (phase + ".yaml")
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("synthetic unit-test flow", encoding="utf-8")
+        self.events = []
+        self.fail_phase = None
+        self.fail_observe = False
+        self.fail_restore = False
+        self.fail_cleanup = False
+        self.interrupted = False
+        self.device = mock.Mock()
+        self.device.clear.side_effect = lambda: self.events.append("clear")
+        self.device.bootstrap.side_effect = self.bootstrap
+        self.device.exercise_variables.return_value = {
+            "EXERCISE_TITLE": "maestro-e2e-0123456789abcdef0123456789abcdef",
+            "EDITED_EXERCISE_TITLE": "maestro-e2e-0123456789abcdef0123456789abcdef-edited",
+            "EXERCISE_START_DATE": "2026.10.15", "EXERCISE_END_DATE": "2026.10.15",
+            "EXERCISE_START_HOUR": "09", "EXERCISE_END_HOUR": "10",
+        }
+        self.network = mock.Mock()
+        self.network.disconnect.side_effect = lambda: self.events.append("disconnect")
+        self.network.restore.side_effect = self.restore
+        patches = (
+            mock.patch.object(runner, "ROOT", self.root),
+            mock.patch.dict(runner.FLOWS, {"offline": ("offline-custom-timers",)}),
+            mock.patch.object(runner, "Device", return_value=self.device),
+            mock.patch.object(runner, "NetworkState", return_value=self.network),
+            mock.patch.object(runner, "read_credentials", return_value=CREDENTIALS),
+            mock.patch.object(runner, "run_maestro", side_effect=self.phase),
+            mock.patch.object(runner, "signal", SimpleNamespace(
+                SIGINT=signal.SIGINT, SIGTERM=signal.SIGTERM, SIG_IGN=signal.SIG_IGN,
+                signal=mock.Mock(return_value=signal.SIG_DFL),
+            )),
+        )
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def bootstrap(self, operation, request):
+        stage = request.get("stage")
+        self.events.append(operation + (":" + stage if stage else ""))
+        self.assertEqual(request["memberId"], CREDENTIALS["memberId"])
+        self.assertEqual(request["runId"], "0123456789abcdef0123456789abcdef")
+        if operation == "offline-observe":
+            self.assertNotIn("authState", request)
+            if self.fail_observe and stage == "timers-synced":
+                raise runner.RunnerFailure("offline-suite-requires-real-server-upload")
+        else:
+            self.assertEqual(request["authState"], CREDENTIALS["authState"])
+        if operation == "offline-cleanup" and self.fail_cleanup:
+            raise runner.RunnerFailure("bootstrap-offline-cleanup-failed")
+
+    def restore(self):
+        self.events.append("restore")
+        if self.fail_restore:
+            raise runner.RunnerFailure("device-network-restore-failed")
+
+    def phase(self, _device, name, _output, _redactor, _timeout, **kwargs):
+        self.events.append(name)
+        self.assertEqual(kwargs["variables"]["TIMER_CREATE_TITLE"], "maestro-offline-0123456789abcdef0123456789abcdef-create")
+        self.assertNotIn("authState", kwargs["variables"])
+        self.assertNotIn("memberId", kwargs["variables"])
+        if name == self.fail_phase:
+            failure = runner.RunInterrupted if self.interrupted else runner.RunnerFailure
+            raise failure("run-interrupted" if self.interrupted else "maestro-flow-failed")
+
+    def run_suite(self):
+        args = SimpleNamespace(suite="offline", device="synthetic", configure_emulator=False, apk=None, flow_timeout=42)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output), contextlib.redirect_stderr(output):
+            result = runner.run_suite(args)
+        self.assertNotIn(SYNTHETIC_SECRET, output.getvalue())
+        reports = list((self.root / "build" / "maestro").glob("*/report.xml"))
+        self.assertEqual(len(reports), 1)
+        report = runner.ET.parse(reports[0]).getroot()
+        self.assertEqual(report.get("skipped"), "0")
+        return result, report
+
+    def test_success_requires_offline_ui_reconnect_outcome_upload_and_preserved_form(self):
+        result, report = self.run_suite()
+        self.assertEqual(result, 0)
+        self.assertEqual(report.get("failures"), "0")
+        self.assertEqual(self.events, [
+            "clear", "offline-prepare", "offline-timers-online", "offline-observe:timers-online",
+            "disconnect", "offline-timers-mutate", "offline-timers-relaunch", "restore",
+            "offline-timers-after-reconnect", "offline-observe:timers-synced", "offline-timers-reconnect",
+            "restore", "offline-cleanup", "clear",
+        ])
+
+    def test_ui_failure_and_interruption_restore_before_scoped_cleanup(self):
+        self.fail_phase = "offline-timers-relaunch"
+        for interrupted in (False, True):
+            with self.subTest(interrupted=interrupted):
+                self.interrupted = interrupted
+                self.events.clear()
+                # 실행마다 별도 디렉터리를 써서 보고서 수가 타임스탬프에 의존하지 않게 합니다.
+                with tempfile.TemporaryDirectory(dir=self.root) as directory:
+                    build = Path(directory)
+                    with mock.patch.object(runner, "ROOT", build), mock.patch.object(Path, "is_file", return_value=True):
+                        args = SimpleNamespace(suite="offline", device="synthetic", configure_emulator=False, apk=None, flow_timeout=42)
+                        with contextlib.redirect_stdout(io.StringIO()):
+                            self.assertEqual(runner.run_suite(args), 1)
+                self.assertEqual(self.events[-3:], ["restore", "offline-cleanup", "clear"])
+                self.assertNotIn("offline-timers-after-reconnect", self.events)
+
+    def test_missing_real_upload_fails_without_skip_and_still_restores(self):
+        self.fail_observe = True
+        result, report = self.run_suite()
+        self.assertEqual(result, 1)
+        self.assertIn("offline-suite-requires-real-server-upload", report.find("testcase/failure").get("message"))
+        self.assertNotIn("offline-timers-reconnect", self.events)
+        self.assertEqual(self.events[-3:], ["restore", "offline-cleanup", "clear"])
+
+    def test_prepare_failure_restores_without_running_any_ui_phase(self):
+        original_bootstrap = self.bootstrap
+
+        def fail_prepare(operation, request):
+            if operation == "offline-prepare":
+                self.events.append(operation)
+                raise runner.RunnerFailure("offline-suite-requires-enabled-cache-flag")
+            original_bootstrap(operation, request)
+
+        self.device.bootstrap.side_effect = fail_prepare
+        result, report = self.run_suite()
+        self.assertEqual(result, 1)
+        self.assertIn("offline-suite-requires-enabled-cache-flag", report.find("testcase/failure").get("message"))
+        self.assertEqual(self.events, ["clear", "offline-prepare", "restore", "offline-cleanup", "clear"])
+
+    def test_failed_restore_prevents_server_cleanup_and_fails_the_report(self):
+        self.fail_phase = "offline-timers-mutate"
+        self.fail_restore = True
+        result, report = self.run_suite()
+        self.assertEqual(result, 1)
+        self.assertIn("device-network-restore-failed", report.find("testcase/failure").get("message"))
+        self.assertNotIn("offline-cleanup", self.events)
+        self.assertEqual(self.events[-1], "clear")
+
+    def test_cleanup_failure_cannot_be_reported_as_a_pass(self):
+        self.fail_cleanup = True
+        result, report = self.run_suite()
+        self.assertEqual(result, 1)
+        self.assertIn("fixture-cleanup-failed", report.find("testcase/failure").get("message"))
+        self.assertEqual(self.events[-3:], ["restore", "offline-cleanup", "clear"])
+
+    def test_offline_remains_explicit_and_outside_every_default_suite(self):
+        for suite in ("smoke", "regression", "all", "login"):
+            self.assertFalse(any(flow.startswith("offline-") for flow in runner.FLOWS[suite]))
+
+
+class OfflineExerciseOrderTests(unittest.TestCase):
+    def test_cache_hit_and_miss_use_distinct_preconditions_and_relaunch_phases(self):
+        variables = {
+            "EXERCISE_TITLE": "maestro-e2e-0123456789abcdef0123456789abcdef",
+            "EXERCISE_START_DATE": "2026.10.15", "EXERCISE_END_DATE": "2026.10.15",
+            "EXERCISE_START_HOUR": "09", "EXERCISE_END_HOUR": "10",
+        }
+        for scenario, expected in (
+            ("offline-exercise-cache", ["offline-exercise-create", "exercise-online", "disconnect", "offline-exercise-cached"]),
+            ("offline-exercise-miss", ["disconnect", "offline-exercise-missing"]),
+        ):
+            with self.subTest(scenario=scenario):
+                events = []
+                device, network = mock.Mock(), mock.Mock()
+                device.bootstrap.side_effect = lambda _operation, request: events.append(request["stage"])
+                network.disconnect.side_effect = lambda: events.append("disconnect")
+                with mock.patch.object(runner, "run_maestro", side_effect=lambda _device, phase, *_args, **_kwargs: events.append(phase)):
+                    runner.run_offline_scenario(
+                        device, scenario, network, CREDENTIALS, variables, Path("/synthetic-output"), runner.Redactor(CREDENTIALS), 42,
+                    )
+                self.assertEqual(events, expected)
+                device.clear.assert_not_called()
+                network.restore.assert_not_called()
 
 
 if __name__ == "__main__":

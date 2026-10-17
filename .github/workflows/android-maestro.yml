@@ -15,6 +15,7 @@ on:
         options:
           - regression
           - all
+          - offline
 
 permissions:
   contents: read

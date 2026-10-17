@@ -32,6 +32,15 @@ FLOWS = {
     "regression": ("exercise-form-entry", "exercise-crud"),
     "all": ("smoke-tabs", "exercise-form-entry", "exercise-crud", "login-screen"),
     "login": ("login-screen",),
+    "offline": ("offline-exercise-cache", "offline-exercise-miss", "offline-custom-timers"),
+}
+OFFLINE_PHASES = {
+    "offline-exercise-cache": ("offline-exercise-create", "offline-exercise-cached"),
+    "offline-exercise-miss": ("offline-exercise-missing",),
+    "offline-custom-timers": (
+        "offline-timers-online", "offline-timers-mutate",
+        "offline-timers-relaunch", "offline-timers-after-reconnect", "offline-timers-reconnect",
+    ),
 }
 TOOL_ENV_KEYS = (
     "PATH", "HOME", "USER", "LOGNAME", "JAVA_HOME", "ANDROID_HOME",
@@ -256,7 +265,9 @@ class Device:
         self.require("shell", "-T", "run-as", APP_ID, "rm", "-f", *paths)
 
     def bootstrap(self, operation, credentials=None, timeout=300):
-        self.require("shell", "am", "force-stop", APP_ID)
+        # 서버 관찰은 실행 중 Worker와 폼을 강제 종료하거나 인증/Room을 초기화하지 않습니다.
+        if operation != "offline-observe":
+            self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         request = {"operation": operation, **(credentials or {})}
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -264,7 +275,10 @@ class Device:
         script = "umask 077; mkdir -p files && cat > " + REQUEST
         self.require("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(script), payload=payload)
         self.require("shell", "am", "start", "-W", "-n", COMPONENT)
-        expected = {"prepare": "ready", "cleanup": "cleaned", "export": "exported"}[operation]
+        expected = {
+            "prepare": "ready", "cleanup": "cleaned", "export": "exported",
+            "offline-prepare": "ready", "offline-cleanup": "cleaned", "offline-observe": "observed",
+        }[operation]
         # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
         probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
         deadline = time.monotonic() + timeout
@@ -281,10 +295,130 @@ class Device:
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
                 # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
+                offline_failures = {
+                    "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
+                    "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
+                    "offline_exercise_server_mismatch": "offline-exercise-server-values-mismatch",
+                }
+                if operation.startswith("offline-") and isinstance(result, dict):
+                    reason = result.get("reason")
+                    if isinstance(reason, str) and reason in offline_failures:
+                        raise RunnerFailure(offline_failures[reason])
                 raise RunnerFailure("bootstrap-" + operation + "-failed")
             self.remove_private()
             return
         raise RunnerFailure("bootstrap-" + operation + "-timeout")
+
+
+class NetworkState:
+    """Change real device radios, and verify ConnectivityService's current default."""
+
+    KEYS = ("wifi_on", "mobile_data", "airplane_mode_on")
+
+    def __init__(self, device):
+        self.device = device
+        self.original = self.settings()
+        self.original_connected = self.connected()
+        if not self.original_connected:
+            raise RunnerFailure("offline-suite-requires-initial-online-network")
+
+    def settings(self):
+        values = {}
+        for key in self.KEYS:
+            value = self.device.require("shell", "settings", "get", "global", key).strip()
+            if value not in (b"0", b"1"):
+                raise RunnerFailure("unsupported-device-network-settings")
+            values[key] = value
+        return values
+
+    def connected(self):
+        output = self.device.require("shell", "dumpsys", "connectivity").decode("utf-8", "replace")
+        # API30의 현재 기본망만 읽습니다. 이력의 VALIDATED나 설정값만으로 단절을 판정하지 않습니다.
+        values = re.findall(r"^\s*Active default network:\s*(none|[0-9]+)\s*$", output, re.MULTILINE)
+        if len(values) != 1:
+            raise RunnerFailure("unsupported-device-connectivity-report")
+        return values[0] != "none"
+
+    def wait(self, expected, connected):
+        deadline = time.monotonic() + 30
+        while time.monotonic() < deadline:
+            if self.settings() == expected and self.connected() == connected:
+                return
+            time.sleep(0.5)
+        raise RunnerFailure("device-network-transition-not-observed")
+
+    def disconnect(self):
+        self.device.require("shell", "svc", "wifi", "disable")
+        self.device.require("shell", "svc", "data", "disable")
+        expected = {**self.original, "wifi_on": b"0", "mobile_data": b"0"}
+        self.wait(expected, False)
+
+    def restore(self):
+        failed = False
+        for service, key in (("wifi", "wifi_on"), ("data", "mobile_data")):
+            try:
+                self.device.require("shell", "svc", service, "enable" if self.original[key] == b"1" else "disable")
+            except Exception:
+                failed = True
+        if failed:
+            raise RunnerFailure("device-network-restore-failed")
+        self.wait(self.original, self.original_connected)
+
+
+def offline_variables(device):
+    variables = device.exercise_variables()
+    prefix = "maestro-offline-" + variables["EXERCISE_TITLE"].removeprefix("maestro-e2e-")
+    variables.update({
+        "TIMER_CREATE_TITLE": prefix + "-create",
+        "TIMER_ORIGINAL_TITLE": prefix + "-update",
+        "TIMER_UPDATED_TITLE": prefix + "-updated",
+        "TIMER_DELETE_TITLE": prefix + "-delete",
+        "TIMER_DRAFT_TITLE": prefix + "-draft",
+    })
+    return variables
+
+
+def offline_request(credentials, variables, stage=None):
+    request = {
+        "memberId": credentials["memberId"],
+        "runId": variables["EXERCISE_TITLE"].removeprefix("maestro-e2e-"),
+        "startedAt": variables["EXERCISE_START_DATE"].replace(".", "-") + "T" + variables["EXERCISE_START_HOUR"] + ":00:00",
+        "endedAt": variables["EXERCISE_END_DATE"].replace(".", "-") + "T" + variables["EXERCISE_END_HOUR"] + ":00:00",
+    }
+    if stage is None:
+        request["authState"] = credentials["authState"]
+    else:
+        request["stage"] = stage
+    return request
+
+
+def run_offline_scenario(device, scenario, network, credentials, variables, output, redactor, timeout):
+    def phase(name):
+        run_maestro(device, name, output, redactor, timeout, variables=variables)
+
+    def observe(stage):
+        device.bootstrap("offline-observe", offline_request(credentials, variables, stage))
+
+    if scenario == "offline-exercise-cache":
+        phase("offline-exercise-create")
+        observe("exercise-online")
+        network.disconnect()
+        phase("offline-exercise-cached")
+    elif scenario == "offline-exercise-miss":
+        network.disconnect()
+        phase("offline-exercise-missing")
+    elif scenario == "offline-custom-timers":
+        phase("offline-timers-online")
+        observe("timers-online")
+        network.disconnect()
+        phase("offline-timers-mutate")
+        phase("offline-timers-relaunch")
+        network.restore()
+        phase("offline-timers-after-reconnect")
+        observe("timers-synced")
+        phase("offline-timers-reconnect")
+    else:
+        raise RunnerFailure("unknown-offline-scenario")
 
 
 def secure_export_path(value):
@@ -384,7 +518,7 @@ def maestro_result(report):
         raise RunnerFailure("maestro-assertion-failed")
 
 
-def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None):
+def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
     maestro = shutil.which("maestro")
     if not maestro:
         raise RunnerFailure("maestro-unavailable")
@@ -403,7 +537,7 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
         code, stdout, stderr = command([maestro, "--version"], env)
         if code != 0 or MAESTRO_VERSION not in stdout.decode("utf-8", "replace").split():
             raise RunnerFailure("maestro-version-must-be-2.11.0")
-        variables = device.exercise_variables()
+        variables = dict(variables) if variables is not None else device.exercise_variables()
         if flow == "exercise-crud" and variables["EXERCISE_START_DATE"].replace(".", "-") < fixture_start_date:
             raise RunnerFailure("fixture-start-date-excludes-flow-record-date")
         report = raw / "report.xml"
@@ -411,7 +545,7 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
             maestro, "test", "--device", device.serial, "--no-ansi", "--format", "junit",
             "--output", str(report), "--debug-output", str(raw / "debug"),
             "--test-output-dir", str(raw / "artifacts"), "--flatten-debug-output",
-            str(ROOT / ".maestro" / "flows" / (flow + ".yaml")),
+            str(ROOT / ".maestro" / ("offline" if flow.startswith("offline-") else "flows") / (flow + ".yaml")),
         ]
         for key, value in variables.items():
             argv[2:2] = ["-e", key + "=" + value]
@@ -450,7 +584,9 @@ def run_suite(args):
         if any(flow != "login-screen" for flow in selected):
             credentials = read_credentials()
         for flow in selected:
-            if not (ROOT / ".maestro" / "flows" / (flow + ".yaml")).is_file():
+            phases = OFFLINE_PHASES.get(flow, (flow,))
+            directory = "offline" if flow in OFFLINE_PHASES else "flows"
+            if any(not (ROOT / ".maestro" / directory / (phase + ".yaml")).is_file() for phase in phases):
                 raise RunnerFailure("selected-flow-file-missing")
         device = Device(args.device)
         if args.configure_emulator:
@@ -465,12 +601,23 @@ def run_suite(args):
             started = time.monotonic()
             errors = []
             interrupted = False
+            network = None
+            variables = None
             try:
-                device.clear()
-                if flow != "login-screen":
-                    device.bootstrap("prepare", credentials)
-                run_maestro(device, flow, output, redactor, args.flow_timeout,
-                            credentials["fixtureStartDate"] if credentials else None)
+                if flow in OFFLINE_PHASES:
+                    network = NetworkState(device)
+                    variables = offline_variables(device)
+                    device.clear()
+                    device.bootstrap("offline-prepare", offline_request(credentials, variables))
+                    run_offline_scenario(
+                        device, flow, network, credentials, variables, output, redactor, args.flow_timeout,
+                    )
+                else:
+                    device.clear()
+                    if flow != "login-screen":
+                        device.bootstrap("prepare", credentials)
+                    run_maestro(device, flow, output, redactor, args.flow_timeout,
+                                credentials["fixtureStartDate"] if credentials else None)
             except RunInterrupted:
                 errors.append("run-interrupted")
                 interrupted = True
@@ -482,7 +629,20 @@ def run_suite(args):
                 # 중단 신호가 정리 중 다시 들어와도 삭제/로컬 비밀 제거를 중간에 끊지 않습니다.
                 handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
                 try:
-                    if flow != "login-screen":
+                    restored = True
+                    if network is not None:
+                        try:
+                            network.restore()
+                        except Exception:
+                            restored = False
+                            errors.append("device-network-restore-failed")
+                    if flow in OFFLINE_PHASES:
+                        if restored and variables is not None:
+                            try:
+                                device.bootstrap("offline-cleanup", offline_request(credentials, variables))
+                            except Exception:
+                                errors.append("fixture-cleanup-failed")
+                    elif flow != "login-screen":
                         try:
                             device.bootstrap("cleanup", credentials)
                         except Exception:

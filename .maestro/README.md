@@ -102,7 +102,7 @@ python3 .maestro/scripts/run-tests.py --suite login --device emulator-5554
 1. 앱 강제 종료와 `pm clear`로 이전 로컬 인증·Room 캐시·권한을 지웁니다.
 2. 보호 플로우는 앱 private 파일에 `prepare` 요청을 stdin으로 전달합니다. 요청은 `authState`, `memberId`, `fixtureStartDate`를 포함합니다. Intent extra/deep link에는 인증 정보가 없습니다.
 3. e2e Activity가 DEV discovery와 가져온 endpoint/client를 검증하고 실제 토큰을 갱신합니다. 서버 등록 상태/member ID를 확인한 뒤 예약 기록만 정리합니다. `ready` 결과가 아니면 Maestro를 실행하지 않습니다.
-4. 실제 UI 플로우를 한 개 실행합니다. Maestro 환경에는 인증/CI 비밀을 상속하지 않습니다. 전달하는 `-e` 값은 UUID 기반 제목 두 개와 기기 한국 시간의 시작/종료 날짜·시간 네 개뿐입니다.
+4. 실제 UI 플로우를 한 개 실행합니다. Maestro 환경에는 인증/CI 비밀을 상속하지 않습니다. `-e`에는 UUID 기반 운동 제목·기기 한국 시간의 날짜/시간만 전달하며, 명시 선택한 `offline`에는 같은 UUID의 커스텀 타이머 제목도 전달합니다.
 5. 성공, 단언 실패, 타임아웃, 준비 실패, 처리 가능한 중단 신호 모두 `finally`에서 `cleanup`을 요청합니다. 로컬 세션이 사라졌어도 실제 인증을 다시 복원·갱신한 뒤 서버 member ID를 확인합니다. 마지막에는 앱 데이터를 다시 지웁니다. 테스트나 정리 중 하나라도 실패하면 종료 코드는 **1**입니다.
 
 `--flow-timeout` 기본값은 플로우당 900초입니다. bootstrap 작업은 300초 제한입니다. SIGINT/SIGTERM은 실행 중 Maestro 자식을 종료하고 정리를 시도합니다. **SIGKILL, 기기 단절, GitHub 강제 종료/전체 job 타임아웃은 정리 완료를 보장할 수 없습니다.** 다음 정상 prepare가 같은 날짜 범위의 중단 기록을 정리합니다. 정리 실패는 JUnit 실패로 기록되며 숨기지 않습니다.
@@ -121,6 +121,8 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
 |`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
+|`offline/offline-exercise-*.yaml`|직접 자동 탐색 안 함|`offline`만|UI로 온라인 기록 생성·캘린더/목록/상세 로드, 실제 단절과 상태 보존 재실행, 별도 캐시 미스|
+|`offline/offline-timers-*.yaml`|직접 자동 탐색 안 함|`offline`만|고유 커스텀 타이머 오프라인 생성/수정/삭제·재실행, 재접속 후 UI 최종 값과 미저장 폼, 독립 서버 GET|
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
 
@@ -129,6 +131,29 @@ CRUD 입력은 ASCII 제목과 숫자를 사용합니다. 러너는 준비 완�
 `subflows/assert-exercise-records-absent.yaml`은 수정 후 재실행 시 원제목의 부재를 검사합니다. 삭제 직후와 삭제 후 재실행 시에는 같은 날짜의 원제목·수정제목 부재를 함께 검사합니다. `ABSENT_RECORD_PATTERN`은 CRUD 호출부가 넘기는 내부 subflow 환경값이며 추가 호스트 입력이 아닙니다.
 
 현재 viewport의 `assertNotVisible` 하나로 끝내지 않습니다. 캘린더 헤더부터 화면 20%의 느리고 겹치는 swipe(`duration: 2000ms`, 최대 200회)마다 대상 제목이 없는지 확인하며, 기록이 남아 있으면 마지막 실제 행의 시간 TextView 접근성 레이블 `'운동 기록 목록 마지막 항목: <HH:mm ~ HH:mm>'`에 도달해야 통과합니다. 빈 목록은 정확한 날짜의 성공한 빈 응답 레이블이 필요합니다. 제한된 횟수 안에 끝에 도달하지 못하거나 요청·목록 검사에 실패하면 실패합니다. 이전 날짜·초기 빈 화면을 성공으로 처리하지 않습니다. 호스트의 플로우 제한(기본 900초)을 넘겨도 실패하며 자동 재시도하지 않습니다.
+
+### 명시 선택 오프라인 회귀(#617)
+
+이 suite는 #609의 세션/private-file 전송과 #610의 DEV 계정·CI 신뢰 경계를 재사용합니다. **#584 운동 캐시, #588 업로드, #589 동기화 실행 경로와 api-server #574/#575의 실제 배포가 먼저 필요합니다.** 이 브랜치의 기준 소스에는 그 구현이 없으므로 실행 통과를 기대하지 않습니다. 서버 conflict/editedAt 응답 형식을 추측하거나 테스트가 업로드를 대신하지 않습니다.
+
+**BLOCKED — pending 행이 남아 있는 동안 성공한 원격 목록을 적용해도 변경이 보존되는지 증명하는 기준은 아직 충족하지 못합니다.** 재접속 때 Worker가 GET보다 먼저 업로드할 수 있고, UI 목록 조회가 Room fallback으로 성공할 수도 있습니다. 실제 #588/#589 uploader에서 pending 상태·성공한 원격 목록 적용·업로드 완료의 순서를 관찰하거나 안전하게 제어할 계약이 필요합니다. 이 계약은 기준 소스에 없으며, 알 수 없는 Worker를 멈추거나 대체하지 않습니다. 아래 재접속 시나리오가 통과해도 이 기준이나 #617 전체 완료의 증거는 아닙니다.
+
+```bash
+python3 .maestro/scripts/run-with-session.py \
+  "$HOME/.config/undabang-e2e/maestro-session.json" --suite offline \
+  --device emulator-5554 --apk app/build/outputs/apk/e2e/app-e2e.apk
+```
+
+- `offline`은 `smoke`, `regression`, `all`과 `.maestro/config.yaml`의 자동 탐색에 포함하지 않습니다. 수동 DEV CI에서 `offline`을 직접 선택합니다. `.maestro/offline/`의 개별 단계는 호스트의 네트워크·세션·정리 순서를 필요로 하므로 단독 Maestro 실행은 지원하지 않습니다.
+- DEV Firebase Remote Config의 **`offline_cache_enabled=true`를 실제로 게시**해야 합니다. 준비는 기존 앱의 fetch/activate와 `FeatureFlagDataSource`를 사용해 값을 확인합니다. 기본값은 false이며 e2e override는 없습니다. 꺼져 있으면 `offline-suite-requires-enabled-cache-flag`로 실패합니다.
+- API30의 `wifi_on`, `mobile_data`, `airplane_mode_on`이 명확한 0/1이고 초기 기본망이 있어야 합니다. 러너는 Wi-Fi와 모바일 데이터를 실제 `svc`로 끈 뒤 `dumpsys connectivity`의 **현재** `Active default network: none`을 기다립니다. 설정값만 바뀌거나 Ethernet/VPN 등 기본망이 남으면 실패합니다. 보고서 형식이 다른 기기도 실패하며 가짜 offline 모드로 대체하지 않습니다.
+- 운동 기록은 기존 UI 폼으로 만듭니다. 실제 서버 목록/상세에서 고유 제목과 시작/종료 시각을 확인한 뒤, 온라인에서 로드한 캘린더의 해당 날짜 표시·목록·상세를 단절 후 새 프로세스에서 다시 단언합니다. 별도 초기화 시나리오는 운동 화면을 미리 열지 않고 단절해 해당 날짜 목록의 실제 `NETWORK_ERROR` 완료 레이블을 요구합니다. 점수/정책 조회의 공통 Toast나 초기 빈 목록은 캐시 미스 검증으로 인정하지 않습니다.
+- 타이머는 `maestro-offline-<32자리 UUID>-update/delete` 두 개를 UI로 만들어 **서버 GET에 실제 나타날 때까지** 기다립니다. 단절 후 하나를 `-updated`/75초로 수정하고 다른 하나는 삭제하며, `-create`/45초를 새로 만듭니다. 재실행 뒤 제목·스텝·시간·전체 목록의 삭제 부재를 확인합니다. 심플 타이머와 일반 타이머는 변경하지 않습니다.
+- 재접속 직전 120초와 `-draft` 제목을 입력하되 저장하지 않습니다. 연결 복귀 직후에도 이 폼을 확인하고, 폼을 버린 뒤 새 타이머 목록 화면에 표시되는 저장값을 확인합니다. 이는 재접속 결과 검사이며 성공한 원격 목록 적용이나 그때의 pending 상태를 증명하지 않습니다. 다시 미저장 폼을 열어 둔 상태에서 독립 서버 관찰을 완료한 뒤에도 입력값이 그대로인지 검사합니다.
+- 서버 관찰은 **e2e 전용 관찰 코드가 `ApiService`를 직접 GET**하며 Room/Repository fallback을 사용하지 않습니다. 동일 UUID의 정확히 두 타이머, 45초/75초의 이름·순서 0 스텝 하나, 원제목·삭제 제목·미저장 draft·중복 부재를 확인합니다. 최대 120초 안에 실제 업로드가 없으면 `offline-suite-requires-real-server-upload`로 실패합니다. 관찰은 현재 DEV 세션과 member ID를 재검증하되 인증을 재가져오거나 앱을 강제 종료하지 않으며, 관찰 코드 자체가 로컬 데이터를 초기화하지 않습니다.
+- 각 시나리오의 `finally`는 **원래 Wi-Fi/모바일 설정과 실제 기본망 상태를 먼저 복원·확인**한 뒤, 검증된 전용 계정에서 이번 UUID의 정확한 운동/커스텀 타이머 제목만 상세 재확인 후 삭제합니다. 복원 실패는 실패이며 서버 정리를 진행하지 않습니다. 실패·SIGINT/SIGTERM도 같은 경로를 사용합니다. SIGKILL·기기 단절·전체 job 강제 종료 뒤 복원/정리는 보장할 수 없으며, 다음 UUID 실행이 이전 오프라인 타이머까지 지운다고 가정하지 않습니다.
+
+이 경로는 Room fixture 삽입, sync 상태 강제 변경, Worker 대리 업로드를 하지 않습니다. 선택자/네트워크/서버/플래그 준비가 안 되면 실패를 남기며 skip으로 통과시키지 않습니다.
 
 ### 수동 UI 개발(격리 CI와 다른 경로)
 
@@ -152,7 +177,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 프로필 smoke 플로우는 작은 화면에서 화면 밖 콘텐츠를 화면 누락으로 오인하지 않도록 `preferred_exercise_tv`까지 스크롤한 뒤 `선호 운동` 표시를 단언합니다.
 
-## CI(#610): 신뢰된 dev push/PR smoke와 수동 regression
+## CI(#610): 신뢰된 dev push/PR smoke와 수동 회귀
 
 `.github/workflows/android-maestro.yml`은 기존 `android-dev-ci.yml`/릴리스 CI와 분리되어 있습니다.
 
@@ -163,7 +188,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`smoke`|
 |`pull_request`|base가 `dev`, fork head 또는 비신뢰 작성자|비밀 없는 거절 job 실패, 인증 job 미실행|
 |`pull_request`|다른 base branch|트리거 필터에서 제외, 비밀 미제공|
-|`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression` 또는 `all`|
+|`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression`, `all` 또는 명시적인 `offline`|
 |`workflow_dispatch`|다른 ref|비밀 없는 거절 job 실패, 인증 job 미실행|
 
 - 인증 suite를 실행하지 않은 skip은 인증 통과가 아닙니다. 거절 job은 미실행 상태를 명시하며 **실패**합니다. `pull_request_target`은 사용하지 않습니다.
@@ -206,7 +231,7 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 ## 검증 상태와 남은 외부 준비
 
-이번 transport 수정에서는 **로컬 unittest 하네스·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증을 실행하지 않았습니다.** 러너와 관련 소스/문서를 정적으로 읽었으며, 명령 예시는 실행 성공 증거가 아닙니다.
+세션 전송·오프라인 회귀 변경의 **로컬 unittest·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증은 이 작업에서 실행하지 않았습니다.** 러너와 관련 소스/문서를 정적으로 읽었으며 명령 예시는 실행 성공 증거가 아닙니다.
 
 저장소 루트에서 실행할 표준 라이브러리 회귀 테스트 명령(이 작업에서는 미실행):
 
@@ -214,6 +239,6 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 python3 -m unittest discover -s .maestro/scripts -p 'test_run_tests.py'
 ```
 
-`test_run_tests.py`의 로컬 셸 하네스는 실제 adb/기기/계정 없이 stdin 전달, 원격 종료 상태, JSON 검증과 실패 시 export 파일 제거를 검사합니다. 하네스 통과도 실기기 export 증거는 아닙니다. 후속 기기 검증에서는 인증된 세션/member ID 쌍, 비ASCII JSON 왕복과 private 파일 제거를 별도로 확인해야 합니다.
+`test_run_tests.py`는 기존 로컬 셸 전송 하네스에 더해, 격리된 가짜 기기/시계/도구 경계로 실제 단절 판정·원래 라디오 복원·부분 실패·중단·서버 업로드 미관찰·정리 실패·opt-in 경계를 결정적으로 검사합니다. 앱의 `testE2e`는 직접 서버 응답 값/중복/실패와 실행별 삭제 범위, 관찰 중 인증 초기화 금지를 검사합니다. 단위 테스트도 실기기·서버 통과 증거는 아닙니다.
 
 최초 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 9개 CI 비밀, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 첫 API30 실행에서 Compose/XML ID 노출, Android Toast 필수값 단언, 캘린더/시간 선택, CRUD 후 재진입과 정리 실패 경로를 확인해야 합니다. 세션 비밀과 서버 fixture가 실제로 준비되었다고 가정하지 않습니다.

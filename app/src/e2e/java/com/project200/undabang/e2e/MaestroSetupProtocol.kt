@@ -8,6 +8,7 @@ import net.openid.appauth.AuthState
 import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
+import java.time.LocalDateTime
 import javax.inject.Inject
 
 internal sealed interface MaestroSetupRequest {
@@ -18,6 +19,14 @@ internal sealed interface MaestroSetupRequest {
         val authState: AuthState,
         val memberId: String,
         val fixtureStartDate: LocalDate,
+    ) : MaestroSetupRequest
+
+    data class OfflineOperation(
+        val operation: String,
+        val memberId: String,
+        val authState: AuthState?,
+        val run: MaestroOfflineRun,
+        val stage: String?,
     ) : MaestroSetupRequest
 }
 
@@ -62,6 +71,28 @@ internal class MaestroSetupProtocol
                             authState = AuthState.jsonDeserialize(json.getJSONObject("authState")),
                             memberId = memberId,
                             fixtureStartDate = LocalDate.parse(startDate),
+                        )
+                    }
+                    "offline-prepare", "offline-cleanup", "offline-observe" -> {
+                        val keys = setOf("operation", "memberId", "runId", "startedAt", "endedAt")
+                        val observing = operation == "offline-observe"
+                        requireKeys(json, keys + if (observing) setOf("stage") else setOf("authState"))
+                        val memberId = json.get("memberId") as? String
+                        if (memberId.isNullOrBlank()) throw MaestroSetupFailure("invalid_request")
+                        val run =
+                            MaestroOfflineRun(
+                                id = json.getString("runId"),
+                                startedAt = LocalDateTime.parse(json.getString("startedAt")),
+                                endedAt = LocalDateTime.parse(json.getString("endedAt")),
+                            )
+                        val stage = if (observing) json.getString("stage") else null
+                        if (observing && stage !in MaestroOfflineFixtures.STAGES) throw MaestroSetupFailure("invalid_request")
+                        MaestroSetupRequest.OfflineOperation(
+                            operation = operation,
+                            memberId = memberId,
+                            authState = if (observing) null else AuthState.jsonDeserialize(json.getJSONObject("authState")),
+                            run = run,
+                            stage = stage,
                         )
                     }
                     else -> throw MaestroSetupFailure("invalid_request")

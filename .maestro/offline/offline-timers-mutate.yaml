@@ -1,0 +1,53 @@
+appId: com.project200.undabang
+name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
+---
+- runFlow: open-timer-list.yaml
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add
+    direction: DOWN
+    timeout: 30000
+- runFlow:
+    file: edit-timer.yaml
+    env:
+      EDIT_TIMER_TITLE: "${TIMER_ORIGINAL_TITLE}"
+      EXPECTED_TIMER_TIME: "00:45"
+- tapOn:
+    id: custom_timer_title
+- eraseText: 255
+- inputText: "${TIMER_UPDATED_TITLE}"
+- hideKeyboard
+- runFlow:
+    file: set-timer-time.yaml
+    env:
+      TIMER_TIME_FIELD: custom_timer_step_time_0
+      TIMER_MINUTES: "01"
+      TIMER_SECONDS: "15"
+- tapOn:
+    id: custom_timer_complete
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_detail
+    timeout: 30000
+- assertVisible: "${TIMER_UPDATED_TITLE}"
+- back
+- scrollUntilVisible:
+    element:
+      text: "${TIMER_DELETE_TITLE}"
+    direction: DOWN
+    timeout: 30000
+- tapOn: "${TIMER_DELETE_TITLE}"
+- tapOn:
+    id: custom_timer_menu
+- tapOn: 삭제하기
+- assertVisible: "정말 타이머를 삭제할까요[?]"
+- tapOn: 확인
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_list
+    timeout: 30000
+- runFlow:
+    file: create-timer.yaml
+    env:
+      NEW_TIMER_TITLE: "${TIMER_CREATE_TITLE}"
+- runFlow: assert-timer-list.yaml

@@ -52,6 +52,17 @@ internal class MaestroSessionBootstrap
             authStateManager.update(authorizationResponse, null)
             authStateManager.update(restoredTokens, null)
 
+            return refreshAndVerify(expectedMemberId)
+        }
+
+        /** 서버 관찰은 현재 세션을 검증하되 Room과 미전송 변경을 지우지 않습니다 */
+        suspend fun verifyCurrent(expectedMemberId: String): String {
+            val trusted = fetchTrustedConfiguration()
+            validateState(currentState(), trusted)
+            return refreshAndVerify(expectedMemberId)
+        }
+
+        private suspend fun refreshAndVerify(expectedMemberId: String?): String {
             // 만료 시각이나 가져온 ID 토큰을 믿지 않고 실제 DEV 서버에서 새 토큰을 발급받습니다
             if (authManager.refreshAccessToken() !is TokenRefreshResult.Success) {
                 throw MaestroSetupFailure("refresh_failed")

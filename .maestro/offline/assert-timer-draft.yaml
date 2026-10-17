@@ -1,0 +1,13 @@
+appId: com.project200.undabang
+---
+- assertVisible:
+    id: custom_timer_form
+- assertVisible:
+    id: custom_timer_title
+    text: "${TIMER_DRAFT_TITLE}"
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: offline-step
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "02:00"
