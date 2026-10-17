@@ -232,5 +232,4 @@ class ExerciseDetailViewModelTest {
             assertThat(viewModel.deleteResult.replayCache).isEmpty()
             coVerify(exactly = 1) { mockDeleteExerciseUseCase(recordId) }
         }
-
 }

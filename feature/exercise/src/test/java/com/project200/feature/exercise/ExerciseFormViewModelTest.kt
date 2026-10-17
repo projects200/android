@@ -663,5 +663,4 @@ class ExerciseFormViewModelTest {
             coVerify(exactly = 1) { mockCreateUseCase(any()) }
             coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
         }
-
 }
