@@ -350,6 +350,37 @@ class ProfileEditViewModelTest {
         }
 
     @Test
+    fun `소개를 모두 지우면 빈 문자열을 저장하고 재조회한 빈 입력을 로드한다`() =
+        runTest {
+            coEvery { mockGetUserProfileUseCase() } returnsMany
+                listOf(BaseResult.Success(sampleProfile), BaseResult.Success(sampleProfile.copy(bio = "")))
+            coEvery {
+                mockEditProfileUseCase(sampleProfile.nickname, sampleProfile.gender, "")
+            } returns BaseResult.Success(Unit)
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.introduction.value).isEqualTo(sampleProfile.bio)
+
+            viewModel.updateIntroduction("")
+            viewModel.editResult.test {
+                viewModel.completeEditProfile()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isTrue()
+            }
+            coVerify(exactly = 1) { mockEditProfileUseCase(sampleProfile.nickname, sampleProfile.gender, "") }
+            coVerify(exactly = 0) { mockAddProfileImageUseCase(any()) }
+
+            viewModel.updateIntroduction("저장하지 않은 소개")
+            viewModel.getProfile()
+            assertThat(viewModel.isLoaded.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isLoaded.value).isTrue()
+            assertThat(viewModel.initProfile.value?.bio).isEqualTo("")
+            assertThat(viewModel.introduction.value).isEmpty()
+            coVerify(exactly = 2) { mockGetUserProfileUseCase() }
+        }
+
+    @Test
     fun `completeEditProfile - 닉네임 변경 시 중복확인 안하면 NO_DUPLICATE_CHECKED 에러가 emit된다`() =
         runTest {
             // Given

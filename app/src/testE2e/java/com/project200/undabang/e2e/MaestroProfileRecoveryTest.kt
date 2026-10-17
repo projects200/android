@@ -62,6 +62,39 @@ class MaestroProfileRecoveryTest {
         }
 
     @Test
+    fun `빈 소개 원본은 빈 문자열 PUT과 정확한 GET 재조회로 복구한다`() =
+        runTest {
+            baseline()
+            val emptyOriginal = original.copy(bio = "")
+            coEvery { api.getProfile() } returnsMany
+                listOf(success(profile("e2e$runId", "e2e-intro-$runId")), success(profile(bio = "")))
+            coEvery { api.editProfile(emptyOriginal) } returns success<Unit?>(null)
+            MaestroProfilePolicy.validateText(emptyOriginal.nickname, emptyOriginal.gender, emptyOriginal.bio)
+
+            recovery.restore(emptyOriginal, listOf(preference), null, null, "profile-edit", runId)
+
+            coVerify(exactly = 1) { api.editProfile(emptyOriginal) }
+            coVerify(exactly = 2) { api.getProfile() }
+            coVerify(exactly = 0) { fcm.getSavedToken() }
+        }
+
+    @Test
+    fun `빈 소개 PUT 성공 뒤 null이나 다른 문자열을 읽으면 복구 실패다`() =
+        runTest {
+            baseline()
+            val emptyOriginal = original.copy(bio = "")
+            coEvery { api.editProfile(emptyOriginal) } returns success<Unit?>(null)
+            for (readback in listOf(null, " ", "e2e-intro-$runId")) {
+                coEvery { api.getProfile() } returnsMany
+                    listOf(success(profile("e2e$runId", "e2e-intro-$runId")), success(profile(bio = readback)))
+
+                expectFailure { recovery.restore(emptyOriginal, listOf(preference), null, null, "profile-edit", runId) }
+            }
+            coVerify(exactly = 3) { api.editProfile(emptyOriginal) }
+            coVerify(exactly = 6) { api.getProfile() }
+        }
+
+    @Test
     fun `원본 preference 변경은 같은 type PATCH로 복구해도 테스트 실패를 유지한다`() =
         runTest {
             baseline()
@@ -243,7 +276,7 @@ class MaestroProfileRecoveryTest {
 
     private fun profile(
         nickname: String = original.nickname,
-        bio: String = original.bio,
+        bio: String? = original.bio,
     ) = GetProfileDTO(null, null, nickname, original.gender, "1990-01-01", bio, 0, 0, 0, emptyList())
 
     private fun <T> success(data: T): BaseResponse<T> = BaseResponse(true, "OK", "", data)

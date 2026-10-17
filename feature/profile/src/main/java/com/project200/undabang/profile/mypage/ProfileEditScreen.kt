@@ -360,7 +360,13 @@ private fun IntroductionSection(
     onChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                // 빈 입력의 hint를 원문으로 오인하지 않도록 실제 값의 상태만 비음성 testTag로 노출합니다.
+                .testTag(if (introduction.isEmpty()) "profile_edit_introduction_empty" else "profile_edit_introduction_present"),
+    ) {
         Text(
             text = stringResource(R.string.profile_edit_introduction),
             style = MaterialTheme.typography.contentBold,

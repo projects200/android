@@ -65,7 +65,6 @@ class MaestroProfilePolicyTest {
         val unsupportedBios =
             listOf(
                 null to "profile_baseline_bio_null",
-                "" to "profile_baseline_bio_empty",
                 "line\nbreak" to "profile_baseline_bio_control_characters",
                 "tab\tbio" to "profile_baseline_bio_control_characters",
                 "a".repeat(51) to "profile_baseline_bio_too_long",

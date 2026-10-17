@@ -58,7 +58,6 @@ PROFILE_PREPARE_FAILURES = {
     "profile_baseline_nickname_unsupported": "bootstrap-prepare-failed-profile-baseline-nickname-unsupported",
     "profile_baseline_gender_unsupported": "bootstrap-prepare-failed-profile-baseline-gender-unsupported",
     "profile_baseline_bio_null": "bootstrap-prepare-failed-profile-baseline-bio-null",
-    "profile_baseline_bio_empty": "bootstrap-prepare-failed-profile-baseline-bio-empty",
     "profile_baseline_bio_too_long": "bootstrap-prepare-failed-profile-baseline-bio-too-long",
     "profile_baseline_bio_control_characters":
         "bootstrap-prepare-failed-profile-baseline-bio-control-characters",
