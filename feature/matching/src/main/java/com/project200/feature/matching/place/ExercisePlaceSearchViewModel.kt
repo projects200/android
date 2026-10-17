@@ -69,11 +69,17 @@ class ExercisePlaceSearchViewModel
             }
         }
 
+        fun dismissSearchResults() {
+            // 화면을 다시 관찰해도 이미 닫거나 선택한 결과 목록을 재표시하지 않습니다.
+            _searchResult.value = null
+        }
+
         /**
          * 사용자가 검색 결과에서 장소를 선택했을 때 호출됩니다.
          */
         fun selectSearchedPlace(placeInfo: KakaoPlaceInfo) {
             addressGeneration++
+            dismissSearchResults()
             isPlaceSelectedBySearch = true
             if (placeInfo.placeName.isEmpty() || placeInfo.placeName == placeInfo.address) {
                 _place.value = placeInfo.copy(placeName = "")

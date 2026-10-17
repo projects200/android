@@ -25,9 +25,10 @@ tags:
 - runFlow: ../subflows/matching-select-catalog-place.yaml
 
 # 실제 카탈로그 주소를 고른 뒤 이름만 비웁니다. 저장 실패를 화면과 최종 서버 목록으로 확인합니다.
-- tapOn:
-    id: place_name_input
-- eraseText: 200
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
 - hideKeyboard
 - tapOn: "주소 등록"
 - assertVisible: "장소명 (필수)"

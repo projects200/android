@@ -8,7 +8,7 @@ Maestro는 APK 밖에서 실제 화면을 조작하는 블랙박스 테스트입
 
 - Python 3.10 이상(표준 라이브러리만 사용), JDK 17, Android SDK의 `adb`, Maestro **2.11.0**.
 - 기기의 언어는 한국어(`ko-KR`), 시간대는 `Asia/Seoul`. DEV API/Cognito에 연결할 수 있어야 합니다.
-- 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM, 선택된 descriptor의 최대 `apiLevel`(기본 **30**, 프로필·피드 **33**)인 `google_apis` `x86_64` 이미지를 사용합니다.
+- 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM에서 선택된 descriptor의 최대 `apiLevel`인 `google_apis` `x86_64` 이미지를 사용합니다. 실제 실행 이미지의 API는 해당 CI 설정·결과로 확인하며 matching descriptor의 `apiLevel:30`만 보고 전체 CI가 API30이라고 단정하지 않습니다.
 - ARM APK 필터(`armeabi-v7a`, `arm64-v8a`)는 그대로 유지합니다. [공식 ARM translation 안내](https://android-developers.googleblog.com/2020/03/run-arm-apps-on-android-emulator.html)는 Android 11 Google APIs 이미지의 ARM 실행을 설명합니다. 모든 x86 이미지가 이를 지원하는 것은 아닙니다. 러너의 `--apk`는 APK의 실제 ARM 라이브러리와 기기 `ro.product.cpu.abilist`의 교집합을 **설치 전에** 검사하며, 지원 ABI가 없으면 실패합니다.
 - `--device`에는 `adb devices`의 serial을 사용합니다. 생략하면 연결된 정상 기기가 정확히 하나여야 합니다.
 - `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. 재부팅 후에는 현재 IME의 공개 APK metadata에서 영어(`en-US`) ASCII keyboard subtype을 찾아 선택합니다. **앱/UI 언어는 한국어이고 시간대는 서울인 상태를 유지합니다.** SDK Build Tools의 `aapt2`가 PATH 또는 `ANDROID_HOME`/`ANDROID_SDK_ROOT` 아래 `build-tools/<version>/`에 있어야 합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 설정 전에 거절하며, 옵션 없이 실행할 때는 입력기를 포함한 기기 설정을 먼저 맞춰야 합니다.
@@ -219,6 +219,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`COGNITO_REGION_DEV`|DEV Cognito region|
 |`KAKAO_NATIVE_APP_KEY_DEV`|DEV 앱 native key(`KAKAO_NATIVE_APP_KEY` 환경으로 전달)|
 |`KAKAO_REST_API_KEY`|기존 REST key|
+|`MAESTRO_DEBUG_KEYSTORE_BASE64`|**필수**: CI e2e 전용 고정 debug keystore의 줄바꿈 없는 base64. release 키 사용 금지|
 |`MAESTRO_AUTH_STATE_JSON`|내보낸 AppAuth 객체 JSON|
 |`MAESTRO_MEMBER_ID`|검증된 전용 계정 member ID|
 |`MAESTRO_FIXTURE_START_DATE`|고정 fixture 관리 시작일|
@@ -235,7 +236,14 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 `queue: max`는 최대 100개의 pending job을 대기시키며, 용량을 넘는 job은 취소됩니다. FIFO 순서는 workflow dispatch 순서가 아니라 job이 concurrency 대기에 들어간 순서입니다([공식 문서](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)).
 
-비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
+필수 비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
+
+### 고정 CI e2e debug 서명
+
+- CI는 필수 비밀 `MAESTRO_DEBUG_KEYSTORE_BASE64`를 `$RUNNER_TEMP/maestro/debug.keystore`에 복원하고 권한을 `0600`으로 설정합니다. `keytool -list`로 alias `androiddebugkey`와 store password `android`를 확인하며 비밀 누락·복원·검사 실패 시 빌드를 진행하지 않습니다.
+- 빌드는 `-Pmaestro.e2e.signing.store.file`, `-Pmaestro.e2e.signing.store.password`, `-Pmaestro.e2e.signing.key.alias`, `-Pmaestro.e2e.signing.key.password`를 전달합니다. store/key password는 `android`, alias는 `androiddebugkey`입니다.
+- Gradle은 네 속성이 모두 있으면 `maestroE2e`를 e2e에만 적용하고, 로컬에서 생략하면 기존 debug 서명을 사용합니다. 일반 debug/release 서명은 변경하지 않습니다.
+- 운영자는 패키지 `com.project200.undabang`과 실제 서명 인증서를 올바른 Kakao/Firebase 앱에 등록해야 합니다. 이 진단 변경은 키 생성·비밀 등록·외부 서비스 등록을 수행하지 않으며, 고정 서명만으로 SDK 인증 성공이나 지도 실패 원인을 확정하지 않습니다.
 
 ## 결과와 실패 조사
 
@@ -251,7 +259,7 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 ## 검증 상태와 남은 외부 준비
 
-기존 공유 기능 통합은 원격 CI에서 Python 회귀 테스트와 E2E 빌드·단위 테스트를 실행했습니다. 타이머의 기본 smoke는 통과했지만 기능 플로우는 실패했고, 피드·프로필은 API33 이미지와 ARM APK의 ABI 불일치로 설치 전에 중단됐습니다. 현재 ASCII 입력 수정은 정적 확인만 했으며 수정 후 CI 검증은 남아 있습니다. 로컬에서는 저장소 코드를 실행하지 않았습니다.
+사용자 보고 run `39007766770`에서는 고정 keystore 복원과 APK 빌드가 성공했고 smoke·피드·타이머·로그인은 통과했습니다. matching 세 플로우는 모두 `matching_map_ready` 대기에서 실패했으며 SDK callback의 종류·코드는 아직 수집되지 않았습니다. 이번 SDK 진단 변경은 정적 확인만 했고 로컬 빌드·테스트·기기 실행은 수행하지 않았습니다. 고정 서명 이후에도 실패 원인은 미확정입니다.
 
 저장소 루트에서 사용하는 표준 라이브러리 회귀 테스트 명령:
 

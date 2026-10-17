@@ -24,10 +24,16 @@ tags:
     timeout: 20000
 - tapOn: "추가"
 - runFlow: ../subflows/matching-select-catalog-place.yaml
-- tapOn:
-    id: place_name_input
-- eraseText: 200
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
 - inputText: ${MATCHING_PLACE_NAME}
+- copyTextFrom:
+    id: place_name_input
+- assertTrue:
+    condition: ${maestro.copiedText == MATCHING_PLACE_NAME}
+    label: 등록할 장소명이 실행 소유 표식과 정확히 일치
 - hideKeyboard
 - tapOn: "주소 등록"
 - extendedWaitUntil:
@@ -70,10 +76,16 @@ tags:
       id: place_name_input
     timeout: 20000
 - assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}
-- tapOn:
-    id: place_name_input
-- eraseText: 200
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
 - inputText: ${MATCHING_EDITED_PLACE_NAME}
+- copyTextFrom:
+    id: place_name_input
+- assertTrue:
+    condition: ${maestro.copiedText == MATCHING_EDITED_PLACE_NAME}
+    label: 수정할 장소명에 기존 이름의 접미사가 남지 않음
 - hideKeyboard
 - tapOn: "주소 등록"
 - extendedWaitUntil:

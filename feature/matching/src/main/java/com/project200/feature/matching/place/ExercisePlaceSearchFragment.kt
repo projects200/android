@@ -62,7 +62,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
         binding.backBtn.setOnClickListener {
             // 검색 결과가 보이는 상태면 검색 결과 레이아웃을 숨기고, 그렇지 않으면 이전 화면으로 돌아감
             if (binding.searchedPlaceCl.isVisible) {
-                binding.searchedPlaceCl.visibility = View.GONE
+                viewModel.dismissSearchResults()
             } else {
                 findNavController().popBackStack()
             }
@@ -193,6 +193,7 @@ class ExercisePlaceSearchFragment : BindingFragment<FragmentExercisePlaceSearchB
                 is BaseResult.Error -> {
                     Toast.makeText(requireContext(), getString(R.string.error_failed_to_search_place), Toast.LENGTH_SHORT).show()
                 }
+                null -> binding.searchedPlaceCl.visibility = View.GONE
             }
         }
     }

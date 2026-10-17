@@ -1,6 +1,7 @@
 package com.project200.feature.matching.place
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.KakaoPlaceInfo
@@ -205,6 +206,45 @@ class ExercisePlaceSearchViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             coVerify(exactly = 1) { mockGetAddressFromCoordinatesUseCase(37.7, 127.2) }
+        }
+
+    @Test
+    fun `선택한 검색 결과는 등록 화면에서 돌아온 새 관찰자에게 다시 표시되지 않는다`() =
+        runTest {
+            coEvery { mockGetPlacesByKeywordUseCase(any(), any(), any()) } returns BaseResult.Success(sampleSearchResults)
+            viewModel = createViewModel()
+            viewModel.searchPlacesByKeyword("헬스", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.searchResult.value).isInstanceOf(BaseResult.Success::class.java)
+
+            viewModel.selectSearchedPlace(sampleSearchResults.first())
+
+            val replayed = mutableListOf<BaseResult<List<KakaoPlaceInfo>>?>()
+            val observer = Observer<BaseResult<List<KakaoPlaceInfo>>> { replayed.add(it) }
+            viewModel.searchResult.observeForever(observer)
+            try {
+                assertThat(viewModel.searchResult.value).isNull()
+                assertThat(replayed.filterNotNull()).isEmpty()
+                assertThat(viewModel.place.value).isEqualTo(sampleSearchResults.first())
+            } finally {
+                viewModel.searchResult.removeObserver(observer)
+            }
+        }
+
+    @Test
+    fun `검색 결과를 닫은 뒤 새 검색은 다시 결과를 표시한다`() =
+        runTest {
+            coEvery { mockGetPlacesByKeywordUseCase(any(), any(), any()) } returns BaseResult.Success(sampleSearchResults)
+            viewModel = createViewModel()
+            viewModel.searchPlacesByKeyword("헬스", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.dismissSearchResults()
+            assertThat(viewModel.searchResult.value).isNull()
+
+            viewModel.searchPlacesByKeyword("수영", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.searchResult.value).isEqualTo(BaseResult.Success(sampleSearchResults))
         }
 
     @Test
