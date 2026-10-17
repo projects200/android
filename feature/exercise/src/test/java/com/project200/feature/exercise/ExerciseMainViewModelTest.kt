@@ -590,8 +590,20 @@ class ExerciseMainViewModelTest {
     @Test
     fun `첫 목록 요청의 실패도 추가 새로고침 없이 오류 객체로 노출한다`() =
         runTest {
+            // 공통 설정 인스턴스의 초기 요청을 먼저 완료합니다.
+            testDispatcher.scheduler.advanceUntilIdle()
+
             val failure = BaseResult.Error("NETWORK_ERROR", "first request")
             coEvery { mockGetExerciseRecordListUseCase.invoke(today) } returns failure
+            viewModel =
+                ExerciseMainViewModel(
+                    mockGetExerciseCountUseCase,
+                    mockGetScoreUseCase,
+                    mockGetScorePolicyUseCase,
+                    mockGetExerciseRecordListUseCase,
+                    mockGetExpectedScoreInfoUseCase,
+                    mockClockProvider,
+                )
 
             testDispatcher.scheduler.advanceUntilIdle()
 
