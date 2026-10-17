@@ -821,6 +821,19 @@ def save_debug(raw, destination, redactor, console):
             if content.startswith(b"\x89PNG\r\n\x1a\n"):
                 (destination / ("screenshot-%03d.png" % index)).write_bytes(content)
 
+def save_failure_logcat(device, destination, redactor):
+    code, output, _ = device.call("logcat", "-d", "-t", "500", "-v", "brief", timeout=30)
+    if code != 0:
+        return
+    lines = []
+    for line in output.decode("utf-8", "replace").splitlines():
+        if re.search(r"Socket|WebSocket|chat|network|Connectivity|AndroidRuntime|FATAL EXCEPTION|OkHttp",
+                     line, re.IGNORECASE):
+            lines.append(line)
+    clean, _ = redactor.clean("\n".join(lines) + ("\n" if lines else ""))
+    (destination / "device-log.log").write_text(clean, encoding="utf-8")
+
+
 
 def maestro_result(report):
     try:
@@ -871,11 +884,11 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
         try:
             code, stdout, stderr = command(argv, env, timeout=timeout)
             if code != 0:
+                save_failure_logcat(device, output / flow, redactor)
                 raise RunnerFailure("maestro-flow-failed")
             maestro_result(report)
         finally:
             save_debug(raw, output / flow, redactor, stdout + b"\n" + stderr)
-
 
 def write_report(output, results):
     suite = ET.Element("testsuite", name="undabang-maestro", tests=str(len(results)),
