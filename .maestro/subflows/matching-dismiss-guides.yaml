@@ -1,0 +1,26 @@
+appId: com.project200.undabang
+---
+# 매칭 탭 최초 진입 직후 뜰 수 있는 두 가지 안내 화면을 정리합니다
+# MatchingMapViewModel.checkFirstVisit(): 최초 방문(key_first_matching_visit 기본값 true)이면
+# 전체 화면 가이드(MatchingGuideFragment)로 이동하고, 이번 초기화에서는 장소 다이얼로그를 검사하지 않습니다
+# 최초 방문이 아니면서 등록된 운동 장소가 0개면 checkExercisePlace()가 장소 등록 다이얼로그를 한 번 띄웁니다
+# 계정이 이미 두 상태를 모두 지난 경우 아무것도 뜨지 않을 수 있어 짧게 기다린 뒤 있을 때만 닫습니다
+- waitForAnimationToEnd:
+    timeout: 2000
+
+# 최초 방문 가이드 화면: "건너뛰기"를 눌러 바로 지도로 돌아갑니다 (guide_skip 문자열, 정적 텍스트)
+- runFlow:
+    when:
+      visible: "건너뛰기"
+    commands:
+      - tapOn: "건너뛰기"
+
+# 장소 등록 유도 다이얼로그(dialog_matching_place_guide.xml): 닫기 버튼으로 dismiss
+# close_btn id는 회원 목록 바텀시트와도 같지만, 이 서브플로우는 바텀시트가 뜨기 전에만 호출합니다
+- runFlow:
+    when:
+      visible:
+        id: "close_btn"
+    commands:
+      - tapOn:
+          id: "close_btn"

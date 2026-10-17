@@ -133,10 +133,30 @@ jobs:
           test -r /dev/kvm
           test -w /dev/kvm
 
+      - name: Restore fixed E2E debug keystore
+        env:
+          MAESTRO_DEBUG_KEYSTORE_BASE64: ${{ secrets.MAESTRO_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$MAESTRO_DEBUG_KEYSTORE_BASE64"
+          mkdir -p "$RUNNER_TEMP/maestro"
+          printf '%s' "$MAESTRO_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/maestro/debug.keystore"
+          chmod 600 "$RUNNER_TEMP/maestro/debug.keystore"
+          keytool -list \
+            -keystore "$RUNNER_TEMP/maestro/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            >/dev/null
+
+
       - name: Validate and build exact E2E APK (DEV, debug signing, unchanged ARM filters)
         run: |
           chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
+          ./gradlew --no-daemon --stacktrace \
+            -Pmaestro.e2e.signing.store.file="$RUNNER_TEMP/maestro/debug.keystore" \
+            -Pmaestro.e2e.signing.store.password=android \
+            -Pmaestro.e2e.signing.key.alias=androiddebugkey \
+            -Pmaestro.e2e.signing.key.password=android \
+            :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
           test -f app/build/outputs/apk/e2e/app-e2e.apk
 
       - name: Validate authenticated suite inputs and select emulator API
@@ -155,7 +175,6 @@ jobs:
           MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE: ${{ secrets.MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE }}
           MAESTRO_MATCHING_SEARCH_QUERY: ${{ secrets.MAESTRO_MATCHING_SEARCH_QUERY }}
           MAESTRO_MATCHING_CATALOG_PLACE_NAME: ${{ secrets.MAESTRO_MATCHING_CATALOG_PLACE_NAME }}
-          MAESTRO_MATCHING_MARKER_POINT: ${{ secrets.MAESTRO_MATCHING_MARKER_POINT }}
           MAESTRO_MATCHING_ROOM_ID: ${{ secrets.MAESTRO_MATCHING_ROOM_ID }}
         run: python3 .maestro/scripts/run-tests.py --suite "$MAESTRO_SUITE" --preflight
 
@@ -175,7 +194,6 @@ jobs:
           MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE: ${{ secrets.MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE }}
           MAESTRO_MATCHING_SEARCH_QUERY: ${{ secrets.MAESTRO_MATCHING_SEARCH_QUERY }}
           MAESTRO_MATCHING_CATALOG_PLACE_NAME: ${{ secrets.MAESTRO_MATCHING_CATALOG_PLACE_NAME }}
-          MAESTRO_MATCHING_MARKER_POINT: ${{ secrets.MAESTRO_MATCHING_MARKER_POINT }}
           MAESTRO_MATCHING_ROOM_ID: ${{ secrets.MAESTRO_MATCHING_ROOM_ID }}
         with:
           api-level: ${{ steps.suite.outputs.api-level }}

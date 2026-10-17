@@ -19,6 +19,14 @@ val kakaoRestApiKey: String =
     localProperties.getProperty("KAKAO_REST_API_KEY")
         ?: System.getenv("KAKAO_REST_API_KEY")
 
+val maestroE2eStoreFile = project.findProperty("maestro.e2e.signing.store.file")?.toString()
+val maestroE2eStorePassword = project.findProperty("maestro.e2e.signing.store.password")?.toString()
+val maestroE2eKeyAlias = project.findProperty("maestro.e2e.signing.key.alias")?.toString()
+val maestroE2eKeyPassword = project.findProperty("maestro.e2e.signing.key.password")?.toString()
+val hasMaestroE2eSigning =
+    listOf(maestroE2eStoreFile, maestroE2eStorePassword, maestroE2eKeyAlias, maestroE2eKeyPassword)
+        .all { it != null }
+
 android {
     namespace = "com.project200.undabang"
 
@@ -58,6 +66,14 @@ android {
                 this.keyPassword = keyPassword.toString()
             }
         }
+        if (hasMaestroE2eSigning) {
+            create("maestroE2e") {
+                storeFile = rootProject.file(maestroE2eStoreFile!!)
+                storePassword = maestroE2eStorePassword
+                keyAlias = maestroE2eKeyAlias
+                keyPassword = maestroE2eKeyPassword
+            }
+        }
     }
 
     buildTypes {
@@ -71,7 +87,12 @@ android {
         create("e2e") {
             initWith(getByName("debug"))
             matchingFallbacks += listOf("debug")
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig =
+                if (hasMaestroE2eSigning) {
+                    signingConfigs.getByName("maestroE2e")
+                } else {
+                    signingConfigs.getByName("debug")
+                }
             resValue("string", "app_name", "운다방(E2E)")
         }
     }

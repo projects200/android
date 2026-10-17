@@ -12,6 +12,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -74,6 +75,7 @@ class ExercisePlaceViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             assertThat(viewModel.places.value).isEqualTo(samplePlaces)
+            assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.READY)
         }
 
     @Test
@@ -87,6 +89,7 @@ class ExercisePlaceViewModelTest {
                 viewModel.getExercisePlaces()
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(ExercisePlaceErrorType.LOAD_FAILED)
+                assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.ERROR)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -122,6 +125,7 @@ class ExercisePlaceViewModelTest {
                 viewModel.deleteExercisePlace(1L)
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(awaitItem()).isEqualTo(ExercisePlaceErrorType.DELETE_FAILED)
+                assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.ERROR)
                 cancelAndIgnoreRemainingEvents()
             }
         }
@@ -143,5 +147,33 @@ class ExercisePlaceViewModelTest {
 
             assertThat(samplePlaces).hasSize(originalSize)
             coVerify { mockDeleteExercisePlaceUseCase(1L) }
+        }
+
+    @Test
+    fun `빈 초기 목록은 조회 완료 상태가 아니다`() {
+        viewModel = createViewModel()
+        assertThat(viewModel.places.value).isEmpty()
+        assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.LOADING)
+    }
+
+    @Test
+    fun `삭제 응답을 받기 전에는 목록과 완료 상태를 변경하지 않는다`() =
+        runTest {
+            val deletion = CompletableDeferred<BaseResult<Unit>>()
+            coEvery { mockGetExercisePlaceUseCase() } returns BaseResult.Success(samplePlaces)
+            coEvery { mockDeleteExercisePlaceUseCase(1L) } coAnswers { deletion.await() }
+            viewModel = createViewModel()
+            viewModel.getExercisePlaces()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.deleteExercisePlace(1L)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.LOADING)
+            assertThat(viewModel.places.value).isEqualTo(samplePlaces)
+
+            deletion.complete(BaseResult.Success(Unit))
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.READY)
+            assertThat(viewModel.places.value.map { it.id }).containsExactly(2L)
         }
 }

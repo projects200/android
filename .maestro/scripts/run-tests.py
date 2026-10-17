@@ -50,8 +50,37 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_LEFT_TOP_LATITUDE", "MAESTRO_MATCHING_LEFT_TOP_LONGITUDE",
     "MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE", "MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE",
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
-    "MAESTRO_MATCHING_MARKER_POINT", "MAESTRO_MATCHING_ROOM_ID",
+    "MAESTRO_MATCHING_ROOM_ID",
 })
+MATCHING_PREPARE_FAILURES = {
+    "matching_recovery_required": "bootstrap-prepare-failed-matching-recovery-required",
+    "matching_peer_must_differ": "bootstrap-prepare-failed-matching-peer-must-differ",
+    "matching_invalid_bounds": "bootstrap-prepare-failed-matching-invalid-bounds",
+    "matching_peer_unavailable": "bootstrap-prepare-failed-matching-peer-unavailable",
+    "matching_peer_identity_changed": "bootstrap-prepare-failed-matching-peer-identity-changed",
+    "matching_peer_location_unavailable":
+        "bootstrap-prepare-failed-matching-peer-location-unavailable",
+    "matching_search_query_requires_ascii":
+        "bootstrap-prepare-failed-matching-search-query-requires-ascii",
+    "matching_catalog_result_changed":
+        "bootstrap-prepare-failed-matching-catalog-result-changed",
+    "matching_catalog_result_unavailable":
+        "bootstrap-prepare-failed-matching-catalog-result-unavailable",
+    "matching_catalog_value_invalid":
+        "bootstrap-prepare-failed-matching-catalog-value-invalid",
+    "matching_place_capacity_or_identity_invalid":
+        "bootstrap-prepare-failed-matching-place-capacity-or-identity-invalid",
+    "matching_room_invalid": "bootstrap-prepare-failed-matching-room-invalid",
+    "matching_existing_peer_room_required":
+        "bootstrap-prepare-failed-matching-existing-peer-room-required",
+    "matching_marker_collision": "bootstrap-prepare-failed-matching-marker-collision",
+    "matching_required_input_missing":
+        "bootstrap-prepare-failed-matching-required-input-missing",
+    "matching_api_read_failed": "bootstrap-prepare-failed-matching-api-read-failed",
+    "matching_private_file_failed":
+        "bootstrap-prepare-failed-matching-private-file-failed",
+    "matching_request_invalid": "bootstrap-prepare-failed-matching-request-invalid",
+}
 
 
 class RunnerFailure(Exception):
@@ -729,8 +758,12 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱의 reason도 외부 입력입니다. 로그/리포트에는 고정 오류만 남깁니다.
-                raise RunnerFailure("bootstrap-" + operation + "-failed")
+                # 앱의 reason도 외부 입력이므로 검토된 매칭 준비 코드만 고정 오류로 공개합니다.
+                failure = "bootstrap-" + operation + "-failed"
+                if (operation == "prepare" and feature == "matching" and isinstance(result, dict)
+                        and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
+                    failure = MATCHING_PREPARE_FAILURES.get(result["reason"], failure)
+                raise RunnerFailure(failure)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
             return variables
@@ -967,6 +1000,14 @@ def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, 
     finally:
         handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
         try:
+            if hooks and callable(getattr(hooks, "collect_diagnostics", None)):
+                try:
+                    hooks.collect_diagnostics(
+                        core_module(), device, flow, dict(variables), credentials, run_id, ownership,
+                    )
+                except Exception:
+                    # 수집 오류는 원래 UI 오류를 덮거나 fixture 복구/최종 clear를 막지 않습니다.
+                    errors.append("feature-diagnostics-failed")
             cleanup_failed = False
             if prepared:
                 try:

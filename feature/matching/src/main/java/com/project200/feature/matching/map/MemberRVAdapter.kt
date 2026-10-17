@@ -6,6 +6,7 @@ import android.view.ViewGroup
 import androidx.core.content.ContextCompat.getString
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.map.cluster.MapClusterItem
 import com.project200.feature.matching.utils.GenderType
 import com.project200.undabang.feature.matching.R
@@ -44,6 +45,13 @@ class MemberRVAdapter(
     inner class MemberViewHolder(private val binding: ItemMemberBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(item: MapClusterItem) {
+            // E2E에서만 회원·장소 ID를 노출하고, 일반 앱은 자식 뷰의 닉네임·장소명을 읽습니다.
+            binding.root.contentDescription =
+                if (MatchingFixtureEvidence.isArmed(binding.root.context)) {
+                    "matching_member_${item.member.memberId}_${item.location.placeId}"
+                } else {
+                    null
+                }
             binding.root.setOnClickListener {
                 onMemberClick(item)
             }

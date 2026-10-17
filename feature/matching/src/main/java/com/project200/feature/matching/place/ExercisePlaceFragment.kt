@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.fragment.app.Fragment
@@ -14,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
 import com.project200.presentation.compose.applyAppTheme
 import com.project200.undabang.feature.matching.R
@@ -32,8 +34,16 @@ class ExercisePlaceFragment : Fragment() {
         ComposeView(requireContext()).apply {
             applyAppTheme {
                 val places by viewModel.places.collectAsStateWithLifecycle()
+                val loadState by viewModel.loadState.collectAsStateWithLifecycle()
+                // 빈 초기 목록을 조회 성공으로 오인하지 않고, 실제 서버 조회/삭제 완료만 기록합니다.
+                LaunchedEffect(places, loadState) {
+                    if (loadState == ExercisePlaceLoadState.READY) {
+                        MatchingFixtureEvidence.places(requireContext(), places)
+                    }
+                }
                 ExercisePlaceScreen(
                     places = places,
+                    loadState = loadState,
                     onBackClick = { requireActivity().onBackPressedDispatcher.onBackPressed() },
                     onAddClick = {
                         if (places.size >= MAX_PLACE_COUNT) {

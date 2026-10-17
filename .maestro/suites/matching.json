@@ -1,0 +1,20 @@
+{
+  "flows": [
+    "matching-place-crud",
+    "matching-place-validation",
+    "matching-member-to-chat"
+  ],
+  "apiLevel": 30,
+  "fixture": true,
+  "requiredEnvironment": [
+    "MAESTRO_PEER_MEMBER_ID",
+    "MAESTRO_MATCHING_LEFT_TOP_LATITUDE",
+    "MAESTRO_MATCHING_LEFT_TOP_LONGITUDE",
+    "MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE",
+    "MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE",
+    "MAESTRO_MATCHING_SEARCH_QUERY",
+    "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
+    "MAESTRO_MATCHING_ROOM_ID"
+  ],
+  "driver": null
+}

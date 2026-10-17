@@ -288,6 +288,98 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("matching_peer_unavailable", "bootstrap-prepare-failed-matching-peer-unavailable"),
+            ("matching_existing_peer_room_required", "bootstrap-prepare-failed-matching-existing-peer-room-required"),
+            ("matching_api_read_failed", "bootstrap-prepare-failed-matching-api-read-failed"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "message": SYNTHETIC_SECRET,
+                    "variables": {"MATCHING_PEER_ID": SYNTHETIC_SECRET},
+                    "details": {"response": SYNTHETIC_SECRET},
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare",
+                        CREDENTIALS,
+                        feature="matching",
+                        flow="matching-place-crud",
+                        run_id="0123456789abcdef",
+                        parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_failure_reason_is_not_exposed_outside_prepare(self):
+        self.transport.pending_sleeps = 0
+        metadata = {"flow": "matching-place-crud", "run_id": "0123456789abcdef", "parameters": {}}
+        matching = {"feature": "matching", **metadata}
+        cases = (
+            ("matching-cleanup", "cleanup", matching, "failed"),
+            ("other-feature", "prepare", {"feature": "exercise", **metadata}, "failed"),
+            ("absent-feature", "prepare", {}, "failed"),
+            ("wrong-status", "prepare", matching, "exported"),
+            ("absent-status", "prepare", matching, None),
+            ("export", "export", {}, "failed"),
+        )
+        for name, operation, arguments, status in cases:
+            with self.subTest(case=name):
+                result = {"reason": "matching_peer_unavailable", "details": SYNTHETIC_SECRET}
+                if status is not None:
+                    result["status"] = status
+                payload = json.dumps(result, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-" + operation + "-failed",
+                    lambda operation=operation: self.device.bootstrap(
+                        operation, CREDENTIALS if operation != "export" else None, **arguments,
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_prepare_rejects_unreviewed_or_malformed_reasons(self):
+        self.transport.pending_sleeps = 0
+        known = "matching_peer_unavailable"
+        reasons = (
+            "matching_unknown_failure",
+            "setup_failed",
+            known + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET + known,
+            SYNTHETIC_SECRET,
+            {"reason": known, "secret": SYNTHETIC_SECRET},
+            [known, SYNTHETIC_SECRET],
+            None,
+            1,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(reason_index=index):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "details": SYNTHETIC_SECRET,
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="matching", flow="matching-place-crud",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):
         self.transport.allow_run_as = False
         self.assert_failure("adb-operation-failed", self.device.verify_setup)

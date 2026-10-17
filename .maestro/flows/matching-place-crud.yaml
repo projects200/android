@@ -1,0 +1,127 @@
+appId: com.project200.undabang
+name: 운동 장소 키워드 검색·등록·수정·삭제
+tags:
+  - regression
+  - requires-login
+---
+# 공통 러너가 인증, 실제 peer/카탈로그 조회, 실행 소유권 스냅샷을 먼저 완료합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- setLocation:
+    latitude: ${MATCHING_LATITUDE}
+    longitude: ${MATCHING_LONGITUDE}
+- tapOn:
+    id: matching_nav_graph
+- runFlow: ../subflows/matching-dismiss-guides.yaml
+- extendedWaitUntil:
+    visible:
+      id: matching_map_ready
+    timeout: 30000
+- tapOn: "현재 위치"
+- tapOn: "운동 장소 목록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- tapOn: "추가"
+- runFlow: ../subflows/matching-select-catalog-place.yaml
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
+- inputText: ${MATCHING_PLACE_NAME}
+- copyTextFrom:
+    id: place_name_input
+- assertTrue:
+    condition: ${maestro.copiedText == MATCHING_PLACE_NAME}
+    label: 등록할 장소명이 실행 소유 표식과 정확히 일치
+- hideKeyboard
+- tapOn: "주소 등록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${MATCHING_PLACE_NAME}
+- assertVisible:
+    id: "place_address_${MATCHING_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+
+# 목록을 새로 열어 서버가 반환한 이름과 실제 주소를 다시 확인합니다.
+- back
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 20000
+- tapOn: "운동 장소 목록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: "place_address_${MATCHING_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+- tapOn:
+    id: "place_menu_btn_${MATCHING_PLACE_NAME}"
+- tapOn: "수정"
+- extendedWaitUntil:
+    visible:
+      id: place_name_input
+    timeout: 20000
+- assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
+- inputText: ${MATCHING_EDITED_PLACE_NAME}
+- copyTextFrom:
+    id: place_name_input
+- assertTrue:
+    condition: ${maestro.copiedText == MATCHING_EDITED_PLACE_NAME}
+    label: 수정할 장소명에 기존 이름의 접미사가 남지 않음
+- hideKeyboard
+- tapOn: "주소 등록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- scrollUntilVisible:
+    element:
+      id: "place_menu_btn_${MATCHING_EDITED_PLACE_NAME}"
+    direction: DOWN
+    timeout: 20000
+- assertVisible: ${MATCHING_EDITED_PLACE_NAME}
+- assertVisible:
+    id: "place_address_${MATCHING_EDITED_PLACE_NAME}"
+    text: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+
+# DELETE 성공 뒤 현재 목록에서 사라진 것을 먼저 확인합니다. 진행 중에는 목록을 떠나지 않습니다.
+- tapOn:
+    id: "place_menu_btn_${MATCHING_EDITED_PLACE_NAME}"
+- tapOn: "삭제"
+- extendedWaitUntil:
+    notVisible: ${MATCHING_EDITED_PLACE_NAME}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- back
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 20000
+- tapOn: "운동 장소 목록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- assertNotVisible: ${MATCHING_PLACE_NAME}
+- assertNotVisible: ${MATCHING_EDITED_PLACE_NAME}
+# after_flow는 실제 GET 및 UI 서버 응답 증거에서 동일 ID·주소·좌표와 최종 부재를 검증합니다.

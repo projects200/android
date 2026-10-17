@@ -126,6 +126,8 @@ class MatchingMapViewModel
         // 지도 초기 위치
         private val _initialMapPosition = MutableStateFlow<MapPosition?>(null)
         val initialMapPosition: StateFlow<MapPosition?> = _initialMapPosition.asStateFlow()
+        private val _initialMapPositionLoaded = MutableStateFlow(false)
+        val initialMapPositionLoaded: StateFlow<Boolean> = _initialMapPositionLoaded.asStateFlow()
 
         // 운동 장소 다이얼로그 표시 알림
         private val _shouldShowPlaceGuideDialog = MutableSharedFlow<Unit>()
@@ -183,6 +185,7 @@ class MatchingMapViewModel
             viewModelScope.launch {
                 val lastPosition = getLastMapPositionUseCase()
                 _initialMapPosition.value = lastPosition
+                _initialMapPositionLoaded.value = true
             }
         }
 
@@ -194,6 +197,8 @@ class MatchingMapViewModel
             longitude: Double,
             zoomLevel: Int,
         ) {
+            // 초기 SDK 카메라 이벤트가 아직 읽지 않은 저장 위치를 덮어쓰지 않게 합니다.
+            if (!_initialMapPositionLoaded.value) return
             viewModelScope.launch {
                 val currentPosition = MapPosition(latitude, longitude, zoomLevel)
                 saveLastMapPositionUseCase(currentPosition)

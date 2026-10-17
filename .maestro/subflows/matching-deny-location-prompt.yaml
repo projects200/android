@@ -1,0 +1,12 @@
+appId: com.project200.undabang
+---
+# 첫 거부·다시 묻지 않기 거부 버튼만 누릅니다. 다이얼로그가 없으면 Back으로 앱 페이지를 닫지 않습니다.
+- runFlow:
+    when:
+      visible:
+        id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
+    commands:
+      - tapOn:
+          id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
+- assertNotVisible:
+    id: ".*:id/permission_allow_foreground_only_button"

@@ -33,12 +33,14 @@ import timber.log.Timber
  *
  * @param onMapReady 지도 준비 완료 시 KakaoMap 핸들 전달(여기서 MapViewManager 생성/리스너 등록 등)
  * @param onMapError 지도 로딩 에러
+ * @param onMapStarted 실제 MapView 인스턴스의 start 직전 통지
  */
 @Composable
 fun KakaoMapView(
     modifier: Modifier = Modifier,
     onMapReady: (KakaoMap) -> Unit = {},
     onMapError: (Exception) -> Unit = {},
+    onMapStarted: () -> Unit = {},
 ) {
     // Preview 에서는 실제 지도 대신 modifier 크기만큼의 placeholder 를 그린다
     if (LocalInspectionMode.current) {
@@ -60,6 +62,7 @@ fun KakaoMapView(
     // factory/콜백은 최초 1회만 생성되므로, 상위가 새 람다를 넘겨도 항상 최신 콜백을 참조하도록 한다
     val currentOnMapReady by rememberUpdatedState(onMapReady)
     val currentOnMapError by rememberUpdatedState(onMapError)
+    val currentOnMapStarted by rememberUpdatedState(onMapStarted)
 
     // 호스트 생명주기를 MapView 의 resume/pause/finish 로 전달
     DisposableEffect(lifecycleOwner, mapView) {
@@ -82,6 +85,7 @@ fun KakaoMapView(
         modifier = modifier,
         factory = {
             mapView.apply {
+                currentOnMapStarted()
                 start(
                     object : MapLifeCycleCallback() {
                         override fun onMapDestroy() {
@@ -89,7 +93,7 @@ fun KakaoMapView(
                         }
 
                         override fun onMapError(error: Exception) {
-                            Timber.e(error, "KakaoMap error")
+                            Timber.e("KakaoMap callback failed")
                             currentOnMapError(error)
                         }
                     },
@@ -99,6 +103,9 @@ fun KakaoMapView(
                         }
                     },
                 )
+                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    resume()
+                }
             }
         },
     )
