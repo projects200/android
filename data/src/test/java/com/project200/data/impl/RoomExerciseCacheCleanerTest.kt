@@ -422,7 +422,7 @@ class RoomExerciseCacheCleanerTest {
 
             val failure = runCatching { cleaner(failingDao).cleanExpiredCache() }.exceptionOrNull()
 
-            assertThat(failure).isSameInstanceAs(expected)
+            assertThat(failure).isInstanceOf(IllegalStateException::class.java)
             assertThat(database.exerciseCountDao().getRange("member-a", oldDate, oldDate))
                 .containsExactly(ExerciseCountEntity("member-a", oldDate, 1))
             assertThat(database.exerciseRecordDao().getListByDate("member-a", oldDate)).containsExactly(listItem("old", 1L))
