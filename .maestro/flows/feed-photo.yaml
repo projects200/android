@@ -1,0 +1,139 @@
+appId: com.project200.undabang
+name: 피드 사진 첨부·교체
+tags:
+  - regression
+  - requires-login
+---
+# prepare가 실제 빨강 A/파랑 B PNG를 MediaStore에 넣고, before_flow가 전체 갤러리와 정렬을 검증합니다.
+# 생성/교체 모두 실제 picker와 multipart 업로드를 통과합니다. 서버가 원본 바이트를 보존한다고 가정하지 않습니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- evalScript: ${output.tag = FEED_POST}
+
+- tapOn:
+    id: feed_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+
+# 작성 + A 첨부
+- tapOn:
+    id: feed_add_button
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 30000
+- tapOn:
+    id: feed_form_content_field
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
+- inputText: ${output.tag}
+# 잘못 입력된 본문을 저장 전에 잡아 목록 갱신 실패와 구분합니다.
+- assertVisible:
+    id: feed_form_content_field
+    text: ${output.tag}
+- tapOn:
+    id: feed_form_add_image_button
+- runFlow:
+    file: ../subflows/feed-pick-image.yaml
+    env:
+      IMAGE_INDEX: ${FEED_IMAGE_A_INDEX}
+- tapOn:
+    id: feed_form_complete_button
+
+# 목록에서 열어 서버가 반환한 사진 1개의 ID와 실제 로딩 성공을 확인합니다.
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+# 새 글은 보존된 키 항목보다 앞에 오므로 위로 찾습니다.
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: UP
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_images_count_1
+- extendedWaitUntil:
+    visible:
+      id: feed_detail_image_loaded
+    timeout: 30000
+- assertVisible:
+    id: feed_detail_image_loaded
+- copyTextFrom:
+    id: feed_detail_image_loaded
+- evalScript: ${output.originalPicture = maestro.copiedText}
+- assertTrue: ${/^feed-picture-[1-9][0-9]*$/.test(output.originalPicture)}
+
+# 편집 데이터(본문과 기존 첨부)가 로드된 뒤 A를 제거하고 별개 B를 고릅니다.
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "수정하기"
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+      text: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: feed_form_remove_image_button
+    timeout: 20000
+- tapOn:
+    id: feed_form_remove_image_button
+- assertNotVisible:
+    id: feed_form_remove_image_button
+- tapOn:
+    id: feed_form_add_image_button
+- runFlow:
+    file: ../subflows/feed-pick-image.yaml
+    env:
+      IMAGE_INDEX: ${FEED_IMAGE_B_INDEX}
+- tapOn:
+    id: feed_form_complete_button
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    notVisible: ${output.originalPicture}
+    timeout: 30000
+
+# 다시 나갔다 들어와 재조회된 정확히 1개 사진만 허용합니다. A ID 유지/기존+새 사진은 실패합니다.
+- tapOn: "뒤로가기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- scrollUntilVisible:
+    element: ${output.tag}
+    direction: DOWN
+    timeout: 20000
+- tapOn: ${output.tag}
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- assertVisible:
+    id: feed_detail_images_count_1
+- extendedWaitUntil:
+    visible:
+      id: feed_detail_image_loaded
+    timeout: 30000
+- assertVisible:
+    id: feed_detail_image_loaded
+- assertNotVisible: ${output.originalPicture}
+- copyTextFrom:
+    id: feed_detail_image_loaded
+- evalScript: ${output.replacementPicture = maestro.copiedText}
+- assertTrue: ${/^feed-picture-[1-9][0-9]*$/.test(output.replacementPicture)}
+- assertTrue: ${output.replacementPicture !== output.originalPicture}
+
+# 실제 글 삭제 UI를 검증합니다. 서버 파일/CDN의 물리 삭제 여부는 이 UI로 증명하지 않습니다.
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "삭제하기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- assertNotVisible: ${output.tag}

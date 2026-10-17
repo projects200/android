@@ -356,21 +356,117 @@ class SessionTransportTests(unittest.TestCase):
         for reason in ("profile_baseline_bio_null", "profile_fcm_token_timeout"):
             for operation, feature, status, expected in cases:
                 with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
-                    self.transport.result = json.dumps({
+                    payload = json.dumps({
                         "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
                     }).encode("utf-8")
+                    self.transport.result = payload
                     metadata = {}
                     if feature is not None:
                         metadata = {
-                            "feature": feature, "flow": feature + "-edit",
+                            "feature": feature,
+                            "flow": "profile-preferred-exercise" if feature == "profile" else "matching-place-crud",
                             "run_id": "0123456789abcdef", "parameters": {},
                         }
                     self.assert_failure(
                         expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
                     )
-                    self.assertTrue((self.transport.root / runner.RESULT).exists())
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
                     self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
+
+    def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("matching_peer_unavailable", "bootstrap-prepare-failed-matching-peer-unavailable"),
+            ("matching_existing_peer_room_required", "bootstrap-prepare-failed-matching-existing-peer-room-required"),
+            ("matching_api_read_failed", "bootstrap-prepare-failed-matching-api-read-failed"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "message": SYNTHETIC_SECRET,
+                    "variables": {"MATCHING_PEER_ID": SYNTHETIC_SECRET},
+                    "details": {"response": SYNTHETIC_SECRET},
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare",
+                        CREDENTIALS,
+                        feature="matching",
+                        flow="matching-place-crud",
+                        run_id="0123456789abcdef",
+                        parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_failure_reason_is_not_exposed_outside_prepare(self):
+        self.transport.pending_sleeps = 0
+        metadata = {"flow": "matching-place-crud", "run_id": "0123456789abcdef", "parameters": {}}
+        matching = {"feature": "matching", **metadata}
+        profile = {"feature": "profile", **metadata, "flow": "profile-preferred-exercise"}
+        cases = (
+            ("matching-cleanup", "cleanup", matching, "failed"),
+            ("other-feature", "prepare", {"feature": "exercise", **metadata}, "failed"),
+            ("profile-prepare", "prepare", profile, "failed"),
+            ("absent-feature", "prepare", {}, "failed"),
+            ("wrong-status", "prepare", matching, "exported"),
+            ("absent-status", "prepare", matching, None),
+            ("export", "export", {}, "failed"),
+        )
+        for name, operation, arguments, status in cases:
+            with self.subTest(case=name):
+                result = {"reason": "matching_peer_unavailable", "details": SYNTHETIC_SECRET}
+                if status is not None:
+                    result["status"] = status
+                payload = json.dumps(result, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-" + operation + "-failed",
+                    lambda operation=operation: self.device.bootstrap(
+                        operation, CREDENTIALS if operation != "export" else None, **arguments,
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_matching_prepare_rejects_unreviewed_or_malformed_reasons(self):
+        self.transport.pending_sleeps = 0
+        known = "matching_peer_unavailable"
+        reasons = (
+            "matching_unknown_failure",
+            "setup_failed",
+            known + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET + known,
+            SYNTHETIC_SECRET,
+            {"reason": known, "secret": SYNTHETIC_SECRET},
+            [known, SYNTHETIC_SECRET],
+            None,
+            1,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(reason_index=index):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "details": SYNTHETIC_SECRET,
+                }, ensure_ascii=False).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="matching", flow="matching-place-crud",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
 
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):
         self.transport.allow_run_as = False
@@ -503,8 +599,8 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             prefix="maestro-failure-test-", dir=Path("/tmp").resolve(),
         )
         self.addCleanup(temporary.cleanup)
-        self.output = Path(temporary.name) / "profile"
-        self.flow = "profile-preferred-exercise"
+        self.output = Path(temporary.name) / "chatting" / "a-to-b-open-receiver" / "b"
+        self.flow = "chatting-open"
         self.destination = self.output / self.flow
         self.escaped_secret = json.dumps(SYNTHETIC_SECRET, ensure_ascii=False)[1:-1]
         self.console = ("Maestro UI assertion failed: " + SYNTHETIC_SECRET).encode("utf-8")
@@ -527,6 +623,106 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             patch.start()
             self.addCleanup(patch.stop)
 
+    def test_first_nested_failure_preserves_redacted_diagnostics_and_original_failure(self):
+        unrelated = "I/Other: synthetic-unrelated-device-line"
+        self.device.call.return_value = (
+            0,
+            ("E/OkHttp: WebSocket handshake failed: " + self.escaped_secret + "\n"
+             + unrelated + "\n").encode("utf-8"),
+            b"",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        diagnostic = (self.destination / "device-log.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(diagnostic, "E/OkHttp: WebSocket handshake failed: [REDACTED]")
+        for content in (console, diagnostic):
+            self.assertNotIn(SYNTHETIC_SECRET, content)
+            self.assertNotIn(self.escaped_secret, content)
+            self.assertNotIn(unrelated, content)
+
+    def test_unavailable_logcat_preserves_original_failure_and_console(self):
+        self.device.call.return_value = (
+            1, ("E/WebSocket: " + self.escaped_secret).encode("utf-8"),
+            b"synthetic-private-logcat-error",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_capture_failure_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = runner.RunnerFailure("tool-timeout")
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_write_failure_preserves_original_failure_without_private_error(self):
+        self.device.call.return_value = (
+            0, ("E/OkHttp: " + self.escaped_secret).encode("utf-8"), b"",
+        )
+        private_error = "synthetic-private-device-log-error: " + SYNTHETIC_SECRET
+        write_text = Path.write_text
+
+        def fail_device_log_write(path, *args, **kwargs):
+            if path == self.destination / "device-log.log":
+                raise OSError(private_error)
+            return write_text(path, *args, **kwargs)
+
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with mock.patch.object(Path, "write_text", new=fail_device_log_write):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    runner.run_maestro(
+                        self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                    )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(published.getvalue(), "")
+        for private in (private_error, SYNTHETIC_SECRET, self.escaped_secret):
+            self.assertNotIn(private, str(caught.exception) + console + published.getvalue())
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_interruption_propagates_unchanged(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.side_effect = interruption
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunInterrupted) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
     def test_system_ui_anr_summary_keeps_only_categories_and_load(self):
         private = "synthetic-private-window-and-intent"
         report = (
@@ -537,7 +733,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             "  98.5% TOTAL: 70% user + 28.5% kernel\n"
             "Subject: " + self.escaped_secret + "\n"
         )
-        self.device.call.return_value = (0, report.encode("utf-8"), b"")
+        self.device.call.side_effect = [(0, b"", b""), (0, report.encode("utf-8"), b"")]
         with self.assertRaises(runner.RunnerFailure) as caught:
             runner.run_maestro(
                 self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
@@ -595,9 +791,10 @@ class MaestroFailureArtifactTests(unittest.TestCase):
         )
 
     def test_unavailable_anr_preserves_original_failure_and_console(self):
-        self.device.call.return_value = (
-            1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8"),
-        )
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8")),
+        ]
         published = io.StringIO()
         with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
             with self.assertRaises(runner.RunnerFailure) as caught:
@@ -615,7 +812,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
     def test_anr_capture_failure_preserves_original_failure_and_console(self):
         for failure in (runner.RunnerFailure("tool-timeout"), OSError(SYNTHETIC_SECRET)):
             with self.subTest(failure=type(failure).__name__):
-                self.device.call.side_effect = failure
+                self.device.call.side_effect = [(0, b"", b""), failure]
                 published = io.StringIO()
                 with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
                     with self.assertRaises(runner.RunnerFailure) as caught:
@@ -631,9 +828,10 @@ class MaestroFailureArtifactTests(unittest.TestCase):
                 self.assertFalse((self.destination / "last-anr-summary.json").exists())
 
     def test_anr_write_failure_preserves_original_failure_without_private_error(self):
-        self.device.call.return_value = (
-            0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b"",
-        )
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b""),
+        ]
         write_text = Path.write_text
 
         def fail_anr_write(path, *args, **kwargs):
@@ -658,7 +856,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
 
     def test_anr_interruption_propagates_unchanged(self):
         interruption = runner.RunInterrupted("run-interrupted")
-        self.device.call.side_effect = interruption
+        self.device.call.side_effect = [(0, b"", b""), interruption]
         with self.assertRaises(runner.RunInterrupted) as caught:
             runner.run_maestro(
                 self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,

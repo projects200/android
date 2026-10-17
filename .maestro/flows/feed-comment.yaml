@@ -1,0 +1,131 @@
+appId: com.project200.undabang
+name: 피드 댓글·답글 작성과 삭제
+tags:
+  - regression
+  - requires-login
+---
+# 이번 실행 전용 새 글 위에서만 댓글을 다룹니다. 새 글은 댓글이 0개로 시작하므로
+# below 상대 선택자로 "방금 만든 댓글 바로 아래" 더보기 버튼(답글의 것)을 특정할 수 있습니다
+# 댓글 더보기 아이콘은 내 댓글에만 노출되는 하나의 testTag를 공유합니다. 답글을 먼저 지우고
+# 댓글을 나중에 지우면, 삭제 시점마다 화면에 더보기 버튼이 하나만 남아 더 특정할 필요가 없습니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- evalScript: ${output.postTag = FEED_POST}
+- evalScript: ${output.commentTag = FEED_COMMENT}
+- evalScript: ${output.replyTag = FEED_REPLY}
+
+# 댓글을 달 새 글 작성
+- tapOn:
+    id: feed_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+- tapOn:
+    id: feed_add_button
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 30000
+- tapOn:
+    id: feed_form_content_field
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
+- inputText: ${output.postTag}
+# 잘못 입력된 본문을 저장 전에 잡아 목록 갱신 실패와 구분합니다.
+- assertVisible:
+    id: feed_form_content_field
+    text: ${output.postTag}
+- tapOn:
+    id: feed_form_complete_button
+
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+# 새 글은 보존된 키 항목보다 앞에 오므로 위로 찾습니다.
+- scrollUntilVisible:
+    element: ${output.postTag}
+    direction: UP
+    timeout: 20000
+- tapOn: ${output.postTag}
+- extendedWaitUntil:
+    visible: ${output.postTag}
+    timeout: 20000
+
+# 새 글이라 댓글 0개, 빈 상태 문구가 보입니다
+- assertVisible:
+    id: feed_detail_comments_count
+    text: "0"
+- assertVisible: "아직 댓글이 없습니다."
+
+# 댓글 작성
+- tapOn:
+    id: feed_detail_comment_input
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
+- inputText: ${output.commentTag}
+- tapOn:
+    id: feed_detail_comment_send_button
+# 키보드를 닫아 댓글 목록이 입력창 위에 좁게 잘리지 않도록 합니다.
+- hideKeyboard
+- assertVisible: ${output.commentTag}
+- assertVisible:
+    id: feed_detail_comments_count
+    text: "1"
+- assertNotVisible: "아직 댓글이 없습니다."
+
+# 답글 달기 — 이 시점에는 댓글이 하나뿐이라 "답글" 레이블이 유일합니다
+# 키보드가 닫힌 목록에서 답글을 완전히 보이게 한 뒤 탭합니다.
+- scrollUntilVisible:
+    element: "답글"
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- tapOn: "답글"
+- assertVisible: ".*님에게 답글 작성 중"
+- tapOn:
+    id: feed_detail_comment_input
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
+- inputText: ${output.replyTag}
+- tapOn:
+    id: feed_detail_comment_send_button
+# 답글 검증과 삭제도 키보드에 가리지 않은 목록에서 진행합니다.
+- hideKeyboard
+
+# 답글이 부모 댓글 바로 아래, 올바른 글에 달렸는지 확인
+- assertVisible:
+    id: ${'feed_detail_reply_to_' + output.commentTag}
+    text: ${output.replyTag}
+    below: ${output.commentTag}
+- assertVisible:
+    id: feed_detail_comments_count
+    text: "2"
+
+# 답글 삭제 — below로 부모 댓글 아래쪽 더보기(답글의 것)만 특정합니다
+- tapOn:
+    id: feed_detail_comment_more_button
+    below: ${output.commentTag}
+- tapOn: "삭제하기"
+- assertNotVisible: ${output.replyTag}
+- assertVisible:
+    id: feed_detail_comments_count
+    text: "1"
+
+# 댓글 삭제 — 이제 더보기 버튼이 하나뿐입니다
+- tapOn:
+    id: feed_detail_comment_more_button
+- tapOn: "삭제하기"
+- assertNotVisible: ${output.commentTag}
+- assertVisible:
+    id: feed_detail_comments_count
+    text: "0"
+- assertVisible: "아직 댓글이 없습니다."
+
+# 정리: 댓글을 담았던 글도 지웁니다
+- tapOn:
+    id: feed_detail_more_button
+- tapOn: "삭제하기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000
+- assertNotVisible: ${output.postTag}

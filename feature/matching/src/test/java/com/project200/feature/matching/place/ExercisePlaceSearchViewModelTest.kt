@@ -1,6 +1,7 @@
 package com.project200.feature.matching.place
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.Observer
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.KakaoPlaceInfo
@@ -10,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -204,5 +206,62 @@ class ExercisePlaceSearchViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             coVerify(exactly = 1) { mockGetAddressFromCoordinatesUseCase(37.7, 127.2) }
+        }
+
+    @Test
+    fun `선택한 검색 결과는 등록 화면에서 돌아온 새 관찰자에게 다시 표시되지 않는다`() =
+        runTest {
+            coEvery { mockGetPlacesByKeywordUseCase(any(), any(), any()) } returns BaseResult.Success(sampleSearchResults)
+            viewModel = createViewModel()
+            viewModel.searchPlacesByKeyword("헬스", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.searchResult.value).isInstanceOf(BaseResult.Success::class.java)
+
+            viewModel.selectSearchedPlace(sampleSearchResults.first())
+
+            val replayed = mutableListOf<BaseResult<List<KakaoPlaceInfo>>?>()
+            val observer = Observer<BaseResult<List<KakaoPlaceInfo>>?> { replayed.add(it) }
+            viewModel.searchResult.observeForever(observer)
+            try {
+                assertThat(viewModel.searchResult.value).isNull()
+                assertThat(replayed.filterNotNull()).isEmpty()
+                assertThat(viewModel.place.value).isEqualTo(sampleSearchResults.first())
+            } finally {
+                viewModel.searchResult.removeObserver(observer)
+            }
+        }
+
+    @Test
+    fun `검색 결과를 닫은 뒤 새 검색은 다시 결과를 표시한다`() =
+        runTest {
+            coEvery { mockGetPlacesByKeywordUseCase(any(), any(), any()) } returns BaseResult.Success(sampleSearchResults)
+            viewModel = createViewModel()
+            viewModel.searchPlacesByKeyword("헬스", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.dismissSearchResults()
+            assertThat(viewModel.searchResult.value).isNull()
+
+            viewModel.searchPlacesByKeyword("수영", 37.5, 127.0)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.searchResult.value).isEqualTo(BaseResult.Success(sampleSearchResults))
+        }
+
+    @Test
+    fun `늦게 도착한 역지오코딩 응답은 선택한 카탈로그 결과를 덮어쓰지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<KakaoPlaceInfo>>()
+            coEvery { mockGetAddressFromCoordinatesUseCase(any(), any()) } coAnswers { response.await() }
+            viewModel = createViewModel()
+            viewModel.fetchAddressFromCoordinates(37.5, 127.0)
+            testDispatcher.scheduler.runCurrent()
+
+            val selected = samplePlaceInfo.copy(placeName = "선택한 장소", address = "선택한 실제 주소")
+            viewModel.selectSearchedPlace(selected)
+            response.complete(BaseResult.Success(samplePlaceInfo))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.place.value).isEqualTo(selected)
+            assertThat(viewModel.placeInfoResult.value).isNull()
         }
 }

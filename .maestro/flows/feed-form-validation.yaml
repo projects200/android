@@ -1,0 +1,47 @@
+appId: com.project200.undabang
+name: 피드 작성 폼 유효성 검사
+tags:
+  - regression
+  - requires-login
+---
+# 둘 다 아무 것도 저장하지 않는 경로라 정리할 데이터가 생기지 않습니다
+- runFlow: ../subflows/launch-logged-in.yaml
+
+- tapOn:
+    id: feed_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 30000
+- tapOn:
+    id: feed_add_button
+- extendedWaitUntil:
+    visible:
+      id: feed_form_content_field
+    timeout: 30000
+
+# 빈 본문 저장 방지: 아무것도 입력하지 않고 완료를 누르면 경고 토스트만 뜨고 화면에 남습니다
+- tapOn:
+    id: feed_form_complete_button
+- assertVisible: "내용을 입력해주세요."
+- assertVisible:
+    id: feed_form_content_field
+
+# 사진 선택 취소: 선택기를 열었다가 아무것도 고르지 않고 시스템 뒤로가기로 빠져나옵니다
+- tapOn:
+    id: feed_form_add_image_button
+- extendedWaitUntil:
+    visible: "사진|Photos"
+    timeout: 20000
+- back
+- assertVisible:
+    id: feed_form_content_field
+- assertNotVisible:
+    id: feed_form_remove_image_button
+
+# 저장하지 않고 폼을 빠져나갑니다
+- tapOn: "뒤로가기"
+- extendedWaitUntil:
+    visible:
+      id: "feed_content|feed_empty"
+    timeout: 20000

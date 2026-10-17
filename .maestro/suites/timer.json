@@ -1,0 +1,13 @@
+{
+  "flows": [
+    "timer-simple-preset-crud",
+    "timer-simple-run",
+    "timer-custom-crud",
+    "timer-custom-run",
+    "timer-form-validation"
+  ],
+  "apiLevel": 30,
+  "fixture": false,
+  "requiredEnvironment": [],
+  "driver": null
+}

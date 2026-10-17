@@ -50,7 +50,7 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_LEFT_TOP_LATITUDE", "MAESTRO_MATCHING_LEFT_TOP_LONGITUDE",
     "MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE", "MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE",
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
-    "MAESTRO_MATCHING_MARKER_POINT", "MAESTRO_MATCHING_ROOM_ID",
+    "MAESTRO_MATCHING_ROOM_ID",
 })
 PROFILE_PREPARE_FAILURES = {
     "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
@@ -77,6 +77,36 @@ PROFILE_PREPARE_FAILURES = {
     "profile_fixture_write_failed": "bootstrap-prepare-failed-profile-fixture-write-failed",
     "profile_notification_prepare_failed": "bootstrap-prepare-failed-profile-notification-prepare-failed",
     "profile_request_invalid": "bootstrap-prepare-failed-profile-request-invalid",
+}
+
+MATCHING_PREPARE_FAILURES = {
+    "matching_recovery_required": "bootstrap-prepare-failed-matching-recovery-required",
+    "matching_peer_must_differ": "bootstrap-prepare-failed-matching-peer-must-differ",
+    "matching_invalid_bounds": "bootstrap-prepare-failed-matching-invalid-bounds",
+    "matching_peer_unavailable": "bootstrap-prepare-failed-matching-peer-unavailable",
+    "matching_peer_identity_changed": "bootstrap-prepare-failed-matching-peer-identity-changed",
+    "matching_peer_location_unavailable":
+        "bootstrap-prepare-failed-matching-peer-location-unavailable",
+    "matching_search_query_requires_ascii":
+        "bootstrap-prepare-failed-matching-search-query-requires-ascii",
+    "matching_catalog_result_changed":
+        "bootstrap-prepare-failed-matching-catalog-result-changed",
+    "matching_catalog_result_unavailable":
+        "bootstrap-prepare-failed-matching-catalog-result-unavailable",
+    "matching_catalog_value_invalid":
+        "bootstrap-prepare-failed-matching-catalog-value-invalid",
+    "matching_place_capacity_or_identity_invalid":
+        "bootstrap-prepare-failed-matching-place-capacity-or-identity-invalid",
+    "matching_room_invalid": "bootstrap-prepare-failed-matching-room-invalid",
+    "matching_existing_peer_room_required":
+        "bootstrap-prepare-failed-matching-existing-peer-room-required",
+    "matching_marker_collision": "bootstrap-prepare-failed-matching-marker-collision",
+    "matching_required_input_missing":
+        "bootstrap-prepare-failed-matching-required-input-missing",
+    "matching_api_read_failed": "bootstrap-prepare-failed-matching-api-read-failed",
+    "matching_private_file_failed":
+        "bootstrap-prepare-failed-matching-private-file-failed",
+    "matching_request_invalid": "bootstrap-prepare-failed-matching-request-invalid",
 }
 
 
@@ -755,11 +785,14 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱의 reason도 외부 입력이므로 검토된 프로필 준비 코드만 고정 오류로 공개합니다.
+                # 앱의 reason도 외부 입력이므로 해당 기능에서 검토된 준비 코드만 고정 오류로 공개합니다.
                 failure = "bootstrap-" + operation + "-failed"
-                if (operation == "prepare" and feature == "profile" and isinstance(result, dict)
+                if (operation == "prepare" and isinstance(result, dict)
                         and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
-                    failure = PROFILE_PREPARE_FAILURES.get(result["reason"], failure)
+                    if feature == "profile":
+                        failure = PROFILE_PREPARE_FAILURES.get(result["reason"], failure)
+                    elif feature == "matching":
+                        failure = MATCHING_PREPARE_FAILURES.get(result["reason"], failure)
                 raise RunnerFailure(failure)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
@@ -850,6 +883,25 @@ def save_debug(raw, destination, redactor, console):
             content = path.read_bytes()
             if content.startswith(b"\x89PNG\r\n\x1a\n"):
                 (destination / ("screenshot-%03d.png" % index)).write_bytes(content)
+
+def save_failure_logcat(device, destination, redactor):
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        code, output, _ = device.call("logcat", "-d", "-t", "500", "-v", "brief", timeout=30)
+        if code != 0:
+            return
+        lines = []
+        for line in output.decode("utf-8", "replace").splitlines():
+            if re.search(r"\[MEASURE\]|WebSocket|Connectivity|AndroidRuntime|FATAL EXCEPTION|OkHttp",
+                         line, re.IGNORECASE):
+                lines.append(line)
+        clean, _ = redactor.clean("\n".join(lines) + ("\n" if lines else ""))
+        (destination / "device-log.log").write_text(clean, encoding="utf-8")
+    except RunInterrupted:
+        raise
+    except (RunnerFailure, OSError):
+        return
+
 
 
 def save_failure_anr(device, destination):
@@ -943,12 +995,12 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
         try:
             code, stdout, stderr = command(argv, env, timeout=timeout)
             if code != 0:
+                save_failure_logcat(device, output / flow, redactor)
                 save_failure_anr(device, output / flow)
                 raise RunnerFailure("maestro-flow-failed")
             maestro_result(report)
         finally:
             save_debug(raw, output / flow, redactor, stdout + b"\n" + stderr)
-
 
 def write_report(output, results):
     suite = ET.Element("testsuite", name="undabang-maestro", tests=str(len(results)),
@@ -1040,6 +1092,14 @@ def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, 
     finally:
         handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
         try:
+            if hooks and callable(getattr(hooks, "collect_diagnostics", None)):
+                try:
+                    hooks.collect_diagnostics(
+                        core_module(), device, flow, dict(variables), credentials, run_id, ownership,
+                    )
+                except Exception:
+                    # 수집 오류는 원래 UI 오류를 덮거나 fixture 복구/최종 clear를 막지 않습니다.
+                    errors.append("feature-diagnostics-failed")
             cleanup_failed = False
             if prepared:
                 try:

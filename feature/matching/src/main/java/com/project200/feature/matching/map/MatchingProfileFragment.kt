@@ -30,6 +30,7 @@ import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.common.utils.PreferredExerciseDayFormatter
 import com.project200.domain.model.BaseResult
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.utils.GenderType
 import com.project200.presentation.base.BindingFragment
 import com.project200.presentation.utils.MenuStyler
@@ -65,6 +66,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
             if (granted) {
                 getLastLocationAndCreateChat()
             } else {
+                MatchingFixtureEvidence.denied(requireContext(), args.memberId, args.placeId)
                 Toast.makeText(requireContext(), getString(R.string.chat_location_permission), Toast.LENGTH_SHORT).show()
             }
         }
@@ -153,6 +155,7 @@ class MatchingProfileFragment : BindingFragment<FragmentMatchingProfileBinding> 
                     viewModel.createChatRoomResult.collect { result ->
                         when (result) {
                             is BaseResult.Success -> {
+                                MatchingFixtureEvidence.chat(requireContext(), args.memberId, args.placeId, result.data)
                                 findNavController().navigate(
                                     "app://chatting/room/${result.data}/${viewModel.profile.value?.nickname}/${args.memberId}".toUri(),
                                 )
