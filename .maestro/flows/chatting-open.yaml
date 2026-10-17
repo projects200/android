@@ -1,0 +1,24 @@
+appId: com.project200.undabang
+name: 전용 채팅방 진입
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: chatting_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: nickname_tv
+    timeout: 40000
+- scrollUntilVisible:
+    element:
+      text: "${ROOM_SELECTOR}"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- assertVisible:
+    id: nickname_tv
+    text: "${PEER_LABEL_SELECTOR}"
+    childOf:
+      text: "${ROOM_SELECTOR}"
+- tapOn:
+    text: "${ROOM_SELECTOR}"
+- runFlow: ../subflows/chatting-ready.yaml

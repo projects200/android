@@ -1,0 +1,37 @@
+appId: com.project200.undabang
+name: 정확한 방과 상대의 목록 미리보기 갱신
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# 정상 뒤로가기로 소켓 종료가 관측된 목록에서만 실행합니다.
+- extendedWaitUntil:
+    visible:
+      id: chatting_room_rv
+      text: "${DISCONNECTED_SELECTOR}"
+    timeout: 40000
+- assertNotVisible:
+    id: chatting_message_et
+- extendedWaitUntil:
+    visible:
+      id: nickname_tv
+    timeout: 40000
+- scrollUntilVisible:
+    element:
+      text: "${ROOM_SELECTOR}"
+    direction: DOWN
+    timeout: 40000
+    centerElement: true
+- extendedWaitUntil:
+    visible:
+      id: last_message_tv
+      text: "${MESSAGE_SELECTOR}"
+      childOf:
+        text: "${ROOM_SELECTOR}"
+    timeout: 45000
+- assertVisible:
+    id: nickname_tv
+    text: "${PEER_LABEL_SELECTOR}"
+    childOf:
+      text: "${ROOM_SELECTOR}"

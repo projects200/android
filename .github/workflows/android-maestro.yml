@@ -202,7 +202,7 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul
+          emulator-options: -no-window -read-only -gpu swiftshader -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul
           # 선택 API에서도 설치 전 실제 abilist/APK 교집합 검사로 ARM translation을 확인합니다.
           script: python3 .maestro/scripts/run-tests.py --suite "$MAESTRO_SUITE" --device emulator-5554 --configure-emulator --apk app/build/outputs/apk/e2e/app-e2e.apk
 

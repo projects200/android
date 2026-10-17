@@ -1,0 +1,17 @@
+appId: com.project200.undabang
+name: 살아 있는 상대 소켓의 실제 수신 확인
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# 송신 전 준비한 방을 그대로 유지합니다. launchApp·bootstrap·방 재진입은 금지합니다.
+- runFlow: ../subflows/chatting-ready.yaml
+- extendedWaitUntil:
+    visible:
+      id: incoming_message_tv
+      text: "${MESSAGE_SELECTOR}"
+    timeout: 60000
+- assertVisible:
+    id: incoming_message_tv
+    text: "${MESSAGE_SELECTOR}"

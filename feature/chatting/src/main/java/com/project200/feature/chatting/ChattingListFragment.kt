@@ -6,7 +6,10 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
+import com.project200.domain.model.ChatSocketStatus
+import com.project200.domain.usecase.ObserveChatConnectionUseCase
 import com.project200.presentation.base.BindingFragment
+import com.project200.undabang.feature.chatting.BuildConfig
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.FragmentChattingListBinding
 import dagger.hilt.android.AndroidEntryPoint
@@ -14,11 +17,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layout.fragment_chatting_list) {
     private val viewModel: ChattingListViewModel by viewModels()
     private lateinit var chattingListAdapter: ChattingListRVAdapter
+
+    @Inject
+    lateinit var observeChatConnectionUseCase: ObserveChatConnectionUseCase
 
     override fun getViewBinding(view: View): FragmentChattingListBinding {
         return FragmentChattingListBinding.bind(view)
@@ -41,6 +48,18 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                if (BuildConfig.DEBUG) {
+                    launch {
+                        observeChatConnectionUseCase().collect { connection ->
+                            binding.chattingRoomRv.contentDescription =
+                                if (connection.status == ChatSocketStatus.Disconnected) {
+                                    "chat-disconnected:${connection.roomId}"
+                                } else {
+                                    "chat-socket:${connection.roomId}:${connection.status}"
+                                }
+                        }
+                    }
+                }
                 launch {
                     // Fragment가 STARTED 상태가 되면 폴링 시작
                     // STOPPED 상태가 되면 자동으로 코루틴 취소
@@ -49,25 +68,33 @@ class ChattingListFragment : BindingFragment<FragmentChattingListBinding>(R.layo
                         delay(POLLING_PERIOD)
                     }
                 }
-                launch {
-                    viewModel.hasLoadedChattingRooms.collect {
-                        updateEmptySelector()
+                if (BuildConfig.DEBUG) {
+                    launch {
+                        viewModel.hasLoadedChattingRooms.collect {
+                            updateEmptySelector()
+                        }
                     }
                 }
                 viewModel.chattingRooms.collect { chatRooms ->
                     Timber.tag(TAG).d("Polling: $chatRooms")
-                    val owner = viewLifecycleOwner
-                    chattingListAdapter.submitList(chatRooms) {
-                        if (owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
-                            updateEmptySelector()
+                    if (BuildConfig.DEBUG) {
+                        val owner = viewLifecycleOwner
+                        chattingListAdapter.submitList(chatRooms) {
+                            if (owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
+                                updateEmptySelector()
+                            }
                         }
+                    } else {
+                        chattingListAdapter.submitList(chatRooms)
                     }
                     if (chatRooms.isEmpty()) {
                         binding.emptyTv.visibility = View.VISIBLE
                     } else {
                         binding.emptyTv.visibility = View.GONE
                     }
-                    updateEmptySelector()
+                    if (BuildConfig.DEBUG) {
+                        updateEmptySelector()
+                    }
                 }
             }
         }

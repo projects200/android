@@ -1,0 +1,24 @@
+appId: com.project200.undabang
+name: 방을 비운 동안 온 메시지와 기존 이력 유지
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# 드라이버가 실제 소켓 종료→상대 UI 전송→목록 수신→동일 방 재진입 순서를 보장합니다.
+- runFlow: ../subflows/chatting-ready.yaml
+- extendedWaitUntil:
+    visible:
+      id: incoming_message_tv
+      text: "${AWAY_MESSAGE_SELECTOR}"
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: incoming_message_tv
+      text: "${EXISTING_MESSAGE_SELECTOR}"
+    direction: UP
+    timeout: 30000
+    centerElement: true
+- assertVisible:
+    id: incoming_message_tv
+    text: "${EXISTING_MESSAGE_SELECTOR}"
