@@ -1,0 +1,113 @@
+appId: com.project200.undabang
+name: 알림 설정 - 토글·권한 거부 구분과 복구
+tags:
+  - regression
+  - requires-login
+---
+# fixture가 실제 기기 설정 원본을 저장하고 두 known type만 OFF로 준비합니다.
+# finally는 원래 ON/OFF와 알 수 없는 서버 type까지 같은 FCM 기기에 복구합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: profile_nav_graph
+- extendedWaitUntil:
+    visible: "최근 30일 운동 횟수"
+    timeout: 30000
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertNotVisible:
+    id: notification_permission_denied
+- assertVisible:
+    id: exercise_noti_switch
+    checked: false
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
+# 각 PATCH와 GET 완료를 기다려 전체 상태를 포함한 동시 쓰기를 막습니다.
+- tapOn:
+    id: exercise_noti_switch
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: exercise_noti_switch
+    checked: true
+- tapOn:
+    id: chatting_noti_switch
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+- back
+- tapOn: "알림"
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: exercise_noti_switch
+    checked: true
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+# apiLevel34 descriptor에서 실제 POST_NOTIFICATIONS 권한을 거부합니다.
+- runFlow: ../subflows/profile-notification-denied.yaml
+- tapOn:
+    id: profile_nav_graph
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: notification_permission_denied
+- assertVisible:
+    id: exercise_noti_switch
+    checked: false
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
+- assertVisible: "알림을 받으려면 앱 설정에서 권한을 허용해주세요."
+- back
+- assertVisible: "설정"
+# 권한만 허용하고 서버를 다시 읽어 ON이 유지됨을 확인합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: profile_nav_graph
+- tapOn:
+    id: setting_btn
+- extendedWaitUntil:
+    visible: "설정"
+    timeout: 30000
+- tapOn: "알림"
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertNotVisible:
+    id: notification_permission_denied
+- assertVisible:
+    id: exercise_noti_switch
+    checked: true
+- assertVisible:
+    id: chatting_noti_switch
+    checked: true
+- tapOn:
+    id: exercise_noti_switch
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: exercise_noti_switch
+    checked: false
+- tapOn:
+    id: chatting_noti_switch
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false
+- back
+- tapOn: "알림"
+- runFlow: ../subflows/profile-notification-ready.yaml
+- assertVisible:
+    id: exercise_noti_switch
+    checked: false
+- assertVisible:
+    id: chatting_noti_switch
+    checked: false

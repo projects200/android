@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
 import com.project200.domain.model.KakaoPlaceInfo
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.undabang.feature.matching.databinding.ItemSearchedPlaceBinding
 
 class SearchedPlaceRVAdapter(
@@ -38,6 +39,12 @@ class SearchedPlaceRVAdapter(
         private val onItemClick: (KakaoPlaceInfo) -> Unit,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(item: KakaoPlaceInfo) {
+            binding.root.contentDescription =
+                if (MatchingFixtureEvidence.isArmed(binding.root.context)) {
+                    "matching_search_${item.placeName}_${item.address}"
+                } else {
+                    null
+                }
             binding.placeNameTv.text = item.placeName
             binding.placeAddressTv.text = item.address
             itemView.setOnClickListener { onItemClick(item) }

@@ -120,6 +120,21 @@ class PreferredExerciseViewModelTest {
         }
 
     @Test
+    fun `서버 조회 실패는 로드된 빈 목록이나 저장 가능한 상태가 아니다`() =
+        runTest {
+            coEvery { mockGetPreferredExerciseTypesUseCase() } returns BaseResult.Success(sampleExerciseTypes)
+            coEvery { mockGetPreferredExerciseUseCase() } returns BaseResult.Error("ERROR", "조회 실패")
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isLoaded.value).isFalse()
+            viewModel.completePreferredExerciseChanges()
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 0) { mockCreatePreferredExerciseUseCase(any()) }
+            coVerify(exactly = 0) { mockEditPreferredExerciseUseCase(any()) }
+            coVerify(exactly = 0) { mockDeletePreferredExerciseUseCase(any()) }
+        }
+
+    @Test
     fun `fetchInitialData - 성공 시 exerciseUiModels가 업데이트된다`() =
         runTest {
             coEvery { mockGetPreferredExerciseTypesUseCase() } returns BaseResult.Success(sampleExerciseTypes)
@@ -129,6 +144,7 @@ class PreferredExerciseViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             val uiModels = viewModel.exerciseUiModels.value
+            assertThat(viewModel.isLoaded.value).isTrue()
             assertThat(uiModels).isNotNull()
             assertThat(uiModels).hasSize(2)
             assertThat(uiModels!!.first { it.exercise.exerciseTypeId == 1L }.isSelected).isTrue()

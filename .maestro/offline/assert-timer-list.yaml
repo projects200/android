@@ -12,7 +12,7 @@ appId: com.project200.undabang
     times: 200
     while:
       notVisible:
-        id: custom_timer_add
+        id: custom_timer_add_card
     commands:
       - assertNotVisible: "${TIMER_DELETE_TITLE + '|' + TIMER_ORIGINAL_TITLE + '|' + TIMER_DRAFT_TITLE}"
       - swipe:
@@ -20,7 +20,7 @@ appId: com.project200.undabang
           end: "50%, 40%"
           duration: 2000
 - assertVisible:
-    id: custom_timer_add
+    id: custom_timer_add_card
 - assertNotVisible: "${TIMER_DELETE_TITLE + '|' + TIMER_ORIGINAL_TITLE + '|' + TIMER_DRAFT_TITLE}"
 - scrollUntilVisible:
     element:
@@ -42,6 +42,6 @@ appId: com.project200.undabang
 # 호출자가 모든 행을 UP 방향으로 찾을 수 있도록 끝으로 돌려놓습니다.
 - scrollUntilVisible:
     element:
-      id: custom_timer_add
+      id: custom_timer_add_card
     direction: DOWN
     timeout: 30000

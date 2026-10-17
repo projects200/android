@@ -11,7 +11,7 @@ class MyMessageViewHolder(
     private val binding: ItemMyMessageBinding,
 ) : RecyclerView.ViewHolder(binding.root) {
     fun bind(current: ChattingMessage) {
-        binding.messageTv.text = current.content
+        binding.outgoingMessageTv.text = current.content
 
         // 그룹의 마지막 메시지인지 판단하여 시간 표시 및 padding 결정
         if (current.showTime) {

@@ -1,0 +1,22 @@
+appId: com.project200.undabang
+---
+# 호출자가 텍스트 필드를 먼저 포커스합니다.
+# CI에서는 secure subtype 설정 조회값이 실제 Gboard 레이아웃을 나타내지 않았습니다.
+# 실제 키가 비읍이면 언어를 한 번 전환하고, 영문 Q 키가 보이는지 반드시 확인합니다.
+- extendedWaitUntil:
+    visible:
+      id: "com.google.android.inputmethod.latin:id/key_pos_0_0"
+    timeout: 10000
+- runFlow:
+    when:
+      visible:
+        id: "com.google.android.inputmethod.latin:id/key_pos_0_0"
+        text: "비읍"
+    commands:
+      - tapOn:
+          id: "com.google.android.inputmethod.latin:id/key_pos_switch_to_next_language"
+- extendedWaitUntil:
+    visible:
+      id: "com.google.android.inputmethod.latin:id/key_pos_0_0"
+      text: '[qQ]'
+    timeout: 10000

@@ -2,7 +2,7 @@ appId: com.project200.undabang
 name: 접속 복귀 후 폼과 다시 연 목록의 최종 값
 ---
 # launchApp/stopApp 없이 직전 폼을 그대로 관찰합니다.
-- runFlow: assert-timer-draft.yaml
+- runFlow: ../offline/assert-timer-draft.yaml
 - back
 - back
 - back
@@ -18,5 +18,5 @@ name: 접속 복귀 후 폼과 다시 연 목록의 최종 값
     visible:
       id: custom_timer_list
     timeout: 30000
-- runFlow: assert-timer-list.yaml
-- runFlow: prepare-timer-draft.yaml
+- runFlow: ../offline/assert-timer-list.yaml
+- runFlow: ../offline/prepare-timer-draft.yaml

@@ -6,14 +6,14 @@ appId: com.project200.undabang
       EDIT_TIMER_TITLE: "${TIMER_UPDATED_TITLE}"
       EXPECTED_TIMER_TIME: "01:15"
 - tapOn:
-    id: custom_timer_title
+    id: custom_timer_form_title_field
 - eraseText: 255
 - inputText: "${TIMER_DRAFT_TITLE}"
 - hideKeyboard
 - runFlow:
     file: set-timer-time.yaml
     env:
-      TIMER_TIME_FIELD: custom_timer_step_time_0
+      TIMER_TIME_FIELD: custom_timer_form_step_time_0
       TIMER_MINUTES: "02"
       TIMER_SECONDS: "00"
 - runFlow: assert-timer-draft.yaml

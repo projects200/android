@@ -49,6 +49,7 @@ class PreferredExerciseFragment : Fragment() {
                 val uiModels by viewModel.exerciseUiModels.collectAsStateWithLifecycle()
                 val selectedUiModels by viewModel.selectedExerciseUiModels.collectAsStateWithLifecycle()
                 val completionState by viewModel.completionState.collectAsStateWithLifecycle()
+                val isLoaded by viewModel.isLoaded.collectAsStateWithLifecycle()
 
                 BackHandler(enabled = step == PreferredExerciseStep.DETAIL) {
                     step = PreferredExerciseStep.TYPE
@@ -59,7 +60,7 @@ class PreferredExerciseFragment : Fragment() {
                     nickname = viewModel.nickname,
                     uiModels = uiModels,
                     selectedUiModels = selectedUiModels,
-                    isLoading = completionState is CompletionState.Loading,
+                    isLoading = !isLoaded || completionState is CompletionState.Loading,
                     formatter = formatter,
                     onBackClick = {
                         if (step == PreferredExerciseStep.DETAIL) {

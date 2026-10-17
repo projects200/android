@@ -8,10 +8,10 @@ Maestro는 APK 밖에서 실제 화면을 조작하는 블랙박스 테스트입
 
 - Python 3.10 이상(표준 라이브러리만 사용), JDK 17, Android SDK의 `adb`, Maestro **2.11.0**.
 - 기기의 언어는 한국어(`ko-KR`), 시간대는 `Asia/Seoul`. DEV API/Cognito에 연결할 수 있어야 합니다.
-- 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM, **Android 11/API30 `google_apis` `x86_64`**를 사용합니다.
+- 에뮬레이터는 RAM 4096MB 이상. CI는 Ubuntu/KVM에서 선택된 descriptor의 최대 `apiLevel`인 `google_apis` `x86_64` 이미지를 사용합니다. 실제 실행 이미지의 API는 해당 CI 설정·결과로 확인하며 matching descriptor의 `apiLevel:30`만 보고 전체 CI가 API30이라고 단정하지 않습니다.
 - ARM APK 필터(`armeabi-v7a`, `arm64-v8a`)는 그대로 유지합니다. [공식 ARM translation 안내](https://android-developers.googleblog.com/2020/03/run-arm-apps-on-android-emulator.html)는 Android 11 Google APIs 이미지의 ARM 실행을 설명합니다. 모든 x86 이미지가 이를 지원하는 것은 아닙니다. 러너의 `--apk`는 APK의 실제 ARM 라이브러리와 기기 `ro.product.cpu.abilist`의 교집합을 **설치 전에** 검사하며, 지원 ABI가 없으면 실패합니다.
 - `--device`에는 `adb devices`의 serial을 사용합니다. 생략하면 연결된 정상 기기가 정확히 하나여야 합니다.
-- `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 거절합니다. 옵션 없이 실행할 때는 기기의 설정을 먼저 맞춰야 합니다.
+- `--configure-emulator`는 실제 에뮬레이터인지 확인한 뒤 `adb root`, 한국어/시간대 설정, 재부팅을 수행합니다. 재부팅 후에는 현재 IME의 공개 APK metadata에서 영어(`en-US`) ASCII keyboard subtype을 찾아 선택합니다. **앱/UI 언어는 한국어이고 시간대는 서울인 상태를 유지합니다.** SDK Build Tools의 `aapt2`가 PATH 또는 `ANDROID_HOME`/`ANDROID_SDK_ROOT` 아래 `build-tools/<version>/`에 있어야 합니다. Google APIs처럼 root 가능한 이미지가 필요합니다. 물리 기기는 설정 전에 거절하며, 옵션 없이 실행할 때는 입력기를 포함한 기기 설정을 먼저 맞춰야 합니다.
 
 설치 예시(개발자가 실행할 명령이며 이 변경 작업에서 실행한 검증이 아닙니다):
 
@@ -23,6 +23,16 @@ maestro --version
 ```
 
 [실제로 게시된 `cli-2.11.0` 릴리스](https://github.com/mobile-dev-inc/maestro/releases/tag/cli-2.11.0)를 고정합니다. CI는 릴리스 ZIP의 SHA-256 `5384593cb4e7a106489e75a821d157dd43f4e438df6bc308b72e82c685e1283a`도 검사합니다. 러너는 다른 CLI 버전을 거절합니다.
+
+### 한국어 UI와 ASCII 입력
+
+고정한 [Maestro AndroidDriver의 `inputText`](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-client/src/main/java/maestro/drivers/AndroidDriver.kt#L546-L558)는 ASCII를 [Android keycode](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-android/src/androidTest/java/dev/mobile/maestro/MaestroDriverService.kt#L517-L576)로 보냅니다. 한국어 Gboard에서는 이 키가 한글 자모로 바뀔 수 있습니다. 같은 버전의 `pasteText`도 `inputText`로 돌아가므로 대안이 아닙니다.
+
+러너는 [AAPT2의 공개 `dump xmltree`/`dump resources`](https://developer.android.com/tools/aapt2#dump)로 **현재 설치된** IME service의 `android.view.im` XML을 찾습니다. 그 XML에 선언된 `en-US`/`en_US`, `keyboard`, `isAsciiCapable=true`인 비보조 subtype 하나를 선택합니다. 명시적 ID는 그대로 사용하고, ID가 없거나 0이면 [Android `InputMethodSubtype`의 계산 규칙](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-13.0.0_r83/core/java/android/view/inputmethod/InputMethodSubtype.java#L293-L310)에 따라 원래 locale·mode·extra 문자열과 boolean 기본값을 Java UTF-16/signed 32-bit hash로 계산합니다. `languageTag`를 locale 대신 hash에 넣거나 해석하지 못한 resource 참조를 문자열로 hash하지 않습니다. ID·APK 내부 파일명·Gboard private 설정을 추측하지 않습니다. Android의 [`selected_input_method_subtype` 설정과 observer](https://github.com/aosp-mirror/platform_frameworks_base/blob/android-11.0.0_r48/services/core/java/com/android/server/inputmethod/InputMethodManagerService.java#L1111-L1118)를 사용하며 현재 IME의 enabled subtype도 영어 하나로 제한합니다. 이 제한은 Maestro의 비ASCII 입력 후 `ime set` 복원에서도 한국어 자동 선택으로 돌아가지 않게 합니다. 다른 enabled IME는 보존합니다.
+
+XML config가 기본값 또는 `v<버전>`뿐이면 기기 SDK 이하에서 가장 높은 버전을 선택합니다(기본값은 0). 로케일 등 다른 qualifier가 하나라도 있으면 config를 추측해 고르지 않고 모든 XML의 유일한 영어 ASCII subtype ID가 같을 때만 진행하며, 중복 config·적용 가능한 버전 없음·variant 간 ID 불일치는 거절합니다.
+
+`aapt2`가 없으면 `emulator-ascii-input-requires-aapt2`, 단일 APK/공개 metadata를 해석할 수 없으면 `emulator-ime-metadata-unavailable`, 유일한 영어 ASCII subtype의 ID를 확인할 수 없으면 `emulator-ascii-subtype-unavailable`로 setup을 중단합니다. 설정 readback이 다르면 `emulator-ascii-input-not-configured`로 실패합니다. 실제 UI 입력의 정확성은 기존 플로우의 값 assertion으로 계속 확인하며 이 설정만으로 E2E 통과를 주장하지 않습니다.
 
 ## DEV 빌드 준비
 
@@ -91,40 +101,78 @@ python3 .maestro/scripts/run-with-session.py \
 python3 .maestro/scripts/run-tests.py --suite smoke --device emulator-5554 \
   --apk app/build/outputs/apk/e2e/app-e2e.apk
 python3 .maestro/scripts/run-tests.py --suite regression --device emulator-5554
-python3 .maestro/scripts/run-tests.py --suite all --device emulator-5554
+python3 .maestro/scripts/run-tests.py --suite ci --device emulator-5554 --apk app/build/outputs/apk/e2e/app-e2e.apk
+python3 .maestro/scripts/run-tests.py --suite all --device emulator-5554 --apk app/build/outputs/apk/e2e/app-e2e.apk
 python3 .maestro/scripts/run-tests.py --suite login --device emulator-5554
 ```
 
-`--apk`를 생략하면 설치된 e2e 앱을 사용합니다. 러너는 **앱 데이터를 지우기 전에** 준비 컴포넌트와 `run-as` 가능 여부를 확인합니다. 일반 debug/release 앱을 대신 초기화하지 않습니다. protected suite는 비밀이 없으면 기기에 손대기 전에 실패하며 일부 비로그인 테스트만 실행해 성공으로 처리하지 않습니다.
+`--apk`를 생략하면 일반 suite는 설치된 e2e 앱을 사용하지만 두 기기 채팅을 포함한 `chatting`/`ci`/`all`은 양쪽에 같은 APK를 설치하므로 `--apk`가 필수입니다. 러너는 **앱 데이터를 지우기 전에** 준비 컴포넌트와 `run-as` 가능 여부를 확인합니다. 일반 debug/release 앱을 대신 초기화하지 않습니다. protected suite는 비밀이 없으면 기기에 손대기 전에 실패하며 일부 비로그인 테스트만 실행해 성공으로 처리하지 않습니다.
 
 각 플로우의 순서는 다음과 같습니다:
 
 1. 앱 강제 종료와 `pm clear`로 이전 로컬 인증·Room 캐시·권한을 지웁니다.
 2. 보호 플로우는 앱 private 파일에 `prepare` 요청을 stdin으로 전달합니다. 요청은 `authState`, `memberId`, `fixtureStartDate`를 포함합니다. Intent extra/deep link에는 인증 정보가 없습니다.
-3. e2e Activity가 DEV discovery와 가져온 endpoint/client를 검증하고 실제 토큰을 갱신합니다. 서버 등록 상태/member ID를 확인한 뒤 예약 기록만 정리합니다. `ready` 결과가 아니면 Maestro를 실행하지 않습니다.
-4. 실제 UI 플로우를 한 개 실행합니다. Maestro 환경에는 인증/CI 비밀을 상속하지 않습니다. `-e`에는 UUID 기반 운동 제목·기기 한국 시간의 날짜/시간만 전달하며, 명시 선택한 `offline`에는 같은 UUID의 커스텀 타이머 제목도 전달합니다.
-5. 성공, 단언 실패, 타임아웃, 준비 실패, 처리 가능한 중단 신호 모두 `finally`에서 `cleanup`을 요청합니다. 로컬 세션이 사라졌어도 실제 인증을 다시 복원·갱신한 뒤 서버 member ID를 확인합니다. 마지막에는 앱 데이터를 다시 지웁니다. 테스트나 정리 중 하나라도 실패하면 종료 코드는 **1**입니다.
+3. e2e Activity가 DEV discovery와 가져온 endpoint/client를 검증하고 실제 토큰을 갱신합니다. 서버 등록 상태/member ID를 확인한 뒤 예약 운동 기록을 정리합니다. `fixture:true` 기능은 선택한 Hilt handler의 prepare도 수행합니다. `ready` 결과가 아니면 Maestro를 실행하지 않습니다.
+4. 기능의 `before_flow` hook, 실제 UI 플로우, `after_flow` hook 순서로 실행합니다. driver 기능은 선언한 실제 단계의 실행 순서를 소유합니다. Maestro 환경에는 인증/CI 비밀을 상속하지 않습니다. 기기 한국 시간의 운동 변수, ASCII `E2E_RUN_ID`, 명시한 비밀 없는 기능 변수만 전달합니다.
+5. 성공, 단언 실패, 타임아웃, 준비 실패, 처리 가능한 중단 신호 모두 `finally`에서 `cleanup`을 요청합니다. 오프라인 driver는 실제 네트워크를 먼저 복원합니다. 실제 인증/member 확인 후 기능 cleanup을 먼저 수행하고 기존 운동 정리·세션 제거를 수행합니다. 복원이나 cleanup이 실패하면 앱 private 복구 상태를 보존하고 후속 기능 실행을 중단합니다. 테스트나 정리 중 하나라도 실패하면 종료 코드는 **1**입니다.
 
-`--flow-timeout` 기본값은 플로우당 900초입니다. bootstrap 작업은 300초 제한입니다. SIGINT/SIGTERM은 실행 중 Maestro 자식을 종료하고 정리를 시도합니다. **SIGKILL, 기기 단절, GitHub 강제 종료/전체 job 타임아웃은 정리 완료를 보장할 수 없습니다.** 다음 정상 prepare가 같은 날짜 범위의 중단 기록을 정리합니다. 정리 실패는 JUnit 실패로 기록되며 숨기지 않습니다.
+기능 prepare 전에 앱 private `maestro-feature-recovery.json`에 feature/flow/runId/memberId ownership을 기록합니다(인증/parameters는 저장하지 않음). 기능 handler는 cleanup이 성공해도 snapshot과 ownership 증거를 삭제하지 않습니다. 공통 coordinator의 기능 cleanup·운동 정리·세션 제거가 모두 성공한 뒤 호스트의 최종 `pm clear`가 성공할 때 앱 private 증거를 함께 제거합니다.
+
+기능 cleanup 뒤 운동 정리나 세션 제거가 실패해도 snapshot과 recovery marker를 보존하고 다음 플로우를 실행하지 않습니다. handler는 동일 feature/flow/runId/memberId와 원래 parameters로 cleanup을 다시 받아도 복구를 완료해야 합니다. 이미 복구된 상태는 허용하지만 소유권 불일치나 실제 복구 실패는 계속 오류로 처리합니다. coordinator는 세 단계가 성공한 뒤에만 recovery marker를 제거하므로, 최종 `pm clear`가 실패하면 남은 snapshot은 그대로 보존됩니다.
+
+다음 실행의 `Device.clear()`도 recovery marker가 있으면 `pm clear`를 거절합니다. 복구에는 보존된 앱 데이터, 원래 metadata/parameters와 유효한 전용 인증으로 동일 feature cleanup이 필요합니다. marker나 snapshot을 수동 삭제해 실패를 숨기지 마세요. CI 호스트 폐기 뒤까지 앱 private 데이터가 보존된다는 보장은 없습니다.
+
+`--flow-timeout` 기본값은 플로우당 900초입니다. bootstrap 작업은 300초 제한입니다. SIGINT/SIGTERM은 실행 중 Maestro 자식을 종료하고 정리를 시도합니다. **SIGKILL, 기기 단절, GitHub 강제 종료/전체 job 타임아웃은 정리 완료를 보장할 수 없습니다.** 운동 namespace의 중단 기록은 다음 정상 prepare가 같은 날짜 범위에서 정리합니다. 기능 recovery marker가 남았다면 먼저 원 ownership으로 복구해야 합니다. 정리 실패는 JUnit 실패로 기록되며 숨기지 않습니다.
 
 ## fixture 삭제 범위와 병렬 실행
 
 `^maestro-e2e-[a-f0-9]{32}(-edited)?$`에 정확히 맞는 제목은 **검증된 전용 계정에서 이 suite만 소유**합니다. 일반 기록 제목에 이 패턴을 사용하지 마세요. 준비/정리는 시작일~기기 오늘의 월별 운동 횟수를 읽고 기록이 있는 날짜만 조회하여 이 제목만 삭제합니다. 다른 제목·다른 계정·범위 밖 기록은 삭제하지 않습니다. 서버 오류나 계정 불일치 시 삭제를 진행하지 않습니다.
 
-UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 직렬화하고 이전 job을 자동 취소하지 않습니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
+UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 한 번에 하나만 실행합니다. `cancel-in-progress: false`로 실행 중인 job을 자동 취소하지 않으며, `queue: max`로 최대 100개의 pending job을 대기시킵니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
 
 ## suite와 플로우(#607, #608)
 
 |파일|태그|러너 suite|검증|
 |---|---|---|---|
-|`flows/smoke-tabs.yaml`|`smoke`, `requires-login`|`smoke`, `all`|5개 하단 탭, 실제 피드 콘텐츠/빈 상태, 채팅 서버 응답 콘텐츠/빈 상태|
+|`flows/smoke-tabs.yaml`|`smoke`, `requires-login`|`smoke`, `ci`, `all`|5개 하단 탭, 실제 피드 콘텐츠/빈 상태, 채팅 서버 응답 콘텐츠/빈 상태|
 |`flows/exercise-form-entry.yaml`|`regression`, `requires-login`|`regression`, `all`|실제 기록 폼 진입과 필드 표시|
 |`flows/exercise-crud.yaml`|`regression`, `requires-login`|`regression`, `all`|필수값 누락, UI 생성/조회/수정, 재실행 후 영속성, UI 삭제와 전체 목록 부재 검사|
-|`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `all`|clearState 뒤 실제 로그인 화면/버튼|
-|`offline/offline-exercise-*.yaml`|직접 자동 탐색 안 함|`offline`만|UI로 온라인 기록 생성·캘린더/목록/상세 로드, 실제 단절과 상태 보존 재실행, 별도 캐시 미스|
-|`offline/offline-timers-*.yaml`|직접 자동 탐색 안 함|`offline`만|고유 커스텀 타이머 오프라인 생성/수정/삭제·재실행, 재접속 후 UI 최종 값과 미저장 폼, 독립 서버 GET|
+|`flows/login-screen.yaml`|`smoke`|`login`, `smoke`, `ci`, `all`|clearState 뒤 실제 로그인 화면/버튼|
+|`flows/offline-exercise-*.yaml`|호스트 driver 필요|`offline`, `ci`, `all`|온라인 생성·캘린더/목록/상세 로드, 실제 단절·재실행 캐시, 별도 초기화한 캐시 미스|
+|`flows/offline-timers-*.yaml`|호스트 driver 필요|`offline`, `ci`, `all`|고유 타이머 오프라인 생성/수정/삭제·재실행, 재접속 폼/최종 값, 독립 서버 GET|
 
 `login-screen`은 세션을 지우므로 직접 Maestro 전체 실행의 `config.yaml`에서도 마지막입니다. 호스트 러너는 앞 플로우의 로그인 상태에 의존하지 않고 매번 복원합니다. 직접 실행한 뒤에는 다시 수동 로그인해야 합니다.
+
+### 기능 descriptor와 공유 계약
+
+자동 trusted dev PR/push는 **`--suite all`**을 선택합니다. 순서는 smoke-tabs → exercise 회귀 두 개 → 모든 `.maestro/suites/<feature>.json`(파일명 순, 각 flows 선언 순) → login-screen입니다. 수동 `ci`는 exercise 회귀 두 개만 제외합니다. **`regression`은 기존 운동 두 개만** 실행하며 전체 기능 회귀의 별칭이 아닙니다. `--suite <feature>`는 해당 descriptor만 실행합니다. 잘못된 descriptor/빈 flows/없는 파일/중복 흐름은 실패합니다. 채팅과 오프라인은 YAML 단순 반복이 아니라 실제 driver 경로로 실행합니다.
+
+현재 `all`은 다음 **33개 결과 case**를 선택합니다(최대 API34). 아래 이름은 모두 실제 `.maestro/flows/<이름>.yaml`입니다.
+
+|실행 경로|선택한 case 이름|
+|---|---|
+|공통 시작|`smoke-tabs`, `exercise-form-entry`, `exercise-crud`|
+|`chatting` 두 계정/두 기기 driver|`chatting-send`, `chatting-receive`, `chatting-list-refresh`, `chatting-history`|
+|`feed` 공통 lifecycle + hook|`feed-post-crud`, `feed-like`, `feed-comment`, `feed-photo`, `feed-form-validation`|
+|`matching` 공통 lifecycle + hook|`matching-place-crud`, `matching-place-validation`, `matching-member-to-chat`|
+|`offline` 네트워크/서버 관찰 driver|`offline-exercise-create`, `offline-exercise-cached`, `offline-exercise-missing`, `offline-timers-online`, `offline-timers-mutate`, `offline-timers-relaunch`, `offline-timers-after-reconnect`, `offline-timers-reconnect`|
+|`profile` 공통 lifecycle|`profile-edit`, `profile-edit-validation`, `profile-preferred-exercise`, `profile-notification`|
+|`timer` 공통 lifecycle|`timer-simple-preset-crud`, `timer-simple-run`, `timer-custom-crud`, `timer-custom-run`, `timer-form-validation`|
+|공통 마지막|`login-screen`|
+
+최상위 YAML 중 독립 결과 case가 아닌 `chatting-open`, `chatting-ready`, `chatting-away`는 채팅 driver가 실제 A/B 단계에서 실행합니다. 다른 누락 YAML은 없습니다. 오프라인 helper 8개와 공통 subflow는 해당 실제 단계가 호출합니다. 앞선 driver 실패나 안전하지 않은 정리/중단으로 후속 case를 실행하지 못하면 JUnit 실패를 남깁니다. 선택 목록만으로 실행 통과를 주장하지 않습니다.
+
+descriptor 스키마(모든 필드 필수):
+
+```json
+{"flows":["feature-flow"],"apiLevel":30,"fixture":true,"requiredEnvironment":[],"driver":null}
+```
+
+- `fixture:true`: `MaestroFeatureFixture`의 `prepare(MaestroFeatureRequest): Map<String,String>`, `cleanup(MaestroFeatureRequest)`를 같은 요청으로 호출합니다. request는 `feature`, `flow`, `runId`, 검증된 `memberId`, private `parameters: JSONObject`입니다. 비어 있는 공통 Hilt multibinding으로 기능 없는 기준 트리도 지원하며, 요청한 handler가 없으면 실패합니다.
+- `.maestro/scripts/features/<feature>.py`가 있으면 `driver:null`이어도 `before_flow(core, device, flow, variables, credentials, run_id) -> dict`와 `after_flow(...) -> None` hook을 자동 사용합니다. hook 실패도 backend cleanup을 거칩니다. 일반 플로우의 `E2E_RUN_ID`는 16자리, 오프라인 시나리오는 32자리 UUID hex이며 prepare/UI/cleanup 간 동일합니다.
+- `driver:"<feature>"`는 `run_suite(args, core)` 전체 수명 소유자입니다. 채팅은 양 기기 인증·locale·ARM ABI 설치 검증·정리를 직접 수행합니다. `--peer-device`로 별도 serial을 주거나 같은 AVD의 읽기 전용 두 번째 emulator를 만듭니다. 오프라인은 실제 네트워크 전환과 단계 간 독립 서버 관찰을 수행합니다. 반환 결과는 선언한 모든 `(flow_name, seconds, [fixed_error_codes])`여야 하며 누락/잘못된 결과는 실패입니다.
+- 공통 Python API: `read_credentials(prefix="MAESTRO_")`(peer는 `MAESTRO_PEER_`), `Device.bootstrap(operation, credentials=None, timeout=300, feature=None, flow=None, run_id=None, parameters=None) -> dict`, `run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None)`. feature metadata 네 필드는 prepare/cleanup에 함께 전달합니다. driver의 `args.output`은 공통 결과 `Path`입니다.
+- `requiredEnvironment` 값은 명시한 이름 그대로 private parameters에만 전달합니다. 비밀 변수나 auth/token/FCM 반환은 거절합니다. 모든 가족을 하나의 계정 잠금 안에서 순차 실행하고, 실제 선택한 플로우 이름의 JUnit을 하나로 합칩니다. 입력 preflight 실패도 선택 플로우를 실패로 기록하며 smoke로 대체하지 않습니다.
 
 CRUD 입력은 ASCII 제목과 숫자를 사용합니다. 러너는 준비 완료 뒤 Maestro 실행 직전 기기 시간으로 `EXERCISE_START_HOUR`, `EXERCISE_END_HOUR`, `EXERCISE_START_DATE`, `EXERCISE_END_DATE`를 계산합니다. 날짜 형식은 `yyyy.MM.dd`, 시간은 두 자리입니다. 시작은 기기 정시−1시간, 종료는 정시입니다. UI 수정에서는 시작 분을 `00`→`05`로 바꿉니다. CLI 시작~폼 진입 사이 정시/날짜 경계를 넘으면 기본 날짜와 기대값이 달라져 실패할 수 있으며 자동 재시도하지 않습니다.
 
@@ -132,11 +180,11 @@ CRUD 입력은 ASCII 제목과 숫자를 사용합니다. 러너는 준비 완�
 
 현재 viewport의 `assertNotVisible` 하나로 끝내지 않습니다. 캘린더 헤더부터 화면 20%의 느리고 겹치는 swipe(`duration: 2000ms`, 최대 200회)마다 대상 제목이 없는지 확인하며, 기록이 남아 있으면 마지막 실제 행의 시간 TextView 접근성 레이블 `'운동 기록 목록 마지막 항목: <HH:mm ~ HH:mm>'`에 도달해야 통과합니다. 빈 목록은 정확한 날짜의 성공한 빈 응답 레이블이 필요합니다. 제한된 횟수 안에 끝에 도달하지 못하거나 요청·목록 검사에 실패하면 실패합니다. 이전 날짜·초기 빈 화면을 성공으로 처리하지 않습니다. 호스트의 플로우 제한(기본 900초)을 넘겨도 실패하며 자동 재시도하지 않습니다.
 
-### 명시 선택 오프라인 회귀(#617)
+### 자동 전체 CI에 포함되는 오프라인 회귀(#617)
 
-이 suite는 #609의 세션/private-file 전송과 #610의 DEV 계정·CI 신뢰 경계를 재사용합니다. **#584 운동 캐시, #588 업로드, #589 동기화 실행 경로와 api-server #574/#575의 실제 배포가 먼저 필요합니다.** 이 브랜치의 기준 소스에는 그 구현이 없으므로 실행 통과를 기대하지 않습니다. 서버 conflict/editedAt 응답 형식을 추측하거나 테스트가 업로드를 대신하지 않습니다.
+이 suite는 #609의 세션/private-file 전송과 #610의 DEV 계정·CI 신뢰 경계를 재사용합니다. **별도 기능 PR #584 운동 캐시, #588 업로드, #589 동기화 실행 경로와 api-server #574/#575의 실제 배포가 필요합니다.** #617은 dev 기반 독립 PR이며 #584 구현을 복사하지 않습니다. 현재 dev의 운동 repository는 원격 조회만 수행하고 타이머 쓰기는 로컬 pending만 생성하므로 오프라인 캐시·실제 서버 업로드 검사가 실패할 수 있습니다. 서버 conflict/editedAt 응답 형식을 추측하거나 테스트가 업로드를 대신하지 않습니다.
 
-**BLOCKED — pending 행이 남아 있는 동안 성공한 원격 목록을 적용해도 변경이 보존되는지 증명하는 기준은 아직 충족하지 못합니다.** 재접속 때 Worker가 GET보다 먼저 업로드할 수 있고, UI 목록 조회가 Room fallback으로 성공할 수도 있습니다. 실제 #588/#589 uploader에서 pending 상태·성공한 원격 목록 적용·업로드 완료의 순서를 관찰하거나 안전하게 제어할 계약이 필요합니다. 이 계약은 기준 소스에 없으며, 알 수 없는 Worker를 멈추거나 대체하지 않습니다. 아래 재접속 시나리오가 통과해도 이 기준이나 #617 전체 완료의 증거는 아닙니다.
+**BLOCKED — pending 행이 남아 있는 동안 성공한 원격 목록을 적용해도 변경이 보존되는지 증명하는 기준은 아직 충족하지 못합니다.** 현재 `TimerRepositoryImpl.getCustomTimerList()`는 성공 GET 뒤 `TimerLocalDataSource.replaceSyncedCustomTimers()`를 호출하지만 NETWORK_ERROR도 로컬 fallback 성공으로 반환합니다. `TimerListViewModel`과 e2e 준비 경로에는 실제 적용 시점과 그때의 pending 상태를 연결하는 관찰 계약이 없습니다. #588/#589가 업로드를 먼저 완료할 수도 있으므로 실제 uploader/목록 적용의 pending-before/after·성공 GET·업로드 순서를 관찰하거나 안전하게 제어하는 계약이 필요합니다. read-only pending 조회 함수만으로 이 순서를 증명할 수 없습니다. 아래 최종 값 검사는 이 기준이나 #617 전체 완료의 증거가 아닙니다.
 
 ```bash
 python3 .maestro/scripts/run-with-session.py \
@@ -144,14 +192,14 @@ python3 .maestro/scripts/run-with-session.py \
   --device emulator-5554 --apk app/build/outputs/apk/e2e/app-e2e.apk
 ```
 
-- `offline`은 `smoke`, `regression`, `all`과 `.maestro/config.yaml`의 자동 탐색에 포함하지 않습니다. 수동 DEV CI에서 `offline`을 직접 선택합니다. `.maestro/offline/`의 개별 단계는 호스트의 네트워크·세션·정리 순서를 필요로 하므로 단독 Maestro 실행은 지원하지 않습니다.
+- `.maestro/suites/offline.json`은 실제 실행하는 8개 단계 YAML을 선언하고 `features/offline.py`가 세 시나리오로 묶습니다. `all`과 `ci`는 자동 탐색하며 trusted dev CI는 `all`을 사용합니다. 수동 `offline`도 같은 driver를 사용합니다. 단계는 `.maestro/flows/offline-*.yaml`, 공용 helper는 `.maestro/offline/`에 있습니다. 각 단계는 호스트의 네트워크·세션·정리 순서를 필요로 하므로 단독 Maestro 실행은 지원하지 않습니다.
 - DEV Firebase Remote Config의 **`offline_cache_enabled=true`를 실제로 게시**해야 합니다. 준비는 기존 앱의 fetch/activate와 `FeatureFlagDataSource`를 사용해 값을 확인합니다. 기본값은 false이며 e2e override는 없습니다. 꺼져 있으면 `offline-suite-requires-enabled-cache-flag`로 실패합니다.
-- API30의 `wifi_on`, `mobile_data`, `airplane_mode_on`이 명확한 0/1이고 초기 기본망이 있어야 합니다. 러너는 Wi-Fi와 모바일 데이터를 실제 `svc`로 끈 뒤 `dumpsys connectivity`의 **현재** `Active default network: none`을 기다립니다. 설정값만 바뀌거나 Ethernet/VPN 등 기본망이 남으면 실패합니다. 보고서 형식이 다른 기기도 실패하며 가짜 offline 모드로 대체하지 않습니다.
+- 기기의 `wifi_on`, `mobile_data`, `airplane_mode_on`이 명확한 0/1이고 초기 기본망이 있어야 합니다. 러너는 Wi-Fi와 모바일 데이터를 실제 `svc`로 끈 뒤 `dumpsys connectivity`의 **현재** `Active default network: none`을 기다립니다. 설정값만 바뀌거나 Ethernet/VPN 등 기본망이 남으면 실패합니다. API30 또는 전체 CI의 최대 API34에서 보고서 형식을 확인해야 하며 지원하지 않는 형식은 실패합니다. 가짜 offline 모드로 대체하지 않습니다.
 - 운동 기록은 기존 UI 폼으로 만듭니다. 실제 서버 목록/상세에서 고유 제목과 시작/종료 시각을 확인한 뒤, 온라인에서 로드한 캘린더의 해당 날짜 표시·목록·상세를 단절 후 새 프로세스에서 다시 단언합니다. 별도 초기화 시나리오는 운동 화면을 미리 열지 않고 단절해 해당 날짜 목록의 실제 `NETWORK_ERROR` 완료 레이블을 요구합니다. 점수/정책 조회의 공통 Toast나 초기 빈 목록은 캐시 미스 검증으로 인정하지 않습니다.
 - 타이머는 `maestro-offline-<32자리 UUID>-update/delete` 두 개를 UI로 만들어 **서버 GET에 실제 나타날 때까지** 기다립니다. 단절 후 하나를 `-updated`/75초로 수정하고 다른 하나는 삭제하며, `-create`/45초를 새로 만듭니다. 재실행 뒤 제목·스텝·시간·전체 목록의 삭제 부재를 확인합니다. 심플 타이머와 일반 타이머는 변경하지 않습니다.
 - 재접속 직전 120초와 `-draft` 제목을 입력하되 저장하지 않습니다. 연결 복귀 직후에도 이 폼을 확인하고, 폼을 버린 뒤 새 타이머 목록 화면에 표시되는 저장값을 확인합니다. 이는 재접속 결과 검사이며 성공한 원격 목록 적용이나 그때의 pending 상태를 증명하지 않습니다. 다시 미저장 폼을 열어 둔 상태에서 독립 서버 관찰을 완료한 뒤에도 입력값이 그대로인지 검사합니다.
-- 서버 관찰은 **e2e 전용 관찰 코드가 `ApiService`를 직접 GET**하며 Room/Repository fallback을 사용하지 않습니다. 동일 UUID의 정확히 두 타이머, 45초/75초의 이름·순서 0 스텝 하나, 원제목·삭제 제목·미저장 draft·중복 부재를 확인합니다. 최대 120초 안에 실제 업로드가 없으면 `offline-suite-requires-real-server-upload`로 실패합니다. 관찰은 현재 DEV 세션과 member ID를 재검증하되 인증을 재가져오거나 앱을 강제 종료하지 않으며, 관찰 코드 자체가 로컬 데이터를 초기화하지 않습니다.
-- 각 시나리오의 `finally`는 **원래 Wi-Fi/모바일 설정과 실제 기본망 상태를 먼저 복원·확인**한 뒤, 검증된 전용 계정에서 이번 UUID의 정확한 운동/커스텀 타이머 제목만 상세 재확인 후 삭제합니다. 복원 실패는 실패이며 서버 정리를 진행하지 않습니다. 실패·SIGINT/SIGTERM도 같은 경로를 사용합니다. SIGKILL·기기 단절·전체 job 강제 종료 뒤 복원/정리는 보장할 수 없으며, 다음 UUID 실행이 이전 오프라인 타이머까지 지운다고 가정하지 않습니다.
+- 서버 관찰은 **e2e 전용 관찰 코드가 `ApiService`를 직접 GET**하며 Room/Repository fallback을 사용하지 않습니다. 동일 UUID의 정확히 두 타이머, 45초/75초의 이름·순서 0 스텝 하나, 원제목·삭제 제목·미저장 draft·중복 부재를 확인합니다. 최대 120초 안에 실제 업로드가 없으면 `offline-suite-requires-real-server-upload`로 실패합니다. 관찰은 원 ownership과 저장된 member ID를 확인하고 DEV discovery·현재 인증의 신뢰 검증, 실제 토큰 갱신, 부작용 없는 등록 API의 member ID 비교를 거칩니다. 회원 교체 시 Room을 지우는 `AuthRepository.checkIsRegistered()`를 호출하지 않으며 인증을 재가져오거나 앱을 강제 종료하지 않습니다.
+- 각 시나리오의 `finally`는 **원래 Wi-Fi/모바일 설정과 실제 기본망 상태를 먼저 복원·확인**한 뒤 cleanup을 요청합니다. 오프라인 cleanup은 인증 변경 전에 feature/flow/runId/memberId ownership과 저장된 회원을 확인합니다. 유효한 현재 DEV 인증은 유지하고, 토큰이 없으면 신뢰 검증한 인증의 토큰만 복원합니다. 실제 갱신과 직접 등록 API의 동일 회원 확인 뒤에만 이번 UUID 운동/커스텀 타이머를 상세 재확인 후 삭제합니다. 기능 정리와 공통 운동 정리가 모두 성공한 뒤 세션·ownership을 완료하고 호스트가 최종 `pm clear`합니다. 관찰/cleanup 실패는 토큰만 지워 fail-closed로 처리하며 로컬 회원·Room pending·private recovery marker를 유지합니다. 복원 실패면 서버 정리도 하지 않습니다. 복원/cleanup 실패는 다음 시나리오와 기능을 중단시킵니다. 실패·SIGINT/SIGTERM도 같은 경로를 사용합니다. SIGKILL·기기 단절·전체 job 강제 종료 뒤 복원/정리는 보장할 수 없습니다. 남은 ownership은 원 runId/flow와 날짜 parameters·동일 계정으로 복구해야 합니다.
 
 이 경로는 Room fixture 삽입, sync 상태 강제 변경, Worker 대리 업로드를 하지 않습니다. 선택자/네트워크/서버/플래그 준비가 안 되면 실패를 남기며 skip으로 통과시키지 않습니다.
 
@@ -177,26 +225,26 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 프로필 smoke 플로우는 작은 화면에서 화면 밖 콘텐츠를 화면 누락으로 오인하지 않도록 `preferred_exercise_tv`까지 스크롤한 뒤 `선호 운동` 표시를 단언합니다.
 
-## CI(#610): 신뢰된 dev push/PR smoke와 수동 회귀
+## CI: 신뢰된 dev push/PR 전체 suite와 수동 진단
 
 `.github/workflows/android-maestro.yml`은 기존 `android-dev-ci.yml`/릴리스 CI와 분리되어 있습니다.
 
 |트리거|ref/신뢰 조건|suite/결과|
 |---|---|---|
-|`push`|`refs/heads/dev`만 허용|`smoke`|
+|`push`|`refs/heads/dev`만 허용|`all`(smoke + exercise 회귀 + 모든 설치 기능 + offline + login)|
 |`push`|다른 branch/tag ref|트리거 필터에서 제외, 비밀 미제공|
-|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`smoke`|
+|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`all`(smoke + exercise 회귀 + 모든 설치 기능 + offline + login)|
 |`pull_request`|base가 `dev`, fork head 또는 비신뢰 작성자|비밀 없는 거절 job 실패, 인증 job 미실행|
 |`pull_request`|다른 base branch|트리거 필터에서 제외, 비밀 미제공|
-|`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression`, `all` 또는 명시적인 `offline`|
+|`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression`, `all`, `ci`, `offline`|
 |`workflow_dispatch`|다른 ref|비밀 없는 거절 job 실패, 인증 job 미실행|
 
 - 인증 suite를 실행하지 않은 skip은 인증 통과가 아닙니다. 거절 job은 미실행 상태를 명시하며 **실패**합니다. `pull_request_target`은 사용하지 않습니다.
 - 비공개 조직 멤버는 `pull_request`에서 `CONTRIBUTOR`로 표시될 수 있지만 fork head와 첫 기여 계정(`FIRST_TIME_CONTRIBUTOR`/`FIRST_TIMER`/`NONE`)은 계속 거절하므로, 커밋 이력이 없는 신규 비공개 멤버는 조직 멤버십을 공개하거나 `dev` push/수동 실행(`dev` ref)을 사용해야 합니다.
 - 세 실행 경로 모두 **`maestro-dev` 환경**과 기존 `maestro-dev-dedicated-account` concurrency group을 유지합니다. `deployment: false`로 새 Deployment 기록 생성을 끄되, 환경 Secrets와 ref 제한 정책은 계속 적용됩니다. 기존 Deployment 기록과 Actions 검사·로그는 유지됩니다.
-- 현재 외부 환경 정책은 required reviewers 없이 `dev`와 `refs/pull/628/merge`만 허용합니다. 이 정책은 워크플로가 생성하지 않는 외부 설정이며, required reviewers 제거는 `deployment: false`의 효과가 아닙니다.
+- 인증 실행에는 외부 `maestro-dev` 정책에서 `dev`와 각 대상 PR의 정확한 `refs/pull/<번호>/merge` ref를 허용해야 합니다. 워크플로는 이 정책을 생성하거나 넓히지 않습니다. required reviewers 설정도 별도 환경 정책이며 `deployment: false`의 효과가 아닙니다.
 - 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
-- Maestro job은 제공한 DEV 설정으로 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행합니다. JDK17, API30 Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인, 순차 플로우와 finally 정리를 사용합니다.
+- Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 두 번째 계정 입력이 없어도 소스 빌드 결과는 확인할 수 있지만 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
 - CI 에뮬레이터는 호스트 기본 시간대에 의존하지 않도록 `-timezone Asia/Seoul`로 시작합니다. `--configure-emulator`의 재부팅 후 한국어·서울 시간대 검증은 유지합니다.
 - SDK 설정은 `packages: 'platform-tools'`를 명시해 액션 기본 목록의 구형 `tools` 설치를 제외합니다. `sdkmanager`는 액션이 별도로 설치하는 `cmdline-tools`를 사용합니다.
 - KVM 설정은 러너 계정을 기록하고, udev 이벤트 처리가 끝날 때까지 최대 30초 기다린 뒤 `/dev/kvm` 권한을 확인합니다. `Enable KVM` 단계에만 명령 추적을 켜므로 실패한 명령을 로그에서 구분할 수 있으며, 장치가 없거나 읽기·쓰기 권한이 없으면 계속 실패 처리합니다.
@@ -211,11 +259,30 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`COGNITO_REGION_DEV`|DEV Cognito region|
 |`KAKAO_NATIVE_APP_KEY_DEV`|DEV 앱 native key(`KAKAO_NATIVE_APP_KEY` 환경으로 전달)|
 |`KAKAO_REST_API_KEY`|기존 REST key|
+|`MAESTRO_DEBUG_KEYSTORE_BASE64`|**필수**: CI e2e 전용 고정 debug keystore의 줄바꿈 없는 base64. release 키 사용 금지|
 |`MAESTRO_AUTH_STATE_JSON`|내보낸 AppAuth 객체 JSON|
 |`MAESTRO_MEMBER_ID`|검증된 전용 계정 member ID|
 |`MAESTRO_FIXTURE_START_DATE`|고정 fixture 관리 시작일|
+|`MAESTRO_PEER_AUTH_STATE_JSON`|채팅의 별도 계정에서 내보낸 실제 AppAuth 세션|
+|`MAESTRO_PEER_MEMBER_ID`|matching/채팅의 실제 알려진 peer ID(주 계정으로 대체 금지)|
+|`MAESTRO_PEER_FIXTURE_START_DATE`|채팅 peer의 고정 fixture 관리 시작일|
+|`MAESTRO_CHAT_ROOM_ID`|채팅 두 계정 전용으로 사전 준비한 실제 방|
+|`MAESTRO_MATCHING_LEFT_TOP_LATITUDE`, `MAESTRO_MATCHING_LEFT_TOP_LONGITUDE`|matching의 실제 peer 조회 경계 좌상단|
+|`MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE`, `MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE`|matching의 실제 peer 조회 경계 우하단|
+|`MAESTRO_MATCHING_SEARCH_QUERY`|matching의 실제 ASCII 검색어|
+|`MAESTRO_MATCHING_CATALOG_PLACE_NAME`|실제 Kakao 검색 결과에서 유일하게 일치하는 장소명|
+|`MAESTRO_MATCHING_ROOM_ID`|matching 두 계정의 검증할 기존 전용 방(정리 시 보존)|
 
-비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
+peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 `queue: max`는 최대 100개의 pending job을 대기시키며, 용량을 넘는 job은 취소됩니다. FIFO 순서는 workflow dispatch 순서가 아니라 job이 concurrency 대기에 들어간 순서입니다([공식 문서](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)).
+
+필수 비밀 누락은 구성 단계에서 이름만 표시하고 실패합니다. 잘못된 세션·등록되지 않은 계정·만료/철회·다른 DEV pool/client·잘못된 member ID는 준비 실패입니다. CI에 개인 OAuth 자격 증명을 입력하거나 테스트마다 브라우저 로그인을 조작하지 않습니다. 원본 인증 파일, APK, google-services/local.properties, raw logcat은 업로드하지 않습니다.
+
+### 고정 CI e2e debug 서명
+
+- CI는 필수 비밀 `MAESTRO_DEBUG_KEYSTORE_BASE64`를 `$RUNNER_TEMP/maestro/debug.keystore`에 복원하고 권한을 `0600`으로 설정합니다. `keytool -list`로 alias `androiddebugkey`와 store password `android`를 확인하며 비밀 누락·복원·검사 실패 시 빌드를 진행하지 않습니다.
+- 빌드는 `-Pmaestro.e2e.signing.store.file`, `-Pmaestro.e2e.signing.store.password`, `-Pmaestro.e2e.signing.key.alias`, `-Pmaestro.e2e.signing.key.password`를 전달합니다. store/key password는 `android`, alias는 `androiddebugkey`입니다.
+- Gradle은 네 속성이 모두 있으면 `maestroE2e`를 e2e에만 적용하고, 로컬에서 생략하면 기존 debug 서명을 사용합니다. 일반 debug/release 서명은 변경하지 않습니다.
+- 운영자는 패키지 `com.project200.undabang`과 실제 서명 인증서를 올바른 Kakao/Firebase 앱에 등록해야 합니다. 이 진단 변경은 키 생성·비밀 등록·외부 서비스 등록을 수행하지 않으며, 고정 서명만으로 SDK 인증 성공이나 지도 실패 원인을 확정하지 않습니다.
 
 ## 결과와 실패 조사
 
@@ -224,21 +291,31 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - `report.xml`: 실제 Maestro 종료 코드/JUnit과 준비·정리 결과를 합친 플로우별 JUnit. 빈 실행/skip/리포트 부재는 실패입니다.
 - `<flow>/console.log`, `debug-*.log`, `debug-*.json`: 인증 값/JWT/인증 관련 줄을 제거한 Maestro 출력과 debug 정보. 원본 subprocess 예외/traceback을 출력하지 않습니다.
 - `<flow>/screenshot-*.png`: **Maestro 실행 중** 생성된 PNG만 보관합니다. 준비/내보내기 화면은 캡처하지 않습니다. 원본 텍스트에서 민감 정보가 감지되면 이미지도 보관하지 않습니다.
+- `<flow>/device-log.log`: Maestro 비정상 종료 시 logcat 최근 500줄 중 `[MEASURE]`/`WebSocket`/`Connectivity`/`AndroidRuntime`/`FATAL EXCEPTION`/`OkHttp`가 있는 줄만 선별하고 인증 값/JWT/인증 관련 줄 제거 규칙을 적용한 로그입니다.
+- `<flow>/last-anr-summary.json`: 이어서 조회한 마지막 ANR의 고정 process/reason 분류와 load average/전체 CPU 수치만 보관합니다. 이전 사건일 수 있으며 원문·PID·창 제목·Intent는 공개하지 않습니다.
 
-Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat을 수집하지 않습니다.
+Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat과 dumpsys 원문은 파일로 저장하거나 업로드하지 않습니다.
 
 CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
 
 ## 검증 상태와 남은 외부 준비
 
-세션 전송·오프라인 회귀 변경의 **로컬 unittest·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증은 이 작업에서 실행하지 않았습니다.** 러너와 관련 소스/문서를 정적으로 읽었으며 명령 예시는 실행 성공 증거가 아닙니다.
+사용자 보고 run `39007766770`에서는 고정 keystore 복원과 APK 빌드가 성공했고 smoke·피드·타이머·로그인은 통과했습니다. matching 세 플로우는 모두 `matching_map_ready` 대기에서 실패했으며 SDK callback의 종류·코드는 아직 수집되지 않았습니다. 고정 서명 이후에도 실패 원인은 미확정입니다.
 
-저장소 루트에서 실행할 표준 라이브러리 회귀 테스트 명령(이 작업에서는 미실행):
+이번 오프라인 통합의 **로컬 unittest·빌드·lint·formatter·설치·실기기/에뮬레이터·OAuth·Maestro·CI 검증은 실행하지 않았습니다.** 소스/문서 정적 확인과 테스트 작성만 수행했으며 과거 run이나 명령 예시는 이 통합의 실행 성공 증거가 아닙니다.
+
+저장소 루트에서 사용하는 표준 라이브러리 회귀 테스트 명령:
 
 ```bash
-python3 -m unittest discover -s .maestro/scripts -p 'test_run_tests.py'
+python3 -m unittest discover -s .maestro/scripts -p 'test_*.py'
+if [ -d .maestro/scripts/features ]; then
+  python3 -m unittest discover -s .maestro/scripts/features -p 'test_*.py'
+fi
 ```
 
-`test_run_tests.py`는 기존 로컬 셸 전송 하네스에 더해, 격리된 가짜 기기/시계/도구 경계로 실제 단절 판정·원래 라디오 복원·부분 실패·중단·서버 업로드 미관찰·정리 실패·opt-in 경계를 결정적으로 검사합니다. 앱의 `testE2e`는 직접 서버 응답 값/중복/실패와 실행별 삭제 범위, 관찰 중 인증 초기화 금지를 검사합니다. 단위 테스트도 실기기·서버 통과 증거는 아닙니다.
+`test_run_tests.py`의 로컬 셸 하네스는 실제 adb/기기/계정 없이 stdin 전달, 원격 종료 상태, JSON 검증과 실패 시 export 파일 제거를 검사합니다. 하네스 통과도 실기기 export 증거는 아닙니다. 후속 기기 검증에서는 인증된 세션/member ID 쌍, 비ASCII JSON 왕복과 private 파일 제거를 별도로 확인해야 합니다.
+공통 입력 회귀 테스트는 공개 IME metadata의 service/resource 연결, 영어 ASCII subtype 선택, ID 생략/0의 Android hash 계산(UTF-16·overflow·기본값 포함), 모호한 subtype/자동 선택 ID 거절, 다른 enabled IME 보존, 설정 미반영과 물리 기기 거절 경계를 검사합니다.
+`test_feature_suites.py`는 실제 설치 descriptor의 전체 선택/API, chat/offline driver dispatch, 입력 선검사, 복구 실패 시 clear 중단, hook 실패 후 teardown과 driver 누락 결과를 검사합니다. `features/test_offline.py`는 실제 driver의 8개 단계 실행, 라디오 복원·현재 기본망 판정, 부분 실패·중단·미업로드·복구 실패와 미실행 단계의 실패 보고를 검사합니다.
+`MaestroFeatureFixtureTest`와 coordinator 테스트는 handler cleanup 뒤 운동 정리/세션 제거 실패 시 recovery 보존과 동일 ownership 재시도, 파싱 직후 출력 초기화 실패부터 적용하는 오프라인 토큰 전용 실패 정책과 다른 기능의 기존 세션 제거 정책을 검사합니다. `MaestroOfflineRecoveryTest`는 실제 bootstrap·`AuthRepositoryImpl`·회원 Preferences·private recovery 파일·오프라인 fixture를 연결합니다. `SessionDataCleaner.clearAll()` 감지기와 모의 인증/서버 응답으로 삭제 실패와 동일 ownership 재시도, 잘못된 로컬/서버 회원·ownership, 등록 불가·갱신 실패/취소·신뢰 검증 실패에서 pending 증거와 회원 경계가 보존되는지 검사합니다(실제 Room·네트워크 통합 테스트는 아님). 오프라인 fixture 테스트는 직접 서버 응답 값/중복/실패와 UUID 삭제 범위를 검사합니다. 이 테스트들은 작성했지만 실행하지 않았으며, 단위 테스트만으로 실제 서버 업로드/복구나 pending 중 목록 적용을 검증했다고 보지 않습니다.
 
-최초 실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 9개 CI 비밀, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 첫 API30 실행에서 Compose/XML ID 노출, Android Toast 필수값 단언, 캘린더/시간 선택, CRUD 후 재진입과 정리 실패 경로를 확인해야 합니다. 세션 비밀과 서버 fixture가 실제로 준비되었다고 가정하지 않습니다.
+실기 검증에는 실제 DEV 전용 등록 계정, 유효한 내보낸 세션과 기본 CI 비밀, 선택 기능의 실제 peer/room/지도 입력, 보호된 `maestro-dev` 환경, Firebase/Kakao debug 등록, KVM/ARM translation이 있는 기기가 필요합니다. 일반 smoke 성공은 기능 성공 증거가 아닙니다. 실제 flow 이름별 원격 결과, API33 미디어/권한·알림, 채팅 두 기기, 서버 복구 실패 경로를 확인해야 합니다. prepare/cleanup의 refresh 결과를 GitHub Secret에 되쓰지 않으므로 갱신 토큰 rotation/만료 정책에 따라 다시 내보내기가 필요할 수 있습니다. 영구 인증이나 미검증 password-login을 제공하지 않습니다.

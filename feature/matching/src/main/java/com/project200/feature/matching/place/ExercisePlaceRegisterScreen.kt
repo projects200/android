@@ -19,9 +19,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -37,6 +41,7 @@ import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.contentRegular
 import com.project200.undabang.feature.matching.R
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ExercisePlaceRegisterScreen(
     placeName: String,
@@ -48,7 +53,8 @@ fun ExercisePlaceRegisterScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier,
+        // Maestro가 장소명 입력 필드를 id로 잡을 수 있도록 testTag를 리소스 id로 노출합니다
+        modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
             UndabangTopBar(
                 title = stringResource(R.string.exercise_place_register_title),
@@ -99,6 +105,7 @@ fun ExercisePlaceRegisterScreen(
                         .fillMaxWidth()
                         .padding(horizontal = 20.dp)
                         .height(50.dp),
+                inputModifier = Modifier.testTag("place_name_input"),
             )
 
             Spacer(Modifier.height(30.dp))

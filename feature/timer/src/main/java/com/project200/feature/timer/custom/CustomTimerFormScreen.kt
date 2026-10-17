@@ -96,7 +96,10 @@ fun CustomTimerFormScreen(
                         text = stringResource(com.project200.undabang.presentation.R.string.complete),
                         onClick = onCompleteClick,
                         isCompact = true,
-                        modifier = Modifier.padding(end = 20.dp).testTag("custom_timer_complete"),
+                        modifier =
+                            Modifier
+                                .padding(end = 20.dp)
+                                .testTag("custom_timer_form_submit_btn"),
                     )
                 },
             )
@@ -134,8 +137,8 @@ fun CustomTimerFormScreen(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .testTag("custom_timer_title")
-                        .padding(horizontal = 20.dp, vertical = 30.dp),
+                        .padding(horizontal = 20.dp, vertical = 30.dp)
+                        .testTag("custom_timer_form_title_field"),
                 decorationBox = { inner ->
                     if (title.isEmpty()) {
                         Text(
@@ -224,7 +227,9 @@ private fun StepRow(
             contentDescription = null,
             modifier =
                 reorderModifier
-                    .padding(start = 8.dp, top = 6.dp, bottom = 6.dp),
+                    .padding(start = 8.dp, top = 6.dp, bottom = 6.dp)
+                    // 순서는 스왑으로만 바뀌고 order 필드는 유지되어, 제출 전 핸들을 order로 특정할 수 있다
+                    .testTag("custom_timer_form_step_handle_${step.order}"),
         )
         Image(
             painter = painterResource(R.drawable.ic_clock),
@@ -243,7 +248,7 @@ private fun StepRow(
                     color = ColorBlack,
                 ),
             singleLine = true,
-            modifier = Modifier.weight(1f).testTag("custom_timer_step_name_${step.order}"),
+            modifier = Modifier.weight(1f).testTag("custom_timer_form_step_name_${step.order}"),
         )
         Text(
             text = formatStepTime(step.time),
@@ -251,13 +256,13 @@ private fun StepRow(
             color = ColorBlack,
             modifier =
                 Modifier
-                    .testTag("custom_timer_step_time_${step.order}")
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onTimeClick,
                     )
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .testTag("custom_timer_form_step_time_${step.order}"),
         )
         Image(
             painter = painterResource(R.drawable.ic_minus),
@@ -337,7 +342,7 @@ private fun FooterRow(
                     color = ColorBlack,
                 ),
             singleLine = true,
-            modifier = Modifier.weight(1f).testTag("custom_timer_new_step_name"),
+            modifier = Modifier.weight(1f).testTag("custom_timer_form_new_step_name_field"),
             decorationBox = { inner ->
                 if (name.isEmpty()) {
                     Text(
@@ -356,13 +361,13 @@ private fun FooterRow(
             color = ColorBlack,
             modifier =
                 Modifier
-                    .testTag("custom_timer_new_step_time")
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onTimeClick,
                     )
-                    .padding(start = 12.dp),
+                    .padding(start = 12.dp)
+                    .testTag("custom_timer_form_new_step_time"),
         )
         Image(
             painter = painterResource(R.drawable.ic_plus),
@@ -370,13 +375,13 @@ private fun FooterRow(
             modifier =
                 Modifier
                     .padding(start = 16.dp)
-                    .testTag("custom_timer_add_step")
                     .size(24.dp)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onAdd,
-                    ),
+                    )
+                    .testTag("custom_timer_form_add_step_btn"),
         )
     }
 }

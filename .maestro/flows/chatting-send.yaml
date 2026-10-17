@@ -1,0 +1,29 @@
+appId: com.project200.undabang
+name: 두 계정 실제 UI 메시지 전송
+tags:
+  - regression
+  - requires-login
+  - requires-two-devices
+---
+# 드라이버가 상대방의 준비·부재를 확인한 뒤 실행합니다. 재진입하지 않습니다.
+- runFlow: ../subflows/chatting-ready.yaml
+- assertNotVisible:
+    id: outgoing_message_tv
+    text: "${MESSAGE_SELECTOR}"
+- tapOn:
+    id: chatting_message_et
+# 한국어 Gboard에서는 ASCII keycode가 한글 자모로 입력되므로 영문 레이아웃을 먼저 확인합니다.
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
+- inputText: "${MESSAGE}"
+- assertVisible:
+    id: chatting_message_et
+    text: "${MESSAGE_SELECTOR}"
+- tapOn:
+    id: send_btn
+- hideKeyboard
+- extendedWaitUntil:
+    visible:
+      id: outgoing_message_tv
+      text: "${MESSAGE_SELECTOR}"
+    timeout: 60000
+# 상대의 실제 수신 검증 전에는 일반 뒤로가기도 하지 않습니다.

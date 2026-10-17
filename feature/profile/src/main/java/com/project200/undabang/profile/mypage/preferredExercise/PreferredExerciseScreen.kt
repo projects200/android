@@ -19,8 +19,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -28,12 +30,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -65,6 +72,7 @@ enum class PreferredExerciseStep {
     DETAIL,
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun PreferredExerciseScreen(
     step: PreferredExerciseStep,
@@ -81,7 +89,14 @@ fun PreferredExerciseScreen(
     onSkillClick: (exerciseTypeId: Long, skill: SkillLevel) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier =
+            modifier
+                .fillMaxSize()
+                // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
+                .semantics { testTagsAsResourceId = true }
+                .testTag(if (isLoading) "preferred_exercise_loading" else "preferred_exercise_${step.name.lowercase()}_loaded"),
+    ) {
         Column(
             modifier =
                 Modifier
@@ -109,21 +124,23 @@ fun PreferredExerciseScreen(
                 },
             )
 
-            when (step) {
-                PreferredExerciseStep.TYPE ->
-                    PreferredExerciseTypeContent(
-                        nickname = nickname,
-                        uiModels = uiModels,
-                        onTypeClick = onTypeClick,
-                        onLimitReached = onTypeLimitReached,
-                    )
-                PreferredExerciseStep.DETAIL ->
-                    PreferredExerciseDetailContent(
-                        items = selectedUiModels,
-                        formatter = formatter,
-                        onDayClick = onDayClick,
-                        onSkillClick = onSkillClick,
-                    )
+            if (!isLoading) {
+                when (step) {
+                    PreferredExerciseStep.TYPE ->
+                        PreferredExerciseTypeContent(
+                            nickname = nickname,
+                            uiModels = uiModels,
+                            onTypeClick = onTypeClick,
+                            onLimitReached = onTypeLimitReached,
+                        )
+                    PreferredExerciseStep.DETAIL ->
+                        PreferredExerciseDetailContent(
+                            items = selectedUiModels,
+                            formatter = formatter,
+                            onDayClick = onDayClick,
+                            onSkillClick = onSkillClick,
+                        )
+                }
             }
         }
 
@@ -148,11 +165,13 @@ private fun PreferredExerciseTypeContent(
         modifier =
             modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp),
     ) {
         Spacer(Modifier.height(44.dp))
         Text(
             text = stringResource(R.string.preferred_exercise_type_title, nickname),
+            modifier = Modifier.testTag("preferred_exercise_type_start"),
             style = MaterialTheme.typography.contentBold,
             color = ColorBlack,
         )
@@ -201,6 +220,9 @@ private fun PreferredExerciseTypeChip(
                     indication = null,
                     onClick = onClick,
                 )
+                // Compose의 selected 상태는 Maestro에 checked로 노출됩니다. 계정별 종목은 이름 대신 ID로 식별합니다
+                .semantics { selected = uiModel.isSelected }
+                .testTag("preferred_exercise_type_${uiModel.exercise.exerciseTypeId}")
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -261,6 +283,7 @@ private fun PreferredExerciseDetailCard(
         modifier =
             modifier
                 .fillMaxWidth()
+                .testTag("preferred_exercise_card_${uiModel.exercise.exerciseTypeId}")
                 .padding(horizontal = 20.dp)
                 .shadow(elevation = 2.dp, shape = RoundedCornerShape(15.dp), clip = false)
                 .clip(RoundedCornerShape(15.dp))
@@ -326,6 +349,7 @@ private fun PreferredExerciseDetailCard(
                     text = stringResource(resId),
                     selected = uiModel.selectedDays[index],
                     onClick = { onDayClick(index) },
+                    testTag = "preferred_exercise_${uiModel.exercise.exerciseTypeId}_day_$index",
                     modifier = Modifier.weight(1f).padding(5.dp).height(40.dp),
                 )
             }
@@ -349,6 +373,7 @@ private fun PreferredExerciseDetailCard(
                             text = stringResource(skill.resId),
                             selected = uiModel.skillLevel == skill,
                             onClick = { onSkillClick(skill) },
+                            testTag = "preferred_exercise_${uiModel.exercise.exerciseTypeId}_skill_${skill.name}",
                             modifier = Modifier.weight(1f).padding(5.dp).height(36.dp),
                         )
                     }
@@ -367,6 +392,7 @@ private fun DayOrSkillButton(
     text: String,
     selected: Boolean,
     onClick: () -> Unit,
+    testTag: String,
     modifier: Modifier = Modifier,
 ) {
     val backgroundColor = if (selected) ColorMain else ColorGray300
@@ -377,6 +403,9 @@ private fun DayOrSkillButton(
             modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(backgroundColor)
+                // 요일/숙련도 버튼을 같은 모양으로 공유해 호출부에서 구분용 testTag를 넘깁니다
+                .semantics { this.selected = selected }
+                .testTag(testTag)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,

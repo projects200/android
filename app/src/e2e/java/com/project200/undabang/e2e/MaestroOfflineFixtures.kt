@@ -45,7 +45,21 @@ internal class MaestroOfflineFixtures
         private val api: ApiService,
         private val featureFlags: FeatureFlagDataSource,
         private val appUpdateRepository: AppUpdateRepository,
-    ) {
+    ) : MaestroFeatureFixture {
+        override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
+            val run = run(request)
+            validateDate(run)
+            clean(run)
+            requireCacheEnabled()
+            return emptyMap()
+        }
+
+        override suspend fun cleanup(request: MaestroFeatureRequest) {
+            val run = run(request)
+            validateDate(run)
+            clean(run)
+        }
+
         suspend fun requireCacheEnabled() {
             // 기본값 false인 플래그를 가정하지 않고 실제 fetch/activate 경로에서 확인합니다.
             appUpdateRepository.getUpdateInfo().getOrElse { throw MaestroSetupFailure("offline_flag_fetch_failed") }
@@ -151,6 +165,26 @@ internal class MaestroOfflineFixtures
         }
 
         companion object {
+            private val FLOWS = setOf("offline-exercise-create", "offline-exercise-missing", "offline-timers-online")
+
+            fun run(request: MaestroFeatureRequest): MaestroOfflineRun {
+                MaestroFeaturePolicy.validateIdentity(request.feature, request.flow, request.runId)
+                if (request.feature != "offline" || request.flow !in FLOWS ||
+                    request.parameters.keys().asSequence().toSet() != setOf("startedAt", "endedAt")
+                ) {
+                    throw MaestroSetupFailure("invalid_feature_request")
+                }
+                return try {
+                    MaestroOfflineRun(
+                        request.runId,
+                        LocalDateTime.parse(request.parameters.getString("startedAt")),
+                        LocalDateTime.parse(request.parameters.getString("endedAt")),
+                    )
+                } catch (_: Exception) {
+                    throw MaestroSetupFailure("invalid_feature_request")
+                }
+            }
+
             val STAGES = setOf("exercise-online", "timers-online", "timers-synced")
             private const val UPLOAD_TIMEOUT_MS = 120_000L
 

@@ -1,13 +1,13 @@
 appId: com.project200.undabang
 name: 동기화될 전용 커스텀 타이머 두 개를 UI로 생성
 ---
-- runFlow: open-timer-list.yaml
+- runFlow: ../offline/open-timer-list.yaml
 - runFlow:
-    file: create-timer.yaml
+    file: ../offline/create-timer.yaml
     env:
       NEW_TIMER_TITLE: "${TIMER_ORIGINAL_TITLE}"
 - runFlow:
-    file: create-timer.yaml
+    file: ../offline/create-timer.yaml
     env:
       NEW_TIMER_TITLE: "${TIMER_DELETE_TITLE}"
 # 호스트는 실제 서버 GET에서 두 이름과 45초 스텝이 나타나야 다음 단계로 갑니다.

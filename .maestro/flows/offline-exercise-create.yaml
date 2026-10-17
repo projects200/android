@@ -43,4 +43,4 @@ name: 오프라인 조회용 실제 운동 기록 생성
     visible:
       id: exercise_create_btn
     timeout: 30000
-- runFlow: assert-exercise-record.yaml
+- runFlow: ../offline/assert-exercise-record.yaml

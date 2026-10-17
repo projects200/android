@@ -14,10 +14,12 @@ import com.project200.domain.model.UpdateInfo
 import com.project200.domain.repository.AppUpdateRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import org.json.JSONObject
 import java.time.LocalDateTime
 
 class MaestroOfflineFixturesTest {
@@ -177,6 +179,48 @@ class MaestroOfflineFixturesTest {
             coEvery { api.deleteCustomTimer(1) } returns BaseResponse(false, "SERVER_ERROR", "private diagnostic")
 
             expectFailure("fixture_delete_failed") { fixtures.clean(run) }
+        }
+
+    @Test
+    fun `공통 feature 준비는 실행별 정리 뒤 실제 플래그를 검사하고 정리는 같은 요청을 재사용한다`() =
+        runTest {
+            val parameters = mockk<JSONObject>()
+            every { parameters.keys() } answers { mutableListOf("startedAt", "endedAt").iterator() }
+            every { parameters.getString("startedAt") } returns run.startedAt.toString()
+            every { parameters.getString("endedAt") } returns run.endedAt.toString()
+            val request = MaestroFeatureRequest("offline", "offline-exercise-create", run.id, "member", parameters)
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+            coEvery { api.getCustomTimerList() } returns timerList()
+            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
+            every { flags.isOfflineCacheEnabled() } returns true
+
+            assertThat(fixtures.prepare(request)).isEmpty()
+            fixtures.cleanup(request)
+
+            coVerifyOrder {
+                api.getExerciseList(run.startedAt.toLocalDate())
+                api.getCustomTimerList()
+                updates.getUpdateInfo()
+                flags.isOfflineCacheEnabled()
+                api.getExerciseList(run.startedAt.toLocalDate())
+                api.getCustomTimerList()
+            }
+            coVerify(exactly = 0) { api.postCustomTimer(any()) }
+            coVerify(exactly = 0) { api.putCustomTimer(any(), any()) }
+        }
+
+    @Test
+    fun `다른 feature나 관찰 단계가 prepare로 들어오면 서버를 변경하지 않는다`() =
+        runTest {
+            for (request in listOf(
+                MaestroFeatureRequest("profile", "offline-exercise-create", run.id, "member", mockk()),
+                MaestroFeatureRequest("offline", "offline-timers-reconnect", run.id, "member", mockk()),
+            )) {
+                expectFailure("invalid_feature_request") { fixtures.prepare(request) }
+            }
+            coVerify(exactly = 0) { api.getExerciseList(any()) }
+            coVerify(exactly = 0) { api.getCustomTimerList() }
+            coVerify(exactly = 0) { updates.getUpdateInfo() }
         }
 
     private fun timerList(vararg names: String) =

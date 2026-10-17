@@ -2,10 +2,10 @@ appId: com.project200.undabang
 name: 오프라인 재실행 후 생성 수정 삭제 영속성과 작성 중 폼
 ---
 - stopApp
-- runFlow: open-timer-list.yaml
-- runFlow: assert-timer-list.yaml
+- runFlow: ../offline/open-timer-list.yaml
+- runFlow: ../offline/assert-timer-list.yaml
 - runFlow:
-    file: edit-timer.yaml
+    file: ../offline/edit-timer.yaml
     env:
       EDIT_TIMER_TITLE: "${TIMER_CREATE_TITLE}"
       EXPECTED_TIMER_TIME: "00:45"
@@ -13,7 +13,7 @@ name: 오프라인 재실행 후 생성 수정 삭제 영속성과 작성 중 �
 - back
 - scrollUntilVisible:
     element:
-      id: custom_timer_add
+      id: custom_timer_add_card
     direction: DOWN
     timeout: 30000
-- runFlow: prepare-timer-draft.yaml
+- runFlow: ../offline/prepare-timer-draft.yaml

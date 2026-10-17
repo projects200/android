@@ -112,7 +112,7 @@ fun FeedListScreen(
                             )
                         }
                     }
-                    IconButton(onClick = onAddClick) {
+                    IconButton(onClick = onAddClick, modifier = Modifier.testTag("feed_add_button")) {
                         Icon(
                             painter = painterResource(R.drawable.ic_feed_add),
                             contentDescription = null,
@@ -159,6 +159,13 @@ fun FeedListScreen(
                             FeedCard(
                                 feed = feed,
                                 onClick = { onFeedClick(feed.feedId) },
+                                // 갱신 중인 기존 카드가 조회 완료로 인식되지 않도록 합니다.
+                                modifier =
+                                    if (hasLoadedFeeds && !isLoading) {
+                                        Modifier.testTag("feed_content")
+                                    } else {
+                                        Modifier
+                                    },
                             )
                         }
                     }
@@ -178,7 +185,6 @@ private fun FeedCard(
         modifier =
             modifier
                 .fillMaxWidth()
-                .testTag("feed_content")
                 .clickable(onClick = onClick)
                 .padding(bottom = 24.dp),
     ) {

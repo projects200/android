@@ -6,4 +6,4 @@ name: 실제 단절 후 재실행한 캘린더 목록 상세 캐시
 - runFlow: ../subflows/launch-logged-in.yaml
 - tapOn:
     id: exercise_nav_graph
-- runFlow: assert-exercise-record.yaml
+- runFlow: ../offline/assert-exercise-record.yaml

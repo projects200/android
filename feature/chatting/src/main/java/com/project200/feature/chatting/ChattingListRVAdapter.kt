@@ -9,6 +9,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.project200.domain.model.ChattingRoom
 import com.project200.feature.chatting.utils.TimestampFormatter.formatTimestamp
+import com.project200.undabang.feature.chatting.BuildConfig
 import com.project200.undabang.feature.chatting.R
 import com.project200.undabang.feature.chatting.databinding.ItemChattingRoomBinding
 
@@ -36,6 +37,9 @@ class ChattingListRVAdapter(private val onItemClicked: (roomId: Long, nickname: 
             chattingRoom: ChattingRoom,
             onItemClicked: (roomId: Long, nickname: String, opponentMemberId: String) -> Unit,
         ) {
+            if (BuildConfig.DEBUG) {
+                binding.root.contentDescription = "chat-room:${chattingRoom.id}:peer:${chattingRoom.opponentMemberId}"
+            }
             binding.nicknameTv.text = chattingRoom.nickname
             binding.nicknameTv.contentDescription =
                 binding.root.context.getString(R.string.chatting_room_accessibility, chattingRoom.nickname)

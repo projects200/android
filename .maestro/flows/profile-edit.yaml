@@ -1,0 +1,220 @@
+appId: com.project200.undabang
+name: 프로필 편집 - 닉네임·소개 변경과 복구
+tags:
+  - regression
+  - requires-login
+---
+# 준비 API가 읽은 원문과 로드된 입력 노드가 일치한 뒤에만 수정합니다.
+# 실패 복구는 공통 finally의 profile fixture가 실제 API로 수행합니다.
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: profile_nav_graph
+- extendedWaitUntil:
+    visible: "최근 30일 운동 횟수"
+    timeout: 30000
+- tapOn:
+    id: mypage_edit_btn
+- extendedWaitUntil:
+    visible:
+      id: profile_edit_loaded
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+- copyTextFrom:
+    id: profile_edit_nickname_field
+- evalScript: ${output.originalNickname = maestro.copiedText}
+- assertTrue: ${output.originalNickname === E2E_PROFILE_ORIGINAL_NICKNAME}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+# 빈 입력은 hint를 복사하지 않고, 로드된 실제 값의 상태를 확인한 뒤 API 원문을 보관합니다.
+- assertVisible:
+    id: "${E2E_PROFILE_ORIGINAL_BIO === '' ? 'profile_edit_introduction_empty' : 'profile_edit_introduction_present'}"
+- evalScript: ${output.originalIntroduction = E2E_PROFILE_ORIGINAL_BIO}
+- runFlow:
+    when:
+      true: ${E2E_PROFILE_ORIGINAL_BIO !== ''}
+    commands:
+      - assertVisible:
+          id: profile_edit_introduction_field
+          text: ${E2E_PROFILE_ORIGINAL_BIO}
+      - copyTextFrom:
+          id: profile_edit_introduction_field
+      - evalScript: ${output.originalIntroduction = maestro.copiedText}
+      - assertTrue: ${output.originalIntroduction === E2E_PROFILE_ORIGINAL_BIO}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: UP
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
+- inputText: ${E2E_PROFILE_NEW_NICKNAME}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_NEW_NICKNAME}
+      EXPECTED_INTRODUCTION: ${output.originalIntroduction}
+- tapOn: "중복 확인"
+- extendedWaitUntil:
+    visible: "사용 가능한 닉네임입니다."
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_introduction_field
+- inputText: ${E2E_PROFILE_NEW_BIO}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_NEW_NICKNAME}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_NEW_BIO}
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "프로필 수정이 완료됐습니다."
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: nickname_tv
+      text: ${E2E_PROFILE_NEW_NICKNAME}
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: introduction_tv
+      text: ${E2E_PROFILE_NEW_BIO}
+    direction: DOWN
+- assertVisible:
+    id: introduction_tv
+    text: ${E2E_PROFILE_NEW_BIO}
+- scrollUntilVisible:
+    element:
+      id: mypage_edit_btn
+    direction: UP
+- tapOn:
+    id: mypage_edit_btn
+- extendedWaitUntil:
+    visible:
+      id: profile_edit_loaded
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${E2E_PROFILE_NEW_NICKNAME}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_introduction_field
+    text: ${E2E_PROFILE_NEW_BIO}
+# UI 복구도 저장·재조회 경로를 반드시 통과합니다. API finally 복구의 대체물이 아닙니다.
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: UP
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
+- inputText: ${output.originalNickname}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.originalNickname}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_NEW_BIO}
+- tapOn: "중복 확인"
+- extendedWaitUntil:
+    visible: "사용 가능한 닉네임입니다."
+    timeout: 15000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_introduction_field
+# 빈 원문은 실제 입력을 지운 상태로 저장하며 inputText에 빈 문자열을 넘기지 않습니다.
+- runFlow:
+    when:
+      true: ${output.originalIntroduction !== ''}
+    commands:
+      - inputText: ${output.originalIntroduction}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.originalNickname}
+      EXPECTED_INTRODUCTION: ${output.originalIntroduction}
+- tapOn: "완료"
+- extendedWaitUntil:
+    visible: "프로필 수정이 완료됐습니다."
+    timeout: 15000
+- extendedWaitUntil:
+    visible:
+      id: nickname_tv
+      text: ${output.originalNickname}
+    timeout: 15000
+- runFlow:
+    when:
+      true: ${output.originalIntroduction !== ''}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: introduction_tv
+            text: ${output.originalIntroduction}
+          direction: DOWN
+      - assertVisible:
+          id: introduction_tv
+          text: ${output.originalIntroduction}
+# 저장 뒤 다시 편집기를 열어 실제 서버 재조회가 끝난 입력 상태로 빈 원문까지 검증합니다.
+- scrollUntilVisible:
+    element:
+      id: mypage_edit_btn
+    direction: UP
+- tapOn:
+    id: mypage_edit_btn
+- extendedWaitUntil:
+    visible:
+      id: profile_edit_loaded
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: profile_edit_nickname_field
+    direction: DOWN
+- assertVisible:
+    id: profile_edit_nickname_field
+    text: ${output.originalNickname}
+- scrollUntilVisible:
+    element:
+      id: profile_edit_introduction_field
+    direction: DOWN
+- assertVisible:
+    id: "${output.originalIntroduction === '' ? 'profile_edit_introduction_empty' : 'profile_edit_introduction_present'}"
+- runFlow:
+    when:
+      true: ${output.originalIntroduction !== ''}
+    commands:
+      - assertVisible:
+          id: profile_edit_introduction_field
+          text: ${output.originalIntroduction}
+      - copyTextFrom:
+          id: profile_edit_introduction_field
+      - assertTrue: ${maestro.copiedText === output.originalIntroduction}

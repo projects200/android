@@ -39,6 +39,7 @@ class MatchingMapFragment :
     // 지도 본체(MatchingMapScreen) 내부 카메라를 제어하기 위한 통로
     private val mapController = MatchingMapController()
     private var isMapInitialized = false
+    private var isMapReady = false
     private lateinit var fusedLocationClient: FusedLocationProviderClient
 
     private val locationPermissionLauncher =
@@ -52,6 +53,7 @@ class MatchingMapFragment :
 
     override fun setupViews() {
         isMapInitialized = false
+        isMapReady = false
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
 
         // 지도·툴바(필터)·현재위치·로딩까지 전체를 Compose(MatchingMapScreen)로 호스팅.
@@ -59,7 +61,10 @@ class MatchingMapFragment :
             MatchingMapScreen(
                 viewModel = viewModel,
                 controller = mapController,
-                onMapReady = { restoreInitialCamera() },
+                onMapReady = {
+                    isMapReady = true
+                    restoreInitialCamera()
+                },
                 onClusterClick = { items -> showMembersBottomSheet(items) },
                 onPlaceMarkerClick = { navigateToExercisePlace() },
                 onCurrentLocationClick = { checkPermissionAndMove() },
@@ -81,26 +86,26 @@ class MatchingMapFragment :
      * 저장된 위치가 있으면 그곳으로, 없으면 현재 위치(권한 시) 또는 기본 위치(서울시청)로 이동한다.
      */
     private fun restoreInitialCamera() {
-        if (isMapInitialized) return
+        if (isMapInitialized || !isMapReady || !viewModel.initialMapPositionLoaded.value) return
 
         val savedPosition = viewModel.initialMapPosition.value
-        if (isLocationPermissionGranted()) {
-            if (savedPosition != null) {
-                mapController.moveCamera(
-                    LatLng.from(savedPosition.latitude, savedPosition.longitude),
-                    savedPosition.zoomLevel,
-                )
-            } else {
-                moveToCurrentLocation()
-            }
+        // 지도 탐색 위치는 위치 권한과 무관합니다. 권한을 거부해도 마지막 지도를 보존합니다.
+        if (savedPosition != null) {
+            mapController.moveCamera(
+                LatLng.from(savedPosition.latitude, savedPosition.longitude),
+                savedPosition.zoomLevel,
+            )
+        } else if (isLocationPermissionGranted()) {
+            moveToCurrentLocation()
         } else {
             mapController.moveCamera(
                 LatLng.from(SEOUL_CITY_HALL_LATITUDE, SEOUL_CITY_HALL_LONGITUDE),
                 ZOOM_LEVEL,
             )
+        }
+        if (!isLocationPermissionGranted()) {
             locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
         isMapInitialized = true
     }
 
@@ -153,6 +158,12 @@ class MatchingMapFragment :
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    // SDK와 저장 위치 중 어느 쪽이 먼저 준비되더라도 두 상태를 모두 기다립니다.
+                    viewModel.initialMapPositionLoaded.collect { loaded ->
+                        if (loaded) restoreInitialCamera()
+                    }
+                }
                 launch {
                     viewModel.shouldShowPlaceGuideDialog.collect {
                         showPlaceGuideDialog()
