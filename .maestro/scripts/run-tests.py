@@ -55,7 +55,13 @@ REQUIRED_ENVIRONMENT = frozenset({
 PROFILE_PREPARE_FAILURES = {
     "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
     "profile_fixture_read_failed": "bootstrap-prepare-failed-profile-fixture-read-failed",
-    "profile_baseline_text_unsupported": "bootstrap-prepare-failed-profile-baseline-text-unsupported",
+    "profile_baseline_nickname_unsupported": "bootstrap-prepare-failed-profile-baseline-nickname-unsupported",
+    "profile_baseline_gender_unsupported": "bootstrap-prepare-failed-profile-baseline-gender-unsupported",
+    "profile_baseline_bio_null": "bootstrap-prepare-failed-profile-baseline-bio-null",
+    "profile_baseline_bio_empty": "bootstrap-prepare-failed-profile-baseline-bio-empty",
+    "profile_baseline_bio_too_long": "bootstrap-prepare-failed-profile-baseline-bio-too-long",
+    "profile_baseline_bio_control_characters":
+        "bootstrap-prepare-failed-profile-baseline-bio-control-characters",
     "profile_preferences_invalid": "bootstrap-prepare-failed-profile-preferences-invalid",
     "profile_preference_baseline_unavailable":
         "bootstrap-prepare-failed-profile-preference-baseline-unavailable",

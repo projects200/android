@@ -25,11 +25,17 @@ internal object MaestroProfilePolicy {
     ) {
         // Maestro 2.11.0은 Android 비ASCII inputText를 자체 IME로 입력하므로 한글·문장부호도 복구할 수 있습니다.
         // null은 PUT 본문으로 표현할 수 없고 빈 소개는 copyTextFrom이 text 대신 hint를 읽을 수 있어 mutation 전에 거부합니다.
-        if (!validateNickname(nickname) || gender !in genders ||
-            bio.isNullOrEmpty() || bio.length > MAX_ERASABLE_BIO_LENGTH || bio.any { it.isISOControl() }
-        ) {
-            throw MaestroSetupFailure("profile_baseline_text_unsupported")
-        }
+        val reason =
+            when {
+                !validateNickname(nickname) -> "profile_baseline_nickname_unsupported"
+                gender !in genders -> "profile_baseline_gender_unsupported"
+                bio == null -> "profile_baseline_bio_null"
+                bio.isEmpty() -> "profile_baseline_bio_empty"
+                bio.length > MAX_ERASABLE_BIO_LENGTH -> "profile_baseline_bio_too_long"
+                bio.any { it.isISOControl() } -> "profile_baseline_bio_control_characters"
+                else -> return
+            }
+        throw MaestroSetupFailure(reason)
     }
 
     fun validatePreferences(preferences: List<GetPreferredExerciseDTO>) {

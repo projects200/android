@@ -291,8 +291,15 @@ class SessionTransportTests(unittest.TestCase):
     def test_profile_prepare_discloses_only_fixed_reviewed_failures(self):
         self.transport.pending_sleeps = 0
         cases = (
-            ("profile_baseline_text_unsupported",
-             "bootstrap-prepare-failed-profile-baseline-text-unsupported"),
+            ("profile_baseline_nickname_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-nickname-unsupported"),
+            ("profile_baseline_gender_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-gender-unsupported"),
+            ("profile_baseline_bio_null", "bootstrap-prepare-failed-profile-baseline-bio-null"),
+            ("profile_baseline_bio_empty", "bootstrap-prepare-failed-profile-baseline-bio-empty"),
+            ("profile_baseline_bio_too_long", "bootstrap-prepare-failed-profile-baseline-bio-too-long"),
+            ("profile_baseline_bio_control_characters",
+             "bootstrap-prepare-failed-profile-baseline-bio-control-characters"),
             ("profile_fcm_token_timeout", "bootstrap-prepare-failed-profile-fcm-token-timeout"),
         )
         for reason, expected in cases:
@@ -315,10 +322,11 @@ class SessionTransportTests(unittest.TestCase):
         self.transport.pending_sleeps = 0
         reasons = (
             "profile_unknown_failure",
-            "profile_baseline_text_unsupported-" + SYNTHETIC_SECRET,
+            "profile_baseline_text_unsupported",
+            "profile_baseline_nickname_unsupported-" + SYNTHETIC_SECRET,
             SYNTHETIC_SECRET,
-            {"code": "profile_baseline_text_unsupported", "private": SYNTHETIC_SECRET},
-            ["profile_fcm_token_timeout", SYNTHETIC_SECRET],
+            {"code": "profile_baseline_bio_null", "private": SYNTHETIC_SECRET},
+            ["profile_baseline_bio_control_characters", SYNTHETIC_SECRET],
             None,
             7,
             True,
@@ -346,22 +354,23 @@ class SessionTransportTests(unittest.TestCase):
             ("cleanup", "profile", "failed", "bootstrap-cleanup-failed"),
             ("prepare", None, "failed", "bootstrap-prepare-failed"),
         )
-        for operation, feature, status, expected in cases:
-            with self.subTest(operation=operation, feature=feature, status=status):
-                self.transport.result = json.dumps({
-                    "status": status, "reason": "profile_fcm_token_timeout", "private": SYNTHETIC_SECRET,
-                }).encode("utf-8")
-                metadata = {}
-                if feature is not None:
-                    metadata = {
-                        "feature": feature, "flow": feature + "-edit",
-                        "run_id": "0123456789abcdef", "parameters": {},
-                    }
-                self.assert_failure(
-                    expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
-                )
-                self.assertTrue((self.transport.root / runner.RESULT).exists())
-                self.assertEqual(self.clock.sleeps, [])
+        for reason in ("profile_baseline_bio_null", "profile_fcm_token_timeout"):
+            for operation, feature, status, expected in cases:
+                with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
+                    self.transport.result = json.dumps({
+                        "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    metadata = {}
+                    if feature is not None:
+                        metadata = {
+                            "feature": feature, "flow": feature + "-edit",
+                            "run_id": "0123456789abcdef", "parameters": {},
+                        }
+                    self.assert_failure(
+                        expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertTrue((self.transport.root / runner.RESULT).exists())
+                    self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
     def test_verify_setup_rejects_run_as_failure_without_diagnostics(self):

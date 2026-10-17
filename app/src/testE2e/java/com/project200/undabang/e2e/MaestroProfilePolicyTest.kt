@@ -56,18 +56,41 @@ class MaestroProfilePolicyTest {
     @Test
     fun `UI로 정확히 복구할 수 없는 기준 텍스트는 mutation 전에 거부한다`() {
         for (nickname in listOf("", "닉네임!", "a".repeat(31))) {
+            val failure =
+                assertThrows(MaestroSetupFailure::class.java) {
+                    MaestroProfilePolicy.validateText(nickname, "MALE", "intro")
+                }
+            assertEquals("profile_baseline_nickname_unsupported", failure.reason)
+        }
+        for ((bio, reason) in
+            listOf(
+                null to "profile_baseline_bio_null",
+                "" to "profile_baseline_bio_empty",
+                "line\nbreak" to "profile_baseline_bio_control_characters",
+                "tab\tbio" to "profile_baseline_bio_control_characters",
+                "a".repeat(51) to "profile_baseline_bio_too_long",
+            )
+        ) {
+            val failure =
+                assertThrows(MaestroSetupFailure::class.java) {
+                    MaestroProfilePolicy.validateText("OriginalUser", "MALE", bio)
+                }
+            assertEquals(reason, failure.reason)
+        }
+        val failure =
             assertThrows(MaestroSetupFailure::class.java) {
-                MaestroProfilePolicy.validateText(nickname, "MALE", "intro")
+                MaestroProfilePolicy.validateText("OriginalUser", "OTHER", "intro")
             }
-        }
-        for (bio in listOf(null, "", "line\nbreak", "tab\tbio", "a".repeat(51))) {
+        assertEquals("profile_baseline_gender_unsupported", failure.reason)
+    }
+
+    @Test
+    fun `여러 기준 조건이 실패하면 닉네임 실패를 먼저 알린다`() {
+        val failure =
             assertThrows(MaestroSetupFailure::class.java) {
-                MaestroProfilePolicy.validateText("OriginalUser", "MALE", bio)
+                MaestroProfilePolicy.validateText("닉네임!", "OTHER", "line\nbreak")
             }
-        }
-        assertThrows(MaestroSetupFailure::class.java) {
-            MaestroProfilePolicy.validateText("OriginalUser", "OTHER", "intro")
-        }
+        assertEquals("profile_baseline_nickname_unsupported", failure.reason)
     }
 
     @Test
