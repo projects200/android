@@ -11,6 +11,9 @@ import java.time.LocalDate
 import javax.inject.Inject
 
 internal sealed interface MaestroSetupRequest {
+    val preserveLocalDataOnFailure: Boolean
+        get() = false
+
     data object Export : MaestroSetupRequest
 
     data class FixtureOperation(
@@ -19,7 +22,19 @@ internal sealed interface MaestroSetupRequest {
         val memberId: String,
         val fixtureStartDate: LocalDate,
         val featureRequest: MaestroFeatureRequest? = null,
-    ) : MaestroSetupRequest
+    ) : MaestroSetupRequest {
+        override val preserveLocalDataOnFailure: Boolean
+            get() = operation == "cleanup" && featureRequest?.feature == "offline"
+    }
+
+    data class OfflineObservation(
+        val memberId: String,
+        val run: MaestroOfflineRun,
+        val stage: String,
+        val featureRequest: MaestroFeatureRequest,
+    ) : MaestroSetupRequest {
+        override val preserveLocalDataOnFailure: Boolean = true
+    }
 }
 
 internal class MaestroSetupFailure(val reason: String) : Exception(reason)
@@ -81,6 +96,23 @@ internal class MaestroSetupProtocol
                                 },
                         )
                     }
+                    "offline-observe" -> {
+                        requireKeys(json, setOf("operation", "memberId", "runId", "flow", "startedAt", "endedAt", "stage"))
+                        val memberId = json.get("memberId") as? String
+                        if (memberId.isNullOrBlank()) throw MaestroSetupFailure("invalid_request")
+                        val feature =
+                            MaestroFeatureRequest(
+                                "offline",
+                                json.getString("flow"),
+                                json.getString("runId"),
+                                memberId,
+                                JSONObject().put("startedAt", json.getString("startedAt")).put("endedAt", json.getString("endedAt")),
+                            )
+                        val run = MaestroOfflineFixtures.run(feature)
+                        val stage = json.getString("stage")
+                        if (stage !in MaestroOfflineFixtures.STAGES) throw MaestroSetupFailure("invalid_request")
+                        MaestroSetupRequest.OfflineObservation(memberId, run, stage, feature)
+                    }
                     else -> throw MaestroSetupFailure("invalid_request")
                 }
             } catch (failure: MaestroSetupFailure) {
@@ -128,8 +160,14 @@ internal class MaestroSetupProtocol
             )
         }
 
-        fun validateFeatureRecovery(request: MaestroFeatureRequest?) {
-            if (!hasFeatureRecovery()) return
+        fun validateFeatureRecovery(
+            request: MaestroFeatureRequest?,
+            required: Boolean = false,
+        ) {
+            if (!hasFeatureRecovery()) {
+                if (required) throw MaestroSetupFailure("feature_recovery_missing")
+                return
+            }
             if (request == null) throw MaestroSetupFailure("feature_recovery_pending")
             try {
                 val json =

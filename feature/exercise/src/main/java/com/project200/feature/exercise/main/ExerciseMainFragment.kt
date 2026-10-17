@@ -18,6 +18,7 @@ import com.kizitonwose.calendar.view.ViewContainer
 import com.project200.common.constants.RuleConstants.SCORE_HIGH_LEVEL
 import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
+import com.project200.domain.model.BaseResult
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.exercise.R
 import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
@@ -97,6 +98,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         selectedIv.isVisible = false
                         exerciseCompleteIv.apply {
                             isVisible = false
+                            contentDescription = null
                             animate().cancel() // 진행 중인 애니메이션이 있다면 취소
                             alpha = 1f
                         }
@@ -123,6 +125,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                             if (exerciseCompleteDates.contains(data.date)) {
                                 exerciseCompleteIv.apply {
                                     alpha = 0f
+                                    contentDescription = getString(R.string.exercise_calendar_record, data.date.toString())
                                     isVisible = true
                                     animate().alpha(1f).setDuration(300).start()
                                 }
@@ -260,7 +263,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             updateListSelectors()
             exerciseAdapter.submitList(list) {
                 if (submissionId == listSubmissionId && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
-                    binding.exerciseListEmptyTv.isVisible = list.isNullOrEmpty()
                     binding.exerciseListRv.doOnNextLayout {
                         if (submissionId == listSubmissionId && owner.lifecycle.currentState != Lifecycle.State.DESTROYED) {
                             isListCommitted = true
@@ -275,16 +277,31 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         viewModel.isExerciseListLoaded.observe(viewLifecycleOwner) {
             updateListSelectors()
         }
+        viewModel.exerciseListError.observe(viewLifecycleOwner) {
+            updateListSelectors()
+        }
     }
 
     private fun updateListSelectors() {
-        // 같은 내용의 목록도 현재 제출의 비동기 Diff가 반영된 뒤에만 완료 상태를 노출합니다.
-        val isLoaded = viewModel.isExerciseListLoaded.value == true && isListCommitted
+        // 성공 표시는 어댑터 반영을 기다리지만, 최신 요청의 오류는 목록 제출 없이도 완료 상태입니다.
+        val state =
+            exerciseListAccessibilityState(
+                isListCommitted = isListCommitted,
+                isListLoaded = viewModel.isExerciseListLoaded.value == true,
+                isListEmpty = exerciseAdapter.currentList.isEmpty(),
+                error = viewModel.exerciseListError.value,
+            )
         val date = viewModel.selectedDate.value.toString()
         binding.exerciseListRv.contentDescription =
-            if (isLoaded && exerciseAdapter.currentList.isNotEmpty()) getString(R.string.exercise_list_loaded, date) else null
+            if (state == ExerciseListAccessibilityState.CONTENT) getString(R.string.exercise_list_loaded, date) else null
+        binding.exerciseListEmptyTv.isVisible =
+            state == ExerciseListAccessibilityState.EMPTY || state == ExerciseListAccessibilityState.NETWORK_ERROR
         binding.exerciseListEmptyTv.contentDescription =
-            if (isLoaded && exerciseAdapter.currentList.isEmpty()) getString(R.string.exercise_empty_loaded, date) else null
+            when (state) {
+                ExerciseListAccessibilityState.EMPTY -> getString(R.string.exercise_empty_loaded, date)
+                ExerciseListAccessibilityState.NETWORK_ERROR -> getString(R.string.exercise_list_network_error, date)
+                else -> null
+            }
     }
 
     inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
@@ -307,3 +324,23 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         viewModel.refreshData()
     }
 }
+
+internal enum class ExerciseListAccessibilityState {
+    NOT_READY,
+    CONTENT,
+    EMPTY,
+    NETWORK_ERROR,
+}
+
+internal fun exerciseListAccessibilityState(
+    isListCommitted: Boolean,
+    isListLoaded: Boolean,
+    isListEmpty: Boolean,
+    error: BaseResult.Error?,
+): ExerciseListAccessibilityState =
+    when {
+        error?.errorCode == "NETWORK_ERROR" -> ExerciseListAccessibilityState.NETWORK_ERROR
+        !isListCommitted || !isListLoaded -> ExerciseListAccessibilityState.NOT_READY
+        isListEmpty -> ExerciseListAccessibilityState.EMPTY
+        else -> ExerciseListAccessibilityState.CONTENT
+    }

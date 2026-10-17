@@ -194,7 +194,7 @@
 구현 사례별 소스와 테스트는 위 링크에서 확인할 수 있습니다.
 
 - **로직·저장소**: UseCase·ViewModel 단위 테스트, Robolectric 기반 Room 테스트를 두고 있습니다. JaCoCo 집계 대상은 UseCase·ViewModel입니다.
-- **사용자 흐름**: Maestro 플로우로 로그인 화면, 하단 탭과 콘텐츠, 운동 기록 작성 화면 진입을 검사하도록 구성했습니다. 기기 준비와 실행 조건은 [Maestro 가이드](.maestro/README.md)에 있습니다.
+- **사용자 흐름**: Maestro로 로그인/탭·운동 CRUD·피드·타이머·매칭·두 계정/두 기기 채팅·프로필과 오프라인 회귀를 검사합니다. trusted dev PR/push의 `all`은 설치된 전체 33개 case를 선택합니다. 오프라인은 #584/#588/#589·서버 #574/#575 배포와 활성화된 캐시 플래그가 필요하며 미충족 시 실패합니다. 실행 조건과 정확한 목록은 [Maestro 가이드](.maestro/README.md)에 있습니다.
 - **CI/CD 구성**: `dev` push·PR은 debug 검증과 Firebase App Distribution 배포, `master` push·PR은 release 검증을 수행하도록 설정되어 있습니다. Google Play 내부 테스트 배포는 `master` push에서만 실행합니다.
 
 [dev 워크플로우](.github/workflows/android-dev-ci.yml) · [master 워크플로우](.github/workflows/android-master-ci-cd.yml)
@@ -202,7 +202,8 @@
 ### 현재 지원 범위
 
 - 타이머의 로컬 저장과 달리, 현재 [운동 기록 Repository](data/src/main/java/com/project200/data/impl/ExerciseRecordRepositoryImpl.kt)의 목록·상세·횟수 조회는 서버를 호출합니다. Room 저장 계층이 있다는 이유만으로 앱 전체의 오프라인 지원을 의미하지는 않습니다.
-- CI 단위 테스트 명령에는 Kotlin/JVM 모듈인 `:domain:test`가 포함되어 있지 않습니다. 로컬 전체 단위 테스트 안내에는 이를 별도로 포함했습니다. Maestro도 현재 CI에서 실행하지 않습니다.
+- CI 단위 테스트 명령에는 Kotlin/JVM 모듈인 `:domain:test`가 포함되어 있지 않습니다. 로컬 전체 단위 테스트 안내에는 이를 별도로 포함했습니다. 별도 DEV Maestro CI는 `all`로 운동 회귀와 모든 설치 descriptor를 자동 선택합니다. 수동 `offline` 진단도 같은 실제 driver를 사용하며 의존 기능 부재를 skip으로 통과시키지 않습니다.
+- `offline`의 재접속 시나리오는 최종 UI·서버 값을 검사합니다. pending 상태에서 성공한 원격 목록을 적용하는 순서의 검증은 실제 #588/#589 uploader 관찰/제어 계약이 없어 **BLOCKED**이며, suite 통과만으로 #617 전체 완료를 뜻하지 않습니다.
 - `dev` 워크플로우에는 배포를 push로 제한하는 조건이 없어 PR에도 배포 단계가 있습니다. 배포 구성은 공개 출시 여부나 실제 배포 성공을 뜻하지 않습니다.
 
 ## 실행 방법

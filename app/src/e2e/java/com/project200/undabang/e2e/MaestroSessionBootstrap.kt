@@ -1,6 +1,7 @@
 package com.project200.undabang.e2e
 
 import android.net.Uri
+import com.project200.data.api.ApiService
 import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
 import com.project200.undabang.oauth.AuthManager
@@ -25,6 +26,7 @@ internal class MaestroSessionBootstrap
         private val authStateManager: AuthStateManager,
         private val authManager: AuthManager,
         private val authRepository: AuthRepository,
+        private val apiService: ApiService,
     ) {
         suspend fun authenticate(
             state: AuthState,
@@ -33,25 +35,46 @@ internal class MaestroSessionBootstrap
             val trusted = fetchTrustedConfiguration()
             validateState(state, trusted)
             val authorizationResponse = state.lastAuthorizationResponse ?: throw MaestroSetupFailure("untrusted_session")
-            val tokenResponse = state.lastTokenResponse ?: throw MaestroSetupFailure("untrusted_session")
-            val refreshToken = state.refreshToken?.takeIf { it.isNotBlank() } ?: throw MaestroSetupFailure("untrusted_session")
-
-            // AppAuth는 마지막 응답과 별도로 최신 refreshToken을 저장하므로 응답의 이전 값을 쓰지 않습니다
-            val restoredTokens =
-                TokenResponse.Builder(tokenResponse.request)
-                    .setTokenType(tokenResponse.tokenType)
-                    .setAccessToken(tokenResponse.accessToken)
-                    .setAccessTokenExpirationTime(tokenResponse.accessTokenExpirationTime)
-                    .setIdToken(tokenResponse.idToken)
-                    .setRefreshToken(refreshToken)
-                    .setScope(state.scope ?: tokenResponse.scope)
-                    .setAdditionalParameters(tokenResponse.additionalParameters)
-                    .build()
+            val restoredTokens = tokensForRestore(state)
 
             authRepository.clearSession()
             authStateManager.update(authorizationResponse, null)
             authStateManager.update(restoredTokens, null)
 
+            return refreshAndVerify(expectedMemberId)
+        }
+
+        /** 실패한 오프라인 실행의 회원 경계와 미전송 행을 유지한 채 같은 계정만 복구합니다 */
+        suspend fun authenticateForOfflineCleanup(
+            state: AuthState,
+            expectedMemberId: String,
+        ): String {
+            requireLocalMember(expectedMemberId)
+            val trusted = fetchTrustedConfiguration()
+            validateState(state, trusted)
+            if (state.refreshToken.isNullOrBlank()) throw MaestroSetupFailure("untrusted_session")
+            val current = currentState()
+            if (current.isAuthorized && !current.refreshToken.isNullOrBlank()) {
+                validateState(current, trusted)
+            } else {
+                val authorizationResponse = state.lastAuthorizationResponse ?: throw MaestroSetupFailure("untrusted_session")
+                val restoredTokens = tokensForRestore(state)
+                authRepository.clearTokens()
+                authStateManager.update(authorizationResponse, null)
+                authStateManager.update(restoredTokens, null)
+            }
+            return refreshAndVerifySameMember(expectedMemberId)
+        }
+
+        /** 서버 관찰은 현재 세션을 검증하되 Room과 미전송 변경을 지우지 않습니다 */
+        suspend fun verifyCurrent(expectedMemberId: String): String {
+            requireLocalMember(expectedMemberId)
+            val trusted = fetchTrustedConfiguration()
+            validateState(currentState(), trusted)
+            return refreshAndVerifySameMember(expectedMemberId)
+        }
+
+        private suspend fun refresh() {
             // 만료 시각이나 가져온 ID 토큰을 믿지 않고 실제 DEV 서버에서 새 토큰을 발급받습니다
             if (authManager.refreshAccessToken() !is TokenRefreshResult.Success) {
                 throw MaestroSetupFailure("refresh_failed")
@@ -60,6 +83,10 @@ internal class MaestroSessionBootstrap
             if (!current.isAuthorized || current.idToken.isNullOrBlank() || current.refreshToken.isNullOrBlank()) {
                 throw MaestroSetupFailure("refresh_failed")
             }
+        }
+
+        private suspend fun refreshAndVerify(expectedMemberId: String?): String {
+            refresh()
             if (authRepository.checkIsRegistered() != RegistrationStatus.Registered) {
                 throw MaestroSetupFailure("registration_failed")
             }
@@ -72,12 +99,53 @@ internal class MaestroSessionBootstrap
             return memberId
         }
 
+        private suspend fun refreshAndVerifySameMember(expectedMemberId: String): String {
+            refresh()
+            // 등록 확인 Repository는 회원 교체 시 Room을 지우므로 관찰·복구에서는 직접 조회합니다.
+            val response = apiService.getIsRegistered()
+            val memberId =
+                response.data?.takeIf { response.succeed && it.isRegistered }?.memberId?.takeIf { it.isNotBlank() }
+                    ?: throw MaestroSetupFailure("registration_failed")
+            if (memberId != expectedMemberId) throw MaestroSetupFailure("member_mismatch")
+            requireLocalMember(expectedMemberId)
+            return memberId
+        }
+
+        private suspend fun requireLocalMember(expectedMemberId: String) {
+            if (expectedMemberId.isBlank() || authRepository.getMemberId() != expectedMemberId) {
+                throw MaestroSetupFailure("member_mismatch")
+            }
+        }
+
+        private fun tokensForRestore(state: AuthState): TokenResponse {
+            val tokenResponse = state.lastTokenResponse ?: throw MaestroSetupFailure("untrusted_session")
+            val refreshToken = state.refreshToken?.takeIf { it.isNotBlank() } ?: throw MaestroSetupFailure("untrusted_session")
+            // AppAuth는 마지막 응답과 별도로 최신 refreshToken을 저장하므로 응답의 이전 값을 쓰지 않습니다
+            return TokenResponse.Builder(tokenResponse.request)
+                .setTokenType(tokenResponse.tokenType)
+                .setAccessToken(tokenResponse.accessToken)
+                .setAccessTokenExpirationTime(tokenResponse.accessTokenExpirationTime)
+                .setIdToken(tokenResponse.idToken)
+                .setRefreshToken(refreshToken)
+                .setScope(state.scope ?: tokenResponse.scope)
+                .setAdditionalParameters(tokenResponse.additionalParameters)
+                .build()
+        }
+
         fun currentState(): AuthState = authStateManager.getCurrent()
 
         suspend fun clearSession() {
             authRepository.clearSession()
             val state = authStateManager.getCurrent()
             if (state.isAuthorized || state.refreshToken != null || authRepository.getMemberId() != null) {
+                throw MaestroSetupFailure("local_session_clear_failed")
+            }
+        }
+
+        suspend fun clearTokens() {
+            authRepository.clearTokens()
+            val state = authStateManager.getCurrent()
+            if (state.isAuthorized || state.refreshToken != null) {
                 throw MaestroSetupFailure("local_session_clear_failed")
             }
         }

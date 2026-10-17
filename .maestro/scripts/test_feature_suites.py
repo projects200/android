@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Check suite validation and restoration failure boundaries without devices."""
 
+import contextlib
 import importlib.util
+import io
 import json
 from pathlib import Path
 import sys
@@ -254,6 +256,94 @@ class FeatureSuiteTests(unittest.TestCase):
         self.assertTrue(changed)
         self.assertNotIn("xy", cleaned)
         self.assertNotIn("42", cleaned)
+
+
+class InstalledSuiteTests(unittest.TestCase):
+    def test_all_selects_every_installed_case_and_keeps_orchestrated_helpers_out(self):
+        suites = runner.select_suites("all")
+        expected = [
+            "smoke-tabs", "exercise-form-entry", "exercise-crud",
+            "chatting-send", "chatting-receive", "chatting-list-refresh", "chatting-history",
+            "feed-post-crud", "feed-like", "feed-comment", "feed-photo", "feed-form-validation",
+            "matching-place-crud", "matching-place-validation", "matching-member-to-chat",
+            "offline-exercise-create", "offline-exercise-cached", "offline-exercise-missing",
+            "offline-timers-online", "offline-timers-mutate", "offline-timers-relaunch",
+            "offline-timers-after-reconnect", "offline-timers-reconnect",
+            "profile-edit", "profile-edit-validation", "profile-preferred-exercise", "profile-notification",
+            "timer-simple-preset-crud", "timer-simple-run", "timer-custom-crud", "timer-custom-run",
+            "timer-form-validation", "login-screen",
+        ]
+        self.assertEqual(runner.selected_flows(suites), expected)
+        self.assertEqual(runner.required_api(suites), 34)
+        installed = {path.stem for path in (runner.ROOT / ".maestro" / "flows").glob("*.yaml")}
+        self.assertEqual(installed - set(expected), {"chatting-open", "chatting-ready", "chatting-away"})
+        for name in ("chatting", "offline"):
+            suite = next(suite for suite in suites if suite["name"] == name)
+            self.assertEqual(suite["driver"], name)
+            self.assertTrue(callable(runner.load_feature_module(suite).run_suite))
+        self.assertEqual(
+            runner.selected_flows(runner.select_suites("ci")),
+            [flow for flow in expected if flow not in runner.FLOWS["regression"]],
+        )
+        self.assertEqual(
+            runner.selected_flows(runner.select_suites("offline")),
+            next(suite["flows"] for suite in suites if suite["name"] == "offline"),
+        )
+
+    def run_all(self, omit_offline_result=False):
+        suites = runner.select_suites("all")
+        ordinary = []
+        drivers = {}
+        for suite in suites:
+            if suite["driver"]:
+                flows = suite["flows"][:-1] if omit_offline_result and suite["name"] == "offline" else suite["flows"]
+                drivers[suite["name"]] = SimpleNamespace(run_suite=mock.Mock(
+                    return_value=[(flow, 1.0, []) for flow in flows],
+                ))
+
+        def run_ordinary(_args, _device, _suite, flow, *_rest):
+            ordinary.append(flow)
+            return (flow, 1.0, []), True
+
+        with tempfile.TemporaryDirectory(prefix="maestro-all-dispatch-") as directory:
+            root = Path(directory)
+            with (
+                mock.patch.object(runner, "ROOT", root),
+                mock.patch.object(runner, "select_suites", return_value=suites),
+                mock.patch.object(runner, "read_required_environment", return_value={}),
+                mock.patch.object(runner, "read_credentials", return_value={"fixtureStartDate": "2026-01-01"}),
+                mock.patch.object(runner, "Device"),
+                mock.patch.object(runner, "load_feature_module", side_effect=lambda suite: drivers.get(suite["name"])),
+                mock.patch.object(runner, "run_ordinary_flow", side_effect=run_ordinary),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                code = runner.run_suite(SimpleNamespace(suite="all", device="primary", apk=None,
+                                                       configure_emulator=False, flow_timeout=42))
+            reports = list((root / "build" / "maestro").glob("*/report.xml"))
+            self.assertEqual(len(reports), 1)
+            cases = {case.get("name"): case for case in runner.ET.parse(reports[0]).getroot().findall("testcase")}
+        return code, cases, ordinary, drivers
+
+    def test_all_dispatches_chat_and_offline_to_drivers_not_single_device_iteration(self):
+        code, cases, ordinary, drivers = self.run_all()
+        self.assertEqual(code, 0)
+        self.assertEqual(len(cases), 33)
+        self.assertIn("exercise-crud", ordinary)
+        for name, module in drivers.items():
+            module.run_suite.assert_called_once()
+            args, core = module.run_suite.call_args.args
+            self.assertEqual(args.device, "primary")
+            self.assertIs(core, runner)
+            self.assertFalse(any(flow.startswith(name + "-") for flow in ordinary))
+
+    def test_omitted_offline_phase_fails_and_blocks_later_suites_without_skip_green(self):
+        code, cases, ordinary, _drivers = self.run_all(omit_offline_result=True)
+        self.assertEqual(code, 1)
+        self.assertEqual(len(cases), 33)
+        self.assertIn("driver-flow-not-reported", cases["offline-timers-reconnect"].find("failure").get("message"))
+        for flow in ("profile-edit", "timer-custom-crud", "login-screen"):
+            self.assertNotIn(flow, ordinary)
+            self.assertIn("not-executed", cases[flow].find("failure").get("message"))
 
 
 if __name__ == "__main__":

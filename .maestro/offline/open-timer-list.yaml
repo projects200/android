@@ -1,0 +1,16 @@
+appId: com.project200.undabang
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- scrollUntilVisible:
+    element:
+      id: timer_btn
+    direction: UP
+    timeout: 30000
+- tapOn:
+    id: timer_btn
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_list
+    timeout: 30000

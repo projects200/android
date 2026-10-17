@@ -57,7 +57,8 @@ fun TimerListScreen(
             modifier
                 .fillMaxSize()
                 .background(ColorBackground)
-                .semantics { testTagsAsResourceId = true },
+                .semantics { testTagsAsResourceId = true }
+                .testTag("custom_timer_list"),
     ) {
         UndabangTopBar(
             title = stringResource(R.string.timer_title),

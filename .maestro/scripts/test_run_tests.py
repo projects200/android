@@ -258,6 +258,49 @@ class SessionTransportTests(unittest.TestCase):
         self.assertFalse((self.transport.root / runner.RESULT).exists())
         self.assert_no_credential_arguments()
 
+    def test_offline_observation_keeps_running_process_and_sends_no_auth_state(self):
+        self.transport.result = b'{"status":"observed"}'
+        request = {
+            "memberId": CREDENTIALS["memberId"], "runId": "0123456789abcdef0123456789abcdef",
+            "startedAt": "2026-10-15T09:00:00", "endedAt": "2026-10-15T10:00:00",
+            "stage": "timers-synced", "flow": "offline-timers-online",
+        }
+        self.device.bootstrap("offline-observe", request)
+        self.assertEqual(json.loads(self.transport.request_bytes), {"operation": "offline-observe", **request})
+        self.assertFalse(any("force-stop" in argv for argv, _env in self.transport.calls))
+        self.assertNotIn("authState", json.loads(self.transport.request_bytes))
+        self.assertEqual(self.transport.request_mode, 0o600)
+        self.assert_no_credential_arguments()
+
+    def test_offline_prerequisite_failures_use_only_allowlisted_messages(self):
+        self.transport.pending_sleeps = 0
+        for reason, expected in (
+            ("offline_cache_flag_disabled", "offline-suite-requires-enabled-cache-flag"),
+            ("offline_upload_not_observed", "offline-suite-requires-real-server-upload"),
+            (SYNTHETIC_SECRET, "bootstrap-offline-observe-failed"),
+        ):
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode()
+                self.assert_failure(expected, lambda: self.device.bootstrap("offline-observe", {"stage": "timers-synced"}))
+
+    def test_offline_preparation_uses_the_common_feature_contract_and_fixed_flag_failure(self):
+        self.transport.result = b'{"status":"failed","reason":"offline_cache_flag_disabled"}'
+        metadata = {
+            "feature": "offline", "flow": "offline-exercise-create",
+            "run_id": "0123456789abcdef0123456789abcdef",
+            "parameters": {"startedAt": "2026-10-15T09:00:00", "endedAt": "2026-10-15T10:00:00"},
+        }
+        self.assert_failure(
+            "offline-suite-requires-enabled-cache-flag",
+            lambda: self.device.bootstrap("prepare", CREDENTIALS, **metadata),
+        )
+        request = json.loads(self.transport.request_bytes)
+        self.assertEqual(request["operation"], "prepare")
+        self.assertEqual(request["feature"], "offline")
+        self.assertEqual(request["parameters"], metadata["parameters"])
+        self.assertEqual(request["authState"], CREDENTIALS["authState"])
+        self.assert_no_credential_arguments()
+
     def test_empty_and_malformed_results_fail_without_polling_again(self):
         self.transport.pending_sleeps = 0
         for payload in (b"", b" \n\t", b'{"status":', b"not-json"):

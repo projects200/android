@@ -82,7 +82,7 @@ fun CustomTimerScreen(
     modifier: Modifier = Modifier,
 ) {
     UndabangScaffold(
-        modifier = modifier.semantics { testTagsAsResourceId = true },
+        modifier = modifier.semantics { testTagsAsResourceId = true }.testTag("custom_timer_detail"),
         topBar = {
             UndabangTopBar(
                 title = title,

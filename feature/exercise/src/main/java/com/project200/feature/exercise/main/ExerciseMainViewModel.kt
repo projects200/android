@@ -63,6 +63,8 @@ class ExerciseMainViewModel
         // 초기값과 조회 실패가 삭제 검증의 빈 목록 선택자로 노출되지 않게 합니다.
         private val _isExerciseListLoaded = MutableLiveData(false)
         val isExerciseListLoaded: LiveData<Boolean> = _isExerciseListLoaded
+        private val _exerciseListError = MutableLiveData<BaseResult.Error?>(null)
+        val exerciseListError: LiveData<BaseResult.Error?> = _exerciseListError
         private var exerciseListRequestId = 0L
 
         private val expectedScoreInfo = MutableLiveData<ExpectedScoreInfo?>()
@@ -106,6 +108,7 @@ class ExerciseMainViewModel
         private fun loadExercisesForDate(date: LocalDate) {
             val requestId = ++exerciseListRequestId
             _isExerciseListLoaded.value = false
+            _exerciseListError.value = null
             viewModelScope.launch {
                 // 이전 요청의 완료 상태가 새 응답의 목록 관찰자에 전달되지 않게 먼저 해제합니다.
                 val result = getExerciseRecordListUseCase(date)
@@ -117,6 +120,9 @@ class ExerciseMainViewModel
                     }
                     is BaseResult.Error -> {
                         _exerciseList.value = emptyList() // 실패 시 빈 리스트
+                        if (requestId == exerciseListRequestId && date == _selectedDate.value) {
+                            _exerciseListError.value = result
+                        }
                         _toastMessage.value = result.message ?: "기록을 불러오는데 실패했습니다."
                     }
                 }

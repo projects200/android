@@ -1,0 +1,48 @@
+appId: com.project200.undabang
+---
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 30000
+- tapOn:
+    id: custom_timer_form_title_field
+- inputText: "${NEW_TIMER_TITLE}"
+- hideKeyboard
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- inputText: offline-step
+- hideKeyboard
+- runFlow:
+    file: set-timer-time.yaml
+    env:
+      TIMER_TIME_FIELD: custom_timer_form_new_step_time
+      TIMER_MINUTES: "00"
+      TIMER_SECONDS: "45"
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- assertVisible:
+    id: custom_timer_form_step_name_0
+    text: offline-step
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:45"
+- tapOn:
+    id: custom_timer_form_submit_btn
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_detail
+    timeout: 30000
+- assertVisible: "${NEW_TIMER_TITLE}"
+- assertVisible: offline-step
+- back
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_list
+    timeout: 30000

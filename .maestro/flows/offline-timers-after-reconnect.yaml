@@ -1,0 +1,22 @@
+appId: com.project200.undabang
+name: 접속 복귀 후 폼과 다시 연 목록의 최종 값
+---
+# launchApp/stopApp 없이 직전 폼을 그대로 관찰합니다.
+- runFlow: ../offline/assert-timer-draft.yaml
+- back
+- back
+- back
+- scrollUntilVisible:
+    element:
+      id: timer_btn
+    direction: UP
+    timeout: 30000
+# 새 목록 화면을 엽니다. 성공한 원격 GET이나 pending 상태에서의 병합 순서를 증명하지는 않습니다.
+- tapOn:
+    id: timer_btn
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_list
+    timeout: 30000
+- runFlow: ../offline/assert-timer-list.yaml
+- runFlow: ../offline/prepare-timer-draft.yaml

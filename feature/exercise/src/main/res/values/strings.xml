@@ -108,4 +108,6 @@
     <string name="theme_minimal">미니멀 테마</string>
     <string name="share_edit_title">사진 편집</string>
     <string name="share_image_required">공유하려면 사진이 필요해요</string>
+    <string name="exercise_calendar_record">운동 기록이 있는 날짜: %1$s</string>
+    <string name="exercise_list_network_error">%1$s 운동 기록 목록 네트워크 오류</string>
 </resources>

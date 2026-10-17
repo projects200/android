@@ -758,18 +758,22 @@ class Device:
 
     def bootstrap(self, operation, credentials=None, timeout=300, feature=None, flow=None,
                   run_id=None, parameters=None):
-        if operation not in ("prepare", "cleanup", "export"):
+        if operation not in ("prepare", "cleanup", "export", "offline-observe"):
             raise RunnerFailure("invalid-bootstrap-operation")
         metadata = feature_metadata(operation, feature, flow, run_id, parameters)
         request = {"operation": operation, **(credentials or {}), **metadata}
-        self.require("shell", "am", "force-stop", APP_ID)
+        # 관찰은 실행 중 Worker와 미저장 폼을 중단하거나 세션/Room을 초기화하지 않습니다.
+        if operation != "offline-observe":
+            self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         # shell -T는 PTY 없이 stdin과 원격 종료 상태를 전달합니다. argv에는 고정 명령만 넣습니다.
         script = "umask 077; mkdir -p files && cat > " + REQUEST
         self.require("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(script), payload=payload)
         self.require("shell", "am", "start", "-W", "-n", COMPONENT)
-        expected = {"prepare": "ready", "cleanup": "cleaned", "export": "exported"}[operation]
+        expected = {
+            "prepare": "ready", "cleanup": "cleaned", "export": "exported", "offline-observe": "observed",
+        }[operation]
         # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
         probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
         deadline = time.monotonic() + timeout
@@ -785,19 +789,28 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱의 reason도 외부 입력이므로 해당 기능에서 검토된 준비 코드만 고정 오류로 공개합니다.
+                # 외부 reason은 검토한 고정 분류만 공개합니다.
                 failure = "bootstrap-" + operation + "-failed"
-                if (operation == "prepare" and isinstance(result, dict)
-                        and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
-                    if feature == "profile":
-                        failure = PROFILE_PREPARE_FAILURES.get(result["reason"], failure)
-                    elif feature == "matching":
-                        failure = MATCHING_PREPARE_FAILURES.get(result["reason"], failure)
+                if isinstance(result, dict) and result.get("status") == "failed":
+                    reason = result.get("reason")
+                    if isinstance(reason, str):
+                        if operation == "prepare" and feature == "profile":
+                            failure = PROFILE_PREPARE_FAILURES.get(reason, failure)
+                        elif operation == "prepare" and feature == "matching":
+                            failure = MATCHING_PREPARE_FAILURES.get(reason, failure)
+                        elif feature == "offline" or operation == "offline-observe":
+                            failure = {
+                                "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
+                                "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
+                                "offline_exercise_server_mismatch": "offline-exercise-server-values-mismatch",
+                            }.get(reason, failure)
                 raise RunnerFailure(failure)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
             return variables
         raise RunnerFailure("bootstrap-" + operation + "-timeout")
+
+
 
 
 def secure_export_path(value):

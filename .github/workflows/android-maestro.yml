@@ -16,6 +16,7 @@ on:
           - regression
           - all
           - ci
+          - offline
 
 permissions:
   contents: read
@@ -68,7 +69,7 @@ jobs:
       cancel-in-progress: false
       queue: max
     env:
-      MAESTRO_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'ci' }}
+      MAESTRO_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'all' }}
     steps:
       - uses: actions/checkout@v4
         with:
