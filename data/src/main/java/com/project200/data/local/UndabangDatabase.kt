@@ -7,6 +7,7 @@ import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.dao.TimerDao
 import com.project200.data.local.entity.CustomTimerEntity
+import com.project200.data.local.entity.ExerciseCacheQueryEntity
 import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
@@ -23,10 +24,11 @@ import com.project200.data.local.entity.SimpleTimerEntity
         ExerciseCountEntity::class,
         ExerciseListItemEntity::class,
         ExerciseRecordDetailEntity::class,
+        ExerciseCacheQueryEntity::class,
         SimpleTimerEntity::class,
         CustomTimerEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(UndabangTypeConverters::class)
