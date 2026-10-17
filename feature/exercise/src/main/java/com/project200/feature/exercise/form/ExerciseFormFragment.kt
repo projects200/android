@@ -242,7 +242,10 @@ class ExerciseFormFragment : Fragment() {
         }
     }
 
-    private fun withCacheWarning(message: String, hasCacheWarning: Boolean): String =
+    private fun withCacheWarning(
+        message: String,
+        hasCacheWarning: Boolean,
+    ): String =
         if (hasCacheWarning) "$message\n${getString(R.string.exercise_saved_cache_refresh_fail)}" else message
 
     private fun notifyOwnWrite() {

@@ -42,7 +42,12 @@ class ExerciseDetailViewModel
         private var screenStarted = false
         private var localReadSinceStop = false
 
-        fun getExerciseRecord(recordId: String, refresh: Boolean = true, force: Boolean = false, localOnly: Boolean = false) {
+        fun getExerciseRecord(
+            recordId: String,
+            refresh: Boolean = true,
+            force: Boolean = false,
+            localOnly: Boolean = false,
+        ) {
             if (!force && initializedRecordId == recordId) return
             initializedRecordId = recordId
             val currentRequest = ++requestId

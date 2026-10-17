@@ -708,7 +708,8 @@ class ExerciseMainViewModelTest {
             coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any(), false, true) }
         }
 
-    private fun item(id: String, date: LocalDate) =
-        ExerciseListItem(id, "운동", "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)
-
+    private fun item(
+        id: String,
+        date: LocalDate,
+    ) = ExerciseListItem(id, "운동", "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)
 }

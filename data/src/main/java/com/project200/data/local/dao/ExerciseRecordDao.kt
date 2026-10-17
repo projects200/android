@@ -15,13 +15,23 @@ interface ExerciseRecordDao {
     suspend fun deleteQueries(memberId: String)
 
     @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND syncState = :synced")
-    suspend fun deleteSyncedList(memberId: String, synced: SyncState = SyncState.SYNCED)
+    suspend fun deleteSyncedList(
+        memberId: String,
+        synced: SyncState = SyncState.SYNCED,
+    )
 
     @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND syncState = :synced")
-    suspend fun deleteSyncedDetails(memberId: String, synced: SyncState = SyncState.SYNCED)
+    suspend fun deleteSyncedDetails(
+        memberId: String,
+        synced: SyncState = SyncState.SYNCED,
+    )
 
     @Query("SELECT EXISTS(SELECT 1 FROM exercise_cache_query WHERE memberId = :memberId AND queryType = :queryType AND date = :date)")
-    suspend fun hasQuery(memberId: String, queryType: String, date: LocalDate): Boolean
+    suspend fun hasQuery(
+        memberId: String,
+        queryType: String,
+        date: LocalDate,
+    ): Boolean
 
     @Upsert
     suspend fun saveQuery(query: ExerciseCacheQueryEntity)
@@ -30,10 +40,18 @@ interface ExerciseRecordDao {
         "SELECT COUNT(*) = :expectedDays FROM exercise_cache_query " +
             "WHERE memberId = :memberId AND queryType = 'count' AND date BETWEEN :startDate AND :endDate",
     )
-    suspend fun hasCountRange(memberId: String, startDate: LocalDate, endDate: LocalDate, expectedDays: Long): Boolean
+    suspend fun hasCountRange(
+        memberId: String,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        expectedDays: Long,
+    ): Boolean
 
     @Query("SELECT * FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId")
-    suspend fun getListItem(memberId: String, localId: String): ExerciseListItemEntity?
+    suspend fun getListItem(
+        memberId: String,
+        localId: String,
+    ): ExerciseListItemEntity?
 
     @Query("SELECT * FROM exercise_list_item WHERE memberId = :memberId AND date BETWEEN :startDate AND :endDate AND syncState != :synced")
     suspend fun getPendingInRange(
@@ -49,7 +67,10 @@ interface ExerciseRecordDao {
             "UNION SELECT serverId FROM exercise_record_detail " +
             "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
     )
-    suspend fun getAllPendingServerIds(memberId: String, synced: SyncState = SyncState.SYNCED): List<Long>
+    suspend fun getAllPendingServerIds(
+        memberId: String,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<Long>
 
     /** 화면은 진입할 때 한 번 읽습니다. 지속 구독을 두지 않아 그린 뒤 저절로 바뀌지 않습니다 */
     @Query(

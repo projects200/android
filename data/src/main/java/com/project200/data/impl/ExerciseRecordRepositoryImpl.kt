@@ -91,7 +91,11 @@ class ExerciseRecordRepositoryImpl
                 )
             }
 
-        override suspend fun getExerciseDetail(recordId: String, refresh: Boolean, localOnly: Boolean): BaseResult<ExerciseRecord> =
+        override suspend fun getExerciseDetail(
+            recordId: String,
+            refresh: Boolean,
+            localOnly: Boolean,
+        ): BaseResult<ExerciseRecord> =
             serialized {
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = if (enabled) localDataSource.currentMemberId() else null
@@ -182,7 +186,10 @@ class ExerciseRecordRepositoryImpl
                 BaseResult.Success(result.data.copy(recordId = id), error)
             }
 
-        override suspend fun updateExerciseRecord(record: ExerciseRecord, recordId: String): BaseResult<String> =
+        override suspend fun updateExerciseRecord(
+            record: ExerciseRecord,
+            recordId: String,
+        ): BaseResult<String> =
             serialized {
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = writeMemberId()
@@ -206,7 +213,10 @@ class ExerciseRecordRepositoryImpl
                 }
             }
 
-        override suspend fun uploadExerciseRecordImages(recordId: String, images: List<String>): BaseResult<String> =
+        override suspend fun uploadExerciseRecordImages(
+            recordId: String,
+            images: List<String>,
+        ): BaseResult<String> =
             serialized {
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = writeMemberId()
@@ -250,7 +260,10 @@ class ExerciseRecordRepositoryImpl
                 }
             }
 
-        override suspend fun deleteExerciseRecordImages(recordId: String, imageIds: List<Long>): BaseResult<Unit> =
+        override suspend fun deleteExerciseRecordImages(
+            recordId: String,
+            imageIds: List<Long>,
+        ): BaseResult<Unit> =
             serialized {
                 val enabled = featureFlagDataSource.isOfflineCacheEnabled()
                 val memberId = writeMemberId()
@@ -291,7 +304,10 @@ class ExerciseRecordRepositoryImpl
                 { dto: GetExerciseRecordData? -> dto?.toModel() ?: throw NoSuchElementException("운동 상세 정보 응답 데이터가 없습니다.") },
             )
 
-        private suspend fun serverId(recordId: String, memberId: String?): Long? =
+        private suspend fun serverId(
+            recordId: String,
+            memberId: String?,
+        ): Long? =
             recordId.toLongOrNull()?.takeIf { it > 0 }
                 ?: localDataSource.resolveServerId(recordId, memberId ?: localDataSource.currentMemberId())
 
@@ -316,7 +332,11 @@ class ExerciseRecordRepositoryImpl
                 cacheError(e)
             }
 
-        private suspend fun cacheAfterWrite(memberId: String?, enabled: Boolean, block: suspend () -> Unit): BaseResult.Error? {
+        private suspend fun cacheAfterWrite(
+            memberId: String?,
+            enabled: Boolean,
+            block: suspend () -> Unit,
+        ): BaseResult.Error? {
             if (!enabled) return invalidateAfterWrite(memberId)
             return try {
                 block()

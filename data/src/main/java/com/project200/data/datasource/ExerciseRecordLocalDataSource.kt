@@ -69,7 +69,11 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        suspend fun getCountsSnapshot(startDate: LocalDate, endDate: LocalDate, memberId: String?): List<ExerciseCount>? {
+        suspend fun getCountsSnapshot(
+            startDate: LocalDate,
+            endDate: LocalDate,
+            memberId: String?,
+        ): List<ExerciseCount>? {
             if (!isCurrentMember(memberId)) return null
             return database.withTransaction {
                 val counts = getCountsByRange(startDate, endDate, memberId)
@@ -98,12 +102,18 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        suspend fun getListByDate(date: LocalDate, memberId: String? = currentMemberId()): List<ExerciseListItem> {
+        suspend fun getListByDate(
+            date: LocalDate,
+            memberId: String? = currentMemberId(),
+        ): List<ExerciseListItem> {
             if (!isCurrentMember(memberId)) return emptyList()
             return exerciseRecordDao.getListByDate(memberId!!, date).map { it.toModel() }
         }
 
-        suspend fun getListSnapshot(date: LocalDate, memberId: String?): List<ExerciseListItem>? {
+        suspend fun getListSnapshot(
+            date: LocalDate,
+            memberId: String?,
+        ): List<ExerciseListItem>? {
             if (!isCurrentMember(memberId)) return null
             return database.withTransaction {
                 val items = getListByDate(date, memberId)
@@ -147,7 +157,10 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        suspend fun resolveServerId(recordId: String, memberId: String?): Long? {
+        suspend fun resolveServerId(
+            recordId: String,
+            memberId: String?,
+        ): Long? {
             if (!isCurrentMember(memberId)) return null
             val detail = exerciseRecordDao.getDetailByLocalId(memberId!!, recordId)
             val item = exerciseRecordDao.getListItem(memberId, recordId)
@@ -156,7 +169,10 @@ class ExerciseRecordLocalDataSource
             return recordId.toLongOrNull()?.takeIf { it > 0 }
         }
 
-        suspend fun getDetailByServerId(serverId: Long, memberId: String? = currentMemberId()): ExerciseRecord? {
+        suspend fun getDetailByServerId(
+            serverId: Long,
+            memberId: String? = currentMemberId(),
+        ): ExerciseRecord? {
             if (!isCurrentMember(memberId)) return null
             return exerciseRecordDao
                 .getDetailByServerId(memberId!!, serverId)
@@ -164,7 +180,10 @@ class ExerciseRecordLocalDataSource
                 ?.toModel()
         }
 
-        suspend fun getDetailByLocalId(localId: String, memberId: String? = currentMemberId()): ExerciseRecord? {
+        suspend fun getDetailByLocalId(
+            localId: String,
+            memberId: String? = currentMemberId(),
+        ): ExerciseRecord? {
             if (!isCurrentMember(memberId)) return null
             return exerciseRecordDao
                 .getDetailByLocalId(memberId!!, localId)
@@ -194,7 +213,11 @@ class ExerciseRecordLocalDataSource
         }
 
         /** 쓰기 성공 후 목록·상세·집계를 같은 트랜잭션으로 맞춥니다. 날짜 이동도 이전 날짜에서 뺍니다. */
-        suspend fun reconcileRecord(serverId: Long, record: ExerciseRecord, memberId: String?): String? {
+        suspend fun reconcileRecord(
+            serverId: Long,
+            record: ExerciseRecord,
+            memberId: String?,
+        ): String? {
             if (!isCurrentMember(memberId)) return null
             return database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction null
@@ -230,7 +253,10 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        suspend fun reconcileDeletedRecord(serverId: Long, memberId: String?) {
+        suspend fun reconcileDeletedRecord(
+            serverId: Long,
+            memberId: String?,
+        ) {
             if (!isCurrentMember(memberId)) return
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
@@ -249,7 +275,10 @@ class ExerciseRecordLocalDataSource
         }
 
         /** 업로드 응답에는 URL이 없습니다. 후속 상세 조회가 실패하면 오래된 이미지를 내보내지 않습니다. */
-        suspend fun invalidateImages(serverId: Long, memberId: String?) {
+        suspend fun invalidateImages(
+            serverId: Long,
+            memberId: String?,
+        ) {
             if (!isCurrentMember(memberId)) return
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
@@ -265,12 +294,19 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        private suspend fun localId(memberId: String, serverId: Long): String =
+        private suspend fun localId(
+            memberId: String,
+            serverId: Long,
+        ): String =
             exerciseRecordDao.findListItemLocalId(memberId, serverId)
                 ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
                 ?: newLocalId()
 
-        private suspend fun adjustCount(memberId: String, date: LocalDate, delta: Int) {
+        private suspend fun adjustCount(
+            memberId: String,
+            date: LocalDate,
+            delta: Int,
+        ) {
             val count = exerciseCountDao.getRange(memberId, date, date).singleOrNull()?.count ?: 0
             exerciseCountDao.upsertAll(listOf(ExerciseCountEntity(memberId, date, (count + delta).coerceAtLeast(0))))
         }

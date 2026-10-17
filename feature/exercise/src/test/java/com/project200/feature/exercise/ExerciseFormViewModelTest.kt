@@ -147,7 +147,10 @@ class ExerciseFormViewModelTest {
             )
     }
 
-    private fun setupViewModelForEditMode(record: ExerciseRecord = sampleRecord, editUseCase: EditExerciseRecordUseCase = mockEditUseCase) {
+    private fun setupViewModelForEditMode(
+        record: ExerciseRecord = sampleRecord,
+        editUseCase: EditExerciseRecordUseCase = mockEditUseCase,
+    ) {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel =
             ExerciseFormViewModel(

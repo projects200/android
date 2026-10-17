@@ -111,7 +111,11 @@ class ExerciseMainViewModel
             updateEarnablePoints()
         }
 
-        private fun loadExercisesForDate(date: LocalDate, refresh: Boolean = true, localOnly: Boolean = false) {
+        private fun loadExercisesForDate(
+            date: LocalDate,
+            refresh: Boolean = true,
+            localOnly: Boolean = false,
+        ) {
             val requestId = ++exerciseListRequestId
             _isExerciseListLoaded.value = false
             _exerciseListError.value = null
@@ -133,7 +137,12 @@ class ExerciseMainViewModel
             }
         }
 
-        private fun getExerciseCounts(yearMonth: YearMonth, today: LocalDate, refresh: Boolean = true, localOnly: Boolean = false) {
+        private fun getExerciseCounts(
+            yearMonth: YearMonth,
+            today: LocalDate,
+            refresh: Boolean = true,
+            localOnly: Boolean = false,
+        ) {
             val requestId = (monthRequestIds[yearMonth] ?: 0) + 1
             monthRequestIds[yearMonth] = requestId
             viewModelScope.launch {
@@ -270,7 +279,10 @@ class ExerciseMainViewModel
             localReadSinceStop = false
         }
 
-        private fun reloadExerciseQueries(refresh: Boolean, localOnly: Boolean = false) {
+        private fun reloadExerciseQueries(
+            refresh: Boolean,
+            localOnly: Boolean = false,
+        ) {
             val today = clockProvider.now()
             val visibleMonths = listOfNotNull(_selectedMonth.value, clockProvider.yearMonthNow()).toSet()
             val months = if (refresh) visibleMonths else exerciseCache.keys + visibleMonths
