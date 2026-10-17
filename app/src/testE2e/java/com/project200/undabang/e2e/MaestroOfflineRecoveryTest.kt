@@ -64,6 +64,7 @@ class MaestroOfflineRecoveryTest {
     private val preferences = PreferenceManager(context)
     private val protocol = MaestroSetupProtocol(context)
     private val offline = MaestroOfflineFixtures(api, mockk(), mockk())
+
     // 실제 AuthRepository가 clearAll을 호출하면 pending 증거가 사라지는 경계를 감지합니다.
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
     private val run =

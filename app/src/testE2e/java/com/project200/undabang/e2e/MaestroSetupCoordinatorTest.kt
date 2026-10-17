@@ -88,7 +88,8 @@ class MaestroSetupCoordinatorTest {
         runTest {
             every { protocol.consumeRequest() } returns
                 MaestroSetupRequest.OfflineObservation("dedicated-member", run, "timers-synced", feature)
-            every { protocol.validateFeatureRecovery(feature, required = true) } throws MaestroSetupFailure("feature_recovery_owner_mismatch")
+            every { protocol.validateFeatureRecovery(feature, required = true) } throws
+                MaestroSetupFailure("feature_recovery_owner_mismatch")
 
             coordinator.consumeRequest()
 
