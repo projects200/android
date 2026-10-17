@@ -19,6 +19,7 @@ import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import com.project200.feature.exercise.main.ExerciseMainViewModel
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -327,7 +328,8 @@ class ExerciseMainViewModelTest {
             // Then
             coVerify(exactly = 2) { mockGetScoreUseCase.invoke() }
             assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
-            assertThat(viewModel.score.value).isNull()
+            // 첫 화면에서 받은 점수는 새로고침 실패로 지우지 않습니다.
+            assertThat(viewModel.score.value).isEqualTo(Score(0))
         }
 
     @Test
@@ -582,11 +584,29 @@ class ExerciseMainViewModelTest {
     @Test
     fun `재연결 재바인딩 시간 경과에도 화면 내용과 선택 스크롤을 바꾸거나 다시 조회하지 않는다`() =
         runTest {
+            // 공통 설정 인스턴스의 초기 조회를 끝낸 뒤 검증 대상 인스턴스를 새로 만듭니다.
+            testDispatcher.scheduler.advanceUntilIdle()
             val connectivity = MutableStateFlow(true)
             coEvery { mockNetworkMonitor.networkState } returns connectivity
             coEvery { mockNetworkMonitor.isCurrentlyConnected() } answers { connectivity.value }
             val expected = listOf(item("visible-local", today))
             coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(expected)
+            clearMocks(
+                mockGetExerciseRecordListUseCase,
+                mockGetExerciseCountUseCase,
+                mockGetExpectedScoreInfoUseCase,
+                answers = false,
+            )
+            viewModel =
+                ExerciseMainViewModel(
+                    mockGetExerciseCountUseCase,
+                    mockGetScoreUseCase,
+                    mockGetScorePolicyUseCase,
+                    mockGetExerciseRecordListUseCase,
+                    mockGetExpectedScoreInfoUseCase,
+                    mockClockProvider,
+                    mockNetworkMonitor,
+                )
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.scrollPosition = 240
             connectivity.value = false
