@@ -58,7 +58,7 @@ fun ExerciseRecord.toPatchExerciseDTO(): PatchExerciseRequestDto {
 
 fun GetExerciseRecordListDto.toModel(): ExerciseListItem {
     return ExerciseListItem(
-        recordId = this.exerciseId,
+        recordId = this.exerciseId.toString(),
         title = this.exerciseTitle,
         type = this.exercisePersonalType,
         startTime = this.exerciseStartedAt,
@@ -69,7 +69,7 @@ fun GetExerciseRecordListDto.toModel(): ExerciseListItem {
 
 fun PostExerciseResponseDTO.toModel(): ExerciseRecordCreationResult {
     return ExerciseRecordCreationResult(
-        recordId = this.exerciseId,
+        recordId = this.exerciseId.toString(),
         earnedPoints = this.earnedPoints,
     )
 }

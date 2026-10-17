@@ -34,19 +34,19 @@ class MaestroFixtureCleanerTest {
                         item(4, "$title-extra"),
                     ),
                 )
-            coEvery { exerciseRecordRepository.getExerciseDetail(1) } returns success(detail(title))
-            coEvery { exerciseRecordRepository.getExerciseDetail(2) } returns success(detail("$title-edited"))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title))
+            coEvery { exerciseRecordRepository.getExerciseDetail("2") } returns success(detail("$title-edited"))
             coEvery { exerciseRecordRepository.deleteExerciseRecord(any()) } returns success(Unit)
 
             // When
             cleaner.clean(today, today)
 
             // Then
-            coVerify(exactly = 1) { exerciseRecordRepository.deleteExerciseRecord(1) }
-            coVerify(exactly = 1) { exerciseRecordRepository.deleteExerciseRecord(2) }
-            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(3) }
-            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(4) }
-            coVerify(exactly = 0) { exerciseRecordRepository.getExerciseDetail(3) }
+            coVerify(exactly = 1) { exerciseRecordRepository.deleteExerciseRecord("1") }
+            coVerify(exactly = 1) { exerciseRecordRepository.deleteExerciseRecord("2") }
+            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord("3") }
+            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord("4") }
+            coVerify(exactly = 0) { exerciseRecordRepository.getExerciseDetail("3") }
         }
 
     @Test
@@ -56,7 +56,7 @@ class MaestroFixtureCleanerTest {
             coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
                 success(listOf(ExerciseCount(today, 1)))
             coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail(1) } returns success(detail("my real exercise"))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail("my real exercise"))
 
             // When
             cleaner.clean(today, today)
@@ -123,18 +123,42 @@ class MaestroFixtureCleanerTest {
             coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
                 success(listOf(ExerciseCount(today, 1)))
             coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail(1) } returns success(detail(title))
-            coEvery { exerciseRecordRepository.deleteExerciseRecord(1) } returns serverError()
+            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title))
+            coEvery { exerciseRecordRepository.deleteExerciseRecord("1") } returns serverError()
 
             // When, Then
             expectFailure("fixture_delete_failed") { cleaner.clean(today, today) }
+        }
+
+    @Test
+    fun `오프라인 스냅샷이나 갱신 실패를 근거로 기록을 지우지 않는다`() =
+        runTest {
+            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+                BaseResult.Success(listOf(ExerciseCount(today, 1)), isCachedSnapshot = true)
+            expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
+            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
+
+            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+                BaseResult.Success(listOf(ExerciseCount(today, 1)), refreshError = BaseResult.Error("401", "인증 실패"))
+            expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
+            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `상세에 대기 변경이 남아 있으면 서버 삭제를 실행하지 않는다`() =
+        runTest {
+            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns success(listOf(ExerciseCount(today, 1)))
+            coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title).copy(syncPending = true, canModify = false))
+            expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
+            coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
         }
 
     private fun item(
         id: Long,
         itemTitle: String,
         date: LocalDate = today,
-    ) = ExerciseListItem(id, itemTitle, "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)
+    ) = ExerciseListItem(id.toString(), itemTitle, "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)
 
     private fun detail(recordTitle: String) = ExerciseRecord(recordTitle, "", "OTHER", today.atTime(9, 0), today.atTime(10, 0), "", null)
 

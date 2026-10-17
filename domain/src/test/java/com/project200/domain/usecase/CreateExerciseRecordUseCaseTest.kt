@@ -31,7 +31,7 @@ class CreateExerciseRecordUseCaseTest {
         title = "테스트", detail = "", personalType = "",
         startedAt = LocalDateTime.now(), endedAt = LocalDateTime.now(), location = "", pictures = null
     )
-    private val recordId = 1L
+    private val recordId = "record-1"
     private val earnedPoints = 3
     private val creationResult = ExerciseRecordCreationResult(recordId, earnedPoints)
 

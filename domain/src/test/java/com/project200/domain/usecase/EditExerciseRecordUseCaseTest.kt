@@ -32,7 +32,7 @@ class EditExerciseRecordUseCaseTest {
     private lateinit var useCase: EditExerciseRecordUseCase
 
     // 테스트용 데이터
-    private val recordId = 1L
+    private val recordId = "record-1"
     private val recordToUpdate = ExerciseRecord(
         title = "title", detail = "detail", personalType = "type",
         startedAt = LocalDateTime.now(), endedAt = LocalDateTime.now(), location = "loc", pictures = null
@@ -155,4 +155,29 @@ class EditExerciseRecordUseCaseTest {
         assertThat(result).isInstanceOf(ExerciseEditResult.ImageFailure::class.java)
         assertThat((result as ExerciseEditResult.ImageFailure).message).isEqualTo(error.message)
     }
+    @Test
+    fun `내용 수정과 이미지 작업의 캐시 경고는 성공으로 합치고 서버 작업을 재시도하지 않는다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "로컬 반영 실패")
+        coEvery { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) } returns BaseResult.Success(recordId, warning)
+        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns BaseResult.Success(Unit, warning)
+        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns BaseResult.Success(recordId, warning)
+        val result = useCase(recordId, recordToUpdate, true, imagesToDelete, newImages) as ExerciseEditResult.Success
+        assertThat(result.refreshError).isEqualTo(warning)
+        coVerify(exactly = 1) { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) }
+        coVerify(exactly = 1) { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) }
+        coVerify(exactly = 1) { mockUploadExerciseRecordImagesUseCase(recordId, newImages) }
+    }
+
+    @Test
+    fun `내용 변경 없이 이미지 삭제나 업로드만 성공해도 캐시 경고를 잃지 않는다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "이미지 로컬 반영 실패")
+        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns BaseResult.Success(Unit, warning)
+        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns BaseResult.Success(recordId, warning)
+        val deleted = useCase(recordId, recordToUpdate, false, imagesToDelete, emptyList()) as ExerciseEditResult.Success
+        val uploaded = useCase(recordId, recordToUpdate, false, emptyList(), newImages) as ExerciseEditResult.Success
+        assertThat(deleted.refreshError).isEqualTo(warning)
+        assertThat(uploaded.refreshError).isEqualTo(warning)
+        coVerify(exactly = 0) { mockUpdateExerciseRecordUseCase(any(), any()) }
+    }
+
 }

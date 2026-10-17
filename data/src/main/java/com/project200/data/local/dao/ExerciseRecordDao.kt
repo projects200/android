@@ -3,6 +3,7 @@ package com.project200.data.local.dao
 import androidx.room.Dao
 import androidx.room.Query
 import androidx.room.Upsert
+import com.project200.data.local.entity.ExerciseCacheQueryEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.SyncState
@@ -10,6 +11,45 @@ import java.time.LocalDate
 
 @Dao
 interface ExerciseRecordDao {
+    @Query("DELETE FROM exercise_cache_query WHERE memberId = :memberId")
+    suspend fun deleteQueries(memberId: String)
+
+    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND syncState = :synced")
+    suspend fun deleteSyncedList(memberId: String, synced: SyncState = SyncState.SYNCED)
+
+    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND syncState = :synced")
+    suspend fun deleteSyncedDetails(memberId: String, synced: SyncState = SyncState.SYNCED)
+
+    @Query("SELECT EXISTS(SELECT 1 FROM exercise_cache_query WHERE memberId = :memberId AND queryType = :queryType AND date = :date)")
+    suspend fun hasQuery(memberId: String, queryType: String, date: LocalDate): Boolean
+
+    @Upsert
+    suspend fun saveQuery(query: ExerciseCacheQueryEntity)
+
+    @Query(
+        "SELECT COUNT(*) = :expectedDays FROM exercise_cache_query " +
+            "WHERE memberId = :memberId AND queryType = 'count' AND date BETWEEN :startDate AND :endDate",
+    )
+    suspend fun hasCountRange(memberId: String, startDate: LocalDate, endDate: LocalDate, expectedDays: Long): Boolean
+
+    @Query("SELECT * FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId")
+    suspend fun getListItem(memberId: String, localId: String): ExerciseListItemEntity?
+
+    @Query("SELECT * FROM exercise_list_item WHERE memberId = :memberId AND date BETWEEN :startDate AND :endDate AND syncState != :synced")
+    suspend fun getPendingInRange(
+        memberId: String,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        synced: SyncState = SyncState.SYNCED,
+    ): List<ExerciseListItemEntity>
+
+    /** 날짜를 옮긴 대기 행과 목록/상세 중 한쪽에만 있는 대기 행도 보호합니다. */
+    @Query(
+        "SELECT serverId FROM exercise_list_item WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced " +
+            "UNION SELECT serverId FROM exercise_record_detail WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
+    )
+    suspend fun getAllPendingServerIds(memberId: String, synced: SyncState = SyncState.SYNCED): List<Long>
+
     /** 화면은 진입할 때 한 번 읽습니다. 지속 구독을 두지 않아 그린 뒤 저절로 바뀌지 않습니다 */
     @Query(
         "SELECT * FROM exercise_list_item " +
@@ -86,7 +126,7 @@ interface ExerciseRecordDao {
         localId: String,
     ): ExerciseRecordDetailEntity?
 
-    /** 화면이 아직 서버 ID로 상세에 들어옵니다. localId 기준 진입은 #584에서 바뀝니다 */
+    /** 서버 식별자는 원격 요청 경계에서만 사용합니다. 화면은 localId로 들어옵니다. */
     @Query("SELECT * FROM exercise_record_detail WHERE memberId = :memberId AND serverId = :serverId")
     suspend fun getDetailByServerId(
         memberId: String,
@@ -124,10 +164,11 @@ interface ExerciseRecordDao {
     )
 
     /** 서버 목록에서 사라진 기록의 상세를 함께 정리합니다 */
-    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId IN (:localIds)")
+    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId IN (:localIds) AND syncState = :synced")
     suspend fun deleteDetailsByLocalIds(
         memberId: String,
         localIds: List<String>,
+        synced: SyncState = SyncState.SYNCED,
     )
 
     @Upsert

@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.ClockProvider
+import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExpectedScoreInfo
@@ -31,12 +32,22 @@ class ExerciseMainViewModel
         private val getExerciseRecordListUseCase: GetExerciseRecordListUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
         private val clockProvider: ClockProvider,
+        private val networkMonitor: NetworkMonitor,
     ) : ViewModel() {
         private val _selectedMonth = MutableLiveData<YearMonth>()
         val selectedMonth: LiveData<YearMonth> = _selectedMonth
 
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
+        private val _pendingDates = MutableLiveData<Set<LocalDate>>(emptySet())
+        val pendingDates: LiveData<Set<LocalDate>> = _pendingDates
+        private val pendingDateCache = mutableMapOf<YearMonth, Set<LocalDate>>()
+        private val monthRequestIds = mutableMapOf<YearMonth, Long>()
+        private var refreshNotificationShown = false
+        var scrollPosition = 0
+        private var hasStarted = false
+        private var screenStarted = false
+        private var localReadSinceStop = false
 
         private val _toastMessage = MutableLiveData<String?>()
         val toastMessage: LiveData<String?> = _toastMessage
@@ -63,6 +74,8 @@ class ExerciseMainViewModel
         // 초기값과 조회 실패가 삭제 검증의 빈 목록 선택자로 노출되지 않게 합니다.
         private val _isExerciseListLoaded = MutableLiveData(false)
         val isExerciseListLoaded: LiveData<Boolean> = _isExerciseListLoaded
+        private val _exerciseListError = MutableLiveData<BaseResult.Error?>()
+        val exerciseListError: LiveData<BaseResult.Error?> = _exerciseListError
         private var exerciseListRequestId = 0L
 
         private val expectedScoreInfo = MutableLiveData<ExpectedScoreInfo?>()
@@ -71,85 +84,85 @@ class ExerciseMainViewModel
         val earnablePoints: LiveData<Int> = _earnablePoints
 
         init {
-            if (_selectedMonth.value == null) {
-                _selectedMonth.value = clockProvider.yearMonthNow()
-            }
-
             val today = clockProvider.now()
             _selectedMonth.value = YearMonth.from(today)
-            _selectedDate.value = today // 오늘 날짜를 기본 선택 날짜로 설정
-
-            getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
+            _selectedDate.value = today
+            getExerciseCounts(YearMonth.from(today), today)
             loadScorePolicy()
-            loadExercisesForDate(today) // 앱 시작 시 오늘 날짜의 운동 목록 로드
+            getScore()
+            loadExpectedScoreInfo()
+            loadExercisesForDate(today)
         }
 
         fun onMonthChanged(newMonth: YearMonth) {
-            // 중복 호출 방지
             if (_selectedMonth.value == newMonth) return
-
             _selectedMonth.value = newMonth
-
-            if (!exerciseCache.containsKey(newMonth)) { // 캐시에 데이터가 있으면 캐시 데이터를 사용하고 api 호출 x
-                getExerciseCounts(newMonth, clockProvider.now())
-            }
+            refreshNotificationShown = false
+            if (!exerciseCache.containsKey(newMonth)) getExerciseCounts(newMonth, clockProvider.now())
         }
 
         fun onDateSelected(date: LocalDate) {
+            if (_selectedDate.value == date) return
+            refreshNotificationShown = false
             _isExerciseListLoaded.value = false
             _selectedDate.value = date
+            _exerciseList.value = emptyList()
             loadExercisesForDate(date)
             updateEarnablePoints()
         }
 
-        // --- 특정 날짜의 운동 목록을 가져오는 함수 ---
-        private fun loadExercisesForDate(date: LocalDate) {
+        private fun loadExercisesForDate(date: LocalDate, refresh: Boolean = true, localOnly: Boolean = false) {
             val requestId = ++exerciseListRequestId
             _isExerciseListLoaded.value = false
+            _exerciseListError.value = null
             viewModelScope.launch {
-                // 이전 요청의 완료 상태가 새 응답의 목록 관찰자에 전달되지 않게 먼저 해제합니다.
-                val result = getExerciseRecordListUseCase(date)
-                _isExerciseListLoaded.value = false
+                val result = getExerciseRecordListUseCase(date, refresh, localOnly)
+                // 이전 날짜 또는 이전 갱신의 응답은 행·오류·완료 상태 어느 것도 바꾸지 않습니다.
+                if (requestId != exerciseListRequestId || date != _selectedDate.value) return@launch
                 when (result) {
                     is BaseResult.Success -> {
                         _exerciseList.value = result.data
-                        _isExerciseListLoaded.value = requestId == exerciseListRequestId && date == _selectedDate.value
+                        _isExerciseListLoaded.value = true
+                        result.refreshError?.let { notifyRefreshError(it) }
                     }
                     is BaseResult.Error -> {
-                        _exerciseList.value = emptyList() // 실패 시 빈 리스트
-                        _toastMessage.value = result.message ?: "기록을 불러오는데 실패했습니다."
+                        _exerciseListError.value = result
+                        notifyRefreshError(result)
                     }
                 }
             }
         }
 
-        // 캘린더 한달 운동 조회
-        private fun getExerciseCounts(
-            yearMonth: YearMonth,
-            today: LocalDate,
-        ) {
+        private fun getExerciseCounts(yearMonth: YearMonth, today: LocalDate, refresh: Boolean = true, localOnly: Boolean = false) {
+            val requestId = (monthRequestIds[yearMonth] ?: 0) + 1
+            monthRequestIds[yearMonth] = requestId
             viewModelScope.launch {
-                val startDate = yearMonth.atDay(1)
-                // 이번 달인 경우, 끝 날짜를 오늘로 설정
                 val endDate = if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
-
-                when (val result = getExerciseCountInMonthUseCase(startDate, endDate)) {
+                val result = getExerciseCountInMonthUseCase(yearMonth.atDay(1), endDate, refresh, localOnly)
+                if (monthRequestIds[yearMonth] != requestId) return@launch
+                when (result) {
                     is BaseResult.Success -> {
-                        // 운동 기록 횟수 set 으로 변환
-                        val datesWithExercise =
-                            result.data
-                                .filter { it.count > 0 }
-                                .map { it.date }
-                                .toSet()
-
-                        exerciseCache[yearMonth] = datesWithExercise
+                        exerciseCache[yearMonth] = result.data.filter { it.count > 0 }.map { it.date }.toSet()
+                        pendingDateCache[yearMonth] = result.data.filter { it.syncPending }.map { it.date }.toSet()
                         _exerciseDates.value = exerciseCache.values.flatten().toSet()
+                        _pendingDates.value = pendingDateCache.values.flatten().toSet()
+                        if (yearMonth == clockProvider.yearMonthNow()) _exerciseCount.value = result.data.sumOf { it.count }
+                        result.refreshError?.let { notifyRefreshError(it) }
                     }
-                    is BaseResult.Error -> {
-                        _toastMessage.value = result.message
-                    }
+                    is BaseResult.Error -> notifyRefreshError(result)
                 }
             }
+        }
+
+        private fun notifyRefreshError(error: BaseResult.Error) {
+            if (error.errorCode == "NETWORK_ERROR" && !networkMonitor.isCurrentlyConnected()) return
+            if (refreshNotificationShown) return
+            refreshNotificationShown = true
+            _toastMessage.value = error.message ?: "기록을 새로고침하지 못했습니다."
+        }
+
+        fun consumeToastMessage() {
+            _toastMessage.value = null
         }
 
         // 점수 정책 조회
@@ -160,30 +173,12 @@ class ExerciseMainViewModel
                         _scorePolicy.value = result.data
                     }
                     is BaseResult.Error -> {
-                        _toastMessage.value = result.message
+                        notifyRefreshError(result)
                     }
                 }
             }
         }
 
-        // 이번 달 운동 횟수 조회
-        private fun getExerciseCntThisMonth(
-            yearMonth: YearMonth,
-            today: LocalDate,
-        ) {
-            viewModelScope.launch {
-                when (val result = getExerciseCountInMonthUseCase(yearMonth.atDay(1), today)) {
-                    is BaseResult.Success -> {
-                        val totalCount = result.data.sumOf { it.count }
-                        _exerciseCount.value = totalCount
-                    }
-                    is BaseResult.Error -> {
-                        _toastMessage.value = result.message
-                        _exerciseCount.value = 0 // 에러 발생 시 횟수를 0으로 설정
-                    }
-                }
-            }
-        }
 
         private fun getScore() {
             viewModelScope.launch {
@@ -192,7 +187,7 @@ class ExerciseMainViewModel
                         _score.value = result.data
                     }
                     is BaseResult.Error -> {
-                        _toastMessage.value = result.message
+                        notifyRefreshError(result)
                     }
                 }
             }
@@ -244,15 +239,42 @@ class ExerciseMainViewModel
             }
         }
 
+        /** 명시적 새로고침만 서버에 요청합니다. 선택 날짜·월·스크롤은 유지합니다. */
         fun refreshData() {
-            exerciseCache.clear()
-            _selectedMonth.value?.let {
-                getExerciseCounts(it, clockProvider.now())
-            }
-            _selectedDate.value?.let {
-                loadExercisesForDate(it)
-            }
-            getExerciseCntThisMonth(clockProvider.yearMonthNow(), clockProvider.now())
+            refreshNotificationShown = false
+            reloadExerciseQueries(refresh = true)
             getScore()
+        }
+
+        /** 자신의 생성·수정·삭제 후에는 캐시 우선으로 읽고, 온라인 미적중만 갱신합니다. */
+        fun onOwnWrite() {
+            localReadSinceStop = true
+            refreshNotificationShown = false
+            reloadExerciseQueries(refresh = false)
+            getScore()
+            loadExpectedScoreInfo()
+        }
+
+        /** 첫 시작은 init 조회를 유지하고, 복귀는 네트워크 없이 한 번만 다시 읽습니다. */
+        fun onScreenStarted() {
+            if (screenStarted) return
+            screenStarted = true
+            if (hasStarted && !localReadSinceStop) {
+                reloadExerciseQueries(refresh = false, localOnly = true)
+            }
+            hasStarted = true
+        }
+
+        fun onScreenStopped() {
+            screenStarted = false
+            localReadSinceStop = false
+        }
+
+        private fun reloadExerciseQueries(refresh: Boolean, localOnly: Boolean = false) {
+            val today = clockProvider.now()
+            val visibleMonths = listOfNotNull(_selectedMonth.value, clockProvider.yearMonthNow()).toSet()
+            val months = if (refresh) visibleMonths else exerciseCache.keys + visibleMonths
+            months.forEach { getExerciseCounts(it, today, refresh, localOnly) }
+            _selectedDate.value?.let { loadExercisesForDate(it, refresh, localOnly) }
         }
     }

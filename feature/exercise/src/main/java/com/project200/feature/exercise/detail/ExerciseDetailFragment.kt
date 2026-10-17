@@ -16,11 +16,11 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.project200.domain.model.BaseResult
+import com.project200.feature.exercise.main.ExerciseMainFragment
 import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.compose.components.feedback.UndabangAlertDialogFragment
 import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.UiState
-import com.project200.presentation.utils.mapFailureToString
 import com.project200.undabang.feature.exercise.R
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
@@ -48,6 +48,7 @@ class ExerciseDetailFragment : Fragment() {
                     onBackClick = { findNavController().navigateUp() },
                     onShareClick = ::handleShareClick,
                     onMenuClick = ::showExerciseDetailMenu,
+                    onRefreshClick = { viewModel.getExerciseRecord(args.recordId, force = true) },
                 )
             }
         }
@@ -61,21 +62,21 @@ class ExerciseDetailFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
-                    viewModel.exerciseRecord.collect { state ->
-                        // 에러 시 토스트
-                        if (state is UiState.Error) {
-                            Toast.makeText(
-                                requireContext(),
-                                requireContext().mapFailureToString(state.failure),
-                                Toast.LENGTH_SHORT,
-                            ).show()
-                        }
+                    viewModel.refreshMessages.collect { message ->
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
                     }
                 }
                 launch {
                     viewModel.deleteResult.collect { result ->
+                        viewModel.consumeDeleteResult()
                         when (result) {
-                            is BaseResult.Success -> findNavController().popBackStack()
+                            is BaseResult.Success -> {
+                                if (result.refreshError != null) {
+                                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
+                                }
+                                parentFragmentManager.setFragmentResult(ExerciseMainFragment.KEY_EXERCISE_WRITTEN, Bundle())
+                                findNavController().popBackStack()
+                            }
                             is BaseResult.Error -> {
                                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
                             }
@@ -93,7 +94,7 @@ class ExerciseDetailFragment : Fragment() {
         val savedStateHandle = findNavController().currentBackStackEntry?.savedStateHandle
         savedStateHandle?.getLiveData<Boolean>(KEY_RECORD_UPDATED)?.observe(viewLifecycleOwner) { shouldRefresh ->
             if (shouldRefresh) {
-                viewModel.getExerciseRecord(args.recordId)
+                viewModel.onOwnWrite(args.recordId)
                 savedStateHandle.remove<Boolean>(KEY_RECORD_UPDATED)
             }
         }
@@ -131,6 +132,16 @@ class ExerciseDetailFragment : Fragment() {
             onCancel = {},
             onConfirm = { viewModel.deleteExerciseRecord(args.recordId) },
         )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        viewModel.onScreenStarted(args.recordId)
+    }
+
+    override fun onStop() {
+        viewModel.onScreenStopped()
+        super.onStop()
     }
 
     companion object {
