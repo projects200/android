@@ -149,7 +149,8 @@ class MaestroFixtureCleanerTest {
         runTest {
             coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns success(listOf(ExerciseCount(today, 1)))
             coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title).copy(syncPending = true, canModify = false))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns
+                success(detail(title).copy(syncPending = true, canModify = false))
             expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
             coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
         }
