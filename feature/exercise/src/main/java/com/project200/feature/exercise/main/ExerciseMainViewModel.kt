@@ -188,7 +188,6 @@ class ExerciseMainViewModel
             }
         }
 
-
         private fun getScore() {
             viewModelScope.launch {
                 when (val result = getScoreUseCase()) {
