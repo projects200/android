@@ -205,10 +205,13 @@ class ChattingRoomFragment : BindingFragment<FragmentChattingRoomBinding>(R.layo
                         combine(viewModel.isReady, viewModel.readinessDebugState) { ready, debugState ->
                             ready to debugState
                         }.collect { (ready, debugState) ->
-                            // 방 ID·상대 ID와 각 준비 조건을 함께 노출합니다.
+                            // 방·상대 일치용 준비 마커는 고정하고, 진단 상태는 로딩 중에만 노출합니다.
                             binding.chattingMessageRv.contentDescription =
-                                "chat-${if (ready) "ready" else "loading"}:" +
-                                    "${args.roomId}:peer:${args.memberId}:$debugState"
+                                if (ready) {
+                                    "chat-ready:${args.roomId}:peer:${args.memberId}"
+                                } else {
+                                    "chat-loading:${args.roomId}:peer:${args.memberId}:$debugState"
+                                }
                         }
                     }
                 }

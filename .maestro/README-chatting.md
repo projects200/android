@@ -34,9 +34,10 @@
 닉네임은 이 응답에서 얻습니다. 임의 공개 회원·동명이인·임의 위치로 방을 대신 만들지 않습니다.
 외부에서는 두 계정과 이 방을 다른 실행이나 수동 대화에 쓰지 않아야 합니다.
 
-**현재 외부 미제공 전제:** 독립 B 세션·회원 ID·fixture 시작일과 실제 A/B 전용 방 ID가
-제공되었다는 증거가 없습니다. 네 값을 제공하고 실제 CI가 실행되기 전까지 채팅 성공을
-주장할 수 없습니다. 저장된 refresh token의 영구 유효성이나 회전 후 재사용도 보장하지 않습니다.
+환경 메타데이터와 최신 CI preflight는 필수 입력이 모두 등록되었음을 확인했습니다.
+실제 `run39001687162`에서는 smoke와 양쪽 actor의 인증·방/상대 준비를 통과했습니다.
+이 결과가 저장된 refresh token의 영구 유효성이나 회전 후 재사용을 보장하지는 않습니다.
+준비 단계 성공만으로 실제 두 기기의 채팅 성공을 주장할 수 없습니다.
 
 ## 기기와 실행 계약
 
@@ -54,8 +55,14 @@ A와 B serial은 달라야 합니다. 없으면 드라이버는 A의 `emu avd na
 찾아 `emulator -avd <name> -read-only -no-snapshot -port <빈 짝수 포트>`로 두 번째 인스턴스를
 띄웁니다. 콘솔/ADB 포트 쌍을 확인하고 실제 `sys.boot_completed=1`까지 폴링합니다.
 기존 AVD 이미지는 수정하지 않습니다. 종료 시 read-only 인스턴스의 임시 변경은 폐기됩니다.
+CI의 A와 자동 생성 B는 `-read-only`·`-gpu swiftshader`를 사용합니다.
 자동 시작은 에뮬레이터 A와 SDK의 `emulator` 도구를 요구합니다. 실기기 A라면
 `--peer-device`로 독립 장치를 지정합니다.
+
+자동 시작 중 프로세스가 종료되면 `chat-peer-emulator-exited`, 240초 안에 부팅되지 않으면
+`chat-peer-emulator-boot-timeout`으로 실패합니다. 시작 예외에서는 기존 SIGTERM/SIGKILL·wait
+정리를 유지합니다. stdout/stderr는 `DEVNULL`로 버립니다. 정상 부팅한 B는 계속 실행하며,
+teardown의 복구용 B 보존 판단은 바꾸지 않습니다.
 
 드라이버는 `--apk`를 필수로 받아 **같은 정확한 E2E APK를 양쪽에 설치**합니다.
 공통 `Device.install`의 실제 APK ARM 라이브러리/유효 ABI 검사를 양쪽에서 유지합니다.
@@ -71,7 +78,7 @@ DEV 인증·REST·WebSocket 서비스 접근도 필요합니다. 연결 실패�
 1. 드라이버는 A와 B를 각각 clear/authenticate/feature prepare하고 검증된 방·상대 값을 받습니다.
    이 준비를 마친 후에는 마지막 teardown 전까지 bootstrap을 상태 조회용으로 호출하지 않습니다.
 2. B가 정확한 방에 먼저 들어갑니다. 최초 REST 이력과 누락 이력이 모두 성공하고 해당 방의
-   실제 WebSocket `onOpen` 상태여야 `chat-ready:<room>:peer:<member>`가 노출됩니다.
+   실제 WebSocket `onOpen` 상태여야 접미사 없는 `chat-ready:<room>:peer:<member>`가 노출됩니다.
    입력창 활성이나 임의 대기 시간만으로 준비를 대신하지 않습니다.
 3. B에서 M1 부재를 확인한 뒤 A가 UI로 M1을 보냅니다. B는 같은 화면·ViewModel·소켓을 유지한 채
    incoming M1을 확인합니다. B의 목록 미리보기를 확인한 다음 B가 UI로 M2를 답장합니다.
@@ -95,7 +102,9 @@ DEV 인증·REST·WebSocket 서비스 접근도 필요합니다. 연결 실패�
 ## 정확한 selector와 자료
 
 - 방 행: `chat-room:<실제 roomId>:peer:<실제 상대 memberId>`.
-- 방 준비: `chat-ready:<동일 roomId>:peer:<동일 상대 memberId>`.
+- 방 준비: `chat-ready:<동일 roomId>:peer:<동일 상대 memberId>`와 정확히 일치하며 진단 접미사는 없습니다.
+  로딩 중에만 `chat-loading:<동일 roomId>:peer:<동일 상대 memberId>:<진단 상태>`로
+  `historyLoaded`·`historySynced`·`socketRoom`·`socket`·`chatState`를 노출합니다.
 - 방 밖 실제 종료: `chat-disconnected:<동일 roomId>`.
 - outgoing/incoming은 서로 다른 `outgoing_message_tv` / `incoming_message_tv`입니다.
 - 목록은 정확한 방 부모의 `last_message_tv`와 상대 닉네임 레이블을 함께 확인합니다.
@@ -129,10 +138,43 @@ cleanup 실패 시 해당 기기의 private recovery marker를 지우거나 `pm 
 
 ## 검증 범위
 
-구현 시 로컬 코드·빌드·테스트·formatter·adb·Maestro는 실행하지 않았습니다.
-Python orchestration unit test와 ViewModel readiness unit test를 추가했지만 실행 결과는 없습니다.
-ViewModel 회귀 테스트는 REST 100→조기 소켓 102→누락 101의 커서·정렬·중복 제거와
-상대 프로필→Back의 유예 내 복귀 후 준비 상태·소켓 재연결 부재도 확인하도록 작성했습니다.
-컨트롤러는 통합 후 허용된 검증 환경에서 Kotlin/fixture 바인딩 컴파일, Python unit tests,
-실제 두 계정/기기의 네 시나리오와 단계별 실패 전파를 확인해야 합니다.
-정적 소스 근거와 문서는 실제 CI 통과 증거가 아닙니다.
+upstream `d33810cc`의 일반 [CI run `39010694430`](https://github.com/projects200/android/actions/runs/39010694430)은 통과했습니다.
+앞선 `01ef57a1`이 들여쓰기·빈 줄 네 오류를 정리했고, `d33810cc`는 준비 완료 마커에서 진단 접미사를 분리했습니다.
+두 Kotlin 파일의 기능 코드는 기존 로컬 수정과 같으며, 대조한 diff에는 설명 주석만 남습니다.
+같은 head의 [Maestro run `39010694372`](https://github.com/projects200/android/actions/runs/39010694372)은 실패했습니다.
+`smoke-tabs`, 양쪽 actor 준비, B의 방 진입·준비 확인, A의 방 진입을 통과한 뒤
+`a-to-b-send` 단계에서 실패했습니다. 드라이버는 단계 실패를 즉시 전파하므로 앞의 세 UI 단계가
+통과했음을 구분할 수 있습니다. `chatting-send`에는 `chat-a-to-b-send-failed`·
+`chat-scenario-not-completed`, 나머지 세 채팅 시나리오에는 `chat-scenario-not-completed`가 남았습니다.
+송신 플로우는 준비 재확인·기존 메시지 부재·입력·전송 버튼·outgoing 표시 대기를 포함하므로,
+단계 코드만으로 실제 네트워크 송신 실패나 특정 UI 명령 실패를 확정하지 않습니다.
+이후 feed/timer/login 11개 플로우는 `not-executed-after-unsafe-cleanup-or-interruption`으로
+기록됐으며 실행되지 않았습니다. 공통 `run_suite`는 채팅 드라이버 결과에 오류가 하나라도
+있으면 후속 실행을 중단하므로, 이 표기만으로 실제 cleanup 실패나 interruption을 확정할 수는
+없습니다. 이 실행의 채팅 결과에는 별도의 fixture cleanup·final clear·peer stop 실패 코드나
+`chat-run-interrupted`가 없습니다. 11개를 독립적인 UI 실패로 계산하지 않습니다.
+기존 단계별 artifact의 로그·스크린샷 등은 추가 확인이 필요합니다.
+**실제 UI 실패 원인은 아직 확인되지 않았으며, 전체 CI나 채팅이 통과한 상태가 아닙니다.**
+
+진단 출력 디렉터리를 먼저 만드는 수정은 upstream `698c2f9e`에 이미 포함돼 있습니다.
+이 로컬 변경은 `save_failure_logcat`에서 발생한 운영 오류(`RunnerFailure`·`OSError`)만
+격리해 원래 `maestro-flow-failed`를 유지하도록 했습니다. `RunInterrupted`는 그대로
+전파하며 `KeyboardInterrupt`도 잡지 않습니다. 다른 진단·정리 경로는 바꾸지 않았습니다.
+500줄·30초 logcat 수집 제한, 기존 필터·Redactor, 원본 로그 비공개 방침도 유지했습니다.
+실제 파일시스템과 Redactor를 쓰는 기존 회귀 테스트 두 개(첫 중첩 단계의 정제된 진단 보존,
+logcat 비정상 종료)를 유지했습니다. 수집 중 `RunnerFailure("tool-timeout")`, 기기 진단
+파일만의 `OSError`, `RunInterrupted` 전파를 각각 확인하는 테스트 세 개를 추가했습니다.
+앞의 두 경우는 실제 console 파일과 원래 실패 코드를 확인하며, 쓰기 오류의 합성 비공개
+문구가 공개되지 않는지도 확인합니다. **운영 오류 격리와 회귀 테스트는 로컬 변경이며 미실행입니다.**
+
+게시된 Kotlin 변경은 준비 마커를 기존 정확한 방·상대 selector로 유지하며 상세 상태는
+로딩 중에만 노출합니다. 준비 조건·flow 구독·DEBUG 수집 수명과 기존 Python/주고받기
+selector·assertion은 바꾸지 않았습니다. 일반 CI 통과는 게시된 코드의 결과이며,
+아직 게시하지 않은 logcat 운영 오류 격리나 실제 B UI 실패 해결을 검증한 결과는 아닙니다.
+이 로컬 변경에서는 코드·설치·빌드·테스트·lint/formatter·adb·emulator·Maestro를 실행하지
+않았습니다. 커밋·push나 PR 게시도 하지 않았습니다.
+기존 ViewModel 회귀 테스트는 REST 100→조기 소켓 102→누락 101의 커서·정렬·중복 제거와
+상대 프로필→Back의 유예 내 복귀 후 준비 상태·소켓 재연결 부재를 확인하도록 작성됐습니다.
+컨트롤러는 단계별 artifact에서 실제 실패한 UI 명령과 방·상대 식별자, 소켓 상태를 확인해야
+합니다. 이후 승인된 CI에서 실제 두 계정/기기의 네 시나리오와 단계별 실패 전파·복구 보존을 검증해야 합니다.
+정적 소스와 문서는 실제 CI 통과나 UI 성공의 증거가 아닙니다.

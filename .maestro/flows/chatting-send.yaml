@@ -12,6 +12,8 @@ tags:
     text: "${MESSAGE_SELECTOR}"
 - tapOn:
     id: chatting_message_et
+# 한국어 Gboard에서는 ASCII keycode가 한글 자모로 입력되므로 영문 레이아웃을 먼저 확인합니다.
+- runFlow: ../subflows/feed-ascii-keyboard.yaml
 - inputText: "${MESSAGE}"
 - tapOn:
     id: send_btn

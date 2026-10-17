@@ -413,6 +413,137 @@ class SessionTransportTests(unittest.TestCase):
         self.assertEqual(unrelated.read_bytes(), b"keep")
 
 
+class MaestroFailureArtifactTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(
+            prefix="maestro-failure-test-", dir=Path("/tmp").resolve(),
+        )
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name) / "chatting" / "a-to-b-open-receiver" / "b"
+        self.flow = "chatting-open"
+        self.destination = self.output / self.flow
+        self.escaped_secret = json.dumps(SYNTHETIC_SECRET, ensure_ascii=False)[1:-1]
+        self.console = ("Maestro UI assertion failed: " + SYNTHETIC_SECRET).encode("utf-8")
+        self.device = SimpleNamespace(
+            serial="failure-test", exercise_variables=mock.Mock(return_value={}), call=mock.Mock(),
+        )
+
+        def command(argv, _env, timeout=60, payload=None):
+            if argv[1:] == ["--version"]:
+                return 0, runner.MAESTRO_VERSION.encode("utf-8"), b""
+            if argv[1:2] == ["test"]:
+                return 1, self.console, b""
+            raise AssertionError("Unexpected Maestro operation")
+
+        patches = (
+            mock.patch.object(runner, "command", side_effect=command),
+            mock.patch.object(runner, "shutil", SimpleNamespace(which=lambda _name: "test-maestro")),
+        )
+        for patch in patches:
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def test_first_nested_failure_preserves_redacted_diagnostics_and_original_failure(self):
+        unrelated = "I/Other: synthetic-unrelated-device-line"
+        self.device.call.return_value = (
+            0,
+            ("E/OkHttp: WebSocket handshake failed: " + self.escaped_secret + "\n"
+             + unrelated + "\n").encode("utf-8"),
+            b"",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        diagnostic = (self.destination / "device-log.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(diagnostic, "E/OkHttp: WebSocket handshake failed: [REDACTED]")
+        for content in (console, diagnostic):
+            self.assertNotIn(SYNTHETIC_SECRET, content)
+            self.assertNotIn(self.escaped_secret, content)
+            self.assertNotIn(unrelated, content)
+
+    def test_unavailable_logcat_preserves_original_failure_and_console(self):
+        self.device.call.return_value = (
+            1, ("E/WebSocket: " + self.escaped_secret).encode("utf-8"),
+            b"synthetic-private-logcat-error",
+        )
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_capture_failure_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = runner.RunnerFailure("tool-timeout")
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_write_failure_preserves_original_failure_without_private_error(self):
+        self.device.call.return_value = (
+            0, ("E/OkHttp: " + self.escaped_secret).encode("utf-8"), b"",
+        )
+        private_error = "synthetic-private-device-log-error: " + SYNTHETIC_SECRET
+        write_text = Path.write_text
+
+        def fail_device_log_write(path, *args, **kwargs):
+            if path == self.destination / "device-log.log":
+                raise OSError(private_error)
+            return write_text(path, *args, **kwargs)
+
+        self.assertFalse(self.output.exists())
+        published = io.StringIO()
+        with mock.patch.object(Path, "write_text", new=fail_device_log_write):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    runner.run_maestro(
+                        self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                    )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        console = (self.destination / "console.log").read_text(encoding="utf-8")
+        self.assertEqual(console, "Maestro UI assertion failed: [REDACTED]")
+        self.assertEqual(published.getvalue(), "")
+        for private in (private_error, SYNTHETIC_SECRET, self.escaped_secret):
+            self.assertNotIn(private, str(caught.exception) + console + published.getvalue())
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+    def test_logcat_interruption_propagates_unchanged(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.side_effect = interruption
+        self.assertFalse(self.output.exists())
+        with self.assertRaises(runner.RunInterrupted) as caught:
+            runner.run_maestro(
+                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+            )
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "device-log.log").exists())
+
+
 class EmulatorInputTests(unittest.TestCase):
     def input_method(self, subtypes):
         return runner.ET.fromstring(

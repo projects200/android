@@ -822,17 +822,22 @@ def save_debug(raw, destination, redactor, console):
                 (destination / ("screenshot-%03d.png" % index)).write_bytes(content)
 
 def save_failure_logcat(device, destination, redactor):
-    destination.mkdir(parents=True, exist_ok=True)
-    code, output, _ = device.call("logcat", "-d", "-t", "500", "-v", "brief", timeout=30)
-    if code != 0:
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        code, output, _ = device.call("logcat", "-d", "-t", "500", "-v", "brief", timeout=30)
+        if code != 0:
+            return
+        lines = []
+        for line in output.decode("utf-8", "replace").splitlines():
+            if re.search(r"\[MEASURE\]|WebSocket|Connectivity|AndroidRuntime|FATAL EXCEPTION|OkHttp",
+                         line, re.IGNORECASE):
+                lines.append(line)
+        clean, _ = redactor.clean("\n".join(lines) + ("\n" if lines else ""))
+        (destination / "device-log.log").write_text(clean, encoding="utf-8")
+    except RunInterrupted:
+        raise
+    except (RunnerFailure, OSError):
         return
-    lines = []
-    for line in output.decode("utf-8", "replace").splitlines():
-        if re.search(r"\[MEASURE\]|WebSocket|Connectivity|AndroidRuntime|FATAL EXCEPTION|OkHttp",
-                     line, re.IGNORECASE):
-            lines.append(line)
-    clean, _ = redactor.clean("\n".join(lines) + ("\n" if lines else ""))
-    (destination / "device-log.log").write_text(clean, encoding="utf-8")
 
 
 
