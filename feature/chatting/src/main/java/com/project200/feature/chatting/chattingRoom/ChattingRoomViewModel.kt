@@ -3,6 +3,7 @@ package com.project200.feature.chatting.chattingRoom
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ChatSocketStatus
 import com.project200.domain.model.ChattingMessage
 import com.project200.domain.model.OpponentStatus
 import com.project200.domain.usecase.ConnectChatRoomUseCase
@@ -10,6 +11,7 @@ import com.project200.domain.usecase.DisconnectChatRoomUseCase
 import com.project200.domain.usecase.ExitChatRoomUseCase
 import com.project200.domain.usecase.GetChatMessagesUseCase
 import com.project200.domain.usecase.GetNewChatMessagesUseCase
+import com.project200.domain.usecase.ObserveChatConnectionUseCase
 import com.project200.domain.usecase.ObserveOpponentStatusUseCase
 import com.project200.domain.usecase.ObserveSocketMessagesUseCase
 import com.project200.domain.usecase.SendSocketMessageUseCase
@@ -19,8 +21,11 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -37,12 +42,42 @@ class ChattingRoomViewModel
         private val observeSocketMessagesUseCase: ObserveSocketMessagesUseCase,
         private val observeOpponentStatusUseCase: ObserveOpponentStatusUseCase,
         private val sendSocketMessageUseCase: SendSocketMessageUseCase,
+        observeChatConnectionUseCase: ObserveChatConnectionUseCase,
     ) : ViewModel() {
         private val _messages = MutableStateFlow<List<ChattingMessage>>(emptyList())
         val messages = _messages.asStateFlow()
 
         private val _chatState = MutableStateFlow<ChatInputState>(ChatInputState.Active)
         val chatState: StateFlow<ChatInputState> = _chatState.asStateFlow()
+
+        private val historyLoaded = MutableStateFlow(false)
+        private val historySynced = MutableStateFlow(false)
+        private val socketConnection = observeChatConnectionUseCase()
+        val isReady =
+            combine(
+                historyLoaded,
+                historySynced,
+                socketConnection,
+                chatState,
+            ) { loaded, synced, connection, state ->
+                loaded && synced && connection.roomId == chatRoomId &&
+                    connection.status == ChatSocketStatus.Connected && state == ChatInputState.Active
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), false)
+        val readinessDebugState: StateFlow<String> =
+            combine(
+                historyLoaded,
+                historySynced,
+                socketConnection,
+                chatState,
+            ) { loaded, synced, connection, state ->
+                "historyLoaded=$loaded,historySynced=$synced," +
+                    "socketRoom=${connection.roomId},socket=${connection.status.name}," +
+                    "chatState=${state.debugName()}"
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(),
+                "historyLoaded=false,historySynced=false,socketRoom=-1,socket=Disconnected,chatState=Active",
+            )
 
         private val _exitResult = MutableSharedFlow<BaseResult<Unit>>()
         val exitResult: SharedFlow<BaseResult<Unit>> = _exitResult
@@ -53,10 +88,11 @@ class ChattingRoomViewModel
         private var chatRoomId: Long = DEFAULT_ID
         private var opponentMemberId: String = ""
         private var prevChatId: Long? = null // 이전 메시지 조회를 위한 가장 오래된 메시지 ID
-        private var lastChatId: Long? = null // 새 메시지 조회를 위한 마지막 메시지 ID
+        private var lastChatId: Long? = null // REST로 확인한 마지막 메시지 ID (소켓 수신은 커서를 전진시키지 않음)
         var hasNextMessages: Boolean = true // 더 로드할 메시지가 있는지 여부
 
         private var disconnectJob: Job? = null
+        private var initialHistoryJob: Job? = null
 
         init {
             viewModelScope.launch {
@@ -82,7 +118,9 @@ class ChattingRoomViewModel
         ) {
             this.chatRoomId = chatRoomId
             this.opponentMemberId = opponentId
-            loadInitialMessages(chatRoomId)
+            historyLoaded.value = false
+            historySynced.value = false
+            initialHistoryJob = loadInitialMessages(chatRoomId)
         }
 
         // 소켓 연결 및 공백 채우기 (유예 시간 내 복귀 시 재연결 생략)
@@ -96,6 +134,9 @@ class ChattingRoomViewModel
             if (!wasInGracePeriod) {
                 // 유예 시간 만료 또는 최초 연결 → 전체 재연결
                 connectChatRoomUseCase(chatRoomId)
+            }
+            if (!wasInGracePeriod || !historySynced.value) {
+                // 뷰 재생성으로 이력이 초기화됐다면 기존 소켓을 유지한 채 동기화합니다.
                 syncMissedMessages()
             }
         }
@@ -162,49 +203,62 @@ class ChattingRoomViewModel
         /**
          * 초기 메세지 목록 조회
          */
-        private fun loadInitialMessages(id: Long) {
+        private fun loadInitialMessages(id: Long): Job =
             viewModelScope.launch {
-                // 초기 메시지 로드 (prevChatId 없이 최신 메시지부터 size 만큼 가져옴)
                 when (val result = getChatMessagesUseCase(id, size = LOAD_SIZE)) {
                     is BaseResult.Success -> {
                         val chattingModel = result.data
-                        updateAndEmitMessages(chattingModel.messages)
+                        // 초기 REST 응답보다 먼저 도착한 실제 소켓 메시지를 덮어쓰지 않습니다.
+                        updateAndEmitMessages(
+                            (chattingModel.messages + _messages.value)
+                                .distinctBy { it.chatId }
+                                .sortedBy { it.chatId },
+                        )
                         hasNextMessages = chattingModel.hasNext
-                        prevChatId = chattingModel.messages.firstOrNull()?.chatId // 가장 오래된 메시지의 ID를 저장
-                        lastChatId = chattingModel.messages.lastOrNull()?.chatId
+                        prevChatId = chattingModel.messages.minOfOrNull { it.chatId }
+                        lastChatId = chattingModel.messages.maxOfOrNull { it.chatId }
+                        _chatState.value =
+                            when {
+                                chattingModel.blockActive -> ChatInputState.OpponentBlocked
+                                !chattingModel.opponentActive -> ChatInputState.OpponentLeft
+                                else -> _chatState.value
+                            }
+                        historyLoaded.value = true
                     }
-                    is BaseResult.Error -> {
-                        _toast.emit(result.message.toString())
-                    }
+                    is BaseResult.Error -> _toast.emit(result.message.toString())
                 }
             }
-        }
 
         /**
          * 소켓 연결이 끊겨있는 사이 온 새 메시지를 받아오는 함수
          */
         fun syncMissedMessages() {
             if (chatRoomId == DEFAULT_ID) return
+            historySynced.value = false
             viewModelScope.launch {
+                initialHistoryJob?.join()
+                if (!historyLoaded.value) return@launch
                 val startTime = System.currentTimeMillis()
                 when (val result = getNewChatMessagesUseCase(chatRoomId, lastChatId)) {
                     is BaseResult.Success -> {
                         if (result.data.messages.isNotEmpty()) {
-                            // 기존 메시지 리스트에 새로운 메시지를 추가
-                            val currentMessages = _messages.value.toMutableList()
-                            // 중복 방지
-                            val uniqueNewMessages =
-                                result.data.messages.filter { newMessage ->
-                                    !currentMessages.any { it.chatId == newMessage.chatId }
-                                }
-                            if (uniqueNewMessages.isNotEmpty()) {
-                                // 마지막 메시지 ID 업데이트
-                                lastChatId = uniqueNewMessages.lastOrNull()?.chatId
-                                updateAndEmitMessages(currentMessages + uniqueNewMessages)
-                            }
+                            // 실시간 소켓 메시지 사이에 빠진 이력을 ID 순서로 병합합니다.
+                            updateAndEmitMessages(
+                                (_messages.value + result.data.messages)
+                                    .distinctBy { it.chatId }
+                                    .sortedBy { it.chatId },
+                            )
+                            lastChatId = result.data.messages.maxOf { it.chatId }
                         } else {
                             Timber.w("[MEASURE] 누락 메시지 없음 (0건), 소요시간: ${System.currentTimeMillis() - startTime}ms")
                         }
+                        _chatState.value =
+                            when {
+                                result.data.blockActive -> ChatInputState.OpponentBlocked
+                                !result.data.opponentActive -> ChatInputState.OpponentLeft
+                                else -> _chatState.value
+                            }
+                        historySynced.value = true
                     }
 
                     is BaseResult.Error -> {
@@ -240,6 +294,7 @@ class ChattingRoomViewModel
                             updateAndEmitMessages(result.data.messages + _messages.value)
                             prevChatId = result.data.messages.firstOrNull()?.chatId
                         }
+
                         hasNextMessages = result.data.hasNext
                     }
 
@@ -260,6 +315,13 @@ class ChattingRoomViewModel
             super.onCleared()
             disconnect()
         }
+
+        private fun ChatInputState.debugName(): String =
+            when (this) {
+                ChatInputState.Active -> "Active"
+                ChatInputState.OpponentBlocked -> "OpponentBlocked"
+                ChatInputState.OpponentLeft -> "OpponentLeft"
+            }
 
         companion object {
             const val DEFAULT_ID = -1L

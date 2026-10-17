@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main():
     if len(sys.argv) < 4 or sys.argv[2] != "--suite":
-        print("Usage: python3 .maestro/scripts/run-with-session.py ABSOLUTE_PRIVATE_SESSION --suite smoke|regression|all [runner options]", file=sys.stderr)
+        print("Usage: python3 .maestro/scripts/run-with-session.py ABSOLUTE_PRIVATE_SESSION --suite SUITE [runner options]", file=sys.stderr)
         return 1
     try:
         path = Path(sys.argv[1]).expanduser()

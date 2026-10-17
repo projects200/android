@@ -1,0 +1,14 @@
+appId: com.project200.undabang
+---
+# 타이머 전용 하단 탭은 없습니다. 기록 탭 상단 칩(timer_btn)에서 app://timer 딥링크로 들어갑니다
+- tapOn:
+    id: exercise_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- tapOn:
+    id: timer_btn
+- extendedWaitUntil:
+    visible: "심플 타이머"
+    timeout: 30000

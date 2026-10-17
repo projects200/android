@@ -31,12 +31,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
@@ -60,6 +64,7 @@ import com.project200.undabang.profile.mypage.ProfileEditFragment.Companion.MALE
 import com.project200.undabang.profile.utils.NicknameValidationState
 import com.project200.undabang.presentation.R as PresentationR
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun ProfileEditScreen(
     nickname: String,
@@ -77,12 +82,16 @@ fun ProfileEditScreen(
     onCompleteClick: () -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isLoaded: Boolean = true,
 ) {
     Column(
         modifier =
             modifier
                 .fillMaxSize()
-                .background(ColorWhite300),
+                .background(ColorWhite300)
+                // Maestro id 셀렉터가 이 화면 하위 testTag를 android:id처럼 찾게 합니다
+                .semantics { testTagsAsResourceId = true }
+                .testTag(if (isLoaded) "profile_edit_loaded" else "profile_edit_loading"),
     ) {
         UndabangTopBar(
             title = stringResource(R.string.profile_edit),
@@ -91,6 +100,7 @@ fun ProfileEditScreen(
                 PrimaryButton(
                     text = stringResource(PresentationR.string.complete),
                     onClick = onCompleteClick,
+                    enabled = isLoaded,
                     isCompact = true,
                     modifier = Modifier.padding(end = 20.dp),
                 )
@@ -203,7 +213,9 @@ private fun NicknameSection(
             UndabangTextField(
                 value = nickname,
                 onValueChange = onNicknameChange,
+                // Maestro가 중복 확인 전후 상태를 읽고 닉네임을 다시 입력할 지점
                 modifier = Modifier.weight(1f),
+                inputModifier = Modifier.testTag("profile_edit_nickname_field"),
                 variant = TextFieldVariant.Underline,
                 maxLength = 30,
             )
@@ -348,7 +360,13 @@ private fun IntroductionSection(
     onChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                // 빈 입력의 hint를 원문으로 오인하지 않도록 실제 값의 상태만 비음성 testTag로 노출합니다.
+                .testTag(if (introduction.isEmpty()) "profile_edit_introduction_empty" else "profile_edit_introduction_present"),
+    ) {
         Text(
             text = stringResource(R.string.profile_edit_introduction),
             style = MaterialTheme.typography.contentBold,
@@ -365,6 +383,7 @@ private fun IntroductionSection(
                 Modifier
                     .fillMaxWidth()
                     .defaultMinSize(minHeight = 120.dp),
+            inputModifier = Modifier.testTag("profile_edit_introduction_field"),
         )
     }
 }

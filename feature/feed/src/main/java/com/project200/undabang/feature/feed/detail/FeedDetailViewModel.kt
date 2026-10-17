@@ -75,6 +75,8 @@ class FeedDetailViewModel
 
         private var feedLikeJob: Job? = null
         private var pendingFeedLike: Boolean? = null
+        private val _isFeedLikePending = MutableStateFlow(false)
+        val isFeedLikePending: StateFlow<Boolean> = _isFeedLikePending.asStateFlow()
         private var originalFeedLikeState: Boolean? = null
 
         fun setFeedId(feedId: Long) {
@@ -291,6 +293,7 @@ class FeedDetailViewModel
             val newLikedState = !currentLikedState
 
             pendingFeedLike = newLikedState
+            _isFeedLikePending.value = true
             updateFeedLikeLocally(newLikedState)
 
             feedLikeJob?.cancel()
@@ -323,6 +326,7 @@ class FeedDetailViewModel
         private fun resetFeedLikePendingState() {
             pendingFeedLike = null
             originalFeedLikeState = null
+            _isFeedLikePending.value = false
         }
 
         private fun updateFeedLikeLocally(isLiked: Boolean) {

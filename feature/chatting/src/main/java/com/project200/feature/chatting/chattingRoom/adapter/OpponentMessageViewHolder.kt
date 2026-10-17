@@ -13,7 +13,7 @@ class OpponentMessageViewHolder(
     private val onProfileClicked: () -> Unit,
 ) : RecyclerView.ViewHolder(binding.root) {
     fun bind(current: ChattingMessage) {
-        binding.messageTv.text = current.content
+        binding.incomingMessageTv.text = current.content
         val imageRes = current.thumbnailImageUrl ?: current.profileUrl
 
         Glide.with(binding.profileImgIv)

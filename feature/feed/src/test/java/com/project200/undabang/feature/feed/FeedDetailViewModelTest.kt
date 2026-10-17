@@ -21,6 +21,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -281,6 +282,29 @@ class FeedDetailViewModelTest {
 
             // Then
             coVerify(atLeast = 2) { getCommentsUseCase(1L) }
+        }
+
+    @Test
+    fun `toggleFeedLike - 서버 응답 전에는 완료 상태를 노출하지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<Unit>>()
+            coEvery { getMemberIdUseCase() } returns "member1"
+            coEvery { getFeedDetailUseCase(1L) } returns BaseResult.Success(sampleFeed)
+            coEvery { getCommentsUseCase(1L) } returns BaseResult.Success(emptyList())
+            coEvery { likeFeedUseCase(1L, true) } coAnswers { response.await() }
+            viewModel.setFeedId(1L)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.toggleFeedLike()
+            assertThat(viewModel.isFeedLikePending.value).isTrue()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isFeedLikePending.value).isTrue()
+            coVerify(exactly = 1) { likeFeedUseCase(1L, true) }
+
+            response.complete(BaseResult.Success(Unit))
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isFeedLikePending.value).isFalse()
+            assertThat(viewModel.feed.value?.feedIsLiked).isTrue()
         }
 
     @Test

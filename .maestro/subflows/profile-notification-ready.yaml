@@ -1,0 +1,7 @@
+appId: com.project200.undabang
+---
+# ready는 필수 행 조회와 마지막 PATCH의 서버 재확인까지 성공했음을 뜻합니다.
+- extendedWaitUntil:
+    visible:
+      id: notification_ready
+    timeout: 30000

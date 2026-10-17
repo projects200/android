@@ -1,0 +1,7 @@
+appId: com.project200.undabang
+name: 실시간 수신 전 준비 및 메시지 부재 확인
+---
+# 실행 종료 후에도 앱·방·소켓을 유지합니다. 이 구간에는 launchApp을 호출하지 않습니다.
+- runFlow: ../subflows/chatting-ready.yaml
+- assertNotVisible:
+    text: "${MESSAGE_SELECTOR}"

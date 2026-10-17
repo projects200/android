@@ -1,0 +1,120 @@
+appId: com.project200.undabang
+name: 운동 장소 빈 이름 검증과 위치 권한 거부
+tags:
+  - regression
+  - requires-login
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- setLocation:
+    latitude: ${MATCHING_LATITUDE}
+    longitude: ${MATCHING_LONGITUDE}
+- tapOn:
+    id: matching_nav_graph
+- runFlow: ../subflows/matching-dismiss-guides.yaml
+- extendedWaitUntil:
+    visible:
+      id: matching_map_ready
+    timeout: 30000
+- tapOn: "현재 위치"
+- tapOn: "운동 장소 목록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- tapOn: "추가"
+- runFlow: ../subflows/matching-select-catalog-place.yaml
+
+# 실제 카탈로그 주소를 고른 뒤 이름만 비웁니다. 저장 실패를 화면과 최종 서버 목록으로 확인합니다.
+- runFlow:
+    file: ../subflows/matching-clear-text.yaml
+    env:
+      FIELD_ID: place_name_input
+- hideKeyboard
+- tapOn: "주소 등록"
+- assertVisible: "장소명 (필수)"
+- assertVisible:
+    id: place_name_input
+- assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+
+# 등록 → 검색 → 목록 → 지도는 서로 다른 목적지입니다. 키보드는 이미 닫았습니다.
+- back
+- extendedWaitUntil:
+    visible:
+      id: search_exercise_place_et
+    timeout: 20000
+- tapOn:
+    id: back_btn
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- back
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 20000
+- assertVisible:
+    id: matching_nav_graph
+
+# 알려진 루트에서 권한만 거부합니다. 다이얼로그가 없을 때는 Back으로 페이지를 닫지 않습니다.
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: allow
+      location: deny
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000
+- tapOn:
+    id: matching_nav_graph
+- runFlow: ../subflows/matching-deny-location-prompt.yaml
+- runFlow: ../subflows/matching-dismiss-guides.yaml
+- extendedWaitUntil:
+    visible:
+      id: matching_map_ready
+    timeout: 30000
+- runFlow: ../subflows/matching-deny-location-prompt.yaml
+- tapOn: "운동 장소 목록"
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- tapOn: "추가"
+- runFlow: ../subflows/matching-deny-location-prompt.yaml
+- extendedWaitUntil:
+    visible:
+      id: search_btn
+      enabled: true
+    timeout: 30000
+- runFlow: ../subflows/matching-deny-location-prompt.yaml
+# 현재 위치 권한 없이도 실제 기본 위치의 키워드 검색·결과 선택·등록 화면 진입은 가능합니다.
+- runFlow: ../subflows/matching-select-catalog-place.yaml
+- assertVisible: "장소명 (필수)"
+- assertVisible: ${MATCHING_CATALOG_ADDRESS_PATTERN}
+- back
+- extendedWaitUntil:
+    visible:
+      id: search_exercise_place_et
+    timeout: 20000
+- tapOn:
+    id: back_btn
+- extendedWaitUntil:
+    visible:
+      id: places_loaded
+    timeout: 20000
+- back
+- extendedWaitUntil:
+    visible: "운동 장소 목록"
+    timeout: 20000
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: allow
+      location: allow
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000
+# after_flow는 baseline과 실제 GET 결과의 완전 일치를 검증하고 권한을 다시 허용합니다.

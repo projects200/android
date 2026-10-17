@@ -1,0 +1,97 @@
+"""Unit tests for feed media ownership checks. These tests do not invoke adb."""
+
+import importlib.util
+from pathlib import Path
+from types import SimpleNamespace
+import unittest
+from unittest import mock
+
+
+SPEC = importlib.util.spec_from_file_location("maestro_feed", Path(__file__).with_name("feed.py"))
+feed = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(feed)
+RUN_ID = "0123456789abcdef"
+
+
+class Failure(Exception):
+    pass
+
+
+class FeedMediaTest(unittest.TestCase):
+    def setUp(self):
+        self.core = SimpleNamespace(RunnerFailure=Failure)
+        self.variables = {}
+        for label, digest, taken in (("A", "a" * 64, "1704153600000"), ("B", "b" * 64, "1704067200000")):
+            self.variables.update({
+                "FEED_IMAGE_" + label + "_NAME": "maestro-feed-" + RUN_ID + "-" + label + ".png",
+                "FEED_IMAGE_" + label + "_SHA256": digest,
+                "FEED_IMAGE_" + label + "_TAKEN": taken,
+            })
+        self.rows = [
+            "Row: 0 _id=11, _display_name=maestro-feed-" + RUN_ID + "-A.png, datetaken=1704153600000, relative_path=Pictures/maestro-feed/" + RUN_ID + "/",
+            "Row: 1 _id=10, _display_name=maestro-feed-" + RUN_ID + "-B.png, datetaken=1704067200000, relative_path=Pictures/maestro-feed/" + RUN_ID + "/",
+        ]
+
+    def device(self, rows=None, emulator=b"1", api=b"33"):
+        device = mock.Mock()
+        device.require.side_effect = [emulator, api, "\n".join(self.rows if rows is None else rows).encode()]
+        return device
+
+    def before(self, device, flow="feed-photo"):
+        return feed.before_flow(self.core, device, flow, self.variables, {}, RUN_ID)
+
+    def test_accepts_only_two_known_distinct_assets_in_picker_order(self):
+        self.assertEqual(self.before(self.device()), {"FEED_IMAGE_A_INDEX": "0", "FEED_IMAGE_B_INDEX": "1"})
+
+    def test_unrelated_gallery_image_fails_without_delete(self):
+        device = self.device(self.rows + ["Row: 2 _id=9, _display_name=personal.png, datetaken=1, relative_path=Pictures/"])
+        with self.assertRaisesRegex(Failure, "^feed-photo-gallery-must-contain-only-run-images$"):
+            self.before(device)
+        self.assertTrue(all("delete" not in call.args for call in device.require.call_args_list))
+
+    def test_reversed_media_order_cannot_select_the_same_asset_twice(self):
+        with self.assertRaisesRegex(Failure, "^feed-photo-gallery-must-contain-only-run-images$"):
+            self.before(self.device(list(reversed(self.rows))))
+
+    def test_null_capture_date_cannot_fall_back_to_insert_or_file_time(self):
+        rows = [self.rows[0].replace("datetaken=1704153600000", "datetaken=NULL"), self.rows[1]]
+        with self.assertRaisesRegex(Failure, "^feed-photo-unexpected-media-provider-result$"):
+            self.before(self.device(rows))
+
+    def test_rescan_changed_capture_date_cannot_select_a_different_asset(self):
+        rows = [self.rows[0].replace("datetaken=1704153600000", "datetaken=1704186000000"), self.rows[1]]
+        with self.assertRaisesRegex(Failure, "^feed-photo-gallery-must-contain-only-run-images$"):
+            self.before(self.device(rows))
+
+    def test_equal_capture_dates_cannot_rely_on_insertion_ids(self):
+        rows = [self.rows[0], self.rows[1].replace("datetaken=1704067200000", "datetaken=1704153600000")]
+        with self.assertRaisesRegex(Failure, "^feed-photo-gallery-must-contain-only-run-images$"):
+            self.before(self.device(rows))
+
+    def test_missing_or_foreign_media_is_not_a_fallback(self):
+        with self.assertRaisesRegex(Failure, "^feed-photo-gallery-must-contain-only-run-images$"):
+            self.before(self.device(self.rows[:1]))
+        with self.assertRaisesRegex(Failure, "^feed-photo-unexpected-media-provider-result$"):
+            self.before(self.device(["No result found."]))
+
+    def test_equal_asset_checksums_fail_before_provider_query(self):
+        self.variables["FEED_IMAGE_B_SHA256"] = self.variables["FEED_IMAGE_A_SHA256"]
+        device = self.device()
+        with self.assertRaisesRegex(Failure, "^feed-photo-images-must-differ$"):
+            self.before(device)
+        self.assertEqual(device.require.call_count, 2)
+
+    def test_physical_device_and_old_api_fail_before_gallery_access(self):
+        with self.assertRaisesRegex(Failure, "^feed-photo-requires-disposable-emulator$"):
+            self.before(self.device(emulator=b"0"))
+        with self.assertRaisesRegex(Failure, "^feed-photo-requires-api-33$"):
+            self.before(self.device(api=b"30"))
+
+    def test_other_flows_do_not_read_or_change_the_gallery(self):
+        device = mock.Mock()
+        self.assertEqual(self.before(device, "feed-comment"), {})
+        device.require.assert_not_called()
+
+
+if __name__ == "__main__":
+    unittest.main()

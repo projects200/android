@@ -1,0 +1,13 @@
+appId: com.project200.undabang
+---
+# 호출자가 FIELD_ID로 지정한 텍스트 필드의 내용을 UI 선택으로 모두 지웁니다.
+# 한 단어 이름은 길게 누르기만 해도 전체가 선택되어 '모두 선택'이 없을 수 있습니다.
+# 메뉴가 보일 때만 '모두 선택'을 눌러, 커서 앞부분만 지우지 않도록 합니다.
+- longPressOn:
+    id: ${FIELD_ID}
+- runFlow:
+    when:
+      visible: "모두 선택"
+    commands:
+      - tapOn: "모두 선택"
+- eraseText

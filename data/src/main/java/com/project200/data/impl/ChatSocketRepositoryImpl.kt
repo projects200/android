@@ -6,6 +6,8 @@ import com.project200.data.dto.SocketChatMessage
 import com.project200.data.dto.SocketChatRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.mapper.toModel
+import com.project200.domain.model.ChatSocketConnection
+import com.project200.domain.model.ChatSocketStatus
 import com.project200.domain.model.ChattingMessage
 import com.project200.domain.model.OpponentStatus
 import com.project200.domain.model.SocketType
@@ -18,7 +20,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -49,7 +53,13 @@ class ChatSocketRepositoryImpl
 
         private val repositoryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         private val connectionMutex = Mutex()
+        private val socketLock = Any()
+        private var connectionGeneration = 0L
+        private var closingSocket: WebSocket? = null
+        private val _connection = MutableStateFlow(ChatSocketConnection())
+        override val connection = _connection.asStateFlow()
 
+        @Volatile
         private var webSocket: WebSocket? = null
 
         private val _incomingMessages = MutableSharedFlow<ChattingMessage>()
@@ -62,7 +72,11 @@ class ChatSocketRepositoryImpl
         override val opponentStatusChanges = _opponentStatusChanges.asSharedFlow()
 
         private val memberId: String? = spManager.getMemberId()
+
+        @Volatile
         private var currentChatRoomId: Long = -1L
+
+        @Volatile
         private var isUserInChatRoom = false
         private var retryCount = AtomicInteger(0)
 
@@ -94,8 +108,10 @@ class ChatSocketRepositoryImpl
          * 채팅방에 소켓 연결
          */
         override fun connect(chatRoomId: Long) {
-            currentChatRoomId = chatRoomId
-            isUserInChatRoom = true
+            synchronized(socketLock) {
+                currentChatRoomId = chatRoomId
+                isUserInChatRoom = true
+            }
             connectSocketInternal(chatRoomId)
         }
 
@@ -122,12 +138,23 @@ class ChatSocketRepositoryImpl
             }
             Timber.w("[MEASURE] ================")
 
-            isUserInChatRoom = false
-            stopHeartbeat()
-            retryJob?.cancel()
-            retryJob = null
-            webSocket?.close(1000, "User Exit")
-            webSocket = null
+            synchronized(socketLock) {
+                isUserInChatRoom = false
+                connectionGeneration++
+                stopHeartbeat()
+                retryJob?.cancel()
+                retryJob = null
+                val socket = webSocket ?: closingSocket
+                webSocket = null
+                closingSocket = socket
+                // close 요청이 아니라 실제 onClosed/onFailure 콜백으로 종료를 확인합니다.
+                _connection.value =
+                    ChatSocketConnection(
+                        currentChatRoomId,
+                        if (socket == null) ChatSocketStatus.Disconnected else ChatSocketStatus.Closing,
+                    )
+                if (socket != null && !socket.close(1000, "User Exit")) socket.cancel()
+            }
         }
 
         /**
@@ -146,32 +173,34 @@ class ChatSocketRepositoryImpl
         private fun connectSocketInternal(chatRoomId: Long) {
             repositoryScope.launch {
                 connectionMutex.withLock {
-                    if (webSocket != null) { // 이미 연결된 경우
-                        Timber.d("WebSocket already connected.")
-                        return@withLock
-                    }
-                    connectionAttemptCount.incrementAndGet()
-                    Timber.w("[MEASURE] 연결 시도 #${connectionAttemptCount.get()}")
-                    try {
-                        // 티켓 발급
-                        val response = chatApi.getChatTicket(chatRoomId)
-                        val ticket =
-                            response.data?.chatTicket
-                                ?: throw Exception("Ticket issuance failed")
-
-                        // 소켓 연결
-                        val wsUrl =
-                            if (BuildConfig.DEBUG) {
-                                "$BASE_URL_DEBUG$ticket"
-                            } else {
-                                "$BASE_URL_RELEASE$ticket"
+                    val generation =
+                        synchronized(socketLock) {
+                            if (!isUserInChatRoom || currentChatRoomId != chatRoomId || webSocket != null) {
+                                return@launch
                             }
+                            _connection.value = ChatSocketConnection(chatRoomId, ChatSocketStatus.Connecting)
+                            connectionGeneration
+                        }
+                    connectionAttemptCount.incrementAndGet()
+                    try {
+                        val response = chatApi.getChatTicket(chatRoomId)
+                        val ticket = response.data?.chatTicket ?: throw Exception("Ticket issuance failed")
+                        val wsUrl = if (BuildConfig.DEBUG) "$BASE_URL_DEBUG$ticket" else "$BASE_URL_RELEASE$ticket"
                         val request = Request.Builder().url(wsUrl).build()
-                        webSocket = okHttpClient.newWebSocket(request, socketListener)
+                        synchronized(socketLock) {
+                            // 티켓 조회 중 방을 나갔으면 늦은 응답으로 소켓을 다시 열지 않습니다.
+                            if (!isUserInChatRoom || generation != connectionGeneration || currentChatRoomId != chatRoomId) {
+                                return@launch
+                            }
+                            webSocket = okHttpClient.newWebSocket(request, socketListener(chatRoomId, generation))
+                        }
                     } catch (e: Exception) {
-                        connectionFailCount.incrementAndGet()
-                        Timber.w("[MEASURE] 연결 실패 #${connectionFailCount.get()}: ${e.message}")
-                        handleConnectionFailure(e)
+                        synchronized(socketLock) {
+                            if (generation != connectionGeneration || !isUserInChatRoom) return@launch
+                            connectionFailCount.incrementAndGet()
+                            _connection.value = ChatSocketConnection(chatRoomId, ChatSocketStatus.Failed)
+                            handleConnectionFailure(e)
+                        }
                     }
                 }
             }
@@ -180,26 +209,39 @@ class ChatSocketRepositoryImpl
         /**
          * 소켓 리스너
          */
-        private val socketListener =
+        private fun socketListener(
+            roomId: Long,
+            generation: Long,
+        ): WebSocketListener =
             object : WebSocketListener() {
                 override fun onOpen(
                     webSocket: WebSocket,
                     response: Response,
                 ) {
-                    connectionSuccessCount.incrementAndGet()
-                    if (lastDisconnectTime > 0L) {
-                        val downtimeMs = System.currentTimeMillis() - lastDisconnectTime
-                        totalDowntimeMs += downtimeMs
-                        reconnectSuccessCount.incrementAndGet()
-                        Timber.w(
-                            "[MEASURE] 재연결 성공! 복구 소요시간: ${downtimeMs}ms, " +
-                                "재연결 성공: ${reconnectSuccessCount.get()}/${reconnectCount.get()}",
-                        )
-                        lastDisconnectTime = 0L
+                    synchronized(socketLock) {
+                        if (
+                            generation != connectionGeneration || !isUserInChatRoom ||
+                            this@ChatSocketRepositoryImpl.webSocket !== webSocket
+                        ) {
+                            webSocket.cancel()
+                            return
+                        }
+                        _connection.value = ChatSocketConnection(roomId, ChatSocketStatus.Connected)
+                        connectionSuccessCount.incrementAndGet()
+                        if (lastDisconnectTime > 0L) {
+                            val downtimeMs = System.currentTimeMillis() - lastDisconnectTime
+                            totalDowntimeMs += downtimeMs
+                            reconnectSuccessCount.incrementAndGet()
+                            Timber.w(
+                                "[MEASURE] 재연결 성공! 복구 소요시간: ${downtimeMs}ms, " +
+                                    "재연결 성공: ${reconnectSuccessCount.get()}/${reconnectCount.get()}",
+                            )
+                            lastDisconnectTime = 0L
+                        }
+                        Timber.w("[MEASURE] 연결 성공 (${connectionSuccessCount.get()}/${connectionAttemptCount.get()})")
+                        retryCount.set(0)
+                        startApplicationHeartbeat()
                     }
-                    Timber.w("[MEASURE] 연결 성공 (${connectionSuccessCount.get()}/${connectionAttemptCount.get()})")
-                    retryCount.set(0)
-                    startApplicationHeartbeat()
                 }
 
                 // 메시지 수신
@@ -207,8 +249,10 @@ class ChatSocketRepositoryImpl
                     webSocket: WebSocket,
                     text: String,
                 ) {
+                    if (!isCurrentSocket(webSocket, generation)) return
                     repositoryScope.launch {
                         try {
+                            if (!isCurrentSocket(webSocket, generation)) return@launch
                             val wrapper = responseAdapter.fromJson(text) ?: return@launch
                             when (wrapper.type) {
                                 SocketType.TALK -> {
@@ -264,7 +308,7 @@ class ChatSocketRepositoryImpl
                     t: Throwable,
                     response: Response?,
                 ) {
-                    cleanupAndRetry(t)
+                    finishSocket(webSocket, generation, t)
                 }
 
                 override fun onClosed(
@@ -272,17 +316,45 @@ class ChatSocketRepositoryImpl
                     code: Int,
                     reason: String,
                 ) {
-                    if (code != 1000) cleanupAndRetry(Exception("Closed: $reason"))
+                    finishSocket(webSocket, generation, if (code == 1000) null else Exception("Socket closed"))
                 }
             }
 
-        private fun cleanupAndRetry(t: Throwable) {
-            reconnectCount.incrementAndGet()
-            lastDisconnectTime = System.currentTimeMillis()
-            Timber.w("[MEASURE] 연결 끊김 #${reconnectCount.get()}: ${t.message}")
-            stopHeartbeat()
-            webSocket = null
-            handleConnectionFailure(t)
+        private fun isCurrentSocket(
+            socket: WebSocket,
+            generation: Long,
+        ): Boolean =
+            synchronized(socketLock) {
+                generation == connectionGeneration && isUserInChatRoom && webSocket === socket
+            }
+
+        private fun finishSocket(
+            socket: WebSocket,
+            generation: Long,
+            failure: Throwable?,
+        ) {
+            synchronized(socketLock) {
+                if (closingSocket === socket) {
+                    closingSocket = null
+                    if (!isUserInChatRoom && _connection.value.status == ChatSocketStatus.Closing) {
+                        _connection.value = ChatSocketConnection(currentChatRoomId, ChatSocketStatus.Disconnected)
+                    }
+                    return
+                }
+                if (generation != connectionGeneration || webSocket !== socket) return
+                stopHeartbeat()
+                webSocket = null
+                _connection.value =
+                    ChatSocketConnection(
+                        currentChatRoomId,
+                        if (failure == null) ChatSocketStatus.Disconnected else ChatSocketStatus.Failed,
+                    )
+                if (failure != null) {
+                    reconnectCount.incrementAndGet()
+                    lastDisconnectTime = System.currentTimeMillis()
+                    handleConnectionFailure(failure)
+                }
+            }
         }
 
         // 지수 백오프 재연결
