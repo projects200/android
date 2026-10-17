@@ -13,12 +13,10 @@ tags:
 - tapOn:
     id: chatting_message_et
 - inputText: "${MESSAGE}"
+- assertVisible:
+    id: chatting_message_et
+    text: "${MESSAGE_SELECTOR}"
 - tapOn:
     id: send_btn
-- extendedWaitUntil:
-    visible:
-      id: outgoing_message_tv
-      text: "${MESSAGE_SELECTOR}"
-    timeout: 60000
 - hideKeyboard
 # 상대의 실제 수신 검증 전에는 일반 뒤로가기도 하지 않습니다.

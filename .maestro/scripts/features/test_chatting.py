@@ -2,6 +2,7 @@
 
 import importlib.util
 import os
+import re
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
@@ -106,6 +107,9 @@ class ChatDriverTests(unittest.TestCase):
         self.assertTrue(all(not errors for _, _, errors in results))
         flow_events = [event for event in self.events if event[0] == "flow"]
         stages = [event[3] for event in flow_events]
+        messages = {event[4]["MESSAGE"] for event in flow_events}
+        self.assertEqual(len(messages), 3)
+        self.assertTrue(all(re.fullmatch(r"[123]-[0-9]{1,10}", message) for message in messages))
         for barrier, sender, receiver in (
             ("a-to-b-receiver-barrier", "a-to-b-send", "a-to-b-live-receive"),
             ("b-to-a-receiver-barrier", "b-to-a-send", "b-to-a-live-receive"),

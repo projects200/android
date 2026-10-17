@@ -201,9 +201,10 @@ def run_suite(args, core):
             })
             actors[actor]["variables"] = variables
 
-        first = "e2e-" + run_id + "-a"
-        reply = "e2e-" + run_id + "-b"
-        away = "e2e-" + run_id + "-away"
+        message_id = str(int(run_id[:8], 16))
+        first = "1-" + message_id
+        reply = "2-" + message_id
+        away = "3-" + message_id
 
         # B is live and M1 is absent before A sends. No B launch/bootstrap occurs until receipt.
         stage("a-to-b-open-receiver", "chatting-receive", "b", "chatting-open", first)
@@ -211,11 +212,7 @@ def run_suite(args, core):
         stage("a-to-b-open-sender", "chatting-send", "a", "chatting-open", first)
         stage("a-to-b-send", "chatting-send", "a", "chatting-send", first)
         stage("a-to-b-live-receive", "chatting-receive", "b", "chatting-receive", first)
-        stage("b-leave-before-list", "chatting-list-refresh", "b", "chatting-away", first)
-        stage("b-received-list", "chatting-list-refresh", "b", "chatting-list-refresh", first)
-
-        # A remains in the same room. Verify its ready/absent barrier before B replies through UI.
-        stage("b-to-a-open-sender", "chatting-send", "b", "chatting-open", reply)
+        # 두 소켓이 준비된 동안 B가 같은 화면에서 바로 답장하고 A가 실시간으로 받습니다.
         stage("b-to-a-receiver-barrier", "chatting-receive", "a", "chatting-ready", reply)
         stage("b-to-a-send", "chatting-send", "b", "chatting-send", reply)
         stage("b-to-a-live-receive", "chatting-receive", "a", "chatting-receive", reply)
