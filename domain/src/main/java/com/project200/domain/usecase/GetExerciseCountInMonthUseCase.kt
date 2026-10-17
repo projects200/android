@@ -11,8 +11,10 @@ class GetExerciseCountInMonthUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         startDate: LocalDate,
-        endDate: LocalDate
+        endDate: LocalDate,
+        refresh: Boolean = true,
+        localOnly: Boolean = false
     ): BaseResult<List<ExerciseCount>> {
-        return exerciseRecordRepository.getExerciseCountByRange(startDate, endDate)
+        return exerciseRecordRepository.getExerciseCountByRange(startDate, endDate, refresh, localOnly)
     }
 }

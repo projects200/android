@@ -2,6 +2,7 @@ package com.project200.feature.exercise
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
@@ -57,7 +58,7 @@ class ExerciseDetailViewModelTest {
             location = "여의도 공원",
             pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/img1.jpg")),
         )
-    private val recordId = 123L
+    private val recordId = "record-123"
 
     @Before
     fun setUp() {
@@ -153,5 +154,82 @@ class ExerciseDetailViewModelTest {
             val actualResult = viewModel.deleteResult.replayCache.firstOrNull()
             assertThat(actualResult).isEqualTo(errorResult)
             assertThat((actualResult as BaseResult.Error).message).isEqualTo("삭제 실패")
+        }
+
+    @Test
+    fun `회전이나 화면 재진입은 상세 조회를 반복하지 않는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId) } returns BaseResult.Success(sampleRecord)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId) }
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+        }
+
+    @Test
+    fun `갱신 실패는 캐시 상세를 유지하고 알림을 한 번만 전달한다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId) } returns BaseResult.Success(sampleRecord, BaseResult.Error("401", "인증 실패"), true)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+            viewModel.refreshMessages.test {
+                assertThat(awaitItem()).isEqualTo("인증 실패")
+                viewModel.getExerciseRecord(recordId)
+                testDispatcher.scheduler.advanceUntilIdle()
+                expectNoEvents()
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `자신의 수정 후 상세는 서버 갱신 없이 로컬 값을 읽는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId) } returns BaseResult.Success(sampleRecord)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val changed = sampleRecord.copy(title = "수정한 운동")
+            coEvery { mockGetExerciseUseCase(recordId, false) } returns BaseResult.Success(changed, isCachedSnapshot = true)
+            viewModel.onOwnWrite(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true) }
+        }
+
+    @Test
+    fun `첫 시작은 상세를 중복 조회하지 않고 복귀는 로컬 전용으로 한 번 읽는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId) } returns BaseResult.Success(sampleRecord)
+            viewModel.getExerciseRecord(recordId)
+            viewModel.onScreenStarted(recordId)
+            viewModel.onScreenStarted(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true, false) }
+            val changed = sampleRecord.copy(title = "복귀한 로컬 상세")
+            coEvery { mockGetExerciseUseCase(recordId, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
+            viewModel.onScreenStopped()
+            viewModel.onScreenStarted(recordId)
+            viewModel.onScreenStarted(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, true) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true, false) }
+        }
+
+    @Test
+    fun `삭제 성공의 캐시 경고는 성공 결과에 남고 서버 삭제를 재시도하지 않는다`() =
+        runTest(testDispatcher) {
+            val warning = BaseResult.Error("CACHE_ERROR", "캐시 반영 실패")
+            coEvery { mockDeleteExerciseUseCase(recordId) } returns BaseResult.Success(Unit, warning)
+            viewModel.deleteExerciseRecord(recordId)
+            testDispatcher.scheduler.advanceUntilIdle()
+            val result = viewModel.deleteResult.replayCache.single() as BaseResult.Success
+            assertThat(result.refreshError).isEqualTo(warning)
+            viewModel.consumeDeleteResult()
+            assertThat(viewModel.deleteResult.replayCache).isEmpty()
+            coVerify(exactly = 1) { mockDeleteExerciseUseCase(recordId) }
         }
 }

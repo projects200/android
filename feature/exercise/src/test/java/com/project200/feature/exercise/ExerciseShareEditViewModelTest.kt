@@ -114,7 +114,7 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -131,7 +131,7 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -147,7 +147,7 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -163,7 +163,7 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -180,11 +180,11 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(123L)
+            viewModel.loadExerciseRecord("local-123")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            coVerify { mockGetExerciseRecordDetailUseCase(123L) }
+            coVerify { mockGetExerciseRecordDetailUseCase("local-123") }
         }
 
     @Test
@@ -224,7 +224,7 @@ class ExerciseShareEditViewModelTest {
             coEvery { mockGetExerciseRecordDetailUseCase(any()) } returns BaseResult.Success(sampleRecord)
 
             viewModel = createViewModel()
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When & Then
@@ -262,7 +262,7 @@ class ExerciseShareEditViewModelTest {
             coEvery { mockGetExerciseRecordDetailUseCase(any()) } returns BaseResult.Success(sampleRecord)
 
             viewModel = createViewModel()
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.selectTheme(StickerTheme.MINIMAL)
 
@@ -283,7 +283,7 @@ class ExerciseShareEditViewModelTest {
             coEvery { mockGetExerciseRecordDetailUseCase(any()) } returns BaseResult.Success(sampleRecord)
 
             viewModel = createViewModel()
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When & Then
@@ -308,7 +308,7 @@ class ExerciseShareEditViewModelTest {
             coEvery { mockGetExerciseRecordDetailUseCase(any()) } returns BaseResult.Success(sampleRecord)
 
             viewModel = createViewModel()
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.requestShare(sampleTransformInfo)
 
@@ -328,7 +328,7 @@ class ExerciseShareEditViewModelTest {
             viewModel = createViewModel()
 
             // When
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
@@ -346,7 +346,7 @@ class ExerciseShareEditViewModelTest {
             coEvery { mockGetExerciseRecordDetailUseCase(any()) } returns BaseResult.Success(sampleRecord)
 
             viewModel = createViewModel()
-            viewModel.loadExerciseRecord(1L)
+            viewModel.loadExerciseRecord("local-1")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // When & Then

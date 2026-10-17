@@ -8,12 +8,13 @@ import com.project200.domain.model.ExerciseRecordCreationResult
 import java.time.LocalDate
 
 interface ExerciseRecordRepository {
-    suspend fun getExerciseCountByRange(startDate: LocalDate, endDate: LocalDate): BaseResult<List<ExerciseCount>>
-    suspend fun getExerciseDetail(recordId: Long): BaseResult<ExerciseRecord>
-    suspend fun getExerciseRecordList(date: LocalDate): BaseResult<List<ExerciseListItem>>
+    /** refresh=false는 캐시 우선이며 온라인 미적중은 갱신합니다. 복귀 시 localOnly=true로 서버 조회를 막습니다. */
+    suspend fun getExerciseCountByRange(startDate: LocalDate, endDate: LocalDate, refresh: Boolean = true, localOnly: Boolean = false): BaseResult<List<ExerciseCount>>
+    suspend fun getExerciseDetail(recordId: String, refresh: Boolean = true, localOnly: Boolean = false): BaseResult<ExerciseRecord>
+    suspend fun getExerciseRecordList(date: LocalDate, refresh: Boolean = true, localOnly: Boolean = false): BaseResult<List<ExerciseListItem>>
     suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult>
-    suspend fun updateExerciseRecord(record: ExerciseRecord, recordId: Long): BaseResult<Long>
-    suspend fun uploadExerciseRecordImages(recordId:Long, images: List<String>): BaseResult<Long>
-    suspend fun deleteExerciseRecordImages(recordId: Long, imageIds: List<Long>): BaseResult<Unit>
-    suspend fun deleteExerciseRecord(recordId: Long): BaseResult<Unit>
+    suspend fun updateExerciseRecord(record: ExerciseRecord, recordId: String): BaseResult<String>
+    suspend fun uploadExerciseRecordImages(recordId: String, images: List<String>): BaseResult<String>
+    suspend fun deleteExerciseRecordImages(recordId: String, imageIds: List<Long>): BaseResult<Unit>
+    suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit>
 }

@@ -24,7 +24,7 @@ class DeleteExerciseRecordUseCaseTest {
 
     private lateinit var useCase: DeleteExerciseRecordUseCase
 
-    private val recordId = 123L
+    private val recordId = "record-123"
 
     @Before
     fun setUp() {

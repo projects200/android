@@ -2,6 +2,8 @@ package com.project200.data.di
 
 import android.content.Context
 import androidx.room.Room
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.project200.data.impl.RoomSessionDataCleaner
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
@@ -26,6 +28,17 @@ abstract class DatabaseModule {
     abstract fun bindSessionDataCleaner(roomSessionDataCleaner: RoomSessionDataCleaner): SessionDataCleaner
 
     companion object {
+        /** 메타데이터만 추가합니다. 기존 계정·대기 행·타이머는 재생성하지 않습니다. */
+        val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS exercise_cache_query " +
+                            "(memberId TEXT NOT NULL, queryType TEXT NOT NULL, date TEXT NOT NULL, PRIMARY KEY(memberId, queryType, date))",
+                    )
+                }
+            }
+
         @Provides
         @Singleton
         fun provideUndabangTypeConverters(moshi: Moshi): UndabangTypeConverters {
@@ -33,7 +46,7 @@ abstract class DatabaseModule {
         }
 
         /**
-         * 출시 전이라 마이그레이션 대신 재생성을 씁니다.
+         * 2→3은 대기 행을 보존하는 추가 마이그레이션을 씁니다. 미지원 경로의 출시 전 재생성 정책은 유지합니다.
          *
          * 스키마를 바꿀 때는 version을 올립니다. version을 그대로 두고 스키마만 바꾸면
          * identityHash가 어긋나 재생성 없이 크래시합니다
@@ -53,6 +66,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
+                .addMigrations(MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
         }

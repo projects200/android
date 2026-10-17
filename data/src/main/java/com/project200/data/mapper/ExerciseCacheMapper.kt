@@ -36,7 +36,7 @@ fun ExerciseListItem.toSyncedEntity(
     return ExerciseListItemEntity(
         memberId = memberId,
         localId = localId,
-        serverId = recordId,
+        serverId = recordId.toLong(),
         syncState = SyncState.SYNCED,
         date = date,
         sortOrder = sortOrder,
@@ -48,15 +48,16 @@ fun ExerciseListItem.toSyncedEntity(
     )
 }
 
-/** 서버 ID가 아직 없는 행은 화면이 다룰 수 없어 null을 돌려줍니다 */
-fun ExerciseListItemEntity.toModel(): ExerciseListItem? {
+/** 화면과 내비게이션은 서버 ID 유무와 관계없이 같은 localId를 씁니다. */
+fun ExerciseListItemEntity.toModel(): ExerciseListItem {
     return ExerciseListItem(
-        recordId = serverId ?: return null,
+        recordId = localId,
         title = title,
         type = personalType,
         startTime = startedAt,
         endTime = endedAt,
         imageUrl = thumbnailUrls,
+        syncPending = syncState != SyncState.SYNCED,
     )
 }
 
@@ -89,5 +90,7 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         endedAt = endedAt,
         location = location,
         pictures = pictures?.map { ExerciseRecordPicture(it.id, it.url) },
+        syncPending = syncState != SyncState.SYNCED,
+        canModify = serverId != null && syncState == SyncState.SYNCED,
     )
 }

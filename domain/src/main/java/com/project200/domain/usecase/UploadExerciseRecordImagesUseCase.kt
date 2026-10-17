@@ -7,7 +7,7 @@ import javax.inject.Inject
 class UploadExerciseRecordImagesUseCase @Inject constructor(
     private val exerciseRecordRepository: ExerciseRecordRepository
 ) {
-    suspend operator fun invoke(exerciseId: Long, images: List<String>): BaseResult<Long> {
+    suspend operator fun invoke(exerciseId: String, images: List<String>): BaseResult<String> {
         return exerciseRecordRepository.uploadExerciseRecordImages(exerciseId, images)
     }
 }

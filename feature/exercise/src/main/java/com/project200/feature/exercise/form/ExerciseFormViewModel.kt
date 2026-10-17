@@ -21,12 +21,15 @@ import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.undabang.feature.exercise.R
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -87,16 +90,31 @@ class ExerciseFormViewModel
 
         private val _toastMessage = MutableSharedFlow<Int>(replay = 1)
         val toastMessage: SharedFlow<Int> = _toastMessage.asSharedFlow()
+        private val refreshNotifications = Channel<Int>(Channel.BUFFERED)
+        val refreshMessages = refreshNotifications.receiveAsFlow()
 
         private val _scoreGuidanceState = MutableStateFlow<ScoreGuidanceState>(ScoreGuidanceState.Hidden)
         val scoreGuidanceState: StateFlow<ScoreGuidanceState> = _scoreGuidanceState.asStateFlow()
 
         private val _timeSelectionState = MutableStateFlow(TimeSelectionState.NONE)
         val timeSelectionState: StateFlow<TimeSelectionState> = _timeSelectionState.asStateFlow()
+        private var initializedRecordId: String? = null
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        fun consumeCreateResult() {
+            _createResult.resetReplayCache()
+        }
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        fun consumeEditResult() {
+            _editResult.resetReplayCache()
+        }
 
         /** 초기 데이터 설정 */
-        fun loadInitialRecord(recordId: Long) {
-            if (recordId == -1L) {
+        fun loadInitialRecord(recordId: String) {
+            if (initializedRecordId == recordId) return
+            initializedRecordId = recordId
+            if (recordId.isEmpty()) {
                 // 생성 모드
                 isEditMode = false
                 initialRecord = null
@@ -114,9 +132,10 @@ class ExerciseFormViewModel
                     when (val result = getExerciseRecordDetailUseCase(recordId)) {
                         is BaseResult.Success -> {
                             setupEditMode(result.data)
+                            if (result.refreshError != null) refreshNotifications.send(R.string.exercise_load_fail)
                         }
                         is BaseResult.Error -> {
-                            _toastMessage.emit(R.string.exercise_load_fail)
+                            refreshNotifications.send(R.string.exercise_load_fail)
                         }
                     }
                 }
@@ -355,7 +374,7 @@ class ExerciseFormViewModel
 
         /** 기록 생성 또는 수정 */
         fun submitRecord(
-            recordId: Long,
+            recordId: String,
             title: String,
             type: String,
             location: String,
@@ -410,7 +429,12 @@ class ExerciseFormViewModel
                 when (val createResult = createExerciseRecordUseCase(record)) {
                     is BaseResult.Success -> {
                         // 기록 생성 성공 시, 이미지 업로드 로직 호출
-                        handleSuccessfulRecordCreation(createResult.data.recordId, newImageUris, createResult.data.earnedPoints)
+                        handleSuccessfulRecordCreation(
+                            createResult.data.recordId,
+                            newImageUris,
+                            createResult.data.earnedPoints,
+                            createResult.refreshError,
+                        )
                     }
                     is BaseResult.Error -> {
                         // 기록 생성 실패
@@ -424,31 +448,32 @@ class ExerciseFormViewModel
 
         /** 기록 생성 후 이미지 업로드 처리 */
         private suspend fun handleSuccessfulRecordCreation(
-            recordId: Long,
+            recordId: String,
             newImageUris: List<String>,
             earnedPoints: Int,
+            refreshError: BaseResult.Error?,
         ) {
             if (newImageUris.isNotEmpty()) {
-                when (uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
+                when (val uploadResult = uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
                     is BaseResult.Success -> {
                         // 이미지 업로드 성공 -> 최종 성공
-                        _createResult.emit(SubmissionResult.Success(recordId, earnedPoints))
+                        _createResult.emit(SubmissionResult.Success(recordId, earnedPoints, refreshError ?: uploadResult.refreshError))
                     }
                     is BaseResult.Error -> {
                         // 이미지 업로드 실패 -> 부분 성공
-                        _createResult.emit(SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail))
+                        _createResult.emit(SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail, refreshError))
                     }
                 }
             } else {
                 // 업로드할 이미지가 없음 -> 최종 성공
-                _createResult.emit(SubmissionResult.Success(recordId, earnedPoints))
+                _createResult.emit(SubmissionResult.Success(recordId, earnedPoints, refreshError))
             }
             _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
         }
 
         /** 기록 수정 */
         private fun editExerciseRecord(
-            recordId: Long,
+            recordId: String,
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
