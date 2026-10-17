@@ -269,8 +269,8 @@ class ExerciseRecordRepositoryImplTest {
                 (repository.getExerciseRecordList(nextDate, refresh = false) as BaseResult.Success).data.single().recordId,
             ).isEqualTo(id)
             assertThat((repository.getExerciseDetail(id, refresh = false) as BaseResult.Success).data.title).isEqualTo("옮긴 운동")
-            val movedCounts =
-                (repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.associate { it.date to it.count }
+            val movedResult = repository.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success
+            val movedCounts = movedResult.data.associate { it.date to it.count }
             assertThat(movedCounts[date]).isEqualTo(0)
             assertThat(movedCounts[nextDate]).isEqualTo(1)
 

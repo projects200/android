@@ -60,7 +60,9 @@ class ExerciseRecordLocalDataSource
                 val pending = exerciseRecordDao.getPendingInRange(memberId, startDate, endDate).groupBy { it.date }
                 (counts.keys + pending.keys).sorted().map { date ->
                     val rows = pending[date].orEmpty()
-                    val delta = rows.count { it.syncState == SyncState.CREATE_PENDING } - rows.count { it.syncState == SyncState.DELETE_PENDING }
+                    val created = rows.count { it.syncState == SyncState.CREATE_PENDING }
+                    val deleted = rows.count { it.syncState == SyncState.DELETE_PENDING }
+                    val delta = created - deleted
                     val count = maxOf((counts[date] ?: 0) + delta, rows.count { it.syncState != SyncState.DELETE_PENDING })
                     ExerciseCount(date, count.coerceAtLeast(0), rows.any { it.syncState != SyncState.DELETE_PENDING })
                 }
@@ -121,9 +123,12 @@ class ExerciseRecordLocalDataSource
                 val pendingServerIds = exerciseRecordDao.getAllPendingServerIds(memberId!!).toSet()
                 val incoming = items.withIndex().filterNot { it.value.recordId.toLong() in pendingServerIds }
                 val incomingServerIds = incoming.map { it.value.recordId.toLong() }
-                val reusableLocalIds = if (incomingServerIds.isEmpty()) emptyMap() else {
-                    exerciseRecordDao.getSyncedByServerIds(memberId, incomingServerIds).associate { it.serverId to it.localId }
-                }
+                val reusableLocalIds =
+                    if (incomingServerIds.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        exerciseRecordDao.getSyncedByServerIds(memberId, incomingServerIds).associate { it.serverId to it.localId }
+                    }
                 val existing = exerciseRecordDao.getSyncedByDate(memberId, date).filterNot { it.serverId in pendingServerIds }
                 val removedLocalIds = existing.filterNot { it.serverId in incomingServerIds }.map { it.localId }
                 existing.forEach { exerciseRecordDao.deleteListItem(memberId, it.localId) }
@@ -131,9 +136,10 @@ class ExerciseRecordLocalDataSource
                 if (incomingServerIds.isNotEmpty()) exerciseRecordDao.deleteSyncedOnOtherDates(memberId, date, incomingServerIds)
                 exerciseRecordDao.upsertListItems(
                     incoming.map { (sortOrder, item) ->
-                        val id = reusableLocalIds[item.recordId.toLong()]
-                            ?: exerciseRecordDao.findDetailLocalId(memberId, item.recordId.toLong())
-                            ?: newLocalId()
+                        val id =
+                            reusableLocalIds[item.recordId.toLong()]
+                                ?: exerciseRecordDao.findDetailLocalId(memberId, item.recordId.toLong())
+                                ?: newLocalId()
                         item.toSyncedEntity(memberId, id, date, sortOrder)
                     },
                 )
@@ -152,22 +158,34 @@ class ExerciseRecordLocalDataSource
 
         suspend fun getDetailByServerId(serverId: Long, memberId: String? = currentMemberId()): ExerciseRecord? {
             if (!isCurrentMember(memberId)) return null
-            return exerciseRecordDao.getDetailByServerId(memberId!!, serverId)?.takeIf { it.syncState != SyncState.DELETE_PENDING }?.toModel()
+            return exerciseRecordDao
+                .getDetailByServerId(memberId!!, serverId)
+                ?.takeIf { it.syncState != SyncState.DELETE_PENDING }
+                ?.toModel()
         }
 
         suspend fun getDetailByLocalId(localId: String, memberId: String? = currentMemberId()): ExerciseRecord? {
             if (!isCurrentMember(memberId)) return null
-            return exerciseRecordDao.getDetailByLocalId(memberId!!, localId)?.takeIf { it.syncState != SyncState.DELETE_PENDING }?.toModel()
+            return exerciseRecordDao
+                .getDetailByLocalId(memberId!!, localId)
+                ?.takeIf { it.syncState != SyncState.DELETE_PENDING }
+                ?.toModel()
         }
 
-        suspend fun saveSyncedDetail(serverId: Long, record: ExerciseRecord, memberId: String? = currentMemberId(), previousLocalId: String? = null): String? {
+        suspend fun saveSyncedDetail(
+            serverId: Long,
+            record: ExerciseRecord,
+            memberId: String? = currentMemberId(),
+            previousLocalId: String? = null,
+        ): String? {
             if (!isCurrentMember(memberId)) return null
             return database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction null
-                val localId = exerciseRecordDao.findListItemLocalId(memberId!!, serverId)
-                    ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
-                    ?: previousLocalId
-                    ?: newLocalId()
+                val localId =
+                    exerciseRecordDao.findListItemLocalId(memberId!!, serverId)
+                        ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
+                        ?: previousLocalId
+                        ?: newLocalId()
                 if (serverId !in exerciseRecordDao.getAllPendingServerIds(memberId)) {
                     exerciseRecordDao.upsertDetail(record.toSyncedEntity(memberId, localId, serverId))
                 }
@@ -190,8 +208,17 @@ class ExerciseRecordLocalDataSource
                 exerciseRecordDao.upsertListItems(
                     listOf(
                         ExerciseListItemEntity(
-                            memberId, id, serverId, SyncState.SYNCED, date, oldItem?.sortOrder ?: 0,
-                            record.title, record.personalType, record.startedAt, record.endedAt, record.pictures?.map { it.url },
+                            memberId,
+                            id,
+                            serverId,
+                            SyncState.SYNCED,
+                            date,
+                            oldItem?.sortOrder ?: 0,
+                            record.title,
+                            record.personalType,
+                            record.startedAt,
+                            record.endedAt,
+                            record.pictures?.map { it.url },
                         ),
                     ),
                 )
@@ -208,9 +235,13 @@ class ExerciseRecordLocalDataSource
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
                 if (serverId in exerciseRecordDao.getAllPendingServerIds(memberId!!)) return@withTransaction
-                val id = exerciseRecordDao.findListItemLocalId(memberId, serverId) ?: exerciseRecordDao.findDetailLocalId(memberId, serverId) ?: return@withTransaction
-                val date = exerciseRecordDao.getListItem(memberId, id)?.date
-                    ?: exerciseRecordDao.getDetailByLocalId(memberId, id)?.startedAt?.toLocalDate()
+                val id =
+                    exerciseRecordDao.findListItemLocalId(memberId, serverId)
+                        ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
+                        ?: return@withTransaction
+                val date =
+                    exerciseRecordDao.getListItem(memberId, id)?.date
+                        ?: exerciseRecordDao.getDetailByLocalId(memberId, id)?.startedAt?.toLocalDate()
                 exerciseRecordDao.deleteListItem(memberId, id)
                 exerciseRecordDao.deleteDetail(memberId, id)
                 date?.let { adjustCount(memberId, it, -1) }
@@ -223,9 +254,14 @@ class ExerciseRecordLocalDataSource
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
                 if (serverId in exerciseRecordDao.getAllPendingServerIds(memberId!!)) return@withTransaction
-                val id = exerciseRecordDao.findListItemLocalId(memberId, serverId) ?: exerciseRecordDao.findDetailLocalId(memberId, serverId) ?: return@withTransaction
+                val id =
+                    exerciseRecordDao.findListItemLocalId(memberId, serverId)
+                        ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
+                        ?: return@withTransaction
                 exerciseRecordDao.deleteDetail(memberId, id)
-                exerciseRecordDao.getListItem(memberId, id)?.let { exerciseRecordDao.upsertListItems(listOf(it.copy(thumbnailUrls = null))) }
+                exerciseRecordDao.getListItem(memberId, id)?.let {
+                    exerciseRecordDao.upsertListItems(listOf(it.copy(thumbnailUrls = null)))
+                }
             }
         }
 

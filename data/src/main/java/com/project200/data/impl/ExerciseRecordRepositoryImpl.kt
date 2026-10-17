@@ -175,9 +175,10 @@ class ExerciseRecordRepositoryImpl
                     )
                 if (result !is BaseResult.Success) return@serialized result
                 var id = result.data.recordId
-                val error = cacheAfterWrite(memberId, enabled) {
-                    id = localDataSource.reconcileRecord(id.toLong(), record, memberId) ?: id
-                }
+                val error =
+                    cacheAfterWrite(memberId, enabled) {
+                        id = localDataSource.reconcileRecord(id.toLong(), record, memberId) ?: id
+                    }
                 BaseResult.Success(result.data.copy(recordId = id), error)
             }
 
@@ -196,9 +197,10 @@ class ExerciseRecordRepositoryImpl
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
-                        val error = cacheAfterWrite(memberId, enabled) {
-                            localDataSource.reconcileRecord(id, record.copy(pictures = record.pictures ?: previous?.pictures), memberId)
-                        }
+                        val error =
+                            cacheAfterWrite(memberId, enabled) {
+                                localDataSource.reconcileRecord(id, record.copy(pictures = record.pictures ?: previous?.pictures), memberId)
+                            }
                         BaseResult.Success(recordId, error)
                     }
                 }
@@ -233,15 +235,16 @@ class ExerciseRecordRepositoryImpl
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
-                        val error = cacheAfterWrite(memberId, enabled) {
-                            when (val detail = remoteDetail(id)) {
-                                is BaseResult.Success -> localDataSource.reconcileRecord(id, detail.data, memberId)
-                                is BaseResult.Error -> {
-                                    localDataSource.invalidateImages(id, memberId)
-                                    throw IllegalStateException(detail.message, detail.cause)
+                        val error =
+                            cacheAfterWrite(memberId, enabled) {
+                                when (val detail = remoteDetail(id)) {
+                                    is BaseResult.Success -> localDataSource.reconcileRecord(id, detail.data, memberId)
+                                    is BaseResult.Error -> {
+                                        localDataSource.invalidateImages(id, memberId)
+                                        throw IllegalStateException(detail.message, detail.cause)
+                                    }
                                 }
                             }
-                        }
                         BaseResult.Success(recordId, error)
                     }
                 }
@@ -255,17 +258,18 @@ class ExerciseRecordRepositoryImpl
                 val previous = if (enabled) localDataSource.getDetailByServerId(id, memberId) else null
                 val result = apiCallBuilder(ioDispatcher, { remoteDataSource.deleteExerciseImages(id, imageIds) }, { Unit })
                 if (result !is BaseResult.Success) return@serialized result
-                val error = cacheAfterWrite(memberId, enabled) {
-                    if (previous != null) {
-                        localDataSource.reconcileRecord(
-                            id,
-                            previous.copy(pictures = previous.pictures?.filterNot { it.id in imageIds }),
-                            memberId,
-                        )
-                    } else {
-                        localDataSource.invalidateImages(id, memberId)
+                val error =
+                    cacheAfterWrite(memberId, enabled) {
+                        if (previous != null) {
+                            localDataSource.reconcileRecord(
+                                id,
+                                previous.copy(pictures = previous.pictures?.filterNot { it.id in imageIds }),
+                                memberId,
+                            )
+                        } else {
+                            localDataSource.invalidateImages(id, memberId)
+                        }
                     }
-                }
                 BaseResult.Success(Unit, error)
             }
 

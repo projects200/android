@@ -93,9 +93,13 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         calendarDayTv.text = data.date.dayOfMonth.toString()
                         // 숫자만 같은 다른 달의 날짜와 구분하고 실제 날짜를 접근성에 제공합니다.
                         calendarDayTv.contentDescription =
-                            if (data.position != DayPosition.MonthDate) null
-                            else if (data.date in pendingDates) getString(R.string.exercise_pending_date, data.date)
-                            else data.date.toString()
+                            if (data.position != DayPosition.MonthDate) {
+                                null
+                            } else if (data.date in pendingDates) {
+                                getString(R.string.exercise_pending_date, data.date)
+                            } else {
+                                data.date.toString()
+                            }
 
                         // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
                         calendarDayTv.background = null

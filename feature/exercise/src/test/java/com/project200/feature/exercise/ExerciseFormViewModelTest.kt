@@ -618,11 +618,12 @@ class ExerciseFormViewModelTest {
             val repository = mockk<ExerciseRecordRepository>()
             val warning = BaseResult.Error("CACHE_ERROR", "로컬 반영 실패")
             coEvery { repository.updateExerciseRecord(any(), recordId) } returns BaseResult.Success(recordId, warning)
-            val edit = EditExerciseRecordUseCase(
-                UpdateExerciseRecordUseCase(repository),
-                DeleteExerciseRecordImagesUseCase(repository),
-                UploadExerciseRecordImagesUseCase(repository),
-            )
+            val edit =
+                EditExerciseRecordUseCase(
+                    UpdateExerciseRecordUseCase(repository),
+                    DeleteExerciseRecordImagesUseCase(repository),
+                    UploadExerciseRecordImagesUseCase(repository),
+                )
             setupViewModelForEditMode(editUseCase = edit)
             viewModel.submitRecord(recordId, "수정한 제목", sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
