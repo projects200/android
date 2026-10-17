@@ -7,6 +7,7 @@ import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.SyncState
 import java.time.LocalDate
+import java.time.LocalDateTime
 
 @Dao
 interface ExerciseRecordDao {
@@ -144,6 +145,56 @@ interface ExerciseRecordDao {
         memberId: String,
         localId: String,
     )
+
+    /**
+     * 오래된 서버 캐시만 지웁니다. 같은 회원의 같은 로컬/서버 ID에 대기·로컬 전용 행이나
+     * 보관 기간 안의 행이 있으면 목록과 상세를 모두 보존합니다.
+     * 상세 정리와 같은 트랜잭션에서 호출해야 합니다
+     */
+    @Query(
+        "DELETE FROM exercise_list_item " +
+            "WHERE date < :cutoff AND serverId IS NOT NULL AND syncState = :synced " +
+            "AND NOT EXISTS (" +
+            "SELECT 1 FROM exercise_list_item AS other " +
+            "WHERE other.memberId = exercise_list_item.memberId " +
+            "AND (other.localId = exercise_list_item.localId OR other.serverId = exercise_list_item.serverId) " +
+            "AND (other.syncState != :synced OR other.serverId IS NULL OR other.date >= :cutoff)) " +
+            "AND NOT EXISTS (" +
+            "SELECT 1 FROM exercise_record_detail AS detail " +
+            "WHERE detail.memberId = exercise_list_item.memberId " +
+            "AND (detail.localId = exercise_list_item.localId OR detail.serverId = exercise_list_item.serverId) " +
+            "AND (detail.syncState != :synced OR detail.serverId IS NULL OR detail.startedAt >= :cutoffStart))",
+    )
+    suspend fun deleteExpiredSyncedListItems(
+        cutoff: LocalDate,
+        cutoffStart: LocalDateTime,
+        synced: SyncState = SyncState.SYNCED,
+    )
+
+    /** 목록 없이 상세만 캐시한 기록도 시작 날짜로 정리합니다. 대기 중인 짝은 보존합니다 */
+    @Query(
+        "DELETE FROM exercise_record_detail " +
+            "WHERE startedAt < :cutoffStart AND serverId IS NOT NULL AND syncState = :synced " +
+            "AND NOT EXISTS (" +
+            "SELECT 1 FROM exercise_record_detail AS other " +
+            "WHERE other.memberId = exercise_record_detail.memberId " +
+            "AND (other.localId = exercise_record_detail.localId OR other.serverId = exercise_record_detail.serverId) " +
+            "AND (other.syncState != :synced OR other.serverId IS NULL OR other.startedAt >= :cutoffStart)) " +
+            "AND NOT EXISTS (" +
+            "SELECT 1 FROM exercise_list_item AS item " +
+            "WHERE item.memberId = exercise_record_detail.memberId " +
+            "AND (item.localId = exercise_record_detail.localId OR item.serverId = exercise_record_detail.serverId) " +
+            "AND (item.syncState != :synced OR item.serverId IS NULL OR item.date >= :cutoff))",
+    )
+    suspend fun deleteExpiredSyncedDetails(
+        cutoff: LocalDate,
+        cutoffStart: LocalDateTime,
+        synced: SyncState = SyncState.SYNCED,
+    )
+
+    /** 오래된 빈 응답이 캐시 적중으로 남지 않도록 목록·횟수 조회 마커도 함께 지웁니다 */
+    @Query("DELETE FROM exercise_cache_query WHERE date < :cutoff")
+    suspend fun deleteExpiredQueryMarkers(cutoff: LocalDate)
 }
 
 /** 서버 ID와 로컬 ID의 짝입니다 */
