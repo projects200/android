@@ -1002,6 +1002,14 @@ def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, 
     finally:
         handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
         try:
+            if hooks and callable(getattr(hooks, "collect_diagnostics", None)):
+                try:
+                    hooks.collect_diagnostics(
+                        core_module(), device, flow, dict(variables), credentials, run_id, ownership,
+                    )
+                except Exception:
+                    # 수집 오류는 원래 UI 오류를 덮거나 fixture 복구/최종 clear를 막지 않습니다.
+                    errors.append("feature-diagnostics-failed")
             cleanup_failed = False
             if prepared:
                 try:

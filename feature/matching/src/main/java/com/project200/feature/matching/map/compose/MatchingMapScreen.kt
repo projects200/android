@@ -46,6 +46,8 @@ import com.kakao.vectormap.label.Label
 import com.project200.domain.model.MatchingMember
 import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.map.MapViewManager
+import com.project200.feature.matching.map.MatchingMapReadiness
+import com.project200.feature.matching.map.MatchingMapStatus
 import com.project200.feature.matching.map.MatchingMapViewModel
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
@@ -97,7 +99,9 @@ fun MatchingMapScreen(
 
     // 클러스터 계산기 / 지도 매니저(지도 준비 후 비동기 생성이라 상태로 둠)
     val clusterCalculator = remember { ClusterCalculator<MapClusterItem>() }
-    var manager by remember { mutableStateOf<MapViewManager?>(null) }
+    var manager by remember(context) { mutableStateOf<MapViewManager?>(null) }
+    var mapReadiness by remember(context) { mutableStateOf(MatchingMapReadiness()) }
+    var mapAttempt by remember(context) { mutableStateOf<Int?>(null) }
     val renderedMembers =
         remember(context) {
             if (MatchingFixtureEvidence.isArmed(context)) mutableStateOf("") else null
@@ -117,7 +121,7 @@ fun MatchingMapScreen(
                         testTagsAsResourceId = true
                         contentDescription = renderedMembers.value
                     }
-                    .testTag(if (manager == null) "matching_map_loading" else "matching_map_ready")
+                    .testTag(mapReadiness.testTag)
             } else {
                 modifier
             },
@@ -125,7 +129,24 @@ fun MatchingMapScreen(
         // 지도 슬롯: 호스팅 + manager 생성 + 카메라 idle/라벨 클릭 처리
         KakaoMapView(
             modifier = Modifier.fillMaxSize(),
+            onMapStarted = {
+                manager = null
+                controller?.manager = null
+                mapReadiness = MatchingMapReadiness()
+                renderedMembers?.value = ""
+                mapAttempt = MatchingFixtureEvidence.mapStarted(context)
+            },
+            onMapError = { error ->
+                if (mapReadiness.status != MatchingMapStatus.FAILED) {
+                    mapReadiness = mapReadiness.failed(error)
+                    manager = null
+                    controller?.manager = null
+                    renderedMembers?.value = ""
+                    MatchingFixtureEvidence.map(context, mapAttempt, mapReadiness)
+                }
+            },
             onMapReady = { map ->
+                if (mapReadiness.status == MatchingMapStatus.FAILED) return@KakaoMapView
                 manager =
                     MapViewManager(
                         context = context,
@@ -152,8 +173,17 @@ fun MatchingMapScreen(
                         controller?.manager = mgr // 카메라 제어 통로 연결
                         onMapReady() // Fragment가 초기 복원 등을 시작하도록 통지
                     }
+                mapReadiness = mapReadiness.ready()
+                MatchingFixtureEvidence.map(context, mapAttempt, mapReadiness)
             },
         )
+        if (mapReadiness.status == MatchingMapStatus.FAILED) {
+            Text(
+                text = stringResource(R.string.error_unknown),
+                modifier = Modifier.align(Alignment.Center).background(ColorWhite300).padding(16.dp),
+                color = ColorBlack,
+            )
+        }
     }
 
     // 데이터(또는 지도 준비) 변경 시 마커/클러스터 다시 그리기
