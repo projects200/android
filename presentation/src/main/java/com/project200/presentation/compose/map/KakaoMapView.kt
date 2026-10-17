@@ -99,6 +99,9 @@ fun KakaoMapView(
                         }
                     },
                 )
+                if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                    resume()
+                }
             }
         },
     )
