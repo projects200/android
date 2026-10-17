@@ -1,0 +1,12 @@
+appId: com.project200.undabang
+---
+- tapOn: "다음"
+- extendedWaitUntil:
+    visible:
+      id: preferred_exercise_detail_loaded
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
+    direction: DOWN
+    timeout: 30000

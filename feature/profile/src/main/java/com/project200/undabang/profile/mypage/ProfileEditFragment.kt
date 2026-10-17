@@ -71,6 +71,7 @@ class ProfileEditFragment : Fragment() {
                 val newProfileImageUri by viewModel.newProfileImageUri.collectAsStateWithLifecycle()
                 val nicknameValidationState by viewModel.nicknameValidationState.collectAsStateWithLifecycle()
                 val isNicknameChecked by viewModel.isNicknameChecked.collectAsStateWithLifecycle()
+                val isLoaded by viewModel.isLoaded.collectAsStateWithLifecycle()
 
                 ProfileEditScreen(
                     nickname = nickname,
@@ -80,6 +81,7 @@ class ProfileEditFragment : Fragment() {
                     newProfileImageUri = newProfileImageUri,
                     nicknameValidationState = nicknameValidationState,
                     isNicknameChecked = isNicknameChecked,
+                    isLoaded = isLoaded,
                     onNicknameChange = viewModel::updateNickname,
                     onIntroductionChange = viewModel::updateIntroduction,
                     onGenderSelect = viewModel::selectGender,

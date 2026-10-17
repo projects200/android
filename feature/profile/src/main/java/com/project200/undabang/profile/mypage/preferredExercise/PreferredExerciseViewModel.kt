@@ -51,6 +51,9 @@ class PreferredExerciseViewModel
         private val _exerciseUiModels = MutableStateFlow<List<PreferredExerciseUiModel>>(emptyList())
         val exerciseUiModels: StateFlow<List<PreferredExerciseUiModel>> = _exerciseUiModels.asStateFlow()
 
+        private val _isLoaded = MutableStateFlow(false)
+        val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
         val selectedExerciseUiModels: StateFlow<List<PreferredExerciseUiModel>> =
             _exerciseUiModels
                 .map { list -> list.filter { it.isSelected } }
@@ -80,6 +83,7 @@ class PreferredExerciseViewModel
                     exerciseTypes.value = allTypesResult.data
                     preferredExercise.value = exerciseResult.data
                     updateUiModels()
+                    _isLoaded.value = true
                 }
             }
         }
@@ -181,6 +185,7 @@ class PreferredExerciseViewModel
          * 선호 운동 설정 완료
          */
         fun completePreferredExerciseChanges() {
+            if (!_isLoaded.value || _completionState.value is CompletionState.Loading) return
             _completionState.value = CompletionState.Loading
 
             val selectedUiModels = _exerciseUiModels.value.filter { it.isSelected }

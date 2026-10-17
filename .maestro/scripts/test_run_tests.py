@@ -288,6 +288,92 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_profile_prepare_discloses_only_fixed_reviewed_failures(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("profile_baseline_nickname_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-nickname-unsupported"),
+            ("profile_baseline_gender_unsupported",
+             "bootstrap-prepare-failed-profile-baseline-gender-unsupported"),
+            ("profile_baseline_bio_null", "bootstrap-prepare-failed-profile-baseline-bio-null"),
+            ("profile_baseline_bio_too_long", "bootstrap-prepare-failed-profile-baseline-bio-too-long"),
+            ("profile_baseline_bio_control_characters",
+             "bootstrap-prepare-failed-profile-baseline-bio-control-characters"),
+            ("profile_fcm_token_timeout", "bootstrap-prepare-failed-profile-fcm-token-timeout"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_profile_prepare_unknown_and_non_string_reasons_remain_generic(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "profile_unknown_failure",
+            "profile_baseline_text_unsupported",
+            "profile_baseline_nickname_unsupported-" + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET,
+            {"code": "profile_baseline_bio_null", "private": SYNTHETIC_SECRET},
+            ["profile_baseline_bio_control_characters", SYNTHETIC_SECRET],
+            None,
+            7,
+            True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(case=index):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode("utf-8")
+                self.assert_failure(
+                    "bootstrap-prepare-failed",
+                    lambda: self.device.bootstrap(
+                        "prepare", CREDENTIALS, feature="profile", flow="profile-edit",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertTrue((self.transport.root / runner.RESULT).exists())
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_reviewed_profile_reason_outside_failed_profile_prepare_remains_generic(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("prepare", "profile", "exported", "bootstrap-prepare-failed"),
+            ("prepare", "profile", None, "bootstrap-prepare-failed"),
+            ("prepare", "matching", "failed", "bootstrap-prepare-failed"),
+            ("cleanup", "profile", "failed", "bootstrap-cleanup-failed"),
+            ("prepare", None, "failed", "bootstrap-prepare-failed"),
+        )
+        for reason in ("profile_baseline_bio_null", "profile_fcm_token_timeout"):
+            for operation, feature, status, expected in cases:
+                with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
+                    payload = json.dumps({
+                        "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.transport.result = payload
+                    metadata = {}
+                    if feature is not None:
+                        metadata = {
+                            "feature": feature,
+                            "flow": "profile-preferred-exercise" if feature == "profile" else "matching-place-crud",
+                            "run_id": "0123456789abcdef", "parameters": {},
+                        }
+                    self.assert_failure(
+                        expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                    self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
     def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
         self.transport.pending_sleeps = 0
         cases = (
@@ -322,9 +408,11 @@ class SessionTransportTests(unittest.TestCase):
         self.transport.pending_sleeps = 0
         metadata = {"flow": "matching-place-crud", "run_id": "0123456789abcdef", "parameters": {}}
         matching = {"feature": "matching", **metadata}
+        profile = {"feature": "profile", **metadata, "flow": "profile-preferred-exercise"}
         cases = (
             ("matching-cleanup", "cleanup", matching, "failed"),
             ("other-feature", "prepare", {"feature": "exercise", **metadata}, "failed"),
+            ("profile-prepare", "prepare", profile, "failed"),
             ("absent-feature", "prepare", {}, "failed"),
             ("wrong-status", "prepare", matching, "exported"),
             ("absent-status", "prepare", matching, None),
@@ -658,14 +746,31 @@ class MaestroFailureArtifactTests(unittest.TestCase):
                 "load_average": [14.67, 12.04, 6.64], "total_cpu_percent": 98.5,
             },
         )
-        self.assertEqual(
-            self.device.call.call_args,
-            mock.call("shell", "dumpsys", "activity", "lastanr", timeout=30),
-        )
         for path in self.destination.iterdir():
             content = path.read_text(encoding="utf-8")
-            for value in (private, self.escaped_secret, SYNTHETIC_SECRET):
+            for value in (
+                private, self.escaped_secret, SYNTHETIC_SECRET, "com.android.systemui", "6175",
+            ):
                 self.assertNotIn(value, content)
+
+    def test_application_anr_summary_uses_fixed_reason_categories(self):
+        for reason, category in (
+            ("Input dispatching timed out (synthetic-private-window)", "input-dispatch"),
+            ("executing service synthetic.private.service", "service"),
+            ("ContentProvider not responding: synthetic.private.provider", "content-provider"),
+        ):
+            with self.subTest(category=category):
+                self.device.call.return_value = (
+                    0, ("ANR in " + runner.APP_ID + "\nReason: " + reason + "\n").encode("utf-8"), b"",
+                )
+                runner.save_failure_anr(self.device, self.destination)
+                self.assertEqual(
+                    json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+                    {
+                        "process": "application", "reason": category,
+                        "load_average": None, "total_cpu_percent": None,
+                    },
+                )
 
     def test_anr_summary_does_not_publish_other_process_or_reason_text(self):
         self.device.call.return_value = (
@@ -685,20 +790,48 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             {"process": "unknown", "reason": "unknown", "load_average": None, "total_cpu_percent": None},
         )
 
-    def test_anr_capture_failure_preserves_original_failure_and_console(self):
-        self.device.call.side_effect = [(0, b"", b""), runner.RunnerFailure("tool-timeout")]
-        with self.assertRaises(runner.RunnerFailure) as caught:
-            runner.run_maestro(
-                self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
-            )
+    def test_unavailable_anr_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8")),
+        ]
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
         self.assertEqual(str(caught.exception), "maestro-flow-failed")
-        self.assertTrue((self.destination / "console.log").is_file())
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
         self.assertFalse((self.destination / "last-anr-summary.json").exists())
 
+    def test_anr_capture_failure_preserves_original_failure_and_console(self):
+        for failure in (runner.RunnerFailure("tool-timeout"), OSError(SYNTHETIC_SECRET)):
+            with self.subTest(failure=type(failure).__name__):
+                self.device.call.side_effect = [(0, b"", b""), failure]
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    with self.assertRaises(runner.RunnerFailure) as caught:
+                        runner.run_maestro(
+                            self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                        )
+                self.assertEqual(str(caught.exception), "maestro-flow-failed")
+                self.assertEqual(
+                    (self.destination / "console.log").read_text(encoding="utf-8"),
+                    "Maestro UI assertion failed: [REDACTED]",
+                )
+                self.assertEqual(published.getvalue(), "")
+                self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
     def test_anr_write_failure_preserves_original_failure_without_private_error(self):
-        self.device.call.return_value = (
-            0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b"",
-        )
+        self.device.call.side_effect = [
+            (0, b"", b""),
+            (0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b""),
+        ]
         write_text = Path.write_text
 
         def fail_anr_write(path, *args, **kwargs):
@@ -729,7 +862,11 @@ class MaestroFailureArtifactTests(unittest.TestCase):
                 self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
             )
         self.assertIs(caught.exception, interruption)
-        self.assertTrue((self.destination / "console.log").is_file())
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "last-anr-summary.json").exists())
 
 
 class EmulatorInputTests(unittest.TestCase):

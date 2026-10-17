@@ -251,8 +251,10 @@ peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다
 - `report.xml`: 실제 Maestro 종료 코드/JUnit과 준비·정리 결과를 합친 플로우별 JUnit. 빈 실행/skip/리포트 부재는 실패입니다.
 - `<flow>/console.log`, `debug-*.log`, `debug-*.json`: 인증 값/JWT/인증 관련 줄을 제거한 Maestro 출력과 debug 정보. 원본 subprocess 예외/traceback을 출력하지 않습니다.
 - `<flow>/screenshot-*.png`: **Maestro 실행 중** 생성된 PNG만 보관합니다. 준비/내보내기 화면은 캡처하지 않습니다. 원본 텍스트에서 민감 정보가 감지되면 이미지도 보관하지 않습니다.
+- `<flow>/device-log.log`: Maestro 비정상 종료 시 logcat 최근 500줄 중 `[MEASURE]`/`WebSocket`/`Connectivity`/`AndroidRuntime`/`FATAL EXCEPTION`/`OkHttp`가 있는 줄만 선별하고 인증 값/JWT/인증 관련 줄 제거 규칙을 적용한 로그입니다.
+- `<flow>/last-anr-summary.json`: 이어서 조회한 마지막 ANR의 고정 process/reason 분류와 load average/전체 CPU 수치만 보관합니다. 이전 사건일 수 있으며 원문·PID·창 제목·Intent는 공개하지 않습니다.
 
-Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat을 수집하지 않습니다.
+Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat과 dumpsys 원문은 파일로 저장하거나 업로드하지 않습니다.
 
 CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
 

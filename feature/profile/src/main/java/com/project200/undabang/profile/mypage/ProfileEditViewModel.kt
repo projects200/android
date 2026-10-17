@@ -34,6 +34,9 @@ class ProfileEditViewModel
         private val _initProfile = MutableStateFlow<UserProfile?>(null)
         val initProfile: StateFlow<UserProfile?> = _initProfile.asStateFlow()
 
+        private val _isLoaded = MutableStateFlow(false)
+        val isLoaded: StateFlow<Boolean> = _isLoaded.asStateFlow()
+
         private val _nickname = MutableStateFlow("")
         val nickname: StateFlow<String> = _nickname.asStateFlow()
 
@@ -66,6 +69,7 @@ class ProfileEditViewModel
         }
 
         fun getProfile() {
+            _isLoaded.value = false
             viewModelScope.launch {
                 when (val result = getUserProfileUseCase()) {
                     is BaseResult.Success -> {
@@ -74,6 +78,7 @@ class ProfileEditViewModel
                         _nickname.value = profile.nickname
                         _gender.value = profile.gender
                         _introduction.value = profile.bio.orEmpty()
+                        _isLoaded.value = true
                     }
 
                     is BaseResult.Error -> {
@@ -104,6 +109,7 @@ class ProfileEditViewModel
         }
 
         fun completeEditProfile() {
+            if (!_isLoaded.value) return
             viewModelScope.launch {
                 val currentNickname = _nickname.value
                 val currentGender = _gender.value ?: return@launch

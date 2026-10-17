@@ -118,6 +118,18 @@ class ProfileEditViewModelTest {
         }
 
     @Test
+    fun `프로필 조회 성공 전에는 loaded 상태와 저장 API를 허용하지 않는다`() =
+        runTest {
+            coEvery { mockGetUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
+            createViewModel()
+            assertThat(viewModel.isLoaded.value).isFalse()
+            viewModel.completeEditProfile()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isLoaded.value).isTrue()
+            coVerify(exactly = 0) { mockEditProfileUseCase(any(), any(), any()) }
+        }
+
+    @Test
     fun `getProfile - 성공 시 initProfile이 업데이트된다`() =
         runTest {
             // Given
@@ -145,6 +157,7 @@ class ProfileEditViewModelTest {
 
                 // Then
                 assertThat(awaitItem()).isEqualTo(ProfileEditErrorType.LOAD_FAILED)
+                assertThat(viewModel.isLoaded.value).isFalse()
             }
         }
 
@@ -334,6 +347,37 @@ class ProfileEditViewModelTest {
 
                 assertThat(awaitItem()).isEqualTo(ProfileEditErrorType.NO_CHANGE)
             }
+        }
+
+    @Test
+    fun `소개를 모두 지우면 빈 문자열을 저장하고 재조회한 빈 입력을 로드한다`() =
+        runTest {
+            coEvery { mockGetUserProfileUseCase() } returnsMany
+                listOf(BaseResult.Success(sampleProfile), BaseResult.Success(sampleProfile.copy(bio = "")))
+            coEvery {
+                mockEditProfileUseCase(sampleProfile.nickname, sampleProfile.gender, "")
+            } returns BaseResult.Success(Unit)
+            createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.introduction.value).isEqualTo(sampleProfile.bio)
+
+            viewModel.updateIntroduction("")
+            viewModel.editResult.test {
+                viewModel.completeEditProfile()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(awaitItem()).isTrue()
+            }
+            coVerify(exactly = 1) { mockEditProfileUseCase(sampleProfile.nickname, sampleProfile.gender, "") }
+            coVerify(exactly = 0) { mockAddProfileImageUseCase(any()) }
+
+            viewModel.updateIntroduction("저장하지 않은 소개")
+            viewModel.getProfile()
+            assertThat(viewModel.isLoaded.value).isFalse()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.isLoaded.value).isTrue()
+            assertThat(viewModel.initProfile.value?.bio).isEqualTo("")
+            assertThat(viewModel.introduction.value).isEmpty()
+            coVerify(exactly = 2) { mockGetUserProfileUseCase() }
         }
 
     @Test

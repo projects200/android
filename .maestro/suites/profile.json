@@ -1,0 +1,12 @@
+{
+  "flows": [
+    "profile-edit",
+    "profile-edit-validation",
+    "profile-preferred-exercise",
+    "profile-notification"
+  ],
+  "apiLevel": 34,
+  "fixture": true,
+  "requiredEnvironment": [],
+  "driver": null
+}

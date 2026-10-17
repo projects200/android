@@ -1,0 +1,29 @@
+appId: com.project200.undabang
+---
+# API33+에서 POST_NOTIFICATIONS만 실제로 거부합니다. 앱 데이터와 FCM identity는 유지합니다.
+- stopApp
+- launchApp:
+    clearState: false
+    permissions:
+      all: allow
+      notifications: deny
+      location: allow
+
+# 재요청된 OS 권한 창은 실제로 거부하고, 이미 거부된 상태면 앱 진입을 기다립니다.
+- extendedWaitUntil:
+    visible:
+      id: "com\\.android\\.permissioncontroller:id/permission_deny_button|matching_nav_graph"
+    timeout: 60000
+- runFlow:
+    when:
+      visible:
+        id: "com\\.android\\.permissioncontroller:id/permission_deny_button"
+    commands:
+      - tapOn:
+          id: "com\\.android\\.permissioncontroller:id/permission_deny_button"
+
+# 재기동 뒤 실제 OS 권한은 NotificationFragment가 확인하고 화면에 표시합니다.
+- extendedWaitUntil:
+    visible:
+      id: matching_nav_graph
+    timeout: 60000
