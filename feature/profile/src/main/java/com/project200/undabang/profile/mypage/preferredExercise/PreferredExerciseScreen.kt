@@ -220,7 +220,7 @@ private fun PreferredExerciseTypeChip(
                     indication = null,
                     onClick = onClick,
                 )
-                // Maestro가 미선택/선택 칩을 selected 속성으로 구분해 고릅니다. 종목 목록이 계정마다 달라 이름을 미리 고정할 수 없습니다
+                // Compose의 selected 상태는 Maestro에 checked로 노출됩니다. 계정별 종목은 이름 대신 ID로 식별합니다
                 .semantics { selected = uiModel.isSelected }
                 .testTag("preferred_exercise_type_${uiModel.exercise.exerciseTypeId}")
                 .padding(horizontal = 12.dp, vertical = 8.dp),

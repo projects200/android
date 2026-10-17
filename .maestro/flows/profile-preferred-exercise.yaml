@@ -14,12 +14,12 @@ tags:
 - runFlow: ../subflows/profile-open-preferences.yaml
 - assertVisible:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
-    selected: false
+    checked: false
 - tapOn:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
 - assertVisible:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
-    selected: true
+    checked: true
 - runFlow: ../subflows/profile-preference-detail.yaml
 # 요일과 숙련도 누락은 모두 실제 저장 검증에 막혀야 합니다.
 - tapOn: "완료"
@@ -52,21 +52,21 @@ tags:
 - runFlow: ../subflows/profile-open-preferences.yaml
 - assertVisible:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
-    selected: true
+    checked: true
 - runFlow: ../subflows/profile-preference-detail.yaml
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
-    selected: true
+    checked: true
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
-    selected: false
+    checked: false
 - scrollUntilVisible:
     element:
       id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
     direction: DOWN
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
-    selected: true
+    checked: true
 - scrollUntilVisible:
     element:
       id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
@@ -82,10 +82,10 @@ tags:
 - runFlow: ../subflows/profile-preference-detail.yaml
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
-    selected: true
+    checked: true
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
-    selected: true
+    checked: true
 - tapOn:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
 - tapOn: "완료"
@@ -97,17 +97,17 @@ tags:
 - runFlow: ../subflows/profile-preference-detail.yaml
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_0
-    selected: false
+    checked: false
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_day_2
-    selected: true
+    checked: true
 - scrollUntilVisible:
     element:
       id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
     direction: DOWN
 - assertVisible:
     id: preferred_exercise_${E2E_PROFILE_ADDED_TYPE_ID}_skill_BEGINNER
-    selected: true
+    checked: true
 - back
 - back
 # 화면 밖의 선택도 ID별로 스크롤해서 모두 해제합니다. 이 변경은 저장하지 않습니다.
@@ -128,7 +128,7 @@ tags:
           direction: DOWN
       - assertVisible:
           id: preferred_exercise_type_${output.baselineTypeIds[output.typeIndex]}
-          selected: true
+          checked: true
       - tapOn:
           id: preferred_exercise_type_${output.baselineTypeIds[output.typeIndex]}
       - evalScript: ${output.typeIndex = output.typeIndex + 1}
@@ -148,7 +148,7 @@ tags:
 - runFlow: ../subflows/profile-open-preferences.yaml
 - assertVisible:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
-    selected: true
+    checked: true
 - tapOn:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
 - tapOn: "다음"
@@ -161,7 +161,7 @@ tags:
 - runFlow: ../subflows/profile-open-preferences.yaml
 - assertVisible:
     id: preferred_exercise_type_${E2E_PROFILE_ADDED_TYPE_ID}
-    selected: false
+    checked: false
 - back
 - scrollUntilVisible:
     element:
