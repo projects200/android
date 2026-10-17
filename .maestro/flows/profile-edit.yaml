@@ -52,11 +52,17 @@ tags:
     element:
       id: profile_edit_nickname_field
     direction: UP
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: ${E2E_PROFILE_NEW_NICKNAME}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_NEW_NICKNAME}
+      EXPECTED_INTRODUCTION: ${output.originalIntroduction}
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
@@ -65,11 +71,17 @@ tags:
     element:
       id: profile_edit_introduction_field
     direction: DOWN
-- tapOn:
-    id: profile_edit_introduction_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_introduction_field
 - inputText: ${E2E_PROFILE_NEW_BIO}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_NEW_NICKNAME}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_NEW_BIO}
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "프로필 수정이 완료됐습니다."
@@ -116,11 +128,17 @@ tags:
     element:
       id: profile_edit_nickname_field
     direction: UP
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: ${output.originalNickname}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.originalNickname}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_NEW_BIO}
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
@@ -129,9 +147,10 @@ tags:
     element:
       id: profile_edit_introduction_field
     direction: DOWN
-- tapOn:
-    id: profile_edit_introduction_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_introduction_field
 # 빈 원문은 실제 입력을 지운 상태로 저장하며 inputText에 빈 문자열을 넘기지 않습니다.
 - runFlow:
     when:
@@ -139,6 +158,11 @@ tags:
     commands:
       - inputText: ${output.originalIntroduction}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.originalNickname}
+      EXPECTED_INTRODUCTION: ${output.originalIntroduction}
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "프로필 수정이 완료됐습니다."

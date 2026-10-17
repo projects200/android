@@ -31,11 +31,17 @@ tags:
 - evalScript: ${output.nickB = 'e2eb' + E2E_RUN_ID}
 
 # 1) 중복 확인 없이 완료 -> 저장이 막힙니다
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: ${output.nickA}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.nickA}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "닉네임 중복 확인을 해주세요."
@@ -43,34 +49,57 @@ tags:
 
 # 2) 유효하지 않은 값 -> 규칙 위반 문구가 뜨고, 중복 확인 API는 호출되지 않습니다
 # ValidateNicknameUseCase 정규식(한글/영문/숫자만)에 맞춰 '!'로 위반시킵니다
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: "e2e615!invalid"
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: e2e615!invalid
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 - tapOn: "중복 확인"
 - assertVisible: "닉네임 조건을 확인해주세요."
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: e2e615!invalid
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 - tapOn: "완료"
 - extendedWaitUntil:
     visible: "닉네임 중복 확인을 해주세요."
     timeout: 10000
 
 # 3) 닉네임 A로 중복 확인을 통과한 뒤 B로 다시 바꾸면 확인 상태가 풀립니다(요구 완료 기준)
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: ${output.nickA}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.nickA}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 - tapOn: "중복 확인"
 - extendedWaitUntil:
     visible: "사용 가능한 닉네임입니다."
     timeout: 15000
 
-- tapOn:
-    id: profile_edit_nickname_field
-- eraseText
+- runFlow:
+    file: ../subflows/profile-clear-text.yaml
+    env:
+      FIELD_ID: profile_edit_nickname_field
 - inputText: ${output.nickB}
 - hideKeyboard
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.nickB}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 # updateNickname이 값이 바뀔 때마다 isNicknameChecked를 초기화합니다. 중복 확인 문구가 사라졌는지 확인합니다
 - assertNotVisible: "사용 가능한 닉네임입니다."
 - tapOn: "완료"
