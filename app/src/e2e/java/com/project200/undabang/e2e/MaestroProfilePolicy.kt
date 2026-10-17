@@ -2,10 +2,14 @@ package com.project200.undabang.e2e
 
 import com.project200.data.dto.GetPreferredExerciseDTO
 import com.project200.data.dto.NotificationStateDTO
+import com.project200.domain.usecase.ValidateNicknameUseCase
 
 internal object MaestroProfilePolicy {
-    private val nicknamePattern = Regex("[A-Za-z0-9]{1,30}")
-    private val bioPattern = Regex("[A-Za-z0-9][A-Za-z0-9 _-]*")
+    // 플로우의 eraseText는 Maestro 2.11.0 기본값인 50자만 지우므로 더 긴 소개는 UI로 정확히 되돌릴 수 없습니다.
+    private const val MAX_ERASABLE_BIO_LENGTH = 50
+
+    // UI 복구도 실제 중복 확인을 거치므로 닉네임은 앱 규칙과 같은 기준으로 검사합니다.
+    private val validateNickname = ValidateNicknameUseCase()
     private val genders = setOf("MALE", "FEMALE", "UNKNOWN")
     private val skills = setOf("BEGINNER", "ROOKIE", "INTERMEDIATE", "ADVANCED", "SKILLED", "PRO")
 
@@ -19,9 +23,10 @@ internal object MaestroProfilePolicy {
         gender: String,
         bio: String?,
     ) {
-        // Maestro Android inputText로 원문을 정확히 복구할 수 있는 전용 계정만 허용합니다.
-        if (!nicknamePattern.matches(nickname) || gender !in genders ||
-            bio == null || bio.length > 4096 || !bioPattern.matches(bio)
+        // Maestro 2.11.0은 Android 비ASCII inputText를 자체 IME로 입력하므로 한글·문장부호도 복구할 수 있습니다.
+        // null은 PUT 본문으로 표현할 수 없고 빈 소개는 copyTextFrom이 text 대신 hint를 읽을 수 있어 mutation 전에 거부합니다.
+        if (!validateNickname(nickname) || gender !in genders ||
+            bio.isNullOrEmpty() || bio.length > MAX_ERASABLE_BIO_LENGTH || bio.any { it.isISOControl() }
         ) {
             throw MaestroSetupFailure("profile_baseline_text_unsupported")
         }

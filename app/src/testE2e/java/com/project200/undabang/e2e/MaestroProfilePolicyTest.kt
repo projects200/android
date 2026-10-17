@@ -48,13 +48,26 @@ class MaestroProfilePolicyTest {
     }
 
     @Test
-    fun `null과 Android 입력으로 복구할 수 없는 소개는 mutation 전에 거부한다`() {
-        for (bio in listOf(null, "", "한글 소개", "percent%text", "line\nbreak")) {
+    fun `앱이 허용하는 한글 닉네임과 문장부호 소개는 복구 가능한 기준으로 받는다`() {
+        MaestroProfilePolicy.validateText("운동하는사람1", "UNKNOWN", "주 3회 헬스, 러닝 좋아해요!")
+        MaestroProfilePolicy.validateText("OriginalUser", "FEMALE", "a".repeat(50))
+    }
+
+    @Test
+    fun `UI로 정확히 복구할 수 없는 기준 텍스트는 mutation 전에 거부한다`() {
+        for (nickname in listOf("", "닉네임!", "a".repeat(31))) {
+            assertThrows(MaestroSetupFailure::class.java) {
+                MaestroProfilePolicy.validateText(nickname, "MALE", "intro")
+            }
+        }
+        for (bio in listOf(null, "", "line\nbreak", "tab\tbio", "a".repeat(51))) {
             assertThrows(MaestroSetupFailure::class.java) {
                 MaestroProfilePolicy.validateText("OriginalUser", "MALE", bio)
             }
         }
-        MaestroProfilePolicy.validateText("OriginalUser", "FEMALE", "Original intro-1")
+        assertThrows(MaestroSetupFailure::class.java) {
+            MaestroProfilePolicy.validateText("OriginalUser", "OTHER", "intro")
+        }
     }
 
     @Test
