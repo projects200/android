@@ -822,6 +822,7 @@ def save_debug(raw, destination, redactor, console):
                 (destination / ("screenshot-%03d.png" % index)).write_bytes(content)
 
 def save_failure_logcat(device, destination, redactor):
+    destination.mkdir(parents=True, exist_ok=True)
     code, output, _ = device.call("logcat", "-d", "-t", "500", "-v", "brief", timeout=30)
     if code != 0:
         return
