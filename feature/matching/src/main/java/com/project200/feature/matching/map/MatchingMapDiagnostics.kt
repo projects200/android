@@ -62,9 +62,19 @@ internal data class MatchingMapReadiness(
     val testTag: String get() = "matching_map_${status.value}"
 
     // 같은 지도에서 실패 뒤 늦게 도착한 ready는 성공 증거가 아닙니다.
-    fun ready(): MatchingMapReadiness =
-        if (status == MatchingMapStatus.FAILED) this else MatchingMapReadiness(MatchingMapStatus.READY)
+    fun ready(): MatchingMapReadiness {
+        return if (status == MatchingMapStatus.FAILED) {
+            this
+        } else {
+            MatchingMapReadiness(MatchingMapStatus.READY)
+        }
+    }
 
-    fun failed(error: Exception): MatchingMapReadiness =
-        if (status == MatchingMapStatus.FAILED) this else MatchingMapReadiness(MatchingMapStatus.FAILED, MatchingMapFailure.from(error))
+    fun failed(error: Exception): MatchingMapReadiness {
+        return if (status == MatchingMapStatus.FAILED) {
+            this
+        } else {
+            MatchingMapReadiness(MatchingMapStatus.FAILED, MatchingMapFailure.from(error))
+        }
+    }
 }

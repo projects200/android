@@ -81,9 +81,10 @@ class MatchingMapEvidenceTest {
 
     private fun debugContext(): Context {
         val baseContext = InstrumentationRegistry.getInstrumentation().targetContext
-        val debugApplicationInfo = ApplicationInfo(baseContext.applicationInfo).apply {
-            flags = flags or ApplicationInfo.FLAG_DEBUGGABLE
-        }
+        val debugApplicationInfo =
+            ApplicationInfo(baseContext.applicationInfo).apply {
+                flags = flags or ApplicationInfo.FLAG_DEBUGGABLE
+            }
         return object : ContextWrapper(baseContext) {
             override fun getApplicationInfo(): ApplicationInfo = debugApplicationInfo
 
