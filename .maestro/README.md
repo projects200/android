@@ -231,7 +231,6 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE`, `MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE`|matching의 실제 peer 조회 경계 우하단|
 |`MAESTRO_MATCHING_SEARCH_QUERY`|matching의 실제 ASCII 검색어|
 |`MAESTRO_MATCHING_CATALOG_PLACE_NAME`|실제 Kakao 검색 결과에서 유일하게 일치하는 장소명|
-|`MAESTRO_MATCHING_MARKER_POINT`|전용 emulator에서 보정한 실제 지도 marker 위치|
 |`MAESTRO_MATCHING_ROOM_ID`|matching 두 계정의 검증할 기존 전용 방(정리 시 보존)|
 
 peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 `queue: max`는 최대 100개의 pending job을 대기시키며, 용량을 넘는 job은 취소됩니다. FIFO 순서는 workflow dispatch 순서가 아니라 job이 concurrency 대기에 들어간 순서입니다([공식 문서](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)).

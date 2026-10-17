@@ -21,9 +21,8 @@ tags:
 - extendedWaitUntil:
     visible: ${MATCHING_PEER_MARKER_PATTERN}
     timeout: 30000
-# 좌표는 고정 기기에서 운영자가 보정한 실제 SDK 마커 위치입니다. 기본 탭 좌표는 없습니다.
-- tapOn:
-    point: ${MATCHING_MARKER_POINT}
+# 이 비상호작용 노드의 중심은 실제 SDK 클러스터 투영입니다. 터치는 네이티브 지도로 전달됩니다.
+- tapOn: ${MATCHING_PEER_MARKER_PATTERN}
 - extendedWaitUntil:
     visible:
       id: rv_members
@@ -84,8 +83,7 @@ tags:
 - extendedWaitUntil:
     visible: ${MATCHING_PEER_MARKER_PATTERN}
     timeout: 30000
-- tapOn:
-    point: ${MATCHING_MARKER_POINT}
+- tapOn: ${MATCHING_PEER_MARKER_PATTERN}
 - extendedWaitUntil:
     visible:
       id: rv_members

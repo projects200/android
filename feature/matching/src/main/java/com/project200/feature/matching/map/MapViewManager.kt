@@ -1,6 +1,9 @@
 package com.project200.feature.matching.map
 
 import android.content.Context
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.core.content.ContextCompat
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.LatLng
@@ -35,9 +38,25 @@ class MapViewManager(
     private val kakaoMap: KakaoMap,
     private val onCameraIdle: (cameraPosition: CameraPosition) -> Unit,
     private val onLabelClick: (label: Label) -> Unit,
+    private val onMarkerTargetsChanged: ((List<MatchingMapTarget>) -> Unit)? = null,
 ) {
     private val currentLabels = mutableListOf<Label>()
     private val labelManager = kakaoMap.labelManager ?: throw IllegalStateException("LabelManager is null")
+    private val observedClusters =
+        if (onMarkerTargetsChanged != null && MatchingFixtureEvidence.isArmed(context)) {
+            ArrayList<ObservedCluster>()
+        } else {
+            null
+        }
+    private var targetMapSize = IntSize.Zero
+    private var cameraMoving = false
+
+    private data class ObservedCluster(
+        val label: Label,
+        val members: Collection<MapClusterItem>,
+        val bitmapSizePx: Int,
+        val applyDpScale: Boolean,
+    )
 
     // 텍스트 스타일은 한 번만 생성하여 재사용
     private val textStyle =
@@ -63,6 +82,17 @@ class MapViewManager(
         // 리스너 설정
         kakaoMap.setOnCameraMoveEndListener { _, cameraPosition, _ ->
             onCameraIdle(cameraPosition)
+            if (observedClusters != null) {
+                cameraMoving = false
+                refreshMarkerTargets()
+            }
+        }
+        if (observedClusters != null) {
+            kakaoMap.setOnCameraMoveStartListener { _, _ ->
+                cameraMoving = true
+                onMarkerTargetsChanged?.invoke(emptyList())
+            }
+            kakaoMap.setOnViewportChangeListener { _, _ -> refreshMarkerTargets() }
         }
 
         kakaoMap.setOnLabelClickListener { _, _, label ->
@@ -91,9 +121,10 @@ class MapViewManager(
     fun redrawMarkers(
         myPlaces: List<ExercisePlace>,
         clusterCalculator: ClusterCalculator<MapClusterItem>,
-    ): List<MapClusterItem> {
+    ) {
         // Manager가 내부적으로 관리하는 kakaoMap 객체에서 직접 cameraPosition을 가져옵니다.
-        val currentCameraPosition = kakaoMap.cameraPosition ?: return emptyList()
+        clearMarkerTargets()
+        val currentCameraPosition = kakaoMap.cameraPosition ?: return
 
         // 현재 카메라 위치를 기반으로 클러스터를 계산합니다.
         val clusters = clusterCalculator.getClusters(currentCameraPosition)
@@ -112,15 +143,12 @@ class MapViewManager(
         }
 
         // 클러스터 마커 추가
-        val renderedMembers = if (MatchingFixtureEvidence.isArmed(context)) ArrayList<MapClusterItem>() else null
-        clusters.forEach { cluster ->
-            if (addClusterLabel(cluster)) renderedMembers?.addAll(cluster.items)
-        }
-        return renderedMembers ?: emptyList()
+        clusters.forEach { cluster -> addClusterLabel(cluster) }
+        refreshMarkerTargets()
     }
 
-    private fun addClusterLabel(cluster: Cluster<MapClusterItem>): Boolean {
-        val layer = labelManager.layer ?: return false
+    private fun addClusterLabel(cluster: Cluster<MapClusterItem>) {
+        val layer = labelManager.layer ?: return
         val position = LatLng.from(cluster.position.latitude, cluster.position.longitude)
 
         val backgroundBitmap =
@@ -129,15 +157,21 @@ class MapViewManager(
                 markerColor = ContextCompat.getColor(context, R.color.marker_color),
                 strokeColor = ContextCompat.getColor(context, R.color.marker_stroke_color),
             )
+        val backgroundStyle = LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f)
 
         // 배경 아이콘 Label
         val backgroundOptions =
             LabelOptions.from(position)
-                .setStyles(LabelStyle.from(backgroundBitmap).setAnchorPoint(0.5f, 0.5f))
+                .setStyles(backgroundStyle)
                 .setRank(0)
                 .setTag(cluster)
         val background = layer.addLabel(backgroundOptions)
         background?.let { currentLabels.add(it) }
+        if (background != null && observedClusters != null && MatchingFixtureEvidence.isArmed(context)) {
+            observedClusters.add(
+                ObservedCluster(background, cluster.items, backgroundBitmap.width, backgroundStyle.isApplyDpScale),
+            )
+        }
 
         // 텍스트 아이콘 Label
         val textOptions =
@@ -148,7 +182,50 @@ class MapViewManager(
                 .setTag(cluster)
         val text = layer.addLabel(textOptions)
         text?.let { currentLabels.add(it) }
-        return background != null || text != null
+    }
+
+    fun updateMarkerTargetLayout(size: IntSize) {
+        if (observedClusters == null) return
+        targetMapSize = size
+        refreshMarkerTargets()
+    }
+
+    fun clearMarkerTargets() {
+        val clusters = observedClusters ?: return
+        clusters.clear()
+        onMarkerTargetsChanged?.invoke(emptyList())
+    }
+
+    private fun refreshMarkerTargets() {
+        val clusters = observedClusters ?: return
+        if (cameraMoving || !MatchingFixtureEvidence.isArmed(context)) {
+            onMarkerTargetsChanged?.invoke(emptyList())
+            return
+        }
+        val viewport = kakaoMap.viewport
+        // MapView와 viewport 원점·크기가 같은 실제 호스트만 지원하며 별도 화면 오프셋을 추정하지 않습니다.
+        if (
+            viewport.left != 0 || viewport.top != 0 ||
+            viewport.right != targetMapSize.width || viewport.bottom != targetMapSize.height
+        ) {
+            onMarkerTargetsChanged?.invoke(emptyList())
+            return
+        }
+        val bounds = IntRect(viewport.left, viewport.top, viewport.right, viewport.bottom)
+        val targets =
+            clusters.mapNotNull { cluster ->
+                if (!cluster.label.isShow) return@mapNotNull null
+                val point = kakaoMap.toScreenPoint(cluster.label.position) ?: return@mapNotNull null
+                val size = cluster.bitmapSizePx * if (cluster.applyDpScale) kakaoMap.mapDpScale else 1f
+                MatchingMapTarget.project(
+                    cluster.members,
+                    IntOffset(point.x, point.y),
+                    size,
+                    bounds,
+                    targetMapSize,
+                )
+            }
+        onMarkerTargetsChanged?.invoke(targets)
     }
 
     /**

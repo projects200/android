@@ -50,7 +50,7 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_LEFT_TOP_LATITUDE", "MAESTRO_MATCHING_LEFT_TOP_LONGITUDE",
     "MAESTRO_MATCHING_RIGHT_BOTTOM_LATITUDE", "MAESTRO_MATCHING_RIGHT_BOTTOM_LONGITUDE",
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
-    "MAESTRO_MATCHING_MARKER_POINT", "MAESTRO_MATCHING_ROOM_ID",
+    "MAESTRO_MATCHING_ROOM_ID",
 })
 MATCHING_PREPARE_FAILURES = {
     "matching_recovery_required": "bootstrap-prepare-failed-matching-recovery-required",
@@ -60,8 +60,6 @@ MATCHING_PREPARE_FAILURES = {
     "matching_peer_identity_changed": "bootstrap-prepare-failed-matching-peer-identity-changed",
     "matching_peer_location_unavailable":
         "bootstrap-prepare-failed-matching-peer-location-unavailable",
-    "matching_invalid_marker_point":
-        "bootstrap-prepare-failed-matching-invalid-marker-point",
     "matching_search_query_requires_ascii":
         "bootstrap-prepare-failed-matching-search-query-requires-ascii",
     "matching_catalog_result_changed":

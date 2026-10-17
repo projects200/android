@@ -48,10 +48,6 @@ internal class MatchingFeatureFixture
                     it.exerciseLocationId > 0 && it.latitude.isFinite() && it.longitude.isFinite() &&
                         it.latitude in bottom..top && it.longitude in left..right
                 }.minByOrNull { it.exerciseLocationId } ?: fail("matching_peer_location_unavailable")
-            val point = required(input, "MAESTRO_MATCHING_MARKER_POINT")
-            if (!Regex("(?:[0-9]{1,2}|100)%, ?(?:[0-9]{1,2}|100)%").matches(point)) {
-                fail("matching_invalid_marker_point")
-            }
             val query = required(input, "MAESTRO_MATCHING_SEARCH_QUERY")
             if (!query.all { it.code in 32..126 }) fail("matching_search_query_requires_ascii")
             val catalogName = required(input, "MAESTRO_MATCHING_CATALOG_PLACE_NAME")
@@ -85,7 +81,6 @@ internal class MatchingFeatureFixture
                     "MATCHING_PEER_ID" to peerId,
                     "MATCHING_PEER_NICKNAME" to profile.nickname,
                     "MATCHING_PEER_LOCATION_ID" to location.exerciseLocationId.toString(),
-                    "MATCHING_MARKER_POINT" to point,
                     "MATCHING_SEARCH_QUERY" to query,
                     "MATCHING_CATALOG_NAME" to place.placeName,
                     "MATCHING_CATALOG_ADDRESS" to address,

@@ -20,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.dimensionResource
@@ -40,6 +43,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kakao.vectormap.label.Label
@@ -50,6 +55,7 @@ import com.project200.feature.matching.map.MapViewManager
 import com.project200.feature.matching.map.MatchingMapLabelKind
 import com.project200.feature.matching.map.MatchingMapReadiness
 import com.project200.feature.matching.map.MatchingMapStatus
+import com.project200.feature.matching.map.MatchingMapTarget
 import com.project200.feature.matching.map.MatchingMapViewModel
 import com.project200.feature.matching.map.cluster.ClusterCalculator
 import com.project200.feature.matching.map.cluster.MapClusterItem
@@ -105,10 +111,16 @@ fun MatchingMapScreen(
     var manager by remember(context) { mutableStateOf<MapViewManager?>(null) }
     var mapReadiness by remember(context) { mutableStateOf(MatchingMapReadiness()) }
     var mapAttempt by remember(context) { mutableStateOf<Int?>(null) }
-    val renderedMembers =
+    val markerTargets =
         remember(context) {
-            if (MatchingFixtureEvidence.isArmed(context)) mutableStateOf("") else null
+            if (MatchingFixtureEvidence.isArmed(context)) mutableStateOf(emptyList<MatchingMapTarget>()) else null
         }
+    val mapSize = remember(context) { if (markerTargets != null) mutableStateOf(IntSize.Zero) else null }
+    if (markerTargets != null) {
+        DisposableEffect(context) {
+            onDispose { manager?.clearMarkerTargets() }
+        }
+    }
 
     MatchingMapContent(
         filterState = filterState,
@@ -118,11 +130,10 @@ fun MatchingMapScreen(
         onClearClick = onClearClick,
         onExercisePlaceListClick = onExercisePlaceListClick,
         modifier =
-            if (renderedMembers != null) {
+            if (markerTargets != null) {
                 modifier
                     .semantics {
                         testTagsAsResourceId = true
-                        contentDescription = renderedMembers.value
                     }
                     .testTag(mapReadiness.testTag)
             } else {
@@ -131,25 +142,36 @@ fun MatchingMapScreen(
     ) {
         // 지도 슬롯: 호스팅 + manager 생성 + 카메라 idle/라벨 클릭 처리
         KakaoMapView(
-            modifier = Modifier.fillMaxSize(),
+            modifier =
+                if (mapSize != null) {
+                    Modifier.fillMaxSize().onSizeChanged { size ->
+                        mapSize.value = size
+                        manager?.updateMarkerTargetLayout(size)
+                    }
+                } else {
+                    Modifier.fillMaxSize()
+                },
             onMapStarted = {
+                manager?.clearMarkerTargets()
                 manager = null
                 controller?.manager = null
                 mapReadiness = MatchingMapReadiness()
-                renderedMembers?.value = ""
+                markerTargets?.value = emptyList()
                 mapAttempt = MatchingFixtureEvidence.mapStarted(context)
             },
             onMapError = { error ->
                 if (mapReadiness.status != MatchingMapStatus.FAILED) {
                     mapReadiness = mapReadiness.failed(error)
+                    manager?.clearMarkerTargets()
                     manager = null
                     controller?.manager = null
-                    renderedMembers?.value = ""
+                    markerTargets?.value = emptyList()
                     MatchingFixtureEvidence.map(context, mapAttempt, mapReadiness)
                 }
             },
             onMapReady = { map ->
                 if (mapReadiness.status == MatchingMapStatus.FAILED) return@KakaoMapView
+                val attempt = mapAttempt
                 manager =
                     MapViewManager(
                         context = context,
@@ -173,7 +195,18 @@ fun MatchingMapScreen(
                             val kind = handleLabelClick(label, onClusterClick, onPlaceMarkerClick)
                             MatchingFixtureEvidence.mapLabelClick(context, mapAttempt, kind)
                         },
+                        onMarkerTargetsChanged =
+                            if (markerTargets != null) {
+                                { targets ->
+                                    if (mapAttempt == attempt && mapReadiness.status != MatchingMapStatus.FAILED) {
+                                        markerTargets.value = targets
+                                    }
+                                }
+                            } else {
+                                null
+                            },
                     ).also { mgr ->
+                        mapSize?.let { mgr.updateMarkerTargetLayout(it.value) }
                         controller?.manager = mgr // 카메라 제어 통로 연결
                         onMapReady() // Fragment가 초기 복원 등을 시작하도록 통지
                     }
@@ -181,6 +214,12 @@ fun MatchingMapScreen(
                 MatchingFixtureEvidence.map(context, mapAttempt, mapReadiness)
             },
         )
+        if (
+            markerTargets != null && mapReadiness.status == MatchingMapStatus.READY &&
+            MatchingFixtureEvidence.isArmed(context)
+        ) {
+            MatchingMapMarkerTargets(markerTargets.value)
+        }
         if (mapReadiness.status == MatchingMapStatus.FAILED) {
             Text(
                 text = stringResource(R.string.error_unknown),
@@ -195,13 +234,38 @@ fun MatchingMapScreen(
         val mgr = manager ?: return@LaunchedEffect
         val (members, places) = mapData
         updateClusterData(members, clusterCalculator)
-        val rendered = mgr.redrawMarkers(places, clusterCalculator)
-        if (renderedMembers != null) {
-            // SDK가 라벨을 실제로 생성한 클러스터의 회원·장소만 E2E 준비 상태로 노출합니다.
-            renderedMembers.value =
-                rendered.joinToString(",") {
-                    "matching_marker_${it.member.memberId}_${it.location.placeId}"
-                }
+        mgr.redrawMarkers(places, clusterCalculator)
+    }
+}
+
+/** 접근성 경계만 제공합니다. 클릭 동작·포인터 처리는 없어 실제 터치는 아래 MapView로 전달됩니다. */
+@Composable
+private fun MatchingMapMarkerTargets(targets: List<MatchingMapTarget>) {
+    Layout(
+        modifier = Modifier.fillMaxSize(),
+        content = {
+            targets.forEach { target ->
+                Box(
+                    Modifier.semantics {
+                        contentDescription =
+                            target.members.joinToString(",") {
+                                "matching_marker_${it.member.memberId}_${it.location.placeId}"
+                            }
+                    },
+                )
+            }
+        },
+    ) { measurables, constraints ->
+        val placeables =
+            measurables.mapIndexed { index, measurable ->
+                val bounds = targets[index].bounds
+                measurable.measure(Constraints.fixed(bounds.width, bounds.height))
+            }
+        layout(constraints.maxWidth, constraints.maxHeight) {
+            placeables.forEachIndexed { index, placeable ->
+                val bounds = targets[index].bounds
+                placeable.place(bounds.left, bounds.top)
+            }
         }
     }
 }
