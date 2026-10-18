@@ -66,19 +66,22 @@ tags:
       all: allow
       notifications: allow
       location: deny
-# 재기동은 이미 지도 목적지로 돌아옵니다. 하단 탭을 누르기 전에 재요청된 OS 권한 창부터 거부합니다.
+# SDK 초기화 뒤 OS 권한 창이 늦게 뜰 수 있으므로 실제 거부 버튼을 확인한 뒤에만 진행합니다.
 - extendedWaitUntil:
     visible:
-      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button|matching_nav_graph"
+      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
     timeout: 60000
-- runFlow: ../subflows/matching-deny-location-prompt.yaml
+- tapOn:
+    id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
+- assertNotVisible:
+    id: ".*:id/permission_allow_foreground_only_button"
+- assertNotVisible:
+    id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
 - runFlow: ../subflows/matching-dismiss-guides.yaml
-# 하단 탭이 먼저 보여도 SDK 초기화 뒤 권한 창이 늦게 뜰 수 있으므로 지도 준비와 함께 기다립니다.
 - extendedWaitUntil:
     visible:
-      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button|matching_map_ready"
+      id: matching_map_ready
     timeout: 30000
-- runFlow: ../subflows/matching-deny-location-prompt.yaml
 - assertVisible:
     id: matching_map_ready
 - assertVisible:
