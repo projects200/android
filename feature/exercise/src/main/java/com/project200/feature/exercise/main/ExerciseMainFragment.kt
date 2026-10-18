@@ -20,7 +20,7 @@ import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.exercise.R
-import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
+import com.project200.undabang.feature.exercise.databinding.ExerciseCalendarDayLayoutBinding
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseMainBinding
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.DayOfWeek
@@ -81,7 +81,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             dayBinder =
                 object : MonthDayBinder<DayViewContainer> {
                     // DayViewContainer 인스턴스를 생성
-                    override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
+                    override fun create(view: View) = DayViewContainer(ExerciseCalendarDayLayoutBinding.bind(view))
 
                     // 생성된 View에 데이터를 바인딩
                     override fun bind(
@@ -309,7 +309,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             if (isLoaded && exerciseAdapter.currentList.isEmpty()) getString(R.string.exercise_empty_loaded, date) else null
     }
 
-    inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
+    inner class DayViewContainer(val binding: ExerciseCalendarDayLayoutBinding) :
         ViewContainer(binding.root) {
         lateinit var day: CalendarDay
 
