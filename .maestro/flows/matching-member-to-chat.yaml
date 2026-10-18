@@ -66,19 +66,24 @@ tags:
       all: allow
       notifications: allow
       location: deny
+# 재기동은 이미 지도 목적지로 돌아옵니다. 하단 탭을 누르기 전에 재요청된 OS 권한 창부터 거부합니다.
 - extendedWaitUntil:
     visible:
-      id: matching_nav_graph
+      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button|matching_nav_graph"
     timeout: 60000
-- tapOn:
-    id: matching_nav_graph
 - runFlow: ../subflows/matching-deny-location-prompt.yaml
 - runFlow: ../subflows/matching-dismiss-guides.yaml
+# 하단 탭이 먼저 보여도 SDK 초기화 뒤 권한 창이 늦게 뜰 수 있으므로 지도 준비와 함께 기다립니다.
 - extendedWaitUntil:
     visible:
-      id: matching_map_ready
+      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button|matching_map_ready"
     timeout: 30000
 - runFlow: ../subflows/matching-deny-location-prompt.yaml
+- assertVisible:
+    id: matching_map_ready
+- assertVisible:
+    id: matching_nav_graph
+- assertVisible: "운동 장소 목록"
 # 위치 권한을 거부해도 저장한 지도 카메라는 보존됩니다. 같은 peer·장소 마커를 다시 검증합니다.
 - extendedWaitUntil:
     visible: ${MATCHING_PEER_MARKER_PATTERN}

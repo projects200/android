@@ -75,7 +75,7 @@ SDK_CATEGORIES = {
 }
 
 
-def _diagnostics(status, events=None, label_clicks=None):
+def _diagnostics(status, events=None, label_clicks=None, place_loads=None):
     events = events or []
     return {
         "schemaVersion": 1,
@@ -83,6 +83,7 @@ def _diagnostics(status, events=None, label_clicks=None):
         "finalState": events[-1]["state"] if events else ("not_observed" if status == "ok" else "unknown"),
         "events": events,
         "labelClicks": label_clicks or [],
+        "placeLoads": place_loads or [],
     }
 
 
@@ -104,12 +105,43 @@ def _map_diagnostics(raw, run_id):
         return _diagnostics("invalid_evidence")
     events = []
     label_clicks = []
+    place_loads = []
+    pending_place_loads = set()
     attempt = None
     previous_state = None
     for sequence, event in enumerate(source, 1):
         if type(event) is not dict or type(event.get("type")) is not str:
             return _diagnostics("invalid_evidence")
         if event["type"] in {"places", "chat", "denied"}:
+            continue
+        if event["type"] == "place_load":
+            state = event.get("state")
+            keys = {"type", "sequence", "request", "state", "elapsedMs"}
+            if type(state) is not str or state not in {"started", "success", "error", "cancelled", "exception"}:
+                return _diagnostics("invalid_evidence")
+            if state in {"error", "exception"}:
+                keys.add("category")
+            if (set(event) != keys
+                    or type(event["sequence"]) is not int or event["sequence"] != sequence
+                    or type(event["request"]) is not int or not 1 <= event["request"] <= MAX_EVENTS
+                    or type(event["elapsedMs"]) is not int or not 0 <= event["elapsedMs"] <= 9223372036854775807):
+                return _diagnostics("invalid_evidence")
+            request = event["request"]
+            if state == "started":
+                if request != sequence or event["elapsedMs"] != 0:
+                    return _diagnostics("invalid_evidence")
+                pending_place_loads.add(request)
+            elif request not in pending_place_loads:
+                return _diagnostics("invalid_evidence")
+            else:
+                pending_place_loads.remove(request)
+            safe = {"sequence": sequence, "request": request, "state": state, "elapsedMs": event["elapsedMs"]}
+            if state in {"error", "exception"}:
+                category = event["category"]
+                if type(category) is not str or category not in {"network", "mapping", "auth", "server", "unknown"}:
+                    return _diagnostics("invalid_evidence")
+                safe["category"] = category
+            place_loads.append(safe)
             continue
         if event["type"] == "map_label_click":
             if (set(event) != {"type", "sequence", "attempt", "kind"}
@@ -153,7 +185,7 @@ def _map_diagnostics(raw, run_id):
             safe["sdkErrorCode"] = code
         events.append(safe)
         previous_state = state
-    return _diagnostics("ok", events, label_clicks)
+    return _diagnostics("ok", events, label_clicks, place_loads)
 
 
 def collect_diagnostics(core, device, flow, variables, credentials, run_id, output):
