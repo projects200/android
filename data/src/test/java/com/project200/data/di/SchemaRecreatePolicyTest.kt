@@ -5,6 +5,9 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.entity.ExerciseCountEntity
+import com.project200.data.local.entity.ExerciseListItemEntity
+import com.project200.data.local.entity.SimpleTimerEntity
+import com.project200.data.local.entity.SyncState
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.test.runTest
@@ -17,8 +20,8 @@ import java.time.LocalDate
 /**
  * 출시 전 스키마 정책을 검증합니다.
  *
- * 파일의 version을 낮춰 구버전 DB를 만든 뒤 다시 열어, 마이그레이션 없이도
- * 크래시하지 않고 재생성되는지 봅니다
+ * 2→3은 조회 마커만 추가하고 기존 데이터를 보존합니다.
+ * 미지원 파일 버전은 재생성하고, 같은 버전은 그대로 다시 엽니다
  */
 @RunWith(RobolectricTestRunner::class)
 class SchemaRecreatePolicyTest {
@@ -72,6 +75,64 @@ class SchemaRecreatePolicyTest {
             // Then: 재생성 정책이 정상 재열기까지 지우지는 않는다
             val counts = database.exerciseCountDao().getRange("member-a", date, date)
             assertThat(counts.single().count).isEqualTo(3)
+            database.close()
+        }
+
+    @Test
+    fun `2에서 3 마이그레이션은 대기 운동과 타이머를 보존하고 조회 마커만 추가한다`() =
+        runTest {
+            var database = openDatabase()
+            val pendingRecord =
+                ExerciseListItemEntity(
+                    memberId = "member-a",
+                    localId = "pending-exercise",
+                    serverId = null,
+                    syncState = SyncState.CREATE_PENDING,
+                    date = date,
+                    sortOrder = 0,
+                    title = "대기 운동",
+                    personalType = "WEIGHT",
+                    startedAt = date.atTime(10, 0),
+                    endedAt = date.atTime(11, 0),
+                    thumbnailUrls = null,
+                )
+            val pendingTimer =
+                SimpleTimerEntity(
+                    memberId = "member-a",
+                    localId = "pending-timer",
+                    serverId = null,
+                    syncState = SyncState.CREATE_PENDING,
+                    time = 60,
+                    createRequestId = "timer-create",
+                    pendingEditId = null,
+                    editedAt = 1L,
+                )
+            database.exerciseRecordDao().upsertListItems(listOf(pendingRecord))
+            database.timerDao().upsertSimpleTimer(pendingTimer)
+            database.exerciseCountDao().upsertAll(listOf(ExerciseCountEntity("member-a", date, 2)))
+            database.close()
+
+            // 2→3의 유일한 스키마 차이인 조회 마커 테이블을 제거해 실제 이전 파일을 재현합니다
+            val path = context.getDatabasePath(UndabangDatabase.DATABASE_NAME).absolutePath
+            SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
+                raw.execSQL("DROP TABLE exercise_cache_query")
+                raw.version = 2
+            }
+            database = openDatabase()
+
+            assertThat(database.openHelper.readableDatabase.version).isEqualTo(3)
+            assertThat(database.exerciseRecordDao().getListByDate("member-a", date)).containsExactly(pendingRecord)
+            assertThat(database.timerDao().getSimpleTimer("member-a", "pending-timer")).isEqualTo(pendingTimer)
+            assertThat(database.exerciseCountDao().getRange("member-a", date, date))
+                .containsExactly(ExerciseCountEntity("member-a", date, 2))
+            database.openHelper.writableDatabase.execSQL(
+                "INSERT INTO exercise_cache_query(memberId, queryType, date) VALUES (?, ?, ?)",
+                arrayOf("member-a", "list", date.toString()),
+            )
+            database.openHelper.readableDatabase.query("SELECT queryType FROM exercise_cache_query").use { cursor ->
+                assertThat(cursor.moveToFirst()).isTrue()
+                assertThat(cursor.getString(0)).isEqualTo("list")
+            }
             database.close()
         }
 }

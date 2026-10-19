@@ -117,4 +117,28 @@ class ExerciseCountDaoTest {
             assertThat(result).hasSize(1)
             assertThat(result.single().count).isEqualTo(4)
         }
+
+    @Test
+    fun `보관 기간 삭제 - 모든 회원의 기준일 이전 캐시만 삭제한다`() =
+        runTest {
+            val cutoff = LocalDate.parse("2026-02-28")
+            dao.upsertAll(
+                listOf(
+                    count("member-a", "2026-02-27"),
+                    count("member-a", "2026-02-28"),
+                    count("member-a", "2026-03-01"),
+                    count("member-b", "2026-02-27"),
+                    count("member-b", "2026-02-28"),
+                ),
+            )
+
+            dao.deleteBefore(cutoff)
+
+            val start = cutoff.minusDays(1)
+            val end = cutoff.plusDays(1)
+            assertThat(dao.getRange("member-a", start, end).map { it.date })
+                .containsExactly(cutoff, end).inOrder()
+            assertThat(dao.getRange("member-b", start, end).map { it.date })
+                .containsExactly(cutoff)
+        }
 }

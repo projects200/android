@@ -36,4 +36,8 @@ interface ExerciseCountDao {
         startDate: LocalDate,
         endDate: LocalDate,
     )
+
+    /** 횟수는 서버 응답 캐시이므로 기준일 이전의 값만 정리합니다 */
+    @Query("DELETE FROM exercise_count WHERE date < :cutoff")
+    suspend fun deleteBefore(cutoff: LocalDate)
 }

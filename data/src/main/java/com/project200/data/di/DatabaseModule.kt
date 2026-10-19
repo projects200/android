@@ -4,12 +4,14 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.project200.data.impl.RoomExerciseCacheCleaner
 import com.project200.data.impl.RoomSessionDataCleaner
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.dao.TimerDao
+import com.project200.domain.manager.ExerciseCacheCleaner
 import com.project200.domain.manager.SessionDataCleaner
 import com.squareup.moshi.Moshi
 import dagger.Binds
@@ -26,6 +28,10 @@ abstract class DatabaseModule {
     @Binds
     @Singleton
     abstract fun bindSessionDataCleaner(roomSessionDataCleaner: RoomSessionDataCleaner): SessionDataCleaner
+
+    @Binds
+    @Singleton
+    abstract fun bindExerciseCacheCleaner(roomExerciseCacheCleaner: RoomExerciseCacheCleaner): ExerciseCacheCleaner
 
     companion object {
         /** 메타데이터만 추가합니다. 기존 계정·대기 행·타이머는 재생성하지 않습니다. */

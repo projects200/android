@@ -9,7 +9,15 @@ import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.kakao.vectormap.KakaoMapSdk
+import com.project200.common.di.IoDispatcher
+import com.project200.domain.manager.ExerciseCacheCleaner
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
@@ -17,6 +25,15 @@ import javax.inject.Inject
 class ApplicationClass : Application(), Configuration.Provider {
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
+
+    @Inject
+    lateinit var exerciseCacheCleaner: ExerciseCacheCleaner
+
+    @Inject
+    @IoDispatcher
+    lateinit var ioDispatcher: CoroutineDispatcher
+
+    private val applicationScope by lazy { CoroutineScope(SupervisorJob() + ioDispatcher) }
 
     /** WorkManager가 Hilt로 Worker를 생성하도록 팩토리를 넘깁니다 */
     override val workManagerConfiguration: Configuration
@@ -40,6 +57,8 @@ class ApplicationClass : Application(), Configuration.Provider {
 
         // Crashlytics 디버그 모드에서는 비활성화
         FirebaseCrashlytics.getInstance().setCrashlyticsCollectionEnabled(!BuildConfig.DEBUG)
+
+        applicationScope.launchExerciseCacheCleanup(exerciseCacheCleaner)
     }
 
     /**
@@ -58,3 +77,15 @@ class ApplicationClass : Application(), Configuration.Provider {
         notificationManager.createNotificationChannel(channel)
     }
 }
+
+/** 앱 초기화는 정리를 기다리지 않습니다. 일반 실패는 격리하고 취소는 작업의 취소 상태로 남깁니다 */
+internal fun CoroutineScope.launchExerciseCacheCleanup(cleaner: ExerciseCacheCleaner): Job =
+    launch {
+        try {
+            cleaner.cleanExpiredCache()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Timber.w(e, "오래된 운동 캐시 정리 실패")
+        }
+    }
