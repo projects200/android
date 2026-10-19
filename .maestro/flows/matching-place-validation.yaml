@@ -62,19 +62,27 @@ tags:
       all: allow
       notifications: allow
       location: deny
+# SDK 초기화 뒤 OS 권한 창이 늦게 뜰 수 있으므로 실제 거부 버튼을 확인한 뒤에만 진행합니다.
 - extendedWaitUntil:
     visible:
-      id: matching_nav_graph
+      id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
     timeout: 60000
 - tapOn:
-    id: matching_nav_graph
-- runFlow: ../subflows/matching-deny-location-prompt.yaml
+    id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
+- assertNotVisible:
+    id: ".*:id/permission_allow_foreground_only_button"
+- assertNotVisible:
+    id: ".*:id/permission_deny(?:_and_dont_ask_again)?_button"
 - runFlow: ../subflows/matching-dismiss-guides.yaml
 - extendedWaitUntil:
     visible:
       id: matching_map_ready
     timeout: 30000
-- runFlow: ../subflows/matching-deny-location-prompt.yaml
+- assertVisible:
+    id: matching_map_ready
+- assertVisible:
+    id: matching_nav_graph
+- assertVisible: "운동 장소 목록"
 - tapOn: "운동 장소 목록"
 - extendedWaitUntil:
     visible:

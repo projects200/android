@@ -4,6 +4,7 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import androidx.lifecycle.Observer
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
+import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
@@ -18,6 +19,7 @@ import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import com.project200.feature.exercise.main.ExerciseMainViewModel
+import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -25,6 +27,7 @@ import io.mockk.junit4.MockKRule
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -62,6 +65,9 @@ class ExerciseMainViewModelTest {
 
     @MockK
     private lateinit var mockGetExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
+
+    @MockK
+    private lateinit var mockNetworkMonitor: NetworkMonitor
 
     private lateinit var viewModel: ExerciseMainViewModel
     private val testDispatcher = StandardTestDispatcher()
@@ -141,6 +147,7 @@ class ExerciseMainViewModelTest {
         Dispatchers.setMain(testDispatcher)
         coEvery { mockClockProvider.yearMonthNow() } returns thisMonth
         coEvery { mockClockProvider.now() } returns today
+        coEvery { mockNetworkMonitor.isCurrentlyConnected() } returns true
 
         // ViewModel의 init()에서 호출되는 UseCase에 대한 기본 응답 설정
         coEvery { mockGetExerciseCountUseCase.invoke(any(), any()) } returns BaseResult.Success(emptyList())
@@ -170,6 +177,7 @@ class ExerciseMainViewModelTest {
                 mockGetExerciseRecordListUseCase,
                 mockGetExpectedScoreInfoUseCase,
                 mockClockProvider,
+                mockNetworkMonitor,
             )
     }
 
@@ -189,7 +197,7 @@ class ExerciseMainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            coVerify(exactly = 3) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
+            coVerify(exactly = 2) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
             assertThat(viewModel.exerciseDates.value).isEqualTo(expectedDates)
         }
 
@@ -233,10 +241,8 @@ class ExerciseMainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            // --- 수정된 부분 ---
-            // init(1) + refreshData(2) = 총 3번 호출된 후, onMonthChanged에서는 추가 호출이 없어야 합니다.
-            // 따라서 총 호출 횟수는 3회로 유지됩니다.
-            coVerify(exactly = 3) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
+            // 최초 조회와 명시적 갱신만 호출하고 같은 월의 재바인딩은 조회하지 않습니다.
+            coVerify(exactly = 2) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
         }
 
     @Test
@@ -265,9 +271,9 @@ class ExerciseMainViewModelTest {
         }
 
     @Test
-    fun `refreshData 호출 시 캐시를 지우고 현재 월 데이터를 다시 로드`() =
+    fun `refreshData 호출 시 현재 조회를 갱신하고 선택 상태를 유지한다`() =
         runTest {
-            // Given 1: 첫 데이터 로드 (init에서 1번, refreshData에서 2번 = 총 3번)
+            // Given: 최초 조회와 명시적 갱신
             coEvery { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) } returns BaseResult.Success(sampleCounts)
             coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(100))
             viewModel.refreshData()
@@ -282,12 +288,9 @@ class ExerciseMainViewModelTest {
             viewModel.refreshData()
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then
-            // --- 수정된 부분 ---
-            // init(1) + refreshData(2) + 두 번째 refreshData(2) = 총 5번
-            coVerify(exactly = 5) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
-            // 첫 번째 refreshData(1) + 두 번째 refreshData(1) = 총 2번
-            coVerify(exactly = 2) { mockGetScoreUseCase.invoke() }
+            // Then: 최초 조회와 두 번의 명시적 새로고침
+            coVerify(exactly = 3) { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today) }
+            coVerify(exactly = 3) { mockGetScoreUseCase.invoke() }
             val newExpectedDates = setOf(today.withDayOfMonth(25))
             assertThat(viewModel.exerciseDates.value).isEqualTo(newExpectedDates)
             assertThat(viewModel.score.value).isEqualTo(Score(80))
@@ -305,8 +308,8 @@ class ExerciseMainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            // refreshData()가 한 번만 호출되었으므로 getScoreUseCase도 1번만 호출됩니다.
-            coVerify(exactly = 1) { mockGetScoreUseCase.invoke() }
+            // 최초 화면과 명시적 새로고침에서 점수를 조회합니다.
+            coVerify(exactly = 2) { mockGetScoreUseCase.invoke() }
             assertThat(viewModel.score.value).isEqualTo(Score(expectedScore))
         }
 
@@ -323,9 +326,10 @@ class ExerciseMainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            coVerify(exactly = 1) { mockGetScoreUseCase.invoke() }
+            coVerify(exactly = 2) { mockGetScoreUseCase.invoke() }
             assertThat(viewModel.toastMessage.value).isEqualTo(errorMessage)
-            assertThat(viewModel.score.value).isNull()
+            // 첫 화면에서 받은 점수는 새로고침 실패로 지우지 않습니다.
+            assertThat(viewModel.score.value).isEqualTo(Score(0))
         }
 
     @Test
@@ -523,11 +527,209 @@ class ExerciseMainViewModelTest {
                 previousResponse.complete(BaseResult.Success(emptyList()))
                 testDispatcher.scheduler.runCurrent()
 
-                // 데이터 표시 정책은 유지하되 이전 요청의 행을 최신 성공으로 표시하지 않습니다.
-                assertThat(loadedAtListEmission).containsExactly(false)
-                assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+                // 이전 응답은 데이터도 완료 상태도 바꾸지 않습니다.
+                assertThat(loadedAtListEmission).isEmpty()
+                assertThat(viewModel.isExerciseListLoaded.value).isTrue()
             } finally {
                 viewModel.exerciseList.removeObserver(observer)
             }
         }
+
+    @Test
+    fun `이전 날짜의 늦은 응답은 선택한 날짜의 내용이나 완료 상태를 바꾸지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            val firstDate = today.minusDays(1)
+            val selected = today.minusDays(2)
+            val pending = CompletableDeferred<BaseResult<List<ExerciseListItem>>>()
+            coEvery { mockGetExerciseRecordListUseCase(firstDate) } coAnswers { pending.await() }
+            val expected = listOf(item("selected-local", selected))
+            coEvery { mockGetExerciseRecordListUseCase(selected) } returns BaseResult.Success(expected)
+            viewModel.onDateSelected(firstDate)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onDateSelected(selected)
+            testDispatcher.scheduler.runCurrent()
+            pending.complete(BaseResult.Success(listOf(item("old-local", firstDate))))
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.selectedDate.value).isEqualTo(selected)
+            assertThat(viewModel.exerciseList.value).isEqualTo(expected)
+            assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+        }
+
+    @Test
+    fun `자신의 쓰기 후에는 로컬 조회만 하고 선택한 날짜 월 스크롤을 유지한다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            val selected = today.minusDays(1)
+            viewModel.onDateSelected(selected)
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.scrollPosition = 240
+            val expected = listOf(item("changed-local", selected))
+            coEvery { mockGetExerciseRecordListUseCase(selected, false) } returns BaseResult.Success(expected, isCachedSnapshot = true)
+            coEvery { mockGetExerciseCountUseCase(any(), any(), false) } returns BaseResult.Success(listOf(ExerciseCount(selected, 1)))
+
+            viewModel.onOwnWrite()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.selectedDate.value).isEqualTo(selected)
+            assertThat(viewModel.selectedMonth.value).isEqualTo(thisMonth)
+            assertThat(viewModel.scrollPosition).isEqualTo(240)
+            assertThat(viewModel.exerciseList.value).isEqualTo(expected)
+            assertThat(viewModel.exerciseDates.value).contains(selected)
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(selected, false) }
+            coVerify(exactly = 1) { mockGetExerciseCountUseCase(thisMonth.atDay(1), today, false) }
+        }
+
+    @Test
+    fun `재연결 재바인딩 시간 경과에도 화면 내용과 선택 스크롤을 바꾸거나 다시 조회하지 않는다`() =
+        runTest {
+            // 공통 설정 인스턴스의 초기 조회를 끝낸 뒤 검증 대상 인스턴스를 새로 만듭니다.
+            testDispatcher.scheduler.advanceUntilIdle()
+            val connectivity = MutableStateFlow(true)
+            coEvery { mockNetworkMonitor.networkState } returns connectivity
+            coEvery { mockNetworkMonitor.isCurrentlyConnected() } answers { connectivity.value }
+            val expected = listOf(item("visible-local", today))
+            coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(expected)
+            clearMocks(
+                mockGetExerciseRecordListUseCase,
+                mockGetExerciseCountUseCase,
+                mockGetExpectedScoreInfoUseCase,
+                answers = false,
+            )
+            viewModel =
+                ExerciseMainViewModel(
+                    mockGetExerciseCountUseCase,
+                    mockGetScoreUseCase,
+                    mockGetScorePolicyUseCase,
+                    mockGetExerciseRecordListUseCase,
+                    mockGetExpectedScoreInfoUseCase,
+                    mockClockProvider,
+                    mockNetworkMonitor,
+                )
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.scrollPosition = 240
+            connectivity.value = false
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.exerciseList.value).isEqualTo(expected)
+            connectivity.value = true
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.onMonthChanged(thisMonth)
+            viewModel.onDateSelected(today)
+            testDispatcher.scheduler.advanceTimeBy(60_000)
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today) }
+            coVerify(exactly = 1) { mockGetExerciseCountUseCase(thisMonth.atDay(1), today) }
+            coVerify(exactly = 1) { mockGetExpectedScoreInfoUseCase() }
+            assertThat(viewModel.exerciseList.value).isEqualTo(expected)
+            assertThat(viewModel.scrollPosition).isEqualTo(240)
+            assertThat(viewModel.selectedMonth.value).isEqualTo(thisMonth)
+            assertThat(viewModel.selectedDate.value).isEqualTo(today)
+        }
+
+    @Test
+    fun `온라인 갱신 실패는 저장된 목록을 유지하고 여러 조회에서 한 번만 알린다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            val error = BaseResult.Error("401", "인증 실패")
+            val expected = listOf(item("cached-local", today))
+            coEvery { mockGetExerciseRecordListUseCase(today) } returns BaseResult.Success(expected, error, true)
+            coEvery { mockGetExerciseCountUseCase(any(), any()) } returns BaseResult.Success(listOf(ExerciseCount(today, 1)), error, true)
+            val messages = mutableListOf<String>()
+            val observer = Observer<String?> { message -> if (message != null) messages.add(message) }
+            viewModel.toastMessage.observeForever(observer)
+            try {
+                viewModel.refreshData()
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(viewModel.exerciseList.value).isEqualTo(expected)
+                assertThat(viewModel.isExerciseListLoaded.value).isTrue()
+                assertThat(messages).containsExactly("인증 실패")
+                viewModel.consumeToastMessage()
+                assertThat(viewModel.toastMessage.value).isNull()
+            } finally {
+                viewModel.toastMessage.removeObserver(observer)
+            }
+        }
+
+    @Test
+    fun `생성 대기 날짜는 완료 날짜와 대기 표시 목록에 함께 포함된다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockGetExerciseCountUseCase(any(), any()) } returns
+                BaseResult.Success(listOf(ExerciseCount(today, 1, syncPending = true)))
+            viewModel.refreshData()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.exerciseDates.value).contains(today)
+            assertThat(viewModel.pendingDates.value).contains(today)
+        }
+
+    @Test
+    fun `오프라인 조회 실패는 오류 상태로 구분하되 갱신 실패 토스트를 반복하지 않는다`() =
+        runTest {
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockNetworkMonitor.isCurrentlyConnected() } returns false
+            val offline = BaseResult.Error("NETWORK_ERROR", "네트워크 연결 오류")
+            coEvery { mockGetExerciseCountUseCase(any(), any()) } returns offline
+            coEvery { mockGetExerciseRecordListUseCase(any()) } returns offline
+            coEvery { mockGetScoreUseCase() } returns offline
+            coEvery { mockGetScorePolicyUseCase() } returns offline
+            viewModel.refreshData()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseListError.value).isEqualTo(offline)
+            assertThat(viewModel.isExerciseListLoaded.value).isFalse()
+            assertThat(viewModel.toastMessage.value).isNull()
+        }
+
+    @Test
+    fun `첫 시작은 중복 조회하지 않고 복귀마다 로컬 스냅샷만 한 번 읽는다`() =
+        runTest {
+            viewModel.onScreenStarted()
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today, true, false) }
+            coVerify(exactly = 1) { mockGetExerciseCountUseCase(thisMonth.atDay(1), today, true, false) }
+            val selected = today.minusDays(1)
+            viewModel.onDateSelected(selected)
+            testDispatcher.scheduler.advanceUntilIdle()
+            viewModel.scrollPosition = 321
+            val changed = listOf(item("returned-local", selected))
+            coEvery { mockGetExerciseRecordListUseCase(selected, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
+            coEvery { mockGetExerciseCountUseCase(any(), any(), false, true) } returns
+                BaseResult.Success(listOf(ExerciseCount(selected, 1)))
+
+            viewModel.onScreenStopped()
+            viewModel.onScreenStarted()
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.advanceUntilIdle()
+
+            assertThat(viewModel.exerciseList.value).isEqualTo(changed)
+            assertThat(viewModel.selectedDate.value).isEqualTo(selected)
+            assertThat(viewModel.selectedMonth.value).isEqualTo(thisMonth)
+            assertThat(viewModel.scrollPosition).isEqualTo(321)
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(selected, false, true) }
+            coVerify(exactly = 1) { mockGetExerciseCountUseCase(thisMonth.atDay(1), today, false, true) }
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(selected, true, false) }
+        }
+
+    @Test
+    fun `쓰기 결과를 처리한 복귀는 같은 목록을 다시 읽지 않는다`() =
+        runTest {
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.advanceUntilIdle()
+            coEvery { mockGetExerciseRecordListUseCase(today, false, false) } returns BaseResult.Success(emptyList())
+            coEvery { mockGetExerciseCountUseCase(any(), any(), false, false) } returns BaseResult.Success(emptyList())
+            viewModel.onScreenStopped()
+            viewModel.onOwnWrite()
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 1) { mockGetExerciseRecordListUseCase(today, false, false) }
+            coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any(), false, true) }
+        }
+
+    private fun item(
+        id: String,
+        date: LocalDate,
+    ) = ExerciseListItem(id, "운동", "OTHER", date.atTime(9, 0), date.atTime(10, 0), null)
 }

@@ -36,5 +36,16 @@
         app:layout_constraintEnd_toEndOf="@+id/calendar_day_tv"
         app:layout_constraintStart_toStartOf="@+id/calendar_day_tv"
         app:layout_constraintTop_toTopOf="@id/calendar_day_tv" />
+    <TextView
+        android:id="@+id/exercise_pending_tv"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/exercise_sync_pending"
+        android:textSize="8sp"
+        android:textColor="@color/main"
+        android:visibility="gone"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/calendar_day_tv" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

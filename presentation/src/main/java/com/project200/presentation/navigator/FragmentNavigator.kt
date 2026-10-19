@@ -4,15 +4,15 @@ import java.time.LocalDate
 
 interface FragmentNavigator {
     /** 운동 리스트 */
-    fun navigateFromExerciseListToExerciseDetail(recordId: Long)
+    fun navigateFromExerciseListToExerciseDetail(recordId: String)
 
     fun navigateFromExerciseListToExerciseForm()
 
     /** 운동 상세 */
-    fun navigateFromExerciseDetailToExerciseForm(recordId: Long)
+    fun navigateFromExerciseDetailToExerciseForm(recordId: String)
 
     /** 운동 생성/수정 */
-    fun navigateFromExerciseFormToExerciseDetail(recordId: Long)
+    fun navigateFromExerciseFormToExerciseDetail(recordId: String)
 
     /** 운동 메인 */
     fun navigateFromExerciseMainToExerciseList(date: LocalDate)

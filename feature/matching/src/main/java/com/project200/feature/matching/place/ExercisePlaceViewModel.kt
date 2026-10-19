@@ -1,13 +1,16 @@
 package com.project200.feature.matching.place
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExercisePlace
 import com.project200.domain.usecase.DeleteExercisePlaceUseCase
 import com.project200.domain.usecase.GetExercisePlaceUseCase
+import com.project200.feature.matching.MatchingFixtureEvidence
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -29,6 +32,7 @@ class ExercisePlaceViewModel
     constructor(
         private val getExercisePlaceUseCase: GetExercisePlaceUseCase,
         private val deleteExercisePlaceUseCase: DeleteExercisePlaceUseCase,
+        @ApplicationContext private val context: Context,
     ) : ViewModel() {
         private val _places = MutableStateFlow<List<ExercisePlace>>(emptyList())
         val places: StateFlow<List<ExercisePlace>> = _places.asStateFlow()
@@ -42,7 +46,16 @@ class ExercisePlaceViewModel
         fun getExercisePlaces() {
             viewModelScope.launch {
                 _loadState.value = ExercisePlaceLoadState.LOADING
-                when (val result = getExercisePlaceUseCase()) {
+                val request = MatchingFixtureEvidence.placeLoadStarted(context)
+                val result =
+                    try {
+                        getExercisePlaceUseCase()
+                    } catch (failure: Throwable) {
+                        MatchingFixtureEvidence.placeLoadThrown(context, request, failure)
+                        throw failure
+                    }
+                MatchingFixtureEvidence.placeLoadFinished(context, request, result)
+                when (result) {
                     is BaseResult.Success -> {
                         _places.value = result.data
                         _loadState.value = ExercisePlaceLoadState.READY

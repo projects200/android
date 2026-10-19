@@ -26,7 +26,7 @@ class UpdateExerciseRecordUseCaseTest {
 
     private lateinit var useCase: UpdateExerciseRecordUseCase
 
-    private val recordId = 1L
+    private val recordId = "record-1"
     private val sampleRecordToUpdate = ExerciseRecord(
         title = "Updated Title", detail = "Updated detail", personalType = "Running",
         startedAt = LocalDateTime.now(), endedAt = LocalDateTime.now(), location = "Park", pictures = null

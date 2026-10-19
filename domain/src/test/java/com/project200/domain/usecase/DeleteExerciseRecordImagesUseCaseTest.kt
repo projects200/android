@@ -24,7 +24,7 @@ class DeleteExerciseRecordImagesUseCaseTest {
 
     private lateinit var useCase: DeleteExerciseRecordImagesUseCase
 
-    private val exerciseId = 1L
+    private val exerciseId = "record-1"
     private val imageIdsToDelete = listOf(10L, 11L)
 
     @Before

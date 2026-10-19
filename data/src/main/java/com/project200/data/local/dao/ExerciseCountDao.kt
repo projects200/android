@@ -8,6 +8,9 @@ import java.time.LocalDate
 
 @Dao
 interface ExerciseCountDao {
+    @Query("DELETE FROM exercise_count WHERE memberId = :memberId")
+    suspend fun deleteByMember(memberId: String)
+
     /** 화면은 진입할 때 한 번 읽습니다. 지속 구독을 두지 않아 그린 뒤 저절로 바뀌지 않습니다 */
     @Query(
         "SELECT * FROM exercise_count " +

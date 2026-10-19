@@ -24,7 +24,7 @@ class UploadExerciseRecordImagesUseCaseTest {
 
     private lateinit var useCase: UploadExerciseRecordImagesUseCase
 
-    private val recordId = 1L
+    private val recordId = "record-1"
     private val images = listOf("uri1", "uri2")
 
     @Before
