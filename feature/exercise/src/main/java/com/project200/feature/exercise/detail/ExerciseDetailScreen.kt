@@ -24,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -62,6 +63,7 @@ fun ExerciseDetailScreen(
     onShareClick: () -> Unit,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRefreshClick: () -> Unit = {},
 ) {
     UndabangScaffold(
         modifier = modifier.semantics { testTagsAsResourceId = true },
@@ -70,6 +72,7 @@ fun ExerciseDetailScreen(
                 title = stringResource(R.string.exercise_detail),
                 onNavigationClick = onBackClick,
                 actions = {
+                    TextButton(onClick = onRefreshClick) { Text(stringResource(R.string.exercise_refresh)) }
                     // 우측: 공유 + 메뉴
                     IconButton(onClick = onShareClick) {
                         Icon(
@@ -81,6 +84,7 @@ fun ExerciseDetailScreen(
                     IconButton(
                         onClick = onMenuClick,
                         modifier = Modifier.testTag("exercise_detail_menu"),
+                        enabled = (state as? UiState.Success)?.data?.canModify == true,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_menu),
@@ -177,6 +181,13 @@ private fun DetailContent(
         }
 
         Spacer(Modifier.height(20.dp))
+        if (record.syncPending) {
+            Text(
+                text = stringResource(R.string.exercise_sync_pending),
+                modifier = Modifier.padding(horizontal = 20.dp),
+                color = ColorMain,
+            )
+        }
 
         // 제목 (항상 표시)
         DetailField(

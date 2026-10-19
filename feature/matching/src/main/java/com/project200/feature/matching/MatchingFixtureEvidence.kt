@@ -4,9 +4,11 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.system.Os
 import android.util.AtomicFile
+import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExercisePlace
 import com.project200.feature.matching.map.MatchingMapLabelKind
 import com.project200.feature.matching.map.MatchingMapReadiness
+import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -109,6 +111,72 @@ object MatchingFixtureEvidence {
             put("sequence", sequence)
             put("attempt", attempt)
             put("kind", kind.value)
+        }
+    }
+
+    /** 실제 조회 직전의 순번만 요청 식별자로 사용하며 일반 실행에는 타이머도 만들지 않습니다. */
+    internal fun placeLoadStarted(context: Context): MatchingPlaceLoadRequest? {
+        return try {
+            if (!isArmed(context)) return null
+            val sequence =
+                append(context) { sequence ->
+                    put("type", "place_load")
+                    put("sequence", sequence)
+                    put("request", sequence)
+                    put("state", "started")
+                    put("elapsedMs", 0)
+                } ?: return null
+            MatchingPlaceLoadRequest(sequence, System.nanoTime())
+        } catch (_: Exception) {
+            // 진단 파일 실패는 실제 조회를 막거나 성공·실패 결과로 바꾸지 않습니다.
+            null
+        }
+    }
+
+    internal fun placeLoadFinished(
+        context: Context,
+        request: MatchingPlaceLoadRequest?,
+        result: BaseResult<*>,
+    ) {
+        if (request == null) return
+        when (result) {
+            is BaseResult.Success -> placeLoad(context, request, "success")
+            is BaseResult.Error -> placeLoad(context, request, "error", MatchingPlaceLoadErrorKind.from(result))
+        }
+    }
+
+    internal fun placeLoadThrown(
+        context: Context,
+        request: MatchingPlaceLoadRequest?,
+        failure: Throwable,
+    ) {
+        if (request == null) return
+        if (failure is CancellationException) {
+            placeLoad(context, request, "cancelled")
+        } else {
+            placeLoad(context, request, "exception", MatchingPlaceLoadErrorKind.from(failure))
+        }
+    }
+
+    private fun placeLoad(
+        context: Context,
+        request: MatchingPlaceLoadRequest,
+        state: String,
+        category: MatchingPlaceLoadErrorKind? = null,
+    ) {
+        val elapsedMs = (System.nanoTime() - request.startedAtNanos) / 1_000_000
+        try {
+            if (!isArmed(context)) return
+            append(context) { sequence ->
+                put("type", "place_load")
+                put("sequence", sequence)
+                put("request", request.sequence)
+                put("state", state)
+                put("elapsedMs", elapsedMs)
+                category?.let { put("category", it.value) }
+            }
+        } catch (_: Exception) {
+            // 끝 기록이 없으면 수집기는 미완료 요청으로 남기며 결과를 추측하지 않습니다.
         }
     }
 

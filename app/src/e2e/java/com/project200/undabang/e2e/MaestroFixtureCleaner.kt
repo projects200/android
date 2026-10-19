@@ -15,7 +15,7 @@ internal class MaestroFixtureCleaner
             today: LocalDate,
         ) {
             // 계정 확인은 호출자가 실제 registration-status 응답으로 완료한 뒤에만 들어옵니다
-            val candidates = linkedSetOf<Long>()
+            val candidates = linkedSetOf<String>()
             for (range in MaestroFixturePolicy.monthlyRanges(fixtureStartDate, today)) {
                 val counts =
                     readOrFail(exerciseRecordRepository.getExerciseCountByRange(range.start, range.endInclusive))
@@ -27,7 +27,7 @@ internal class MaestroFixtureCleaner
                     if (count.count == 0) continue
                     val records = readOrFail(exerciseRecordRepository.getExerciseRecordList(count.date))
                     for (record in records) {
-                        if (record.recordId <= 0 || record.startTime.toLocalDate() != count.date) {
+                        if (record.recordId.isBlank() || record.syncPending || record.startTime.toLocalDate() != count.date) {
                             throw MaestroSetupFailure("fixture_read_failed")
                         }
                         if (MaestroFixturePolicy.ownsTitle(record.title)) {
@@ -40,7 +40,7 @@ internal class MaestroFixtureCleaner
             // 모든 월의 조회가 성공한 뒤 삭제하며, 조회 후 일반 제목으로 바뀐 기록은 보존합니다
             for (recordId in candidates) {
                 val record = readOrFail(exerciseRecordRepository.getExerciseDetail(recordId))
-                if (record.startedAt.toLocalDate() !in fixtureStartDate..today) {
+                if (record.syncPending || !record.canModify || record.startedAt.toLocalDate() !in fixtureStartDate..today) {
                     throw MaestroSetupFailure("fixture_read_failed")
                 }
                 if (!MaestroFixturePolicy.ownsTitle(record.title)) continue
@@ -52,7 +52,10 @@ internal class MaestroFixtureCleaner
 
         private fun <T> readOrFail(result: BaseResult<T>): T =
             when (result) {
-                is BaseResult.Success -> result.data
+                is BaseResult.Success -> {
+                    if (result.refreshError != null || result.isCachedSnapshot) throw MaestroSetupFailure("fixture_read_failed")
+                    result.data
+                }
                 is BaseResult.Error -> throw MaestroSetupFailure("fixture_read_failed")
             }
     }

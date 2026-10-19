@@ -26,6 +26,7 @@ import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.SubmissionResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragment
+import com.project200.feature.exercise.main.ExerciseMainFragment
 import com.project200.presentation.compose.applyAppTheme
 import com.project200.presentation.compose.components.feedback.UndabangBottomSheet
 import com.project200.presentation.utils.ImageUtils.compressImage
@@ -92,7 +93,7 @@ class ExerciseFormFragment : Fragment() {
                 ObservePlaceSearchResult { name -> selectedLocation = name }
 
                 ExerciseFormScreen(
-                    isEditMode = args.recordId != -1L,
+                    isEditMode = args.recordId.isNotEmpty(),
                     title = title,
                     selectedType = selectedType,
                     directTypeInput = directTypeInput,
@@ -158,16 +159,31 @@ class ExerciseFormFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 launch {
+                    viewModel.refreshMessages.collect { messageId ->
+                        Toast.makeText(requireContext(), messageId, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                launch {
                     viewModel.toastMessage.collect { messageId ->
                         Toast.makeText(requireContext(), getString(messageId), Toast.LENGTH_SHORT).show()
                     }
                 }
                 launch {
                     viewModel.createResult.collect { result ->
+                        viewModel.consumeCreateResult()
                         when (result) {
-                            is SubmissionResult.Success -> handleSuccessfulCreate(result.earnedPoints)
+                            is SubmissionResult.Success -> {
+                                if (result.refreshError != null) {
+                                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
+                                }
+                                notifyOwnWrite()
+                                handleSuccessfulCreate(result.earnedPoints)
+                            }
                             is SubmissionResult.PartialSuccess -> {
                                 // 부분 성공 (이미지 업로드 실패)
+                                val message = withCacheWarning(getString(result.messageId), result.refreshError != null)
+                                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+                                notifyOwnWrite()
                                 findNavController().navigate(
                                     ExerciseFormFragmentDirections
                                         .actionExerciseFormFragmentToExerciseDetailFragment(result.recordId),
@@ -179,6 +195,7 @@ class ExerciseFormFragment : Fragment() {
                 }
                 launch {
                     viewModel.editResult.collect { result ->
+                        viewModel.consumeEditResult()
                         handleEditResult(result)
                     }
                 }
@@ -187,9 +204,13 @@ class ExerciseFormFragment : Fragment() {
     }
 
     private fun handleEditResult(result: ExerciseEditResult) {
+        if (result !is ExerciseEditResult.Failure) notifyOwnWrite()
         when (result) {
             is ExerciseEditResult.Success -> {
                 // 기록 수정, 이미지 삭제/업로드 성공
+                if (result.refreshError != null) {
+                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
+                }
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     ExerciseDetailFragment.KEY_RECORD_UPDATED,
                     true,
@@ -198,7 +219,7 @@ class ExerciseFormFragment : Fragment() {
             }
             is ExerciseEditResult.ContentFailure -> {
                 // 내용 수정 실패
-                Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), withCacheWarning(result.message, result.refreshError != null), Toast.LENGTH_LONG).show()
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     ExerciseDetailFragment.KEY_RECORD_UPDATED,
                     true,
@@ -207,7 +228,7 @@ class ExerciseFormFragment : Fragment() {
             }
             is ExerciseEditResult.ImageFailure -> {
                 // 이미지 삭제/업로드 실패
-                Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), withCacheWarning(result.message, result.refreshError != null), Toast.LENGTH_LONG).show()
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     ExerciseDetailFragment.KEY_RECORD_UPDATED,
                     true,
@@ -219,6 +240,15 @@ class ExerciseFormFragment : Fragment() {
                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
             }
         }
+    }
+
+    private fun withCacheWarning(
+        message: String,
+        hasCacheWarning: Boolean,
+    ): String = if (hasCacheWarning) "$message\n${getString(R.string.exercise_saved_cache_refresh_fail)}" else message
+
+    private fun notifyOwnWrite() {
+        parentFragmentManager.setFragmentResult(ExerciseMainFragment.KEY_EXERCISE_WRITTEN, Bundle())
     }
 
     private fun handleDateSelected(date: LocalDate) {
@@ -333,8 +363,12 @@ class ExerciseFormFragment : Fragment() {
         initialRecord: com.project200.domain.model.ExerciseRecord?,
         onLoaded: (com.project200.domain.model.ExerciseRecord) -> Unit,
     ) {
+        var applied by rememberSaveable { mutableStateOf(false) }
         androidx.compose.runtime.LaunchedEffect(initialRecord) {
-            initialRecord?.let(onLoaded)
+            if (!applied && initialRecord != null) {
+                onLoaded(initialRecord)
+                applied = true
+            }
         }
     }
 

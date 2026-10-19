@@ -9,6 +9,7 @@ import com.project200.feature.exercise.utils.ShareEventData
 import com.project200.feature.exercise.utils.StickerState
 import com.project200.feature.exercise.utils.StickerTransformInfo
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,6 +19,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,21 +43,28 @@ class ExerciseShareEditViewModel
 
         private val _shareEvent = MutableSharedFlow<ShareEventData>()
         val shareEvent: SharedFlow<ShareEventData> = _shareEvent.asSharedFlow()
+        private var initializedRecordId: String? = null
+        private val notifications = Channel<String>(Channel.BUFFERED)
+        val refreshMessages = notifications.receiveAsFlow()
 
         val stickerState: Flow<StickerState> =
             _exerciseRecord
                 .filterNotNull()
                 .combine(_selectedTheme) { record, theme -> StickerState(record, theme) }
 
-        fun loadExerciseRecord(recordId: Long) {
+        fun loadExerciseRecord(recordId: String) {
+            if (initializedRecordId == recordId) return
+            initializedRecordId = recordId
             viewModelScope.launch {
                 _isLoading.value = true
                 when (val result = getExerciseRecordDetailUseCase(recordId)) {
                     is BaseResult.Success -> {
                         _exerciseRecord.value = result.data
                         _backgroundImageUrl.value = result.data.pictures?.firstOrNull()?.url
+                        result.refreshError?.let { notifications.send(it.message ?: "기록을 새로고침하지 못했습니다.") }
                     }
                     is BaseResult.Error -> {
+                        notifications.send(result.message ?: "기록을 불러오는데 실패했습니다.")
                     }
                 }
                 _isLoading.value = false

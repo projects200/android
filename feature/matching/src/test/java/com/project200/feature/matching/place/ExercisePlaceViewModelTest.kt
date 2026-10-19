@@ -1,6 +1,9 @@
 package com.project200.feature.matching.place
 
+import android.content.Context
+import android.content.pm.ApplicationInfo
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import androidx.lifecycle.viewModelScope
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
@@ -10,11 +13,16 @@ import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.feature.matching.utils.ExercisePlaceErrorType
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import io.mockk.mockk
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -39,6 +47,8 @@ class ExercisePlaceViewModelTest {
     private lateinit var mockDeleteExercisePlaceUseCase: DeleteExercisePlaceUseCase
 
     private lateinit var viewModel: ExercisePlaceViewModel
+    private val context = mockk<Context>()
+    private val applicationInfo = mockk<ApplicationInfo>()
 
     private val testDispatcher = StandardTestDispatcher()
 
@@ -51,6 +61,8 @@ class ExercisePlaceViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        applicationInfo.flags = 0
+        every { context.applicationInfo } returns applicationInfo
     }
 
     @After
@@ -62,6 +74,7 @@ class ExercisePlaceViewModelTest {
         return ExercisePlaceViewModel(
             getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
             deleteExercisePlaceUseCase = mockDeleteExercisePlaceUseCase,
+            context = context,
         )
     }
 
@@ -76,6 +89,7 @@ class ExercisePlaceViewModelTest {
 
             assertThat(viewModel.places.value).isEqualTo(samplePlaces)
             assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.READY)
+            verify(exactly = 0) { context.filesDir }
         }
 
     @Test
@@ -175,5 +189,24 @@ class ExercisePlaceViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.READY)
             assertThat(viewModel.places.value.map { it.id }).containsExactly(2L)
+        }
+
+    @Test
+    fun `대기 중인 조회를 취소하면 완료나 오류 화면으로 바꾸지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<List<ExercisePlace>>>()
+            val cancellation = CancellationException("request cancelled")
+            coEvery { mockGetExercisePlaceUseCase() } coAnswers { response.await() }
+            viewModel = createViewModel()
+            viewModel.getExercisePlaces()
+            testDispatcher.scheduler.runCurrent()
+            val job = viewModel.viewModelScope.coroutineContext[Job]!!.children.single()
+
+            job.cancel(cancellation)
+            testDispatcher.scheduler.runCurrent()
+
+            assertThat(job.isCancelled).isTrue()
+            assertThat(viewModel.loadState.value).isEqualTo(ExercisePlaceLoadState.LOADING)
+            assertThat(viewModel.places.value).isEmpty()
         }
 }

@@ -93,7 +93,7 @@ class MatchingDiagnosticsTest(unittest.TestCase):
         self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
         result = json.loads(content)
         self.assertEqual(result["status"], status)
-        self.assertEqual(set(result), {"schemaVersion", "status", "finalState", "events", "labelClicks"})
+        self.assertEqual(set(result), {"schemaVersion", "status", "finalState", "events", "labelClicks", "placeLoads"})
         self.assertEqual(result["schemaVersion"], 1)
         return result
 
@@ -105,6 +105,15 @@ class MatchingDiagnosticsTest(unittest.TestCase):
             "type": "map", "sequence": sequence, "attempt": attempt, "state": "failed",
             "category": category, "sdkErrorCode": code,
         }
+
+    def place_load(self, sequence=1, request=None, state="started", elapsed_ms=0, category=None):
+        event = {
+            "type": "place_load", "sequence": sequence, "request": sequence if request is None else request,
+            "state": state, "elapsedMs": elapsed_ms,
+        }
+        if category is not None:
+            event["category"] = category
+        return event
 
     def test_only_safe_map_fields_survive_private_fixture_evidence(self):
         result = self.collect([
@@ -229,6 +238,120 @@ class MatchingDiagnosticsTest(unittest.TestCase):
         self.assertEqual(len(self.collect(events)["events"]), 1000)
         self.collect(events + [self.loading(1001)], status="invalid_evidence")
 
+    def test_place_load_start_without_terminal_remains_unfinished(self):
+        self.assertEqual(self.collect()["placeLoads"], [])
+        result = self.collect([self.place_load()])
+        self.assertEqual(result["finalState"], "not_observed")
+        self.assertEqual(result["events"], [])
+        self.assertEqual(result["placeLoads"], [
+            {"sequence": 1, "request": 1, "state": "started", "elapsedMs": 0},
+        ])
+
+    def test_place_load_terminals_export_only_fixed_categories_and_elapsed_time(self):
+        for state, categories in (
+            ("success", (None,)), ("cancelled", (None,)),
+            ("error", ("network", "mapping", "auth", "server", "unknown")),
+            ("exception", ("network", "mapping", "auth", "server", "unknown")),
+        ):
+            for category in categories:
+                with self.subTest(state=state, category=category):
+                    result = self.collect([
+                        self.place_load(),
+                        self.place_load(2, 1, state, 30123, category),
+                    ])
+                    expected = {"sequence": 2, "request": 1, "state": state, "elapsedMs": 30123}
+                    if category is not None:
+                        expected["category"] = category
+                    self.assertEqual(result["placeLoads"][-1], expected)
+                    self.assertEqual(result["finalState"], "not_observed")
+
+    def test_interleaved_place_requests_preserve_map_labels_and_global_sequence(self):
+        result = self.collect([
+            self.loading(),
+            self.place_load(2),
+            {"type": "map", "sequence": 3, "attempt": 1, "state": "ready"},
+            {"type": "places", "places": [{"id": self.secret, "latitude": self.secret}]},
+            self.place_load(5),
+            self.place_load(6, 5, "error", 12, "unknown"),
+            {"type": "map_label_click", "sequence": 7, "attempt": 1, "kind": "cluster"},
+            {"type": "chat", "peerId": self.secret, "roomId": self.secret},
+            self.place_load(9, 2, "success", 50),
+            {"type": "map_label_click", "sequence": 10, "attempt": 1, "kind": "place"},
+            self.place_load(11),
+            {"type": "denied", "locationId": self.secret},
+        ])
+        self.assertEqual(result["finalState"], "ready")
+        self.assertEqual(result["events"], [
+            {"sequence": 1, "attempt": 1, "state": "loading"},
+            {"sequence": 3, "attempt": 1, "state": "ready"},
+        ])
+        self.assertEqual(result["labelClicks"], [
+            {"sequence": 7, "attempt": 1, "kind": "cluster"},
+            {"sequence": 10, "attempt": 1, "kind": "place"},
+        ])
+        self.assertEqual(result["placeLoads"], [
+            {"sequence": 2, "request": 2, "state": "started", "elapsedMs": 0},
+            {"sequence": 5, "request": 5, "state": "started", "elapsedMs": 0},
+            {"sequence": 6, "request": 5, "state": "error", "elapsedMs": 12, "category": "unknown"},
+            {"sequence": 9, "request": 2, "state": "success", "elapsedMs": 50},
+            {"sequence": 11, "request": 11, "state": "started", "elapsedMs": 0},
+        ])
+
+    def test_place_load_fields_types_and_categories_fail_closed(self):
+        valid = self.place_load(2, 1, "error", 30, "unknown")
+        invalid = [
+            {**valid, "message": self.secret}, {**valid, "errorCode": self.secret},
+            {**valid, "cause": self.secret}, {**valid, "class": self.secret},
+            {**valid, "url": self.secret}, {**valid, "placeId": self.secret},
+            {**valid, "count": 2}, {**valid, "latitude": 37.5},
+            {**valid, "category": self.secret}, {**valid, "category": []},
+            {**valid, "category": None}, {**valid, "state": self.secret},
+            {**valid, "state": []}, {**valid, "sequence": True},
+            {**valid, "sequence": 2.0}, {**valid, "sequence": 3},
+            {**valid, "request": True}, {**valid, "request": 1.0},
+            {**valid, "request": 0}, {**valid, "request": 1001},
+            {**valid, "elapsedMs": True}, {**valid, "elapsedMs": 1.0},
+            {**valid, "elapsedMs": "30"}, {**valid, "elapsedMs": -1},
+            {**valid, "elapsedMs": 9223372036854775808},
+            self.place_load(2, 1, "error", 30),
+            self.place_load(2, 1, "exception", 30),
+            self.place_load(2, 1, "success", 30, "unknown"),
+            self.place_load(2, 1, "cancelled", 30, "unknown"),
+        ]
+        invalid.extend({key: value for key, value in valid.items() if key != missing} for missing in valid)
+        for event in invalid:
+            with self.subTest(event=event):
+                result = self.collect([self.place_load(), event], status="invalid_evidence")
+                self.assertEqual(result["events"], [])
+                self.assertEqual(result["labelClicks"], [])
+                self.assertEqual(result["placeLoads"], [])
+                self.assertEqual(result["finalState"], "unknown")
+
+    def test_place_load_requires_one_start_and_at_most_one_terminal_per_request(self):
+        cases = [
+            [self.place_load(1, 1, "success", 0)],
+            [self.place_load(elapsed_ms=1)],
+            [self.place_load(category="unknown")],
+            [self.place_load(request=2)],
+            [self.place_load(), self.place_load(2, 1)],
+            [self.place_load(), self.place_load(2, 2, "success", 1)],
+            [self.place_load(), self.place_load(2, 1, "success", 1), self.place_load(3, 1, "cancelled", 2)],
+            [self.place_load(), self.place_load(2, 1, "error", 1, "network"), self.place_load(3, 1, "success", 2)],
+            [self.loading(), self.place_load(2, 1, "exception", 1, "unknown")],
+        ]
+        for events in cases:
+            with self.subTest(events=events):
+                self.assertEqual(self.collect(events, status="invalid_evidence")["placeLoads"], [])
+
+    def test_stale_malformed_and_limited_place_evidence_never_exports_partial_progress(self):
+        self.assertEqual(self.collect([self.place_load()], run_id=self.secret, status="stale_evidence")["placeLoads"], [])
+        malformed = json.dumps({"runId": self.run_id, "events": [self.place_load()]}).encode()[:-1]
+        self.assertEqual(self.collect(raw=malformed, status="invalid_evidence")["placeLoads"], [])
+        events = [self.place_load(index) for index in range(1, MATCHING.MAX_EVENTS + 1)]
+        self.assertEqual(len(self.collect(events)["placeLoads"]), MATCHING.MAX_EVENTS)
+        result = self.collect(events + [self.place_load(MATCHING.MAX_EVENTS + 1)], status="invalid_evidence")
+        self.assertEqual(result["placeLoads"], [])
+
     def test_private_read_failure_is_fixed_and_does_not_export_exception(self):
         self.device.require.side_effect = RuntimeError(self.secret)
         with self.assertRaisesRegex(Failure, r"^matching-map-diagnostics-unavailable$"):
@@ -237,7 +360,8 @@ class MatchingDiagnosticsTest(unittest.TestCase):
             )
         path = self.output / MATCHING.DIAGNOSTICS_FILE
         self.assertEqual(json.loads(path.read_text()), {
-            "schemaVersion": 1, "status": "read_failed", "finalState": "unknown", "events": [], "labelClicks": [],
+            "schemaVersion": 1, "status": "read_failed", "finalState": "unknown",
+            "events": [], "labelClicks": [], "placeLoads": [],
         })
         self.assertNotIn(self.secret, path.read_text())
 

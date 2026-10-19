@@ -2,6 +2,7 @@ package com.project200.feature.exercise.share
 
 import android.graphics.Bitmap
 import android.view.View
+import android.widget.Toast
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -54,6 +55,11 @@ class ExerciseShareEditFragment : BindingFragment<FragmentExerciseShareEditBindi
     override fun setupObservers() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    viewModel.refreshMessages.collect { message ->
+                        Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+                    }
+                }
                 launch {
                     viewModel.backgroundImageUrl.collect { url ->
                         url?.let { loadBackgroundImage(it) }

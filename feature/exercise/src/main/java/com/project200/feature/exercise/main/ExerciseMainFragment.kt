@@ -20,7 +20,7 @@ import com.project200.common.constants.RuleConstants.SCORE_MIDDLE_LEVEL
 import com.project200.common.utils.CommonDateTimeFormatters.YYYY_M_KR
 import com.project200.presentation.base.BindingFragment
 import com.project200.undabang.feature.exercise.R
-import com.project200.undabang.feature.exercise.databinding.CalendarDayLayoutBinding
+import com.project200.undabang.feature.exercise.databinding.ExerciseCalendarDayLayoutBinding
 import com.project200.undabang.feature.exercise.databinding.FragmentExerciseMainBinding
 import dagger.hilt.android.AndroidEntryPoint
 import java.time.DayOfWeek
@@ -32,6 +32,7 @@ import java.time.ZoneId
 class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
     private val viewModel: ExerciseMainViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
+    private var pendingDates: Set<LocalDate> = emptySet()
     private var listSubmissionId = 0L
     private var isListCommitted = false
     private val exerciseAdapter: ExerciseListAdapter by lazy {
@@ -54,8 +55,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         setupCalendar()
         setupRecyclerView()
 
-        // 예상 획득 점수 정보 불러오기
-        viewModel.loadExpectedScoreInfo()
+        binding.scrollView.apply { post { scrollTo(0, viewModel.scrollPosition) } }
+        parentFragmentManager.setFragmentResultListener(KEY_EXERCISE_WRITTEN, viewLifecycleOwner) { _, _ ->
+            viewModel.onOwnWrite()
+        }
     }
 
     private fun setupCalendar() {
@@ -78,7 +81,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             dayBinder =
                 object : MonthDayBinder<DayViewContainer> {
                     // DayViewContainer 인스턴스를 생성
-                    override fun create(view: View) = DayViewContainer(CalendarDayLayoutBinding.bind(view))
+                    override fun create(view: View) = DayViewContainer(ExerciseCalendarDayLayoutBinding.bind(view))
 
                     // 생성된 View에 데이터를 바인딩
                     override fun bind(
@@ -90,13 +93,21 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         calendarDayTv.text = data.date.dayOfMonth.toString()
                         // 숫자만 같은 다른 달의 날짜와 구분하고 실제 날짜를 접근성에 제공합니다.
                         calendarDayTv.contentDescription =
-                            if (data.position == DayPosition.MonthDate) data.date.toString() else null
+                            if (data.position != DayPosition.MonthDate) {
+                                null
+                            } else if (data.date in pendingDates) {
+                                getString(R.string.exercise_pending_date, data.date)
+                            } else {
+                                data.date.toString()
+                            }
 
                         // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
                         calendarDayTv.background = null
                         selectedIv.isVisible = false
+                        exercisePendingTv.isVisible = data.position == DayPosition.MonthDate && data.date in pendingDates
                         exerciseCompleteIv.apply {
                             isVisible = false
+                            contentDescription = null
                             animate().cancel() // 진행 중인 애니메이션이 있다면 취소
                             alpha = 1f
                         }
@@ -121,6 +132,8 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
                             // 운동 기록이 있는 날 표시
                             if (exerciseCompleteDates.contains(data.date)) {
+                                exerciseCompleteIv.contentDescription =
+                                    if (data.date in pendingDates) getString(R.string.exercise_sync_pending) else null
                                 exerciseCompleteIv.apply {
                                     alpha = 0f
                                     isVisible = true
@@ -144,6 +157,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
     }
 
     private fun setupBtnListeners() {
+        binding.exerciseRefreshBtn.setOnClickListener { viewModel.refreshData() }
         binding.prevMonthBtn.setOnClickListener {
             binding.exerciseCalendar.findFirstVisibleMonth()?.let {
                 val previousMonth = it.yearMonth.minusMonths(1)
@@ -199,9 +213,15 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             exerciseCompleteDates = dates
             binding.exerciseCalendar.notifyCalendarChanged()
         }
+        viewModel.pendingDates.observe(viewLifecycleOwner) { dates ->
+            pendingDates = dates
+            binding.exerciseCalendar.notifyCalendarChanged()
+        }
 
         viewModel.toastMessage.observe(viewLifecycleOwner) { message ->
-            Toast.makeText(requireContext(), message ?: getText(R.string.data_error), Toast.LENGTH_SHORT).show()
+            if (message == null) return@observe
+            Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
+            viewModel.consumeToastMessage()
         }
 
         viewModel.score.observe(viewLifecycleOwner) { score ->
@@ -248,8 +268,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             oldDate?.let { binding.exerciseCalendar.notifyDateChanged(it) }
             binding.exerciseCalendar.notifyDateChanged(newDate)
             oldDate = newDate
-            // 캘린더를 최상단으로 스크롤
-            binding.scrollView.smoothScrollTo(0, binding.exerciseCntScoreCl.height.plus(binding.topBarCl.height))
         }
 
         // 운동 목록이 변경될 때 RecyclerView 업데이트
@@ -275,6 +293,10 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
         viewModel.isExerciseListLoaded.observe(viewLifecycleOwner) {
             updateListSelectors()
         }
+        viewModel.exerciseListError.observe(viewLifecycleOwner) { error ->
+            binding.exerciseListEmptyTv.text = error?.message ?: getString(R.string.exercise_empty)
+            binding.exerciseListEmptyTv.isVisible = error != null || exerciseAdapter.currentList.isEmpty()
+        }
     }
 
     private fun updateListSelectors() {
@@ -287,7 +309,7 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
             if (isLoaded && exerciseAdapter.currentList.isEmpty()) getString(R.string.exercise_empty_loaded, date) else null
     }
 
-    inner class DayViewContainer(val binding: CalendarDayLayoutBinding) :
+    inner class DayViewContainer(val binding: ExerciseCalendarDayLayoutBinding) :
         ViewContainer(binding.root) {
         lateinit var day: CalendarDay
 
@@ -296,6 +318,12 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                 if (day.position == DayPosition.MonthDate && !day.date.isAfter(LocalDate.now(ZoneId.of("Asia/Seoul")))) {
                     if (viewModel.selectedDate.value != day.date) {
                         viewModel.onDateSelected(day.date)
+                        this@ExerciseMainFragment.binding.let { mainBinding ->
+                            mainBinding.scrollView.smoothScrollTo(
+                                0,
+                                mainBinding.exerciseCntScoreCl.height.plus(mainBinding.topBarCl.height),
+                            )
+                        }
                     }
                 }
             }
@@ -304,6 +332,21 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshData()
+        viewModel.onScreenStarted()
+    }
+
+    override fun onStop() {
+        viewModel.scrollPosition = binding.scrollView.scrollY
+        viewModel.onScreenStopped()
+        super.onStop()
+    }
+
+    override fun onDestroyView() {
+        viewModel.scrollPosition = binding.scrollView.scrollY
+        super.onDestroyView()
+    }
+
+    companion object {
+        const val KEY_EXERCISE_WRITTEN = "exercise_written"
     }
 }

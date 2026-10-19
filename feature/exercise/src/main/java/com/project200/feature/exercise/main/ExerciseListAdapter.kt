@@ -2,6 +2,7 @@ package com.project200.feature.exercise.main
 
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import androidx.core.view.isVisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -15,7 +16,7 @@ import com.project200.undabang.feature.exercise.databinding.ItemExerciseListBind
 import java.time.format.DateTimeFormatter
 
 class ExerciseListAdapter(
-    private val onItemClicked: (Long) -> Unit,
+    private val onItemClicked: (String) -> Unit,
 ) : ListAdapter<ExerciseListItem, ExerciseListAdapter.ExerciseViewHolder>(ExerciseDiffCallback()) {
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 
@@ -60,7 +61,7 @@ class ExerciseListAdapter(
 
     class ExerciseViewHolder(
         private val binding: ItemExerciseListBinding,
-        private val onItemClicked: (Long) -> Unit,
+        private val onItemClicked: (String) -> Unit,
         private val formatter: DateTimeFormatter,
     ) : RecyclerView.ViewHolder(binding.root) {
         fun bind(
@@ -69,6 +70,7 @@ class ExerciseListAdapter(
         ) {
             with(binding) {
                 exerciseTitleTv.text = item.title
+                exerciseSyncPendingTv.isVisible = item.syncPending
                 // 시간 포맷팅 적용
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
                 // 실제 마지막 행의 시간 텍스트를 목록 끝의 접근성 경계로 사용합니다.
@@ -86,6 +88,7 @@ class ExerciseListAdapter(
                         .transform(CenterCrop(), RoundedCorners(dpToPx(exerciseIv.context, 8f)))
                         .into(exerciseIv)
                 } else {
+                    Glide.with(exerciseIv).clear(exerciseIv)
                     exerciseIv.setImageResource(R.drawable.ic_empty_img) // 기본 이미지
                 }
 

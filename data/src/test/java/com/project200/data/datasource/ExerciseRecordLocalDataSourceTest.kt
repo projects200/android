@@ -1,11 +1,13 @@
 package com.project200.data.datasource
 
 import com.google.common.truth.Truth.assertThat
+import com.project200.data.di.DatabaseModule
 import com.project200.data.local.PreferenceManager
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.createInMemoryDatabase
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
+import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
@@ -57,7 +59,7 @@ class ExerciseRecordLocalDataSourceTest {
 
     private fun serverItem(recordId: Long) =
         ExerciseListItem(
-            recordId = recordId,
+            recordId = recordId.toString(),
             title = "제목 $recordId",
             type = "WEIGHT",
             startTime = LocalDateTime.parse("2026-09-10T10:00:00"),
@@ -222,7 +224,7 @@ class ExerciseRecordLocalDataSourceTest {
     // ── 읽기 ────────────────────────────────
 
     @Test
-    fun `목록 읽기 - 서버 ID가 없는 행은 아직 걸러진다`() =
+    fun `목록 읽기 - 서버 ID 없이도 로컬 식별자와 대기 표시를 유지한다`() =
         runTest {
             // Given
             insertRow("local-only", serverId = null, syncState = SyncState.CREATE_PENDING)
@@ -231,8 +233,9 @@ class ExerciseRecordLocalDataSourceTest {
             // When
             val result = dataSource.getListByDate(date)
 
-            // Then: 화면이 서버 ID로 기록을 식별하는 동안의 동작이다 (#584에서 바뀐다)
-            assertThat(result.map { it.recordId }).containsExactly(1L)
+            assertThat(result.map { it.recordId }).containsExactly("local-only", "synced")
+            assertThat(result.single { it.recordId == "local-only" }.syncPending).isTrue()
+            assertThat(result.single { it.recordId == "synced" }.syncPending).isFalse()
         }
 
     @Test
@@ -289,11 +292,94 @@ class ExerciseRecordLocalDataSourceTest {
             insertDetail("target", serverId = 1L)
 
             // When
-            dataSource.deleteRecord("target")
+            dataSource.reconcileDeletedRecord(1L, MEMBER_ID)
 
             // Then
             assertThat(database.exerciseRecordDao().getListByDate(MEMBER_ID, date)).isEmpty()
             assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER_ID, "target")).isNull()
+        }
+
+    @Test
+    fun `상세를 먼저 받은 뒤 목록을 받아도 같은 로컬 식별자를 쓴다`() =
+        runTest {
+            val id = dataSource.saveSyncedDetail(7L, record())
+            dataSource.replaceSyncedListByDate(date, listOf(serverItem(7L)))
+            assertThat(dataSource.getListByDate(date).single().recordId).isEqualTo(id)
+            assertThat(dataSource.getDetailByLocalId(id!!)).isNotNull()
+        }
+
+    @Test
+    fun `성공한 빈 조회만 캐시로 인정하고 다른 계정에는 노출하지 않는다`() =
+        runTest {
+            assertThat(dataSource.getListSnapshot(date, MEMBER_ID)).isNull()
+            assertThat(dataSource.getCountsSnapshot(date, otherDate, MEMBER_ID)).isNull()
+            dataSource.replaceSyncedListByDate(date, emptyList())
+            dataSource.replaceCountsByRange(date, otherDate, emptyList())
+            assertThat(dataSource.getListSnapshot(date, MEMBER_ID)).isEmpty()
+            assertThat(dataSource.getCountsSnapshot(date, otherDate, MEMBER_ID)).isEmpty()
+
+            every { preferenceManager.getMemberId() } returns "member-b"
+            assertThat(dataSource.getListSnapshot(date, "member-b")).isNull()
+            assertThat(dataSource.getCountsSnapshot(date, otherDate, "member-b")).isNull()
+            // 요청 전에 캡처한 이전 계정도 현재 계정의 결과로 바뀌지 않습니다.
+            assertThat(dataSource.getListSnapshot(date, MEMBER_ID)).isNull()
+            dataSource.replaceSyncedListByDate(date, listOf(serverItem(7L)), MEMBER_ID)
+            assertThat(database.exerciseRecordDao().getListByDate("member-b", date)).isEmpty()
+        }
+
+    @Test
+    fun `다른 날짜로 이동한 대기 행은 이전 날짜의 서버 목록으로 복원하지 않는다`() =
+        runTest {
+            insertRow("moved-pending", 7L, SyncState.UPDATE_PENDING, otherDate)
+            dataSource.replaceSyncedListByDate(date, listOf(serverItem(7L)))
+            assertThat(dataSource.getListByDate(date)).isEmpty()
+            assertThat(dataSource.getListByDate(otherDate).single().recordId).isEqualTo("moved-pending")
+        }
+
+    @Test
+    fun `상세에만 있는 대기 변경은 목록 삭제 상세 갱신 자신의 쓰기 반영에도 보존된다`() =
+        runTest {
+            insertRow("protected", 7L, SyncState.SYNCED)
+            insertDetail("protected", 7L)
+            val detail = database.exerciseRecordDao().getDetailByLocalId(MEMBER_ID, "protected")!!
+            database.exerciseRecordDao().upsertDetail(detail.copy(syncState = SyncState.UPDATE_PENDING))
+
+            dataSource.replaceSyncedListByDate(date, emptyList())
+            dataSource.saveSyncedDetail(7L, record().copy(title = "서버 값"))
+            dataSource.reconcileRecord(7L, record().copy(title = "쓰기 값"), MEMBER_ID)
+            dataSource.reconcileDeletedRecord(7L, MEMBER_ID)
+            assertThat(dataSource.getListByDate(date).single().recordId).isEqualTo("protected")
+            assertThat(dataSource.getDetailByLocalId("protected")?.title).isEqualTo(detail.title)
+            assertThat(dataSource.getDetailByLocalId("protected")?.syncPending).isTrue()
+        }
+
+    @Test
+    fun `빈 조회 메타데이터 추가 마이그레이션은 기존 계정 대기 행과 타이머를 보존한다`() =
+        runTest {
+            insertRow("pending", null, SyncState.CREATE_PENDING)
+            insertDetail("detail", 7L)
+            val timer = SimpleTimerEntity(MEMBER_ID, "timer", null, SyncState.CREATE_PENDING, 60, "request", null, 1L)
+            database.timerDao().upsertSimpleTimer(timer)
+            val sql = database.openHelper.writableDatabase
+            sql.execSQL("DROP TABLE exercise_cache_query")
+            DatabaseModule.MIGRATION_2_3.migrate(sql)
+            dataSource.replaceSyncedListByDate(otherDate, emptyList())
+
+            assertThat(dataSource.getListByDate(date).single().recordId).isEqualTo("pending")
+            assertThat(dataSource.getDetailByLocalId("detail")).isNotNull()
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, "timer")).isEqualTo(timer)
+            assertThat(dataSource.getListSnapshot(otherDate, MEMBER_ID)).isEmpty()
+        }
+
+    @Test
+    fun `집계의 조회 표식 없는 0행은 성공한 빈 쿼리로 꾸미지 않는다`() =
+        runTest {
+            insertRow("target", 1L, SyncState.SYNCED)
+            dataSource.reconcileDeletedRecord(1L, MEMBER_ID)
+            assertThat(dataSource.getCountsSnapshot(date, otherDate, MEMBER_ID)).isNull()
+            dataSource.replaceCountsByRange(date, otherDate, emptyList())
+            assertThat(dataSource.getCountsSnapshot(date, otherDate, MEMBER_ID)).isEmpty()
+            assertThat(dataSource.getCountsSnapshot(date, otherDate.plusDays(1), MEMBER_ID)).isNull()
         }
 
     companion object {

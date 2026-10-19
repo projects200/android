@@ -21,7 +21,7 @@ class EditExerciseRecordUseCase @Inject constructor(
     private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase
 ) {
     suspend operator fun invoke(
-        recordId: Long,
+        recordId: String,
         recordToUpdate: ExerciseRecord,
         isContentChanges: Boolean,
         imagesToDelete: List<Long>,
@@ -34,7 +34,7 @@ class EditExerciseRecordUseCase @Inject constructor(
                 if (!isContentChanges) return@async ExerciseEditResult.Success(recordId)
 
                 when (val result = updateExerciseRecordUseCase(recordId, recordToUpdate)) {
-                    is BaseResult.Success -> ExerciseEditResult.Success(recordId)
+                    is BaseResult.Success -> ExerciseEditResult.Success(recordId, result.refreshError)
                     is BaseResult.Error -> ExerciseEditResult.ContentFailure(
                         recordId = recordId,
                         message = result.message ?: EDIT_CONTENT_FAIL,
@@ -50,6 +50,7 @@ class EditExerciseRecordUseCase @Inject constructor(
                     return@async ExerciseEditResult.Success(recordId)
                 }
 
+                var refreshError: BaseResult.Error? = null
                 // 이미지 삭제
                 if(imagesToDelete.isNotEmpty()) {
                     val deleteResult = deleteExerciseRecordImagesUseCase(recordId, imagesToDelete)
@@ -60,6 +61,7 @@ class EditExerciseRecordUseCase @Inject constructor(
                             cause = deleteResult.cause
                         )
                     }
+                    refreshError = (deleteResult as BaseResult.Success).refreshError
                 }
 
                 // 이미지 업로드
@@ -69,11 +71,13 @@ class EditExerciseRecordUseCase @Inject constructor(
                         return@async ExerciseEditResult.ImageFailure(
                             recordId = recordId,
                             message = uploadResult.message ?: IMAGE_FAIL,
-                            cause = uploadResult.cause
+                            cause = uploadResult.cause,
+                            refreshError = refreshError
                         )
                     }
+                    refreshError = refreshError ?: (uploadResult as BaseResult.Success).refreshError
                 }
-                return@async ExerciseEditResult.Success(recordId)
+                return@async ExerciseEditResult.Success(recordId, refreshError)
             }
 
             // 내용 수정, 이미지 삭제 및 업로드 작업 결과 수집
@@ -82,10 +86,10 @@ class EditExerciseRecordUseCase @Inject constructor(
 
             // 최종 결과 처리
             return@coroutineScope when {
-                contentResult is ExerciseEditResult.ContentFailure -> contentResult
-                imageResult is ExerciseEditResult.ImageFailure -> imageResult
+                contentResult is ExerciseEditResult.ContentFailure -> contentResult.copy(refreshError = imageResult.refreshError)
+                imageResult is ExerciseEditResult.ImageFailure -> imageResult.copy(refreshError = contentResult.refreshError ?: imageResult.refreshError)
                 contentResult is ExerciseEditResult.Success && imageResult is ExerciseEditResult.Success ->
-                    ExerciseEditResult.Success(recordId)
+                    ExerciseEditResult.Success(recordId, contentResult.refreshError ?: imageResult.refreshError)
                 else -> ExerciseEditResult.Failure(UNEXPECTED_ERROR)
             }
         } catch (e: Exception) {
