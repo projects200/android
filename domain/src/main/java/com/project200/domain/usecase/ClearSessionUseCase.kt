@@ -2,6 +2,7 @@ package com.project200.domain.usecase
 
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.SessionDataCleaner
+import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
 import com.project200.domain.repository.AuthRepository
 import javax.inject.Inject
@@ -11,6 +12,7 @@ class ClearSessionUseCase
 constructor(
     private val authRepository: AuthRepository,
     private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
+    private val timerSyncScheduler: TimerSyncScheduler,
     private val sessionDataCleaner: SessionDataCleaner,
 ) {
     /**
@@ -33,6 +35,7 @@ constructor(
             }
         } finally {
             fcmTokenSyncScheduler.cancel()
+            timerSyncScheduler.cancel()
             when (reason) {
                 SessionExitReason.USER_INITIATED -> authRepository.clearSession()
                 SessionExitReason.FORCED -> authRepository.clearTokens()

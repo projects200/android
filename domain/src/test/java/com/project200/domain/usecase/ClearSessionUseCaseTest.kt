@@ -3,6 +3,7 @@ package com.project200.domain.usecase
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.SessionDataCleaner
+import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
 import com.project200.domain.repository.AuthRepository
 import io.mockk.Runs
@@ -33,16 +34,20 @@ class ClearSessionUseCaseTest {
     private lateinit var mockFcmTokenSyncScheduler: FcmTokenSyncScheduler
 
     @MockK
+    private lateinit var mockTimerSyncScheduler: TimerSyncScheduler
+
+    @MockK
     private lateinit var mockSessionDataCleaner: SessionDataCleaner
 
     private lateinit var useCase: ClearSessionUseCase
 
     @Before
     fun setUp() {
-        useCase = ClearSessionUseCase(mockRepository, mockFcmTokenSyncScheduler, mockSessionDataCleaner)
+        useCase = ClearSessionUseCase(mockRepository, mockFcmTokenSyncScheduler, mockTimerSyncScheduler, mockSessionDataCleaner)
         coEvery { mockRepository.clearSession() } just Runs
         coEvery { mockRepository.clearTokens() } just Runs
         every { mockFcmTokenSyncScheduler.cancel() } just Runs
+        every { mockTimerSyncScheduler.cancel() } just Runs
         coEvery { mockSessionDataCleaner.clearAll() } just Runs
     }
 
