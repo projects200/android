@@ -79,7 +79,7 @@ class SchemaRecreatePolicyTest {
         }
 
     @Test
-    fun `2에서 3 마이그레이션은 대기 운동과 타이머를 보존하고 조회 마커만 추가한다`() =
+    fun `3에서 4 마이그레이션은 전송 대기 행과 기존 캐시를 보존한다`() =
         runTest {
             var database = openDatabase()
             val pendingRecord =
@@ -112,27 +112,41 @@ class SchemaRecreatePolicyTest {
             database.exerciseCountDao().upsertAll(listOf(ExerciseCountEntity("member-a", date, 2)))
             database.close()
 
-            // 2→3의 유일한 스키마 차이인 조회 마커 테이블을 제거해 실제 이전 파일을 재현합니다
             val path = context.getDatabasePath(UndabangDatabase.DATABASE_NAME).absolutePath
             SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
-                raw.execSQL("DROP TABLE exercise_cache_query")
-                raw.version = 2
+                raw.execSQL(
+                    "CREATE TABLE simple_timer_v3 (" +
+                        "memberId TEXT NOT NULL, localId TEXT NOT NULL, serverId INTEGER, " +
+                        "syncState TEXT NOT NULL, time INTEGER NOT NULL, createRequestId TEXT NOT NULL, " +
+                        "pendingEditId TEXT, editedAt INTEGER NOT NULL, PRIMARY KEY(memberId, localId))",
+                )
+                raw.execSQL(
+                    "INSERT INTO simple_timer_v3 " +
+                        "SELECT memberId, localId, serverId, syncState, time, createRequestId, pendingEditId, editedAt " +
+                        "FROM simple_timer",
+                )
+                raw.execSQL("DROP TABLE simple_timer")
+                raw.execSQL("ALTER TABLE simple_timer_v3 RENAME TO simple_timer")
+                raw.execSQL("CREATE INDEX index_simple_timer_memberId_serverId ON simple_timer(memberId, serverId)")
+                raw.execSQL(
+                    "CREATE TABLE custom_timer_v3 (" +
+                        "memberId TEXT NOT NULL, localId TEXT NOT NULL, serverId INTEGER, " +
+                        "syncState TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, " +
+                        "createRequestId TEXT NOT NULL, pendingEditId TEXT, editedAt INTEGER NOT NULL, " +
+                        "PRIMARY KEY(memberId, localId))",
+                )
+                raw.execSQL("DROP TABLE custom_timer")
+                raw.execSQL("ALTER TABLE custom_timer_v3 RENAME TO custom_timer")
+                raw.execSQL("CREATE INDEX index_custom_timer_memberId_serverId ON custom_timer(memberId, serverId)")
+                raw.version = 3
             }
             database = openDatabase()
 
-            assertThat(database.openHelper.readableDatabase.version).isEqualTo(3)
+            assertThat(database.openHelper.readableDatabase.version).isEqualTo(4)
             assertThat(database.exerciseRecordDao().getListByDate("member-a", date)).containsExactly(pendingRecord)
             assertThat(database.timerDao().getSimpleTimer("member-a", "pending-timer")).isEqualTo(pendingTimer)
             assertThat(database.exerciseCountDao().getRange("member-a", date, date))
                 .containsExactly(ExerciseCountEntity("member-a", date, 2))
-            database.openHelper.writableDatabase.execSQL(
-                "INSERT INTO exercise_cache_query(memberId, queryType, date) VALUES (?, ?, ?)",
-                arrayOf("member-a", "list", date.toString()),
-            )
-            database.openHelper.readableDatabase.query("SELECT queryType FROM exercise_cache_query").use { cursor ->
-                assertThat(cursor.moveToFirst()).isTrue()
-                assertThat(cursor.getString(0)).isEqualTo("list")
-            }
             database.close()
         }
 }

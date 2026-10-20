@@ -17,12 +17,16 @@ import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
 import com.project200.data.mapper.toModel
+import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
+import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import io.mockk.just
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -45,13 +49,17 @@ class TimerRepositoryImplTest {
     private lateinit var apiService: ApiService
 
     @MockK
+    private lateinit var timerSyncScheduler: TimerSyncScheduler
+
+    @MockK
     private lateinit var localDataSource: TimerLocalDataSource
 
     private lateinit var repository: TimerRepositoryImpl
 
     @Before
     fun setUp() {
-        repository = TimerRepositoryImpl(apiService, localDataSource, UnconfinedTestDispatcher())
+        every { timerSyncScheduler.schedule() } just Runs
+        repository = TimerRepositoryImpl(apiService, localDataSource, UnconfinedTestDispatcher(), timerSyncScheduler)
     }
 
     private fun simpleEntity(

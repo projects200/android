@@ -45,6 +45,23 @@ abstract class DatabaseModule {
                 }
             }
 
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("ALTER TABLE simple_timer ADD COLUMN inFlightState TEXT")
+                    db.execSQL("ALTER TABLE simple_timer ADD COLUMN inFlightEditId TEXT")
+                    db.execSQL("ALTER TABLE simple_timer ADD COLUMN inFlightEditedAt INTEGER")
+                    db.execSQL("ALTER TABLE simple_timer ADD COLUMN inFlightTime INTEGER")
+                    db.execSQL("ALTER TABLE simple_timer ADD COLUMN lastSyncError TEXT")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN inFlightState TEXT")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN inFlightEditId TEXT")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN inFlightEditedAt INTEGER")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN inFlightName TEXT")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN inFlightSteps TEXT")
+                    db.execSQL("ALTER TABLE custom_timer ADD COLUMN lastSyncError TEXT")
+                }
+            }
+
         @Provides
         @Singleton
         fun provideUndabangTypeConverters(moshi: Moshi): UndabangTypeConverters {
@@ -57,7 +74,6 @@ abstract class DatabaseModule {
          * 스키마를 바꿀 때는 version을 올립니다. version을 그대로 두고 스키마만 바꾸면
          * identityHash가 어긋나 재생성 없이 크래시합니다
          *
-         * 주의: 재생성은 전송 대기 행까지 지웁니다. 출시 뒤에는 이 설정을 걷고
          * 마이그레이션을 씁니다
          */
         @Provides
@@ -72,7 +88,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
-                .addMigrations(MIGRATION_2_3)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
         }

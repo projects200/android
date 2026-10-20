@@ -214,6 +214,38 @@ class TimerLocalDataSourceTest {
             assertThat(dataSource.getPendingSimpleTimers().map { it.localId }).containsExactly(pending)
         }
 
+    @Test
+    fun `전송 중 편집 - 이전 snapshot으로 완료하고 새 편집은 대기로 남긴다`() =
+        runTest {
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+
+            val snapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
+            dataSource.updateSimpleTimer(localId, time = 90)
+
+            val retrySnapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
+            dataSource.completeSimple(snapshot, serverId = 7L)
+
+            val saved = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(retrySnapshot.time).isEqualTo(60)
+            assertThat(saved.serverId).isEqualTo(7L)
+            assertThat(saved.time).isEqualTo(90)
+            assertThat(saved.syncState).isEqualTo(SyncState.UPDATE_PENDING)
+            assertThat(saved.inFlightState).isNull()
+        }
+
+    @Test
+    fun `전송 실패 - 마지막 오류 코드를 기록하고 성공 시 지운다`() =
+        runTest {
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            val snapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
+
+            dataSource.recordSyncError(snapshot, "NETWORK_ERROR")
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!.lastSyncError)
+                .isEqualTo("NETWORK_ERROR")
+
+            dataSource.clearSyncError(snapshot)
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!.lastSyncError).isNull()
+        }
     // ── 서버 목록 반영 ────────────────────────────────
 
     @Test

@@ -29,4 +29,9 @@ data class SimpleTimerEntity(
     val createRequestId: String,
     val pendingEditId: String?,
     val editedAt: Long,
+    val inFlightState: SyncState? = null,
+    val inFlightEditId: String? = null,
+    val inFlightEditedAt: Long? = null,
+    val inFlightTime: Int? = null,
+    val lastSyncError: String? = null,
 )
