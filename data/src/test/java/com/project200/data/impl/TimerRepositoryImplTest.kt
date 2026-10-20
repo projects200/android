@@ -5,6 +5,7 @@ import com.project200.data.api.ApiService
 import com.project200.data.datasource.ServerCustomTimer
 import com.project200.data.datasource.ServerSimpleTimer
 import com.project200.data.datasource.TimerLocalDataSource
+import com.project200.data.datasource.TimerSyncSnapshot
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerDetailStepDTO
 import com.project200.data.dto.CustomTimerSummaryDTO
@@ -12,6 +13,8 @@ import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetSimpleTimersDTO
 import com.project200.data.dto.SimpleTimerDTO
+import com.project200.data.dto.SimpleTimerIdDTO
+import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SimpleTimerEntity
@@ -23,6 +26,7 @@ import com.project200.domain.model.Step
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
@@ -34,6 +38,7 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.IOException
+import java.util.UUID
 
 /**
  * 서버 반영 3경로(성공, NETWORK_ERROR 로컬 폴백, 그 밖 오류 전달)와 쓰기 위임을 검증합니다.
@@ -59,6 +64,10 @@ class TimerRepositoryImplTest {
     @Before
     fun setUp() {
         every { timerSyncScheduler.schedule() } just Runs
+        every { localDataSource.currentMemberId() } returns MEMBER_ID
+        every { localDataSource.isCurrentMember(MEMBER_ID) } returns true
+        coEvery { localDataSource.getPendingSimpleTimers() } returns emptyList()
+        coEvery { localDataSource.getPendingCustomTimers() } returns emptyList()
         repository = TimerRepositoryImpl(apiService, localDataSource, UnconfinedTestDispatcher(), timerSyncScheduler)
     }
 
@@ -97,6 +106,63 @@ class TimerRepositoryImplTest {
     )
 
     // ── 심플 타이머 조회 ────────────────────────────────
+
+    @Test
+    fun `심플 목록 조회 - 전송 대기 행을 먼저 올린 뒤 서버 목록을 반영한다`() =
+        runTest {
+            // Given
+            val createRequestId = "00000000-0000-0000-0000-000000000001"
+            val pending =
+                simpleEntity("local-1", null, 60, SyncState.CREATE_PENDING)
+                    .copy(createRequestId = createRequestId)
+            val snapshot =
+                TimerSyncSnapshot.Simple(
+                    localId = "local-1",
+                    serverId = null,
+                    state = SyncState.CREATE_PENDING,
+                    editId = null,
+                    editedAt = 123L,
+                    createRequestId = createRequestId,
+                    time = 60,
+                )
+            coEvery { localDataSource.getPendingSimpleTimers() } returns listOf(pending)
+            coEvery { localDataSource.claimSimpleTimer(MEMBER_ID, "local-1") } returns snapshot
+            coEvery { apiService.postSimpleTimer(any()) } returns
+                BaseResponse(
+                    succeed = true,
+                    code = "200",
+                    message = "",
+                    data = SimpleTimerIdDTO(7L),
+                )
+            coEvery { localDataSource.completeSimple(snapshot, 7L) } returns Unit
+            coEvery { apiService.getSimpleTimers() } returns
+                BaseResponse(
+                    succeed = true,
+                    code = "200",
+                    message = "",
+                    data = GetSimpleTimersDTO(1, listOf(SimpleTimerDTO(8L, 90))),
+                )
+            coEvery { localDataSource.replaceSyncedSimpleTimers(any()) } returns Unit
+            coEvery { localDataSource.getSimpleTimers() } returns listOf(pending.copy(serverId = 7L))
+
+            // When
+            repository.getSimpleTimers()
+
+            // Then
+            coVerifyOrder {
+                localDataSource.claimSimpleTimer(MEMBER_ID, "local-1")
+                apiService.postSimpleTimer(
+                    SimpleTimerRequest(
+                        time = 60,
+                        createRequestId = UUID.fromString(createRequestId),
+                        editedAt = 123L,
+                    ),
+                )
+                localDataSource.completeSimple(snapshot, 7L)
+                apiService.getSimpleTimers()
+                localDataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(8L, 90)))
+            }
+        }
 
     @Test
     fun `심플 목록 조회 - 성공하면 서버 값을 반영한 뒤 로컬 스냅샷을 돌려준다`() =
