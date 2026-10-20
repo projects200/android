@@ -39,7 +39,13 @@ class TimerRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val timerSyncScheduler: TimerSyncScheduler,
     ) : TimerRepository {
+        private suspend fun syncPendingBeforeFetch() {
+            val memberId = localDataSource.currentMemberId() ?: return
+            syncPendingTimers(memberId)
+        }
+
         override suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>> {
+            syncPendingBeforeFetch()
             val listResult =
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
@@ -92,6 +98,7 @@ class TimerRepositoryImpl
          * 않게 합니다
          */
         override suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>> {
+            syncPendingBeforeFetch()
             val listResult =
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
