@@ -28,7 +28,6 @@ import com.project200.domain.model.Step
 import com.project200.domain.model.TimerSyncResult
 import com.project200.domain.repository.TimerRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import java.util.UUID
 import javax.inject.Inject
 
 class TimerRepositoryImpl
@@ -200,7 +199,15 @@ class TimerRepositoryImpl
                     }
                 }
             }
-            return TimerSyncResult.Success
+            if (!localDataSource.isCurrentMember(memberId)) return TimerSyncResult.Skipped
+            return if (
+                localDataSource.getPendingSimpleTimers().isNotEmpty() ||
+                localDataSource.getPendingCustomTimers().isNotEmpty()
+            ) {
+                TimerSyncResult.Retry
+            } else {
+                TimerSyncResult.Success
+            }
         }
 
         private suspend fun syncSimple(
@@ -216,7 +223,7 @@ class TimerRepositoryImpl
                             apiService.postSimpleTimer(
                                 SimpleTimerRequest(
                                     time = snapshot.time,
-                                    createRequestId = UUID.fromString(snapshot.createRequestId),
+                                    createRequestId = snapshot.createRequestId,
                                     editedAt = snapshot.editedAt,
                                 ),
                             )
@@ -243,7 +250,7 @@ class TimerRepositoryImpl
                                     serverId,
                                     SimpleTimerRequest(
                                         time = snapshot.time,
-                                        editId = snapshot.editId?.let(UUID::fromString),
+                                        editId = snapshot.editId,
                                         editedAt = snapshot.editedAt,
                                     ),
                                 )
@@ -257,7 +264,7 @@ class TimerRepositoryImpl
                                 apiService.deleteSimpleTimer(
                                     serverId,
                                     DeleteTimerRequestDTO(
-                                        editId = snapshot.editId?.let(UUID::fromString),
+                                        editId = snapshot.editId,
                                         editedAt = snapshot.editedAt,
                                     ),
                                 )
@@ -286,7 +293,7 @@ class TimerRepositoryImpl
                                         snapshot.steps.map {
                                             PostCustomTimerStepDTO(it.name, it.order, it.time)
                                         },
-                                    createRequestId = UUID.fromString(snapshot.createRequestId),
+                                    createRequestId = snapshot.createRequestId,
                                     editedAt = snapshot.editedAt,
                                 ),
                             )
@@ -317,7 +324,7 @@ class TimerRepositoryImpl
                                             snapshot.steps.map {
                                                 PostCustomTimerStepDTO(it.name, it.order, it.time)
                                             },
-                                        editId = snapshot.editId?.let(UUID::fromString),
+                                        editId = snapshot.editId,
                                         editedAt = snapshot.editedAt,
                                     ),
                                 )
@@ -331,7 +338,7 @@ class TimerRepositoryImpl
                                 apiService.deleteCustomTimer(
                                     serverId,
                                     DeleteTimerRequestDTO(
-                                        editId = snapshot.editId?.let(UUID::fromString),
+                                        editId = snapshot.editId,
                                         editedAt = snapshot.editedAt,
                                     ),
                                 )

@@ -91,7 +91,7 @@ class TimerLocalDataSource
         suspend fun deleteSimpleTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getSimpleTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            if (current.serverId == null && current.inFlightState == null) {
                 timerDao.deleteSimpleTimer(memberId, localId)
                 return
             }
@@ -157,7 +157,7 @@ class TimerLocalDataSource
         suspend fun deleteCustomTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getCustomTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            if (current.serverId == null && current.inFlightState == null) {
                 timerDao.deleteCustomTimer(memberId, localId)
                 return
             }
@@ -343,12 +343,11 @@ class TimerLocalDataSource
                         current.copy(
                             serverId = serverId,
                             syncState =
-                                if (newerEdit && snapshot.state == SyncState.CREATE_PENDING) {
-                                    SyncState.UPDATE_PENDING
-                                } else if (newerEdit) {
-                                    current.syncState
-                                } else {
-                                    SyncState.SYNCED
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
                                 },
                             inFlightState = null,
                             inFlightEditId = null,
@@ -378,12 +377,11 @@ class TimerLocalDataSource
                         current.copy(
                             serverId = serverId,
                             syncState =
-                                if (newerEdit && snapshot.state == SyncState.CREATE_PENDING) {
-                                    SyncState.UPDATE_PENDING
-                                } else if (newerEdit) {
-                                    current.syncState
-                                } else {
-                                    SyncState.SYNCED
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
                                 },
                             inFlightState = null,
                             inFlightEditId = null,

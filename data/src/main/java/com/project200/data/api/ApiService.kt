@@ -319,7 +319,7 @@ interface ApiService {
     ): BaseResponse<SimpleTimerIdDTO>
 
     // 심플 타이머 삭제
-    @DELETE("api/v1/simple-timers/{simpleTimerId}")
+    @HTTP(method = "DELETE", path = "api/v1/simple-timers/{simpleTimerId}", hasBody = true)
     @AccessTokenApi
     suspend fun deleteSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
@@ -345,7 +345,7 @@ interface ApiService {
         @Body customTimer: PostCustomTimerRequest,
     ): BaseResponse<CustomTimerIdDTO>
 
-    @DELETE("api/v1/custom-timers/{customTimerId}")
+    @HTTP(method = "DELETE", path = "api/v1/custom-timers/{customTimerId}", hasBody = true)
     @AccessTokenApi
     suspend fun deleteCustomTimer(
         @Path("customTimerId") customTimerId: Long,

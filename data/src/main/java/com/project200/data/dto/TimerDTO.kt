@@ -1,7 +1,6 @@
 package com.project200.data.dto
 
 import java.time.LocalDateTime
-import java.util.UUID
 
 data class GetSimpleTimersDTO(
     val simpleTimerCount: Int,
@@ -16,8 +15,8 @@ data class SimpleTimerDTO(
 
 data class SimpleTimerRequest(
     val time: Int,
-    val createRequestId: UUID? = null,
-    val editId: UUID? = null,
+    val createRequestId: String? = null,
+    val editId: String? = null,
     val editedAt: Long? = null,
 )
 
@@ -50,9 +49,9 @@ data class CustomTimerDetailStepDTO(
 data class PostCustomTimerRequest(
     val customTimerName: String,
     val customTimerSteps: List<PostCustomTimerStepDTO>,
-    val createRequestId: UUID? = null,
+    val createRequestId: String? = null,
     val editedAt: Long? = null,
-    val editId: UUID? = null,
+    val editId: String? = null,
 )
 
 data class PostCustomTimerStepDTO(
@@ -68,7 +67,7 @@ data class CustomTimerIdDTO(
 
 data class PatchCustomTimerTitleRequest(
     val customTimerName: String,
-    val editId: UUID? = null,
+    val editId: String? = null,
     val editedAt: Long? = null,
 )
 
@@ -82,6 +81,6 @@ data class TimerMutationResponseDTO(
 )
 
 data class DeleteTimerRequestDTO(
-    val editId: UUID? = null,
+    val editId: String? = null,
     val editedAt: Long? = null,
 )
