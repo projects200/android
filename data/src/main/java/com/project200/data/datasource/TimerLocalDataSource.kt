@@ -90,18 +90,20 @@ class TimerLocalDataSource
 
         suspend fun deleteSimpleTimer(localId: String) {
             val memberId = currentMemberId() ?: return
-            val current = timerDao.getSimpleTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
-                timerDao.deleteSimpleTimer(memberId, localId)
-                return
+            database.withTransaction {
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@withTransaction
+                if (current.serverId == null && current.inFlightState == null) {
+                    timerDao.deleteSimpleTimer(memberId, localId)
+                    return@withTransaction
+                }
+                timerDao.upsertSimpleTimer(
+                    current.copy(
+                        syncState = SyncState.DELETE_PENDING,
+                        pendingEditId = newId(),
+                        editedAt = now(),
+                    ),
+                )
             }
-            timerDao.upsertSimpleTimer(
-                current.copy(
-                    syncState = SyncState.DELETE_PENDING,
-                    pendingEditId = newId(),
-                    editedAt = now(),
-                ),
-            )
         }
 
         suspend fun getCustomTimers(): List<CustomTimerEntity> {
@@ -156,18 +158,20 @@ class TimerLocalDataSource
 
         suspend fun deleteCustomTimer(localId: String) {
             val memberId = currentMemberId() ?: return
-            val current = timerDao.getCustomTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
-                timerDao.deleteCustomTimer(memberId, localId)
-                return
+            database.withTransaction {
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@withTransaction
+                if (current.serverId == null && current.inFlightState == null) {
+                    timerDao.deleteCustomTimer(memberId, localId)
+                    return@withTransaction
+                }
+                timerDao.upsertCustomTimer(
+                    current.copy(
+                        syncState = SyncState.DELETE_PENDING,
+                        pendingEditId = newId(),
+                        editedAt = now(),
+                    ),
+                )
             }
-            timerDao.upsertCustomTimer(
-                current.copy(
-                    syncState = SyncState.DELETE_PENDING,
-                    pendingEditId = newId(),
-                    editedAt = now(),
-                ),
-            )
         }
 
         suspend fun getPendingSimpleTimers(): List<SimpleTimerEntity> {
@@ -343,12 +347,11 @@ class TimerLocalDataSource
                         current.copy(
                             serverId = serverId,
                             syncState =
-                                if (newerEdit && snapshot.state == SyncState.CREATE_PENDING) {
-                                    SyncState.UPDATE_PENDING
-                                } else if (newerEdit) {
-                                    current.syncState
-                                } else {
-                                    SyncState.SYNCED
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
                                 },
                             inFlightState = null,
                             inFlightEditId = null,
@@ -357,6 +360,7 @@ class TimerLocalDataSource
                             lastSyncError = null,
                         ),
                     )
+                    timerDao.deleteSyncedSimpleTimerDuplicates(memberId, serverId, snapshot.localId)
                 }
             }
         }
@@ -378,12 +382,11 @@ class TimerLocalDataSource
                         current.copy(
                             serverId = serverId,
                             syncState =
-                                if (newerEdit && snapshot.state == SyncState.CREATE_PENDING) {
-                                    SyncState.UPDATE_PENDING
-                                } else if (newerEdit) {
-                                    current.syncState
-                                } else {
-                                    SyncState.SYNCED
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
                                 },
                             inFlightState = null,
                             inFlightEditId = null,
@@ -393,6 +396,7 @@ class TimerLocalDataSource
                             lastSyncError = null,
                         ),
                     )
+                    timerDao.deleteSyncedCustomTimerDuplicates(memberId, serverId, snapshot.localId)
                 }
             }
         }

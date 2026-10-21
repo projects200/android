@@ -234,6 +234,78 @@ class TimerLocalDataSourceTest {
         }
 
     @Test
+    fun `생성 전송 중 삭제 - 서버 ID를 받은 뒤 삭제 대기로 이어간다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            val snapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
+
+            // When
+            dataSource.deleteSimpleTimer(localId)
+            dataSource.completeSimple(snapshot, serverId = 7L)
+
+            // Then
+            val saved = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
+            assertThat(saved.serverId).isEqualTo(7L)
+            assertThat(saved.syncState).isEqualTo(SyncState.DELETE_PENDING)
+            assertThat(saved.inFlightState).isNull()
+        }
+
+    @Test
+    fun `커스텀 생성 전송 중 삭제 - 서버 ID를 받은 뒤 삭제 대기로 이어간다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+            val snapshot = dataSource.claimCustomTimer(MEMBER_ID, localId)!!
+
+            // When
+            dataSource.deleteCustomTimer(localId)
+            dataSource.completeCustom(snapshot, serverId = 9L)
+
+            // Then
+            val saved = database.timerDao().getCustomTimer(MEMBER_ID, localId)!!
+            assertThat(saved.serverId).isEqualTo(9L)
+            assertThat(saved.syncState).isEqualTo(SyncState.DELETE_PENDING)
+            assertThat(saved.inFlightState).isNull()
+        }
+
+    @Test
+    fun `생성 완료와 서버 목록 반영이 겹치면 심플 중복 행을 원래 localId로 합친다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createSimpleTimer(time = 60)!!
+            val snapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 60)))
+
+            // When
+            dataSource.completeSimple(snapshot, serverId = 7L)
+
+            // Then
+            val saved = database.timerDao().getSimpleTimers(MEMBER_ID)
+            assertThat(saved).hasSize(1)
+            assertThat(saved.single().localId).isEqualTo(localId)
+        }
+
+    @Test
+    fun `생성 완료와 서버 목록 반영이 겹치면 커스텀 중복 행을 원래 localId로 합친다`() =
+        runTest {
+            // Given
+            val localId = dataSource.createCustomTimer(name = "8세트", steps = steps)!!
+            val snapshot = dataSource.claimCustomTimer(MEMBER_ID, localId)!!
+            dataSource.replaceSyncedCustomTimers(
+                listOf(ServerCustomTimer(serverId = 9L, name = "8세트", steps = steps)),
+            )
+
+            // When
+            dataSource.completeCustom(snapshot, serverId = 9L)
+
+            // Then
+            val saved = database.timerDao().getCustomTimers(MEMBER_ID)
+            assertThat(saved).hasSize(1)
+            assertThat(saved.single().localId).isEqualTo(localId)
+        }
+
+    @Test
     fun `전송 실패 - 마지막 오류 코드를 기록하고 성공 시 지운다`() =
         runTest {
             val localId = dataSource.createSimpleTimer(time = 60)!!

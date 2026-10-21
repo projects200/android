@@ -23,6 +23,7 @@ import com.project200.data.mapper.toModel
 import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.Step
+import com.project200.domain.model.TimerSyncResult
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -228,6 +229,41 @@ class TimerRepositoryImplTest {
             assertThat(result).isEqualTo(BaseResult.Success(localSnapshot.map { it.toModel() }))
         }
 
+    @Test
+    fun `동기화 성공 뒤 남은 pending은 성공으로 종료하지 않는다`() =
+        runTest {
+            // Given
+            val pending = simpleEntity("local-1", null, 60, SyncState.CREATE_PENDING)
+            val snapshot =
+                TimerSyncSnapshot.Simple(
+                    localId = "local-1",
+                    serverId = null,
+                    state = SyncState.CREATE_PENDING,
+                    editId = null,
+                    editedAt = 0L,
+                    createRequestId = pending.createRequestId,
+                    time = 60,
+                )
+            every { localDataSource.isCurrentMember(MEMBER_ID) } returns true
+            coEvery { localDataSource.getPendingSimpleTimers() } returnsMany
+                listOf(listOf(pending), emptyList(), emptyList(), listOf(pending))
+            coEvery { localDataSource.getPendingCustomTimers() } returns emptyList()
+            coEvery { localDataSource.claimSimpleTimer(MEMBER_ID, "local-1") } returns snapshot
+            coEvery { apiService.postSimpleTimer(any()) } returns
+                BaseResponse(
+                    succeed = true,
+                    code = "200",
+                    message = "",
+                    data = SimpleTimerIdDTO(7L),
+                )
+            coEvery { localDataSource.completeSimple(snapshot, 7L) } returns Unit
+
+            // When
+            val result = repository.syncPendingTimers(MEMBER_ID)
+
+            // Then
+            assertThat(result).isEqualTo(TimerSyncResult.Retry)
+        }
     // ── 심플 타이머 쓰기 ────────────────────────────────
 
     @Test
