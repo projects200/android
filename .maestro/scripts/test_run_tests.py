@@ -374,6 +374,28 @@ class SessionTransportTests(unittest.TestCase):
                     self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_common_prepare_failure_reasons_use_fixed_codes(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("discovery_failed", "bootstrap-prepare-failed-discovery"),
+            ("refresh_failed", "bootstrap-prepare-failed-refresh"),
+            ("registration_failed", "bootstrap-prepare-failed-registration"),
+            ("fixture_read_failed", "bootstrap-prepare-failed-fixture-read"),
+            ("fixture_delete_failed", "bootstrap-prepare-failed-fixture-delete"),
+            ("setup_failed", "bootstrap-prepare-failed-setup"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason}).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "prepare",
+                        CREDENTIALS,
+                    ),
+                )
+        self.assert_no_credential_arguments()
+
     def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
         self.transport.pending_sleeps = 0
         cases = (
