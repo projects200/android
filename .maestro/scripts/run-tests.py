@@ -52,6 +52,15 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
     "MAESTRO_MATCHING_ROOM_ID",
 })
+COMMON_PREPARE_FAILURES = {
+    "discovery_failed": "bootstrap-prepare-failed-discovery",
+    "refresh_failed": "bootstrap-prepare-failed-refresh",
+    "registration_failed": "bootstrap-prepare-failed-registration",
+    "fixture_read_failed": "bootstrap-prepare-failed-fixture-read",
+    "fixture_delete_failed": "bootstrap-prepare-failed-fixture-delete",
+    "setup_failed": "bootstrap-prepare-failed-setup",
+}
+
 PROFILE_PREPARE_FAILURES = {
     "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
     "profile_fixture_read_failed": "bootstrap-prepare-failed-profile-fixture-read-failed",
@@ -789,10 +798,13 @@ class Device:
                 failure = "bootstrap-" + operation + "-failed"
                 if (operation == "prepare" and isinstance(result, dict)
                         and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
-                    if feature == "profile":
-                        failure = PROFILE_PREPARE_FAILURES.get(result["reason"], failure)
+                    reason = result["reason"]
+                    if feature is None:
+                        failure = COMMON_PREPARE_FAILURES.get(reason, failure)
+                    elif feature == "profile":
+                        failure = PROFILE_PREPARE_FAILURES.get(reason, failure)
                     elif feature == "matching":
-                        failure = MATCHING_PREPARE_FAILURES.get(result["reason"], failure)
+                        failure = MATCHING_PREPARE_FAILURES.get(reason, failure)
                 raise RunnerFailure(failure)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
