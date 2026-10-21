@@ -4,6 +4,7 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.CustomTimer
 import com.project200.domain.model.SimpleTimer
 import com.project200.domain.model.Step
+import com.project200.domain.model.TimerSyncResult
 
 /**
  * 타이머는 기기가 원본입니다. 쓰기는 로컬에 먼저 반영되고 전송은 워커가 맡습니다.
@@ -48,4 +49,5 @@ interface TimerRepository {
     ): BaseResult<Unit>
 
     suspend fun deleteCustomTimer(localId: String): BaseResult<Unit>
+    suspend fun syncPendingTimers(memberId: String): TimerSyncResult
 }

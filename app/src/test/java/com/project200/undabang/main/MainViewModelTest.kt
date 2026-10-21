@@ -3,6 +3,7 @@ package com.project200.undabang.main
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.manager.FcmTokenSyncScheduler
+import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
@@ -46,6 +47,9 @@ class MainViewModelTest {
     private lateinit var mockFcmTokenSyncScheduler: FcmTokenSyncScheduler
 
     @MockK
+    private lateinit var mockTimerSyncScheduler: TimerSyncScheduler
+
+    @MockK
     private lateinit var mockNetworkMonitor: NetworkMonitor
 
     @MockK
@@ -73,8 +77,9 @@ class MainViewModelTest {
         forceLogoutFlow = MutableSharedFlow(extraBufferCapacity = 1)
         every { mockNetworkMonitor.networkState } returns networkStateFlow
         every { mockNetworkMonitor.isCurrentlyConnected() } returns true
-        every { mockAuthManager.forceLogoutFlow } returns forceLogoutFlow
         every { mockFcmTokenSyncScheduler.schedule() } just Runs
+        every { mockTimerSyncScheduler.schedule() } just Runs
+        every { mockAuthManager.forceLogoutFlow } returns forceLogoutFlow
         coEvery { mockClearSessionUseCase(SessionExitReason.FORCED) } just Runs
     }
 
@@ -87,6 +92,7 @@ class MainViewModelTest {
         return MainViewModel(
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
             fcmTokenSyncScheduler = mockFcmTokenSyncScheduler,
+            timerSyncScheduler = mockTimerSyncScheduler,
             networkMonitor = mockNetworkMonitor,
             authManager = mockAuthManager,
             authStateManager = mockAuthStateManager,

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.manager.FcmTokenSyncScheduler
+import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
 import com.project200.domain.model.UpdateCheckResult
 import com.project200.domain.usecase.CheckForUpdateUseCase
@@ -30,6 +31,7 @@ class MainViewModel
     constructor(
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
         private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
+        private val timerSyncScheduler: TimerSyncScheduler,
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
@@ -117,6 +119,7 @@ class MainViewModel
             }
             // 등록은 워커에 맡김. 재시도와 백오프, 프로세스 종료 후 재개를 WorkManager가 처리
             fcmTokenSyncScheduler.schedule()
+            timerSyncScheduler.schedule()
             _entryState.compareAndSet(EntryState.Loading, EntryState.Content)
         }
 

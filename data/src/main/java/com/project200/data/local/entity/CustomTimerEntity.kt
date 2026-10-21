@@ -27,4 +27,10 @@ data class CustomTimerEntity(
     val createRequestId: String,
     val pendingEditId: String?,
     val editedAt: Long,
+    val inFlightState: SyncState? = null,
+    val inFlightEditId: String? = null,
+    val inFlightEditedAt: Long? = null,
+    val inFlightName: String? = null,
+    val inFlightSteps: List<CachedTimerStep>? = null,
+    val lastSyncError: String? = null,
 )

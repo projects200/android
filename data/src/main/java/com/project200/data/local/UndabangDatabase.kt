@@ -28,7 +28,7 @@ import com.project200.data.local.entity.SimpleTimerEntity
         SimpleTimerEntity::class,
         CustomTimerEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 @TypeConverters(UndabangTypeConverters::class)

@@ -7,6 +7,7 @@ import com.project200.data.dto.CreateCommentResponseDTO
 import com.project200.data.dto.CreateFeedRequestDTO
 import com.project200.data.dto.CustomTimerIdDTO
 import com.project200.data.dto.DeletePreferredExerciseDTO
+import com.project200.data.dto.DeleteTimerRequestDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
@@ -55,6 +56,7 @@ import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.dto.PutProfileRequest
 import com.project200.data.dto.SimpleTimerIdDTO
 import com.project200.data.dto.SimpleTimerRequest
+import com.project200.data.dto.TimerMutationResponseDTO
 import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
@@ -306,22 +308,23 @@ interface ApiService {
     @AccessTokenApi
     suspend fun patchSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
-        @Body time: SimpleTimerRequest,
-    ): BaseResponse<Unit?>
+        @Body request: SimpleTimerRequest,
+    ): BaseResponse<TimerMutationResponseDTO>
 
     // 심플 타이머 추가
     @POST("api/v1/simple-timers")
     @AccessTokenApi
     suspend fun postSimpleTimer(
-        @Body time: SimpleTimerRequest,
+        @Body request: SimpleTimerRequest,
     ): BaseResponse<SimpleTimerIdDTO>
 
     // 심플 타이머 삭제
-    @DELETE("api/v1/simple-timers/{simpleTimerId}")
+    @HTTP(method = "DELETE", path = "api/v1/simple-timers/{simpleTimerId}", hasBody = true)
     @AccessTokenApi
     suspend fun deleteSimpleTimer(
         @Path("simpleTimerId") simpleTimerId: Long,
-    ): BaseResponse<Unit?>
+        @Body request: DeleteTimerRequestDTO,
+    ): BaseResponse<TimerMutationResponseDTO>
 
     // 커스텀 타이머 리스트 조회
     @GET("api/v1/custom-timers")
@@ -342,25 +345,28 @@ interface ApiService {
         @Body customTimer: PostCustomTimerRequest,
     ): BaseResponse<CustomTimerIdDTO>
 
-    // 커스텀 타이머 삭제
-    @DELETE("api/v1/custom-timers/{customTimerId}")
+    @HTTP(method = "DELETE", path = "api/v1/custom-timers/{customTimerId}", hasBody = true)
+    @AccessTokenApi
     suspend fun deleteCustomTimer(
         @Path("customTimerId") customTimerId: Long,
-    ): BaseResponse<Unit?>
+        @Body request: DeleteTimerRequestDTO,
+    ): BaseResponse<TimerMutationResponseDTO>
 
     // 커스텀 타이머 이름 수정
     @PATCH("api/v1/custom-timers/{customTimerId}")
+    @AccessTokenApi
     suspend fun patchCustomTimerTitle(
         @Path("customTimerId") customTimerId: Long,
-        @Body title: PatchCustomTimerTitleRequest,
-    ): BaseResponse<CustomTimerIdDTO>
+        @Body request: PatchCustomTimerTitleRequest,
+    ): BaseResponse<TimerMutationResponseDTO>
 
     // 커스텀 타이머 전체 수정
     @PUT("api/v1/custom-timers/{customTimerId}")
+    @AccessTokenApi
     suspend fun putCustomTimer(
         @Path("customTimerId") customTimerId: Long,
-        @Body customTimer: PostCustomTimerRequest,
-    ): BaseResponse<CustomTimerIdDTO>
+        @Body request: PostCustomTimerRequest,
+    ): BaseResponse<TimerMutationResponseDTO>
 
     /** 매칭 - 회원 */
     // 매칭지도 회원들 조회

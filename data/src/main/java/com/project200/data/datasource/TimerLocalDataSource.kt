@@ -91,7 +91,7 @@ class TimerLocalDataSource
         suspend fun deleteSimpleTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getSimpleTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            if (current.serverId == null && current.inFlightState == null) {
                 timerDao.deleteSimpleTimer(memberId, localId)
                 return
             }
@@ -157,7 +157,7 @@ class TimerLocalDataSource
         suspend fun deleteCustomTimer(localId: String) {
             val memberId = currentMemberId() ?: return
             val current = timerDao.getCustomTimer(memberId, localId) ?: return
-            if (current.serverId == null) {
+            if (current.serverId == null && current.inFlightState == null) {
                 timerDao.deleteCustomTimer(memberId, localId)
                 return
             }
@@ -261,6 +261,220 @@ class TimerLocalDataSource
                 )
             }
         }
+
+        suspend fun claimSimpleTimer(
+            memberId: String,
+            localId: String,
+        ): TimerSyncSnapshot.Simple? =
+            database.withTransaction {
+                if (currentMemberId() != memberId) return@withTransaction null
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@withTransaction null
+                if (current.syncState == SyncState.SYNCED) return@withTransaction null
+                val snapshot =
+                    TimerSyncSnapshot.Simple(
+                        localId = current.localId,
+                        serverId = current.serverId,
+                        state = current.inFlightState ?: current.syncState,
+                        editId = current.inFlightEditId ?: current.pendingEditId,
+                        editedAt = current.inFlightEditedAt ?: current.editedAt,
+                        createRequestId = current.createRequestId,
+                        time = current.inFlightTime ?: current.time,
+                    )
+                if (current.inFlightState == null) {
+                    timerDao.upsertSimpleTimer(
+                        current.copy(
+                            inFlightState = snapshot.state,
+                            inFlightEditId = snapshot.editId,
+                            inFlightEditedAt = snapshot.editedAt,
+                            inFlightTime = snapshot.time,
+                        ),
+                    )
+                }
+                snapshot
+            }
+
+        suspend fun claimCustomTimer(
+            memberId: String,
+            localId: String,
+        ): TimerSyncSnapshot.Custom? =
+            database.withTransaction {
+                if (currentMemberId() != memberId) return@withTransaction null
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@withTransaction null
+                if (current.syncState == SyncState.SYNCED) return@withTransaction null
+                val snapshot =
+                    TimerSyncSnapshot.Custom(
+                        localId = current.localId,
+                        serverId = current.serverId,
+                        state = current.inFlightState ?: current.syncState,
+                        editId = current.inFlightEditId ?: current.pendingEditId,
+                        editedAt = current.inFlightEditedAt ?: current.editedAt,
+                        createRequestId = current.createRequestId,
+                        name = current.inFlightName ?: current.name,
+                        steps = current.inFlightSteps ?: current.steps,
+                    )
+                if (current.inFlightState == null) {
+                    timerDao.upsertCustomTimer(
+                        current.copy(
+                            inFlightState = snapshot.state,
+                            inFlightEditId = snapshot.editId,
+                            inFlightEditedAt = snapshot.editedAt,
+                            inFlightName = snapshot.name,
+                            inFlightSteps = snapshot.steps,
+                        ),
+                    )
+                }
+                snapshot
+            }
+
+        suspend fun completeSimple(
+            snapshot: TimerSyncSnapshot.Simple,
+            serverId: Long,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@withTransaction
+                val newerEdit =
+                    current.inFlightState == snapshot.state &&
+                        (current.editedAt != snapshot.editedAt || current.pendingEditId != snapshot.editId)
+                if (snapshot.state == SyncState.DELETE_PENDING && !newerEdit) {
+                    timerDao.deleteSimpleTimer(memberId, snapshot.localId)
+                } else {
+                    timerDao.upsertSimpleTimer(
+                        current.copy(
+                            serverId = serverId,
+                            syncState =
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
+                                },
+                            inFlightState = null,
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightTime = null,
+                            lastSyncError = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        suspend fun completeCustom(
+            snapshot: TimerSyncSnapshot.Custom,
+            serverId: Long,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@withTransaction
+                val newerEdit =
+                    current.inFlightState == snapshot.state &&
+                        (current.editedAt != snapshot.editedAt || current.pendingEditId != snapshot.editId)
+                if (snapshot.state == SyncState.DELETE_PENDING && !newerEdit) {
+                    timerDao.deleteCustomTimer(memberId, snapshot.localId)
+                } else {
+                    timerDao.upsertCustomTimer(
+                        current.copy(
+                            serverId = serverId,
+                            syncState =
+                                when {
+                                    newerEdit && current.syncState == SyncState.DELETE_PENDING -> SyncState.DELETE_PENDING
+                                    newerEdit && snapshot.state == SyncState.CREATE_PENDING -> SyncState.UPDATE_PENDING
+                                    newerEdit -> current.syncState
+                                    else -> SyncState.SYNCED
+                                },
+                            inFlightState = null,
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightName = null,
+                            inFlightSteps = null,
+                            lastSyncError = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        suspend fun resolveSimpleConflict(
+            snapshot: TimerSyncSnapshot.Simple,
+            server: ServerSimpleTimer?,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@withTransaction
+                if (server == null) {
+                    timerDao.deleteSimpleTimer(memberId, snapshot.localId)
+                } else {
+                    timerDao.upsertSimpleTimer(
+                        current.copy(
+                            serverId = server.serverId,
+                            syncState = SyncState.SYNCED,
+                            time = server.time,
+                            inFlightState = null,
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightTime = null,
+                            lastSyncError = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        suspend fun resolveCustomConflict(
+            snapshot: TimerSyncSnapshot.Custom,
+            server: ServerCustomTimer?,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@withTransaction
+                if (server == null) {
+                    timerDao.deleteCustomTimer(memberId, snapshot.localId)
+                } else {
+                    timerDao.upsertCustomTimer(
+                        current.copy(
+                            serverId = server.serverId,
+                            syncState = SyncState.SYNCED,
+                            name = server.name,
+                            steps = server.steps,
+                            inFlightState = null,
+                            inFlightEditId = null,
+                            inFlightEditedAt = null,
+                            inFlightName = null,
+                            inFlightSteps = null,
+                            lastSyncError = null,
+                        ),
+                    )
+                }
+            }
+        }
+
+        suspend fun recordSyncError(
+            snapshot: TimerSyncSnapshot,
+            errorCode: String?,
+        ) {
+            val memberId = currentMemberId() ?: return
+            database.withTransaction {
+                when (snapshot) {
+                    is TimerSyncSnapshot.Simple -> {
+                        timerDao.getSimpleTimer(memberId, snapshot.localId)?.let { current ->
+                            timerDao.upsertSimpleTimer(current.copy(lastSyncError = errorCode))
+                        }
+                    }
+                    is TimerSyncSnapshot.Custom -> {
+                        timerDao.getCustomTimer(memberId, snapshot.localId)?.let { current ->
+                            timerDao.upsertCustomTimer(current.copy(lastSyncError = errorCode))
+                        }
+                    }
+                }
+            }
+        }
+
+        suspend fun clearSyncError(snapshot: TimerSyncSnapshot) {
+            recordSyncError(snapshot, null)
+        }
+
+        fun isCurrentMember(memberId: String): Boolean = currentMemberId() == memberId
 
         private fun nextStateOnEdit(current: SyncState): SyncState =
             if (current == SyncState.CREATE_PENDING) SyncState.CREATE_PENDING else SyncState.UPDATE_PENDING
