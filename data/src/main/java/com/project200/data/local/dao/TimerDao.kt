@@ -45,6 +45,18 @@ interface TimerDao {
         localId: String,
     )
 
+    /** 생성 완료 행과 서버 목록이 같은 서버 타이머를 만들면 동기화 완료 중복 행을 지웁니다 */
+    @Query(
+        "DELETE FROM simple_timer " +
+            "WHERE memberId = :memberId AND serverId = :serverId AND localId != :localId AND syncState = :synced",
+    )
+    suspend fun deleteSyncedSimpleTimerDuplicates(
+        memberId: String,
+        serverId: Long,
+        localId: String,
+        synced: SyncState = SyncState.SYNCED,
+    )
+
     @Query(
         "SELECT * FROM custom_timer " +
             "WHERE memberId = :memberId AND syncState != :excluded " +
@@ -68,6 +80,18 @@ interface TimerDao {
     suspend fun deleteCustomTimer(
         memberId: String,
         localId: String,
+    )
+
+    /** 생성 완료 행과 서버 목록이 같은 서버 타이머를 만들면 동기화 완료 중복 행을 지웁니다 */
+    @Query(
+        "DELETE FROM custom_timer " +
+            "WHERE memberId = :memberId AND serverId = :serverId AND localId != :localId AND syncState = :synced",
+    )
+    suspend fun deleteSyncedCustomTimerDuplicates(
+        memberId: String,
+        serverId: Long,
+        localId: String,
+        synced: SyncState = SyncState.SYNCED,
     )
 
     /** 대기 행이 걸린 서버ID입니다. 서버 목록 반영에서 건드리면 안 됩니다 */
