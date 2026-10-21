@@ -23,9 +23,11 @@ class MaestroFixtureCleanerTest {
     fun `일반 기록은 보존하고 정확한 예약 제목만 삭제한다`() =
         runTest {
             // Given
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(today, 4)))
-            coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns
+            coEvery { exerciseRecordRepository.getExerciseRecordList(today, refresh = true) } returns
                 success(
                     listOf(
                         item(1, title),
@@ -34,8 +36,8 @@ class MaestroFixtureCleanerTest {
                         item(4, "$title-extra"),
                     ),
                 )
-            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title))
-            coEvery { exerciseRecordRepository.getExerciseDetail("2") } returns success(detail("$title-edited"))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns success(detail(title))
+            coEvery { exerciseRecordRepository.getExerciseDetail("2", refresh = true) } returns success(detail("$title-edited"))
             coEvery { exerciseRecordRepository.deleteExerciseRecord(any()) } returns success(Unit)
 
             // When
@@ -53,10 +55,14 @@ class MaestroFixtureCleanerTest {
     fun `삭제 직전에 일반 제목으로 바뀐 기록은 보존한다`() =
         runTest {
             // Given
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(today, 1)))
-            coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail("my real exercise"))
+            coEvery {
+                exerciseRecordRepository.getExerciseRecordList(today, refresh = true)
+            } returns success(listOf(item(1, title)))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns success(detail("my real exercise"))
 
             // When
             cleaner.clean(today, today)
@@ -70,14 +76,21 @@ class MaestroFixtureCleanerTest {
         runTest {
             // Given
             val start = LocalDate.of(2026, 9, 30)
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(start, start) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(start, start, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(start, 1)))
-            coEvery { exerciseRecordRepository.getExerciseRecordList(start) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseRecordList(start, refresh = true)
+            } returns
                 success(listOf(item(1, title, start)))
             coEvery {
-                exerciseRecordRepository.getExerciseCountByRange(LocalDate.of(2026, 10, 1), today)
+                exerciseRecordRepository.getExerciseCountByRange(
+                    LocalDate.of(2026, 10, 1),
+                    today,
+                    refresh = true,
+                )
             } returns serverError()
-
             // When
             expectFailure("fixture_read_failed") { cleaner.clean(start, today) }
 
@@ -90,7 +103,9 @@ class MaestroFixtureCleanerTest {
     fun `서버가 조회 구간 밖 날짜를 반환하면 삭제하지 않는다`() =
         runTest {
             // Given
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(today.minusDays(1), 1)))
 
             // When
@@ -105,7 +120,9 @@ class MaestroFixtureCleanerTest {
     fun `기록이 없는 날짜는 목록을 조회하지 않는다`() =
         runTest {
             // Given
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(today, 0)))
 
             // When
@@ -120,10 +137,14 @@ class MaestroFixtureCleanerTest {
     fun `삭제 응답이 실패하면 정리 성공을 반환하지 않는다`() =
         runTest {
             // Given
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 success(listOf(ExerciseCount(today, 1)))
-            coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns success(detail(title))
+            coEvery {
+                exerciseRecordRepository.getExerciseRecordList(today, refresh = true)
+            } returns success(listOf(item(1, title)))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns success(detail(title))
             coEvery { exerciseRecordRepository.deleteExerciseRecord("1") } returns serverError()
 
             // When, Then
@@ -131,15 +152,61 @@ class MaestroFixtureCleanerTest {
         }
 
     @Test
+    fun `일시적인 조회 오류는 재시도 후 정리를 계속한다`() =
+        runTest {
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returnsMany
+                listOf(
+                    BaseResult.Error("NETWORK_ERROR", "네트워크 오류"),
+                    success(emptyList()),
+                )
+
+            cleaner.clean(today, today)
+
+            coVerify(exactly = 2) {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            }
+        }
+
+    @Test
+    fun `일시적인 삭제 오류는 재시도 후 성공한다`() =
+        runTest {
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns success(listOf(ExerciseCount(today, 1)))
+            coEvery {
+                exerciseRecordRepository.getExerciseRecordList(today, refresh = true)
+            } returns success(listOf(item(1, title)))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns success(detail(title))
+            coEvery { exerciseRecordRepository.deleteExerciseRecord("1") } returnsMany
+                listOf(
+                    BaseResult.Error("NETWORK_ERROR", "네트워크 오류"),
+                    success(Unit),
+                )
+
+            cleaner.clean(today, today)
+
+            coVerify(exactly = 2) { exerciseRecordRepository.deleteExerciseRecord("1") }
+        }
+
+    @Test
     fun `오프라인 스냅샷이나 갱신 실패를 근거로 기록을 지우지 않는다`() =
         runTest {
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
                 BaseResult.Success(listOf(ExerciseCount(today, 1)), isCachedSnapshot = true)
             expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
             coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
 
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns
-                BaseResult.Success(listOf(ExerciseCount(today, 1)), refreshError = BaseResult.Error("401", "인증 실패"))
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns
+                BaseResult.Success(
+                    listOf(ExerciseCount(today, 1)),
+                    refreshError = BaseResult.Error("401", "인증 실패"),
+                )
             expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
             coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
         }
@@ -147,9 +214,13 @@ class MaestroFixtureCleanerTest {
     @Test
     fun `상세에 대기 변경이 남아 있으면 서버 삭제를 실행하지 않는다`() =
         runTest {
-            coEvery { exerciseRecordRepository.getExerciseCountByRange(today, today) } returns success(listOf(ExerciseCount(today, 1)))
-            coEvery { exerciseRecordRepository.getExerciseRecordList(today) } returns success(listOf(item(1, title)))
-            coEvery { exerciseRecordRepository.getExerciseDetail("1") } returns
+            coEvery {
+                exerciseRecordRepository.getExerciseCountByRange(today, today, refresh = true)
+            } returns success(listOf(ExerciseCount(today, 1)))
+            coEvery {
+                exerciseRecordRepository.getExerciseRecordList(today, refresh = true)
+            } returns success(listOf(item(1, title)))
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns
                 success(detail(title).copy(syncPending = true, canModify = false))
             expectFailure("fixture_read_failed") { cleaner.clean(today, today) }
             coVerify(exactly = 0) { exerciseRecordRepository.deleteExerciseRecord(any()) }
