@@ -35,6 +35,7 @@ android {
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = kakaoNativeAppKey
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${kakaoNativeAppKey}\"")
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${kakaoRestApiKey}\"")
+        resValue("bool", "timer_sync_enabled", "true")
 
         ndkVersion = "28.0.10027231"
 
@@ -93,6 +94,7 @@ android {
                 } else {
                     signingConfigs.getByName("debug")
                 }
+            resValue("bool", "timer_sync_enabled", "false")
             resValue("string", "app_name", "운다방(E2E)")
         }
     }
