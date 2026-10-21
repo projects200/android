@@ -39,7 +39,6 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import java.io.IOException
-import java.util.UUID
 
 /**
  * 서버 반영 3경로(성공, NETWORK_ERROR 로컬 폴백, 그 밖 오류 전달)와 쓰기 위임을 검증합니다.
@@ -155,7 +154,7 @@ class TimerRepositoryImplTest {
                 apiService.postSimpleTimer(
                     SimpleTimerRequest(
                         time = 60,
-                        createRequestId = UUID.fromString(createRequestId),
+                        createRequestId = createRequestId,
                         editedAt = 123L,
                     ),
                 )
