@@ -237,7 +237,11 @@ def select_suites(name):
         suites = [builtin_suite(("smoke-tabs",))]
         if name == "all":
             suites.append(builtin_suite(FLOWS["regression"]))
-        suites.extend(descriptors.values())
+        # 두 기기 채팅의 System UI ANR가 나머지 기본 CI 검증을 막지 않도록 자동 선택에서만 제외한다.
+        suites.extend(
+            descriptor for feature, descriptor in descriptors.items()
+            if name != "ci" or feature != "chatting"
+        )
         suites.append(builtin_suite(("login-screen",)))
     elif name in FLOWS:
         suites = [builtin_suite(FLOWS[name])]
@@ -916,46 +920,234 @@ def save_failure_logcat(device, destination, redactor):
 
 
 
+def diagnostic_number(value):
+    try:
+        number = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return number if math.isfinite(number) and number >= 0 else None
+
+
+def parse_last_anr(report):
+    process = re.search(r"^ANR in ([A-Za-z0-9_.:]+)(?:\s|$)", report, re.MULTILINE)
+    process_name = process.group(1) if process else None
+    category = {
+        "com.android.systemui": "system-ui", APP_ID: "application",
+    }.get(process_name, "other" if process_name else "unknown")
+    reason = re.search(r"^[ \t]*Reason: ([^\n]*)", report, re.MULTILINE)
+    reason_category = "unknown"
+    if reason:
+        for prefix, name in (
+            ("Input dispatching timed out", "input-dispatch"),
+            ("Broadcast of Intent", "broadcast"),
+            ("executing service", "service"),
+            ("ContentProvider not responding", "content-provider"),
+        ):
+            if reason.group(1).startswith(prefix):
+                reason_category = name
+                break
+    load = re.search(r"^Load: ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?)$",
+                     report, re.MULTILINE)
+    cpu = re.search(r"^\s*([0-9]+(?:\.[0-9]+)?)% TOTAL:", report, re.MULTILINE)
+    load_average = [diagnostic_number(value) for value in load.groups()] if load else None
+    if load_average is not None and any(value is None for value in load_average):
+        load_average = None
+    return {
+        "process": category, "reason": reason_category,
+        "load_average": load_average,
+        "total_cpu_percent": diagnostic_number(cpu.group(1)) if cpu else None,
+    }
+
+
 def save_failure_anr(device, destination):
     try:
         code, output, _ = device.call("shell", "dumpsys", "activity", "lastanr", timeout=30)
         if code != 0:
             return
-        report = output.decode("utf-8", "replace")
-        process = re.search(r"^ANR in ([A-Za-z0-9_.:]+)(?:\s|$)", report, re.MULTILINE)
-        process_name = process.group(1) if process else None
-        category = {
-            "com.android.systemui": "system-ui", APP_ID: "application",
-        }.get(process_name, "other" if process_name else "unknown")
-        reason = re.search(r"^Reason: ([^\n]*)", report, re.MULTILINE)
-        reason_category = "unknown"
-        if reason:
-            for prefix, name in (
-                ("Input dispatching timed out", "input-dispatch"),
-                ("Broadcast of Intent", "broadcast"),
-                ("executing service", "service"),
-                ("ContentProvider not responding", "content-provider"),
-            ):
-                if reason.group(1).startswith(prefix):
-                    reason_category = name
-                    break
-        load = re.search(r"^Load: ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?) / ([0-9]+(?:\.[0-9]+)?)$",
-                         report, re.MULTILINE)
-        cpu = re.search(r"^\s*([0-9]+(?:\.[0-9]+)?)% TOTAL:", report, re.MULTILINE)
         # 마지막 ANR은 이전 사건일 수 있습니다. 원문·PID·창 제목·Intent는 공개하지 않습니다.
-        summary = {
-            "process": category, "reason": reason_category,
-            "load_average": [float(value) for value in load.groups()] if load else None,
-            "total_cpu_percent": float(cpu.group(1)) if cpu else None,
-        }
+        summary = parse_last_anr(output.decode("utf-8", "replace"))
         destination.mkdir(parents=True, exist_ok=True)
         (destination / "last-anr-summary.json").write_text(
-            json.dumps(summary, sort_keys=True) + "\n", encoding="utf-8",
+            json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
         )
     except RunInterrupted:
         raise
-    except (RunnerFailure, OSError):
+    except (RunnerFailure, OSError, ValueError):
         return
+
+
+def parse_anr_events(report):
+    events = []
+    unrecognized = False
+    for line in report.splitlines():
+        line = line.strip()
+        if not line or re.fullmatch(r"--------- (?:beginning of|switch to) events", line):
+            continue
+        event = re.fullmatch(
+            r"([0-9]+(?:\.[0-9]+)?)\s+[0-9]+\s+[0-9]+\s+I\s+am_anr\s*:\s*"
+            r"\[-?[0-9]+,[0-9]+,([A-Za-z0-9_.:]+),-?[0-9]+,(.*)\]",
+            line,
+        )
+        if not event:
+            unrecognized = True
+            continue
+        try:
+            timestamp = float(event.group(1))
+        except ValueError:
+            unrecognized = True
+            continue
+        if not math.isfinite(timestamp) or timestamp < 0:
+            unrecognized = True
+            continue
+        process = {
+            "com.android.systemui": "system-ui", APP_ID: "application",
+        }.get(event.group(2), "other")
+        reason = "unknown"
+        for prefix, category in (
+            ("Input dispatching timed out", "input-dispatch"),
+            ("Broadcast of Intent", "broadcast"),
+            ("executing service", "service"),
+            ("ContentProvider not responding", "content-provider"),
+        ):
+            if event.group(3).startswith(prefix):
+                reason = category
+                break
+        # 쉼표·괄호가 있는 reason도 원문은 버리고 고정 분류와 시각만 남깁니다.
+        events.append({"timestamp_epoch": timestamp, "process": process, "reason": reason})
+        events.sort(key=lambda item: item["timestamp_epoch"])
+        del events[:-8]
+    if events:
+        status = "partial" if unrecognized else "captured"
+    else:
+        status = "unrecognized" if unrecognized else "empty"
+    return {"status": status, "events": events}
+
+
+def save_failure_anr_events(device, destination):
+    summary = {"status": "unavailable", "events": []}
+    try:
+        code, output, _ = device.call(
+            "logcat", "-b", "events", "-d", "-v", "epoch", "-s", "am_anr:I", "*:S", timeout=30,
+        )
+        if code == 0:
+            summary = parse_anr_events(output.decode("utf-8", "replace"))
+    except RunInterrupted:
+        raise
+    except (RunnerFailure, OSError):
+        pass
+    except ValueError:
+        summary = {"status": "unrecognized", "events": []}
+    # events 버퍼는 기기의 과거 기록이며 현재 플로우에서 발생했다는 증거가 아닙니다.
+    summary["scope"] = "device-history"
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        # 원본 로그·stderr·예외 본문은 저장하지 않고 허용한 분류만 공개합니다.
+        (destination / "anr-events-summary.json").write_text(
+            json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+        )
+    except OSError:
+        return
+
+
+def capture_anr_checkpoint(device, destination, phase):
+    if phase not in (
+        "peer-ready-before-primary-prepare", "primary-fixture-ready",
+        "receiver-ready-before-primary-launch", "failure",
+    ):
+        raise ValueError("invalid-anr-checkpoint-phase")
+    started_epoch = diagnostic_number(time.time())
+    started_monotonic = diagnostic_number(time.monotonic())
+
+    def read(*arguments):
+        try:
+            code, output, _ = device.call(*arguments, timeout=5)
+            return output.decode("utf-8", "replace") if code == 0 else None
+        except RunInterrupted:
+            raise
+        except (RunnerFailure, OSError):
+            return None
+
+    last_anr = {
+        "status": "unavailable", "scope": "device-history",
+        "process": "unknown", "reason": "unknown",
+        "load_average": None, "total_cpu_percent": None,
+    }
+    report = read("shell", "dumpsys", "activity", "lastanr")
+    if report is not None:
+        try:
+            last_anr.update(parse_last_anr(report))
+            if not report.strip() or report.strip() == "<no ANR has occurred>":
+                last_anr["status"] = "empty"
+            elif last_anr["process"] != "unknown" and last_anr["reason"] != "unknown":
+                last_anr["status"] = "captured"
+            elif (last_anr["process"] != "unknown" or last_anr["reason"] != "unknown" or
+                    last_anr["load_average"] is not None or last_anr["total_cpu_percent"] is not None):
+                last_anr["status"] = "partial"
+            else:
+                last_anr["status"] = "unrecognized"
+        except RunInterrupted:
+            raise
+        except ValueError:
+            last_anr["status"] = "unrecognized"
+    events = {"status": "unavailable", "scope": "device-history", "events": []}
+    report = read("logcat", "-b", "events", "-d", "-v", "epoch", "-s", "am_anr:I", "*:S")
+    if report is not None:
+        try:
+            events.update(parse_anr_events(report))
+        except RunInterrupted:
+            raise
+        except ValueError:
+            events["status"] = "unrecognized"
+    clock = {"status": "unavailable", "wall_epoch": None, "uptime_seconds": None}
+    wall = read("shell", "date", "+%s")
+    uptime = read("shell", "cat", "/proc/uptime")
+    if wall is not None:
+        value = wall.strip()
+        if re.fullmatch(r"[0-9]+(?:\.[0-9]+)?", value):
+            clock["wall_epoch"] = diagnostic_number(value)
+    if uptime is not None:
+        value = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)\s+[0-9]+(?:\.[0-9]+)?\s*", uptime)
+        if value:
+            clock["uptime_seconds"] = diagnostic_number(value.group(1))
+    if clock["wall_epoch"] is not None and clock["uptime_seconds"] is not None:
+        clock["status"] = "captured"
+    elif clock["wall_epoch"] is not None or clock["uptime_seconds"] is not None:
+        clock["status"] = "partial"
+    elif wall is not None or uptime is not None:
+        clock["status"] = "unrecognized"
+    metadata = {
+        "phase": phase, "scope": "device-history",
+        "host_capture_started_epoch": started_epoch,
+        "host_capture_ended_epoch": diagnostic_number(time.time()),
+        "host_capture_started_monotonic": started_monotonic,
+        "host_capture_ended_monotonic": diagnostic_number(time.monotonic()),
+        "device_clock": clock,
+        "last_anr_status": last_anr["status"], "anr_events_status": events["status"],
+    }
+    # 파일별 실패를 격리하여 다른 요약과 원래 UI 결과·fixture 정리를 보존합니다.
+    for name, summary in (
+        ("last-anr-summary.json", last_anr), ("anr-events-summary.json", events),
+        ("checkpoint.json", metadata),
+    ):
+        try:
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / name).write_text(
+                json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+            )
+        except RunInterrupted:
+            raise
+        except (OSError, ValueError):
+            continue
+
+
+def host_resource_sampler(destination):
+    # sys.path나 패키지 import에 의존하지 않아 파일 경로로 로드하는 기존 테스트와 호환됩니다.
+    path = Path(__file__).with_name("host-resources.py")
+    spec = importlib.util.spec_from_file_location("maestro_host_resources", path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module.HostResourceSampler(destination)
 
 
 def maestro_result(report):
@@ -1009,6 +1201,7 @@ def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None
             if code != 0:
                 save_failure_logcat(device, output / flow, redactor)
                 save_failure_anr(device, output / flow)
+                save_failure_anr_events(device, output / flow)
                 raise RunnerFailure("maestro-flow-failed")
             maestro_result(report)
         finally:

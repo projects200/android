@@ -27,6 +27,11 @@ class ChatDriverTests(unittest.TestCase):
         self.events = []
         self.failure_stage = None
         self.cleanup_failure = None
+        self.prepare_failure = None
+        self.interruption_stage = None
+        self.diagnostics_unavailable = False
+        self.sampler_failure = None
+        self.sampler_active = False
         self.credentials = {
             "MAESTRO_": {"authState": {"refresh": "unit-a"}, "memberId": "a", "fixtureStartDate": "2026-01-01"},
             "MAESTRO_PEER_": {"authState": {"refresh": "unit-b"}, "memberId": "b", "fixtureStartDate": "2026-01-01"},
@@ -57,6 +62,8 @@ class ChatDriverTests(unittest.TestCase):
                 owner.events.append((operation, self.serial, credentials["memberId"], request))
                 if operation == "cleanup" and owner.cleanup_failure == self.serial:
                     raise RunnerFailure("unit-cleanup-failed")
+                if operation == "prepare" and owner.prepare_failure == self.serial:
+                    raise RunnerFailure("bootstrap-prepare-failed-setup")
                 return {
                     "CHAT_ROOM_ID": "200",
                     "PEER_MEMBER_ID": request["parameters"]["MAESTRO_PEER_MEMBER_ID"],
@@ -66,14 +73,39 @@ class ChatDriverTests(unittest.TestCase):
         def run_maestro(device, flow, output, redactor, timeout, fixture_start_date, variables=None):
             name = output.parent.name
             self.events.append(("flow", device.serial, flow, name, variables))
+            if name == self.interruption_stage:
+                raise RunInterrupted("run-interrupted")
             if name == self.failure_stage:
                 raise RunnerFailure("maestro-flow-failed")
+
+        def capture_anr_checkpoint(device, destination, phase):
+            self.events.append(("checkpoint", device.serial, phase))
+            if self.diagnostics_unavailable:
+                raise OSError("synthetic-private-diagnostic-error")
+
+        class HostResourceSampler:
+            def __init__(self, destination):
+                self.destination = destination
+
+            def start(self):
+                owner.events.append(("sampling-start",))
+                if owner.sampler_failure == "start":
+                    raise RuntimeError("synthetic-private-thread-error")
+                owner.sampler_active = True
+
+            def stop(self):
+                owner.events.append(("sampling-stop",))
+                owner.sampler_active = False
+                if owner.sampler_failure == "stop":
+                    raise OSError("synthetic-private-write-error")
 
         self.core = SimpleNamespace(
             RunnerFailure=RunnerFailure, RunInterrupted=RunInterrupted,
             Device=Device, Redactor=lambda values: values,
             read_credentials=lambda prefix="MAESTRO_": self.credentials[prefix],
             run_maestro=run_maestro,
+            capture_anr_checkpoint=capture_anr_checkpoint,
+            host_resource_sampler=HostResourceSampler,
         )
         self.args = SimpleNamespace(
             device="device-a", peer_device="device-b", apk="unit-e2e.apk",
@@ -119,7 +151,10 @@ class ChatDriverTests(unittest.TestCase):
             self.assertLess(stages.index(sender), stages.index(receiver))
         first_flow = next(index for index, event in enumerate(self.events) if event[0] == "flow")
         last_flow = max(index for index, event in enumerate(self.events) if event[0] == "flow")
-        self.assertTrue(all(event[0] == "flow" for event in self.events[first_flow:last_flow + 1]))
+        self.assertFalse(any(
+            event[0] in ("configure", "install", "prepare", "cleanup", "clear")
+            for event in self.events[first_flow:last_flow + 1]
+        ))
         for actor, member, peer in (("device-a", "a", "b"), ("device-b", "b", "a")):
             prepared = next(event for event in self.events if event[:2] == ("prepare", actor))
             cleaned = next(event for event in self.events if event[:2] == ("cleanup", actor))
@@ -203,6 +238,139 @@ class ChatDriverTests(unittest.TestCase):
         self.assertTrue(all("chat-b-fixture-cleanup-failed" in errors for _, _, errors in results))
         self.assertEqual(self.events.count(("clear", "device-b")), 1)
         self.assertEqual(self.events.count(("clear", "device-a")), 2)
+
+    def test_checkpoints_bound_preparation_and_launch_without_extending_sampler_lifetime(self):
+        self.args.configure_emulator = True
+        results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all(not errors for _, _, errors in results))
+        peer_ready = self.events.index(("checkpoint", "device-a", "peer-ready-before-primary-prepare"))
+        fixture_ready = self.events.index(("checkpoint", "device-a", "primary-fixture-ready"))
+        launch_ready = self.events.index(("checkpoint", "device-a", "receiver-ready-before-primary-launch"))
+        self.assertLess(self.events.index(("sampling-start",)), self.events.index(("device", "device-b")))
+        self.assertLess(self.events.index(("device", "device-b")), peer_ready)
+        self.assertLess(peer_ready, self.events.index(("configure", "device-a")))
+        prepare_a = next(index for index, event in enumerate(self.events) if event[:2] == ("prepare", "device-a"))
+        self.assertLess(prepare_a, fixture_ready)
+        self.assertLess(fixture_ready, self.events.index(("configure", "device-b")))
+        barrier = next(index for index, event in enumerate(self.events)
+                       if event[0] == "flow" and event[3] == "a-to-b-receiver-barrier")
+        opened = next(index for index, event in enumerate(self.events)
+                      if event[0] == "flow" and event[3] == "a-to-b-open-sender")
+        sent = next(index for index, event in enumerate(self.events)
+                    if event[0] == "flow" and event[3] == "a-to-b-send")
+        self.assertLess(barrier, launch_ready)
+        self.assertLess(launch_ready, opened)
+        self.assertLess(opened, self.events.index(("sampling-stop",)))
+        self.assertLess(self.events.index(("sampling-stop",)), sent)
+        self.assertFalse(self.sampler_active)
+        self.assertNotIn(("checkpoint", "device-a", "failure"), self.events)
+
+    def test_primary_prepare_failure_captures_before_recovery_and_stops_sampling(self):
+        self.prepare_failure = "device-a"
+        self.diagnostics_unavailable = True
+        results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all("bootstrap-prepare-failed-setup" in errors for _, _, errors in results))
+        failure = self.events.index(("checkpoint", "device-a", "failure"))
+        cleanup = next(index for index, event in enumerate(self.events) if event[0] == "cleanup")
+        self.assertLess(failure, cleanup)
+        self.assertLess(self.events.index(("sampling-stop",)), cleanup)
+        self.assertFalse(self.sampler_active)
+        self.assertNotIn(("checkpoint", "device-a", "primary-fixture-ready"), self.events)
+        self.assertFalse(any(event[0] == "flow" for event in self.events))
+        self.assertEqual(self.events.count(("clear", "device-a")), 2)
+        self.assertFalse(any(event[:2] == ("prepare", "device-b") for event in self.events))
+
+    def test_identity_mismatch_does_not_publish_fixture_ready_or_prepare_peer(self):
+        with mock.patch.object(self.core.Device, "bootstrap", return_value={"CHAT_ROOM_ID": "wrong"}):
+            results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all("chat-fixture-identity-mismatch" in errors for _, _, errors in results))
+        self.assertNotIn(("checkpoint", "device-a", "primary-fixture-ready"), self.events)
+        self.assertIn(("checkpoint", "device-a", "failure"), self.events)
+        self.assertFalse(any(event[0] == "flow" for event in self.events))
+        self.assertFalse(self.sampler_active)
+        self.assertEqual(self.events.count(("clear", "device-a")), 2)
+        self.assertNotIn(("locale", "device-b"), self.events)
+
+    def test_automatic_peer_boot_is_observed_before_primary_preparation(self):
+        self.args.peer_device = None
+
+        def boot(core, primary):
+            self.assertTrue(self.sampler_active)
+            self.assertFalse(any(event[0] == "prepare" for event in self.events))
+            return SimpleNamespace(serial="device-b", stop=lambda: self.events.append(("peer-stop",)))
+
+        with mock.patch.object(chatting, "PeerEmulator", side_effect=boot):
+            results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all(not errors for _, _, errors in results))
+        self.assertFalse(self.sampler_active)
+        self.assertIn(("peer-stop",), self.events)
+
+    def test_failed_primary_open_keeps_flow_error_when_diagnostics_and_cleanup_fail(self):
+        self.failure_stage = "a-to-b-open-sender"
+        self.diagnostics_unavailable = True
+        self.cleanup_failure = "device-b"
+        self.sampler_failure = "stop"
+        results = chatting.run_suite(self.args, self.core)
+        errors = {name: reasons for name, _, reasons in results}
+        self.assertIn("chat-a-to-b-open-sender-failed", errors["chatting-send"])
+        self.assertTrue(all("chat-b-fixture-cleanup-failed" in reasons for reasons in errors.values()))
+        self.assertTrue(all("chat-scenario-not-completed" in reasons for reasons in errors.values()))
+        failure = self.events.index(("checkpoint", "device-a", "failure"))
+        first_cleanup = next(index for index, event in enumerate(self.events) if event[0] == "cleanup")
+        self.assertLess(failure, first_cleanup)
+        self.assertLess(self.events.index(("sampling-stop",)), first_cleanup)
+        self.assertFalse(self.sampler_active)
+        self.assertEqual(self.events.count(("clear", "device-b")), 1)
+        self.assertEqual(self.events.count(("clear", "device-a")), 2)
+        self.assertNotIn("synthetic-private", str(results))
+        self.assertFalse(any(event[0] == "flow" and event[3] == "a-to-b-send" for event in self.events))
+
+    def test_interruption_stops_sampling_and_keeps_fixture_recovery_when_diagnostics_unavailable(self):
+        for stage in ("a-to-b-receiver-barrier", "a-to-b-open-sender"):
+            with self.subTest(stage=stage):
+                self.events.clear()
+                self.interruption_stage = stage
+                self.diagnostics_unavailable = True
+                results = chatting.run_suite(self.args, self.core)
+                self.assertTrue(all("chat-run-interrupted" in errors for _, _, errors in results))
+                owner = "chatting-send" if stage == "a-to-b-open-sender" else "chatting-receive"
+                errors = next(errors for flow, _, errors in results if flow == owner)
+                self.assertIn("chat-" + stage + "-interrupted", errors)
+                cleanup = next(index for index, event in enumerate(self.events) if event[0] == "cleanup")
+                self.assertLess(self.events.index(("checkpoint", "device-a", "failure")), cleanup)
+                self.assertLess(self.events.index(("sampling-stop",)), cleanup)
+                self.assertFalse(self.sampler_active)
+                self.assertEqual(len([event for event in self.events if event[0] == "cleanup"]), 2)
+
+    def test_peer_boot_failure_stops_sampling_and_captures_primary_before_return(self):
+        self.args.peer_device = None
+        with mock.patch.object(chatting, "PeerEmulator", side_effect=RunnerFailure("chat-peer-emulator-exited")):
+            results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all("chat-peer-emulator-exited" in errors for _, _, errors in results))
+        self.assertIn(("checkpoint", "device-a", "failure"), self.events)
+        self.assertIn(("sampling-start",), self.events)
+        self.assertIn(("sampling-stop",), self.events)
+        self.assertFalse(self.sampler_active)
+        self.assertFalse(any(event[0] in ("prepare", "cleanup", "flow") for event in self.events))
+
+    def test_sampler_start_failure_does_not_replace_success_or_prevent_cleanup(self):
+        self.sampler_failure = "start"
+        results = chatting.run_suite(self.args, self.core)
+        self.assertTrue(all(not errors for _, _, errors in results))
+        self.assertFalse(self.sampler_active)
+        self.assertEqual(len([event for event in self.events if event[0] == "cleanup"]), 2)
+
+    def test_keyboard_interrupt_propagates_after_failure_checkpoint_and_cleanup(self):
+        interruption = KeyboardInterrupt()
+        with mock.patch.object(self.core, "run_maestro", side_effect=interruption):
+            with self.assertRaises(KeyboardInterrupt) as caught:
+                chatting.run_suite(self.args, self.core)
+        self.assertIs(caught.exception, interruption)
+        cleanup = next(index for index, event in enumerate(self.events) if event[0] == "cleanup")
+        self.assertLess(self.events.index(("checkpoint", "device-a", "failure")), cleanup)
+        self.assertLess(self.events.index(("sampling-stop",)), cleanup)
+        self.assertFalse(self.sampler_active)
+        self.assertEqual(len([event for event in self.events if event[0] == "cleanup"]), 2)
 
     def test_selectors_quote_regex_names_and_literal_quote_terminators(self):
         self.assertEqual(chatting.selector("peer.*[]"), "\\Qpeer.*[]\\E")
