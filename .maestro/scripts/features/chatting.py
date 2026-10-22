@@ -109,11 +109,36 @@ def run_suite(args, core):
     actors = {}
     cleanup_requests = []
     emulator = None
+    primary = None
+    sampler = None
     keep_peer = False
     run_id = uuid.uuid4().hex[:16]
     room_id = None
     redactor = None
     stage_started = False
+
+    def checkpoint(phase):
+        if primary is None:
+            return
+        try:
+            core.capture_anr_checkpoint(
+                primary, args.output / "chatting" / "diagnostics" / phase, phase,
+            )
+        except core.RunInterrupted:
+            raise
+        except Exception:
+            # 진단 부재는 UI 성공 증거가 아니며 원래 흐름과 복구를 바꾸지 않습니다.
+            pass
+
+    def stop_sampler():
+        if sampler is None:
+            return
+        try:
+            sampler.stop()
+        except core.RunInterrupted:
+            raise
+        except Exception:
+            pass
 
     def stage(name, owner, actor, flow, message, **extra):
         nonlocal stage_started
@@ -159,6 +184,15 @@ def run_suite(args, core):
             raise core.RunnerFailure("chat-requires-e2e-apk")
         redactor = core.Redactor({"primary": credentials, "peer": peer_credentials, "room": room_id})
         primary = core.Device(args.device)
+        try:
+            sampler = core.host_resource_sampler(
+                args.output / "chatting" / "diagnostics" / "host-resources.log",
+            )
+            sampler.start()
+        except core.RunInterrupted:
+            raise
+        except Exception:
+            pass
         if args.peer_device:
             if args.peer_device == primary.serial:
                 raise core.RunnerFailure("chat-requires-two-distinct-devices")
@@ -170,6 +204,7 @@ def run_suite(args, core):
             "a": {"device": primary, "credentials": credentials},
             "b": {"device": peer, "credentials": peer_credentials},
         }
+        checkpoint("peer-ready-before-primary-prepare")
         for actor, opposite in (("a", "b"), ("b", "a")):
             device = actors[actor]["device"]
             if args.configure_emulator or (actor == "b" and emulator is not None):
@@ -200,6 +235,8 @@ def run_suite(args, core):
                 "PEER_LABEL_SELECTOR": selector(variables["PEER_NICKNAME"] + "님과의 채팅"),
             })
             actors[actor]["variables"] = variables
+            if actor == "a":
+                checkpoint("primary-fixture-ready")
 
         message_id = str(int(run_id[:8], 16))
         first = "1-" + message_id
@@ -209,7 +246,11 @@ def run_suite(args, core):
         # B is live and M1 is absent before A sends. No B launch/bootstrap occurs until receipt.
         stage("a-to-b-open-receiver", "chatting-receive", "b", "chatting-open", first)
         stage("a-to-b-receiver-barrier", "chatting-receive", "b", "chatting-ready", first)
-        stage("a-to-b-open-sender", "chatting-send", "a", "chatting-open", first)
+        checkpoint("receiver-ready-before-primary-launch")
+        try:
+            stage("a-to-b-open-sender", "chatting-send", "a", "chatting-open", first)
+        finally:
+            stop_sampler()
         stage("a-to-b-send", "chatting-send", "a", "chatting-send", first)
         stage("a-to-b-live-receive", "chatting-receive", "b", "chatting-receive", first)
         # 두 소켓이 준비된 동안 B가 같은 화면에서 바로 답장하고 A가 실시간으로 받습니다.
@@ -252,6 +293,21 @@ def run_suite(args, core):
     finally:
         handlers = {sig: signal.signal(sig, signal.SIG_IGN) for sig in (signal.SIGINT, signal.SIGTERM)}
         try:
+            try:
+                if primary is not None and len(completed) != len(FLOWS):
+                    checkpoint("failure")
+            except (core.RunInterrupted, KeyboardInterrupt):
+                for flow in FLOWS:
+                    if flow not in completed:
+                        errors[flow].append("chat-run-interrupted")
+            finally:
+                # 이전 단계에서 실패해도 fixture 정리보다 먼저 수집 스레드를 중단합니다.
+                try:
+                    stop_sampler()
+                except (core.RunInterrupted, KeyboardInterrupt):
+                    for flow in FLOWS:
+                        if flow not in completed:
+                            errors[flow].append("chat-run-interrupted")
             for actor, request in reversed(cleanup_requests):
                 device = actors[actor]["device"]
                 try:
