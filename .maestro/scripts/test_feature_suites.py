@@ -46,6 +46,31 @@ class FeatureSuiteTests(unittest.TestCase):
         path = self.root / ".maestro" / "suites" / "profile.json"
         path.write_text(json.dumps(self.descriptor if descriptor is None else descriptor))
 
+    def publish_matching_and_chatting(self):
+        self.publish()
+        descriptors = {
+            "matching": {
+                "flows": ["matching-member-to-chat"], "apiLevel": 30, "fixture": True,
+                "requiredEnvironment": ["MAESTRO_PEER_MEMBER_ID"], "driver": None,
+            },
+            "chatting": {
+                "flows": ["chatting-send", "chatting-receive", "chatting-list-refresh", "chatting-history"],
+                "apiLevel": 35, "fixture": True,
+                "requiredEnvironment": [
+                    "MAESTRO_PEER_AUTH_STATE_JSON", "MAESTRO_PEER_MEMBER_ID",
+                    "MAESTRO_PEER_FIXTURE_START_DATE", "MAESTRO_CHAT_ROOM_ID",
+                ],
+                "driver": "chatting",
+            },
+        }
+        features = self.root / ".maestro" / "scripts" / "features"
+        features.mkdir(parents=True)
+        (features / "chatting.py").write_text("# 선택 검증용 자료이며 기기 코드는 실행하지 않습니다.\n")
+        for name, descriptor in descriptors.items():
+            (self.root / ".maestro" / "suites" / (name + ".json")).write_text(json.dumps(descriptor))
+            for flow in descriptor["flows"]:
+                (self.root / ".maestro" / "flows" / (flow + ".yaml")).write_text("appId: test\n---\n")
+
     def test_empty_installation_keeps_smoke_and_exercise_contracts(self):
         self.assertEqual(runner.selected_flows(runner.select_suites("ci")), ["smoke-tabs", "login-screen"])
         self.assertEqual(runner.selected_flows(runner.select_suites("regression")),
@@ -56,6 +81,45 @@ class FeatureSuiteTests(unittest.TestCase):
         suites = runner.select_suites("ci")
         self.assertEqual(runner.selected_flows(suites), ["smoke-tabs", "profile-edit", "login-screen"])
         self.assertEqual(runner.required_api(suites), 33)
+
+    def test_only_ci_excludes_chatting_and_keeps_matching_with_login_last(self):
+        self.publish_matching_and_chatting()
+        chatting_flows = ["chatting-send", "chatting-receive", "chatting-list-refresh", "chatting-history"]
+        cases = (
+            ("ci", ["smoke-tabs", "matching-member-to-chat", "profile-edit", "login-screen"], 33),
+            ("all", [
+                "smoke-tabs", "exercise-form-entry", "exercise-crud", *chatting_flows,
+                "matching-member-to-chat", "profile-edit", "login-screen",
+            ], 35),
+            ("chatting", chatting_flows, 35),
+        )
+        for name, flows, api_level in cases:
+            with self.subTest(suite=name):
+                suites = runner.select_suites(name)
+                self.assertEqual(runner.selected_flows(suites), flows)
+                self.assertEqual(runner.required_api(suites), api_level)
+
+    def test_ci_keeps_matching_peer_without_chatting_inputs(self):
+        self.publish_matching_and_chatting()
+        environment = {"MAESTRO_PEER_MEMBER_ID": "test-peer"}
+        with mock.patch.dict(runner.os.environ, environment, clear=True):
+            self.assertEqual(runner.read_required_environment(runner.select_suites("ci")), environment)
+
+    def test_all_and_chatting_still_require_chatting_inputs(self):
+        self.publish_matching_and_chatting()
+        with mock.patch.dict(runner.os.environ, {"MAESTRO_PEER_MEMBER_ID": "test-peer"}, clear=True):
+            for name in ("all", "chatting"):
+                with self.subTest(suite=name):
+                    with self.assertRaisesRegex(runner.RunnerFailure, "missing-required-environment"):
+                        runner.read_required_environment(runner.select_suites(name))
+
+    def test_ci_still_requires_matching_peer(self):
+        self.publish_matching_and_chatting()
+        with mock.patch.dict(runner.os.environ, {}, clear=True):
+            with self.assertRaisesRegex(
+                runner.RunnerFailure, "missing-required-environment: MAESTRO_PEER_MEMBER_ID",
+            ):
+                runner.read_required_environment(runner.select_suites("ci"))
 
     def test_invalid_descriptor_fails_before_device_access(self):
         for change in ({"flows": []}, {"flows": ["../private"]}, {"apiLevel": True},

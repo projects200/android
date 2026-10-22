@@ -1,7 +1,9 @@
-# 채팅 2계정·2기기 실제 CI
+# 채팅 2계정·2기기 독립 검증
 
 `.maestro/suites/chatting.json`은 공통 러너에 다음 네 시나리오를 등록합니다.
-`ci`는 이 descriptor가 있는 PR에서 채팅 드라이버를 실행합니다.
+기본 `ci`는 이 채팅 네 시나리오를 제외하고 나머지 19개를 실행합니다.
+이는 두 기기 채팅의 System UI ANR 원인을 해결하거나 채팅 통과를 확인한 변경이 아닙니다.
+`--suite chatting` 독립 실행과 명시적 `--suite all`은 기존 두 기기 프로토콜을 그대로 실행합니다.
 
 | 리포트 이름 | 실제 완료 조건 |
 | --- | --- |
@@ -41,7 +43,7 @@
 
 ## 기기와 실행 계약
 
-컨트롤러의 승인된 CI는 공통 러너를 다음 형태로 호출합니다. 이 문서는 실행 결과가 아닙니다.
+컨트롤러가 승인된 환경에서 채팅을 독립 실행할 때 공통 러너를 다음 형태로 호출합니다. 기본 `ci`의 호출이 아니며 이 문서는 실행 결과가 아닙니다.
 
 ```bash
 python3 .maestro/scripts/run-tests.py --suite chatting \
@@ -122,8 +124,42 @@ callback을 시작하지 않으며, 기존 닉네임·미리보기·빈 화면 �
 공통 Redactor에는 **파싱한 양쪽 credentials와 방 ID**를 넣습니다. 원본 logcat,
 bootstrap 요청/세션 파일, 토큰, socket ticket URL은 업로드하지 않습니다.
 실패 시 `last-anr-summary.json`은 마지막 시스템 ANR의 프로세스·원인 **분류**와 숫자 CPU/load만
-기록합니다. 원본 dumpsys·PID·창 제목·Intent는 저장하지 않습니다. 마지막 기록은 이전 사건일 수
-있으므로 현재 hierarchy와 함께 판단합니다. 읽기/쓰기 실패는 원래 UI 실패를 대체하지 않습니다.
+기록합니다. Android 14의 들여쓴 `Reason:`도 허용하며 process·load·CPU 정보가 없으면
+`unknown`/`null`로 남깁니다. 별도 `anr-events-summary.json`은 events 버퍼의 `am_anr` 태그를
+한 번 조회해 기기 시각 `timestamp_epoch`(Unix 초)와 고정 process/reason 분류를 시각 기준
+최신 8건까지 기록합니다. 모든 이벤트 상태에 `scope: device-history`를 명시하며 현재 플로우의
+사건으로 분류하지 않습니다. `status`는 `captured`(파싱한 이벤트), `partial`(인식 불가 행도
+있는 불완전한 결과), `empty`(빈 버퍼/헤더만), `unrecognized`(인식 불가 내용),
+`unavailable`(조회 실패)입니다. `unknown` 분류·빈 결과·파일 부재는 ANR 부재의 증거가 아닙니다.
+두 ANR 요약은 원본 로그/dumpsys·사용자 데이터·패키지·PID·사용자 ID·원인 원문·창 제목·
+Intent·URL·토큰·예외 본문을 공개하지 않습니다. 읽기·파싱·쓰기 실패는 원래 UI 실패나
+fixture 정리를 대체하지 않습니다.
+
+A의 별도 checkpoint는 `chatting/diagnostics/<phase>/`에 `checkpoint.json`과 두 ANR 요약을
+기록합니다. phase는 B 사용 가능 직후·A 설정 전 `peer-ready-before-primary-prepare`,
+A prepare·identity 검증 후·B 설정 전 `primary-fixture-ready`, B receiver-ready barrier 후·A
+최초 open 직전 `receiver-ready-before-primary-launch`, A가 존재하는 실패·중단의 정리 전
+`failure` 네 고정 값입니다. 각 진단 조회는 5초로 제한합니다. checkpoint는 호스트 캡처
+시작/끝 epoch·monotonic과 얻을 수 있는 기기 wall epoch·uptime을 기록합니다.
+checkpoint의 마지막 ANR도 `scope: device-history`와 위 상태로 빈 보고서·일부 정보·조회 불가를
+구분하고 기기 clock은 `captured`/`partial`/`unrecognized`/`unavailable`을 사용합니다.
+
+`chatting/diagnostics/host-resources.log`는 B 생성/부팅 또는 명시적 peer 처리 전부터
+A 최초 open의 성공/실패 결과까지 호스트를 1초 간격으로 수집하는 JSONL입니다. 앞선 단계의
+실패·중단 시에도 sampler를 fixture 정리 전에 중단합니다. Linux CPU capacity·구간 busy/iowait,
+memory/swap·load·지원되는 PSI의 허용 숫자와 source 상태만 보관합니다. 첫 CPU 구간과
+counter reset은 미측정이며 최대 5400 samples·출력 크기 제한, 수집 종료·잘림·coverage gap을
+표시합니다. 프로세스 이름·인수·환경 변수나 원본 `/proc` 텍스트는 보관하지 않습니다.
+파일 또는 종료 기록이 없으면 수집 완료나 정상 부하로 해석하지 않습니다. 기존 JSON/log
+artifact glob이 이 자료도 업로드하며 별도 workflow 설정은 없습니다.
+
+마지막 ANR과 이벤트는 과거 기록이며 재부팅으로 지워질 수 있습니다. 이벤트 시각과 실패
+hierarchy·로그 시점을 대조하되 호스트/기기 wall clock의 차이·변경과 캡처 창을 고려합니다.
+캡처 시각을 ANR 시작으로 보거나 fixture-ready를 UI 건강 확인으로 보지 않습니다.
+호스트 주기 측정은 연속 측정이 아니며 adb 진단 자체도 실행 부하·순서에 영향을 줄 수 있습니다.
+깨끗한 checkpoint나 sample 사이 간격만으로 순간 contention 또는 미측정 기기 하위 시스템의
+문제를 배제할 수 없습니다. 최근 이벤트만으로 현재 실패와의 인과관계를 확정하지 않습니다.
+이 진단 변경은 ANR 수정이나 근본 원인 확정이 아닙니다.
 상위 report는 네 시나리오를 모두 기재합니다. 예를 들어 수신 실패는
 `chat-a-to-b-live-receive-failed`이고, 이후 미완료 시나리오는 `chat-scenario-not-completed`로
 실패합니다. smoke나 선행 단계 성공을 채팅 전체 성공으로 계산하지 않습니다.
@@ -140,6 +176,11 @@ cleanup 실패 시 해당 기기의 private recovery marker를 지우거나 `pm 
 보장하지 않습니다.
 
 ## 검증 범위
+
+기본 `ci` 성공은 채팅 네 시나리오의 통과 증거가 아닙니다. 채팅 검증에는 명시적 `chatting`
+또는 `all`에서 실제 두 계정·두 기기로 실행한 네 시나리오의 결과가 필요합니다.
+채팅 전용 job은 아직 없으며, 후속 추가 시에도 기존 계정 직렬화와 `maestro-dev` 신뢰 경계를
+유지해야 합니다.
 
 upstream `ad0d097b`의 일반 [CI run `39016562465`](https://github.com/projects200/android/actions/runs/39016562465)은 통과했습니다.
 그러나 아래 두 실제 Maestro 실행은 실패했습니다. 일반 CI나 준비 단계 성공은 채팅 성공의 증거가 아닙니다.
@@ -161,19 +202,21 @@ A의 실제 인증/진입 상태를 확정하지 못합니다. MainActivity는 �
 outgoing 서버 에코 대기(기존 60초)를 복구했습니다. 양방향 incoming·A의 M2 목록·B의 M3
 목록·재진입 뒤 기존 M1/새 M3 확인은 유지합니다.
 
-최신 ANR의 원인은 아직 확정할 수 없어 재시도·추가 UI 대기·ANR 팝업 닫기 대신 실패 진단만
-추가했습니다. 기존 logcat 필터는 시스템 ANR를 수집하지 않으므로 실패 시 별도 30초 제한의
-`dumpsys activity lastanr`에서 고정 분류·숫자 부하만 추출합니다. 원문은 공개하거나 파일로
-쓰지 않습니다. 이전 `save_failure_logcat` 운영 오류 격리와 기존 다섯 회귀 테스트는 보존하며,
-새 진단도 `RunnerFailure`·`OSError`만 격리하고 `RunInterrupted`는 그대로 전파합니다.
-진단 분류·민감 원문 배제·운영 오류·중단 테스트와 새 교환 순서의 정확한 actor/메시지,
-각 송수신·목록·이력 실패의 시나리오 전파 테스트를 추가했습니다.
+최신 ANR의 원인은 아직 확정할 수 없어 재시도·추가 UI 대기·ANR 팝업 닫기 대신 진단만
+추가했습니다. 기존 실패 경로의 30초 제한 `dumpsys activity lastanr` 요약과 실패 logcat
+격리를 보존하고 events 요약·네 checkpoint·호스트 주기 수집을 추가합니다. 원문은 파일로
+쓰지 않습니다. 채팅 드라이버는 진단의 운영 오류를 UI 결과와 격리하며 `RunInterrupted`와
+`KeyboardInterrupt`의 중단 의미와 기존 fixture 복구를 보존합니다. 회귀 테스트는 분류·민감
+원문 배제·미지원/부분 수집·읽기/쓰기 실패·중단과 준비/최초 open 실패의 정리 순서를 다룹니다.
+기존 actor/메시지·각 송수신·목록·이력의 acceptance는 바꾸지 않습니다.
 
-**이 변경에 대한 로컬 코드·설치·빌드·테스트·lint/formatter·adb·emulator·Maestro 실행은
-없습니다. 아래 원격 검증이 끝나기 전에는 전체 CI·채팅 성공을 주장하지 않습니다.**
+**이번 기본 `ci` 선택 변경에 대한 로컬 코드·설치·빌드·테스트·lint/formatter·adb·emulator·Maestro 실행은
+없습니다. 기본 `ci`와 채팅의 성공은 각각 아래 원격 결과로 확인해야 합니다.**
 정적 확인 범위는 실패 hierarchy/로그, bootstrap 인증→앱 진입→방 준비 경로, 전체 Python
 교환 순서와 실패 계약, 송신 helper/입력/outgoing 및 기존 incoming·목록·이력 selector입니다.
-컨트롤러는 Python 회귀 테스트와 일반 CI를 확인하고, 같은 실제 두 계정·기기로 네 시나리오를
-실행해야 합니다. ANR가 재발하면 같은 단계 hierarchy와 `last-anr-summary.json`의 분류·부하를
-대조해야 합니다. 새 비밀값이나 대체 계정은 필요하다고 확인되지 않았으며, 정상 응답하는
+컨트롤러는 승인된 원격 CI의 Python 회귀 테스트·APK 빌드와 기본 `ci`의 19개 플로우 결과를
+확인해야 합니다. 채팅은 별도로 명시적 `chatting`/`all`에서 실제 두 계정·기기의 네 시나리오를
+확인해야 합니다. ANR가 재발하면 같은 단계 hierarchy, 네 checkpoint와 이벤트 시각, 호스트
+주기 자료를 대조합니다. 명시적 채팅 실행은 기존 ANR로 실패할 수 있습니다.
+새 비밀값이나 대체 계정은 필요하다고 확인되지 않았으며, 정상 응답하는
 두 기기와 기존 DEV 인증·REST·WebSocket 접근이 실제 검증의 외부 전제입니다.
