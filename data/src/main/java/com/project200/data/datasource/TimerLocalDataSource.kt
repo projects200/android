@@ -489,7 +489,7 @@ class TimerLocalDataSource
 
         private fun now(): Long = System.currentTimeMillis()
 
-        private fun currentMemberId(): String? {
+        fun currentMemberId(): String? {
             return preferenceManager.getMemberId().also {
                 if (it == null) Timber.w("회원ID가 없어 타이머 저장을 건너뜁니다")
             }
