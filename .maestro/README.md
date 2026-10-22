@@ -252,7 +252,14 @@ peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다
 - `<flow>/console.log`, `debug-*.log`, `debug-*.json`: 인증 값/JWT/인증 관련 줄을 제거한 Maestro 출력과 debug 정보. 원본 subprocess 예외/traceback을 출력하지 않습니다.
 - `<flow>/screenshot-*.png`: **Maestro 실행 중** 생성된 PNG만 보관합니다. 준비/내보내기 화면은 캡처하지 않습니다. 원본 텍스트에서 민감 정보가 감지되면 이미지도 보관하지 않습니다.
 - `<flow>/device-log.log`: Maestro 비정상 종료 시 logcat 최근 500줄 중 `[MEASURE]`/`WebSocket`/`Connectivity`/`AndroidRuntime`/`FATAL EXCEPTION`/`OkHttp`가 있는 줄만 선별하고 인증 값/JWT/인증 관련 줄 제거 규칙을 적용한 로그입니다.
-- `<flow>/last-anr-summary.json`: 이어서 조회한 마지막 ANR의 고정 process/reason 분류와 load average/전체 CPU 수치만 보관합니다. 이전 사건일 수 있으며 원문·PID·창 제목·Intent는 공개하지 않습니다.
+- `<flow>/last-anr-summary.json`: 이어서 조회한 마지막 ANR의 고정 process/reason 분류와 load average/전체 CPU 수치만 보관합니다. Android 14의 들여쓴 `Reason:`도 허용하며 process·load·CPU 정보가 없으면 `unknown`/`null`로 남깁니다. 마지막 기록은 이전 사건일 수 있습니다.
+- `<flow>/anr-events-summary.json`: events 버퍼의 `am_anr` 태그를 한 번 조회해 기기 시각 `timestamp_epoch`(Unix 초)와 고정 process/reason 분류를 시각 기준 최신 8건까지 보관합니다. 모든 상태에 `scope: device-history`를 명시하며 현재 플로우의 사건으로 분류하지 않습니다.
+- `chatting/diagnostics/<phase>/{checkpoint,last-anr-summary,anr-events-summary}.json`: A의 `peer-ready-before-primary-prepare`(B 사용 가능 직후·A 설정 전), `primary-fixture-ready`(A prepare·identity 확인 후·B 설정 전), `receiver-ready-before-primary-launch`(B 준비 barrier 후·A 최초 open 직전), `failure`(A가 존재하는 실패·중단 시 정리 전) 기록입니다. 각 조회는 5초로 제한하며 metadata는 고정 phase, 호스트 캡처 시작/끝 epoch·monotonic과 얻을 수 있는 기기 wall epoch·uptime만 기록합니다.
+- `chatting/diagnostics/host-resources.log`: B 생성/부팅 또는 명시적 peer 처리 전부터 A 최초 open 결과까지 Linux 호스트를 1초 간격으로 수집하는 JSONL입니다. 이전 단계 실패·중단 시에도 fixture 정리 전에 중단합니다. CPU capacity·구간 busy/iowait, memory/swap, load, 지원되는 PSI의 허용 숫자와 source 상태만 보관하며 첫 CPU 구간·counter reset은 미측정으로 남깁니다. 최대 5400 samples와 출력 크기 제한을 적용하고 수집 종료·잘림·coverage gap을 고정 상태로 기록합니다. 파일/종료 기록 부재는 수집 완료나 정상 부하의 증거가 아닙니다.
+
+이벤트 요약의 `status`는 `captured`(파싱한 이벤트), `partial`(인식 불가 행도 있어 불완전한 이벤트), `empty`(빈 버퍼/헤더만), `unrecognized`(파싱할 수 없는 내용), `unavailable`(조회 실패)로 구분합니다. checkpoint의 마지막 ANR도 같은 상태 이름으로 빈 보고서·일부 정보·조회 불가를 구분하고 기기 clock은 `captured`/`partial`/`unrecognized`/`unavailable`을 기록합니다. 개별 `unknown` 분류나 빈 결과·파일 부재는 ANR이 없었다는 증거가 아닙니다. 두 ANR 요약은 원문·사용자 데이터·패키지·PID·창 제목·Intent·URL·토큰·예외 본문을 공개하지 않습니다. 읽기·파싱·쓰기 실패는 원래 UI 실패나 fixture 정리를 대체하지 않습니다.
+
+ANR 자료는 기기 과거 이력이며 재부팅으로 지워질 수 있습니다. 이벤트 시각과 실패 hierarchy/로그 시점을 대조하되 호스트·기기 wall clock의 차이/변경과 수집 창을 고려해야 합니다. 캡처 시각은 ANR 발생 시각이 아니며 fixture-ready는 UI 건강 확인이 아닙니다. 호스트 주기 수집은 연속 측정이 아니고 checkpoint의 adb 조회도 실행 부하·순서를 조금 바꿀 수 있습니다. 깨끗한 snapshot이나 sample 사이 간격만으로 순간 contention 또는 측정하지 않은 기기 하위 시스템의 문제를 배제하지 않습니다. 이 변경은 ANR 수정이나 근본 원인 확정이 아닙니다.
 
 Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat과 dumpsys 원문은 파일로 저장하거나 업로드하지 않습니다.
 
@@ -261,6 +268,7 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 ## 검증 상태와 남은 외부 준비
 
 사용자 보고 run `39007766770`에서는 고정 keystore 복원과 APK 빌드가 성공했고 smoke·피드·타이머·로그인은 통과했습니다. matching 세 플로우는 모두 `matching_map_ready` 대기에서 실패했으며 SDK callback의 종류·코드는 아직 수집되지 않았습니다. 이번 SDK 진단 변경은 정적 확인만 했고 로컬 빌드·테스트·기기 실행은 수행하지 않았습니다. 고정 서명 이후에도 실패 원인은 미확정입니다.
+이번 ANR checkpoint·호스트 주기 진단은 정적으로만 검토했으며 로컬 Python 테스트·빌드·lint·formatter·adb·Maestro는 실행하지 않았습니다. 게시 후 승인된 CI의 unittest·APK 빌드·실제 인증 Maestro 결과를 별도로 확인해야 하며 진단 추가 후에도 기존 ANR로 실패할 수 있습니다.
 
 저장소 루트에서 사용하는 표준 라이브러리 회귀 테스트 명령:
 

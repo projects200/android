@@ -755,7 +755,9 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             "  98.5% TOTAL: 70% user + 28.5% kernel\n"
             "Subject: " + self.escaped_secret + "\n"
         )
-        self.device.call.side_effect = [(0, b"", b""), (0, report.encode("utf-8"), b"")]
+        self.device.call.side_effect = [
+            (0, b"", b""), (0, report.encode("utf-8"), b""), (0, b"", b""),
+        ]
         with self.assertRaises(runner.RunnerFailure) as caught:
             runner.run_maestro(
                 self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
@@ -774,6 +776,70 @@ class MaestroFailureArtifactTests(unittest.TestCase):
                 private, self.escaped_secret, SYNTHETIC_SECRET, "com.android.systemui", "6175",
             ):
                 self.assertNotIn(value, content)
+
+    def test_android14_indented_anr_reason_does_not_infer_process_from_activity_records(self):
+        private = "synthetic-private-window-and-intent"
+        for indentation, reason, category in (
+            ("  ", "Input dispatching timed out (" + private + ")", "input-dispatch"),
+            ("\t", "Broadcast of Intent { " + private + " }", "broadcast"),
+            (" \t", "executing service synthetic.private.service", "service"),
+            ("  ", "ContentProvider not responding: synthetic.private.provider", "content-provider"),
+            ("  ", private, "unknown"),
+            ("  ", "", "unknown"),
+            ("  ", None, "unknown"),
+        ):
+            with self.subTest(indentation=indentation, reason=reason):
+                reason_line = indentation + "Reason: " + reason + "\n" if reason is not None else ""
+                # Android 14의 들여쓴 Reason만 분류하고 활동·창 기록에서 ANR 프로세스를 추측하지 않습니다.
+                report = (
+                    "ACTIVITY MANAGER LAST ANR (dumpsys activity lastanr)\n"
+                    "  ANR time: Oct 22, 2026, 1:12:34 PM\n"
+                    + reason_line
+                    + "\nACTIVITY MANAGER STARTER (dumpsys activity starter)\n"
+                    "  mLastStartActivityRecord=ActivityRecord{synthetic u0 "
+                    + runner.APP_ID + "/.MainActivity t42}\n"
+                    "\nACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)\n"
+                    "  * Hist #0: ActivityRecord{synthetic u0 "
+                    + runner.APP_ID + "/.MainActivity t42}\n"
+                    "    intent={act=android.intent.action.MAIN " + private + "}\n"
+                    "  mCurrentFocus=Window{synthetic u0 com.android.systemui/StatusBar}\n"
+                    "  pid=6175 uid=1000 https://synthetic.invalid/?token=synthetic-token\n"
+                    '  authState={"accessToken":"' + self.escaped_secret + '"}\n'
+                    "  memberId=" + CREDENTIALS["memberId"] + "\n"
+                )
+                self.device.call.side_effect = [
+                    (0, b"", b""), (0, report.encode("utf-8"), b"synthetic-private-command-stderr"),
+                    (0, b"", b""),
+                ]
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    with self.assertRaises(runner.RunnerFailure) as caught:
+                        runner.run_maestro(
+                            self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                        )
+                self.assertEqual(str(caught.exception), "maestro-flow-failed")
+                self.assertEqual(
+                    json.loads((self.destination / "last-anr-summary.json").read_text(encoding="utf-8")),
+                    {
+                        "process": "unknown", "reason": category,
+                        "load_average": None, "total_cpu_percent": None,
+                    },
+                )
+                self.assertEqual(
+                    (self.destination / "console.log").read_text(encoding="utf-8"),
+                    "Maestro UI assertion failed: [REDACTED]",
+                )
+                self.assertEqual(published.getvalue(), "")
+                for path in self.destination.iterdir():
+                    content = path.read_text(encoding="utf-8")
+                    for value in (
+                        private, runner.APP_ID, "com.android.systemui", "ActivityRecord", "Window{",
+                        "ANR time", "Oct 22", "6175", "1000", "Intent", "https://", "synthetic-token",
+                        "authState", "accessToken", CREDENTIALS["memberId"], SYNTHETIC_SECRET,
+                        self.escaped_secret, "synthetic-private-command-stderr",
+                        "synthetic.private.service", "synthetic.private.provider",
+                    ):
+                        self.assertNotIn(value, content)
 
     def test_application_anr_summary_uses_fixed_reason_categories(self):
         for reason, category in (
@@ -816,6 +882,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
         self.device.call.side_effect = [
             (0, b"", b""),
             (1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8")),
+            (0, b"", b""),
         ]
         published = io.StringIO()
         with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
@@ -834,7 +901,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
     def test_anr_capture_failure_preserves_original_failure_and_console(self):
         for failure in (runner.RunnerFailure("tool-timeout"), OSError(SYNTHETIC_SECRET)):
             with self.subTest(failure=type(failure).__name__):
-                self.device.call.side_effect = [(0, b"", b""), failure]
+                self.device.call.side_effect = [(0, b"", b""), failure, (0, b"", b"")]
                 published = io.StringIO()
                 with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
                     with self.assertRaises(runner.RunnerFailure) as caught:
@@ -853,6 +920,7 @@ class MaestroFailureArtifactTests(unittest.TestCase):
         self.device.call.side_effect = [
             (0, b"", b""),
             (0, b"ANR in com.project200.undabang\nReason: Input dispatching timed out\n", b""),
+            (0, b"", b""),
         ]
         write_text = Path.write_text
 
@@ -889,6 +957,407 @@ class MaestroFailureArtifactTests(unittest.TestCase):
             "Maestro UI assertion failed: [REDACTED]",
         )
         self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+    def test_system_ui_anr_events_summary_keeps_only_timestamp_and_categories(self):
+        private = "synthetic-private-window-and-intent"
+        report = (
+            "--------- beginning of events\n"
+            "1700000100.250  1000  1001 I am_anr  : [0,6175,com.android.systemui,0,"
+            "Broadcast of Intent { " + private + ", extras=[one,two] } "
+            "https://synthetic.invalid/?key=synthetic-key&token=synthetic-token "
+            'authState={"accessToken":"' + self.escaped_secret + '"}]\n'
+        )
+        self.device.call.side_effect = [
+            (0, b"", b""), (0, b"<no ANR has occurred>\n", b""),
+            (0, report.encode("utf-8"), b"synthetic-private-command-stderr"),
+        ]
+        published = io.StringIO()
+        with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+            with self.assertRaises(runner.RunnerFailure) as caught:
+                runner.run_maestro(
+                    self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+            {
+                "scope": "device-history", "status": "captured",
+                "events": [
+                    {"timestamp_epoch": 1700000100.25, "process": "system-ui", "reason": "broadcast"},
+                ],
+            },
+        )
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+        for path in self.destination.iterdir():
+            content = path.read_text(encoding="utf-8")
+            for value in (
+                private, "com.android.systemui", "6175", "1000", "1001", "Intent",
+                "https://", "synthetic-key", "synthetic-token", "authState", "accessToken",
+                SYNTHETIC_SECRET, self.escaped_secret, "synthetic-private-command-stderr",
+            ):
+                self.assertNotIn(value, content)
+
+    def test_anr_event_process_and_reason_classification_boundaries(self):
+        for process, reason, process_category, reason_category in (
+            ("com.android.systemui", "Input dispatching timed out (private)", "system-ui", "input-dispatch"),
+            (runner.APP_ID, "Broadcast of Intent { private, [extras] }", "application", "broadcast"),
+            (runner.APP_ID, "executing service synthetic.private.service", "application", "service"),
+            (runner.APP_ID, "ContentProvider not responding: private", "application", "content-provider"),
+            ("com.android.systemui:private", "private reason", "other", "unknown"),
+            ("com.android.systemui.private", "private reason", "other", "unknown"),
+            (runner.APP_ID + ":private", "private reason", "other", "unknown"),
+            (runner.APP_ID + ".private", "private reason", "other", "unknown"),
+            ("synthetic.private.process", "prefix Input dispatching timed out", "other", "unknown"),
+            (runner.APP_ID, "input dispatching timed out", "application", "unknown"),
+        ):
+            with self.subTest(process=process, reason_category=reason_category):
+                self.device.call.return_value = (
+                    0,
+                    ("1700000100.250 1000 1001 I am_anr: [0,6175," + process + ",0," + reason + "]\n")
+                    .encode("utf-8"),
+                    b"",
+                )
+                runner.save_failure_anr_events(self.device, self.destination)
+                self.assertEqual(
+                    json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+                    {
+                        "scope": "device-history", "status": "captured",
+                        "events": [{
+                            "timestamp_epoch": 1700000100.25,
+                            "process": process_category, "reason": reason_category,
+                        }],
+                    },
+                )
+
+    def test_anr_events_distinguish_empty_unrecognized_and_partial_capture(self):
+        valid = (
+            b"1700000100.250 1000 1001 I am_anr: "
+            b"[0,6175,com.android.systemui,0,synthetic-private-reason]\n"
+        )
+        for report, status, events in (
+            (b"", "empty", []),
+            (b"\n--------- beginning of events\n--------- switch to events\n", "empty", []),
+            (
+                valid.replace(b"[0,6175,", b"[-1,6175,").replace(b",0,", b",-2147483648,"),
+                "captured",
+                [{"timestamp_epoch": 1700000100.25, "process": "system-ui", "reason": "unknown"}],
+            ),
+            (valid, "captured", [
+                {"timestamp_epoch": 1700000100.25, "process": "system-ui", "reason": "unknown"},
+            ]),
+            (b"synthetic-private-unrecognized-output\n", "unrecognized", []),
+            (valid.replace(b"am_anr:", b"other_tag:"), "unrecognized", []),
+            (valid.replace(b"com.android.systemui", b"invalid process"), "unrecognized", []),
+            (valid.replace(b"[0,6175,", b"[0,"), "unrecognized", []),
+            (
+                b"--------- beginning of events\n" + valid
+                + b"synthetic-private-malformed-row\xff\n",
+                "partial",
+                [{"timestamp_epoch": 1700000100.25, "process": "system-ui", "reason": "unknown"}],
+            ),
+        ):
+            with self.subTest(status=status, report=report):
+                self.device.call.return_value = (0, report, b"")
+                runner.save_failure_anr_events(self.device, self.destination)
+                self.assertEqual(
+                    json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+                    {"scope": "device-history", "status": status, "events": events},
+                )
+
+    def test_anr_events_retain_only_latest_eight_finite_nonnegative_timestamps(self):
+        timestamps = ["0", "12.5", "2", "11", "1", "10", "3", "9", "4", "8", "5", "7", "6"]
+        invalid = ["-1", "nan", "NaN", "inf", "Infinity", "1e3", "9" * 400]
+        report = "\n".join(
+            timestamp + " 1000 1001 I am_anr: [0,6175,com.android.systemui,0,private]"
+            for timestamp in timestamps
+        )
+        self.device.call.return_value = (0, report.encode("utf-8"), b"")
+        runner.save_failure_anr_events(self.device, self.destination)
+        summary = json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(summary), {"scope", "status", "events"})
+        self.assertEqual(summary["scope"], "device-history")
+        self.assertEqual(summary["status"], "captured")
+        self.assertEqual(
+            [event["timestamp_epoch"] for event in summary["events"]],
+            [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.5],
+        )
+        for timestamp in invalid:
+            with self.subTest(timestamp=timestamp):
+                self.device.call.return_value = (
+                    0,
+                    (report + "\n" + timestamp
+                     + " 1000 1001 I am_anr: [0,6175,com.android.systemui,0,private]\n").encode("utf-8"),
+                    b"",
+                )
+                runner.save_failure_anr_events(self.device, self.destination)
+                mixed = json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8"))
+                self.assertEqual(mixed, {**summary, "status": "partial"})
+        self.device.call.return_value = (
+            0, b"0.000 1000 1001 I am_anr: [0,6175,com.android.systemui,0,private]\n", b"",
+        )
+        runner.save_failure_anr_events(self.device, self.destination)
+        self.assertEqual(
+            json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+            {
+                "scope": "device-history", "status": "captured",
+                "events": [{"timestamp_epoch": 0.0, "process": "system-ui", "reason": "unknown"}],
+            },
+        )
+
+    def test_anr_events_unavailable_or_unreadable_preserves_original_failure_and_console(self):
+        for failure in (
+            (1, SYNTHETIC_SECRET.encode("utf-8"), self.escaped_secret.encode("utf-8")),
+            runner.RunnerFailure("tool-timeout"),
+            OSError(SYNTHETIC_SECRET),
+        ):
+            with self.subTest(failure=type(failure).__name__):
+                self.device.call.side_effect = [(0, b"", b""), (0, b"", b""), failure]
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    with self.assertRaises(runner.RunnerFailure) as caught:
+                        runner.run_maestro(
+                            self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                        )
+                self.assertEqual(str(caught.exception), "maestro-flow-failed")
+                self.assertEqual(
+                    json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+                    {"scope": "device-history", "status": "unavailable", "events": []},
+                )
+                self.assertEqual(
+                    (self.destination / "console.log").read_text(encoding="utf-8"),
+                    "Maestro UI assertion failed: [REDACTED]",
+                )
+                self.assertEqual(published.getvalue(), "")
+
+    def test_anr_events_parse_failure_preserves_original_failure_and_console(self):
+        self.device.call.side_effect = [(0, b"", b""), (0, b"", b""), (0, b"", b"")]
+        published = io.StringIO()
+        with mock.patch.object(runner, "parse_anr_events", side_effect=ValueError(SYNTHETIC_SECRET)):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    runner.run_maestro(
+                        self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                    )
+        self.assertEqual(str(caught.exception), "maestro-flow-failed")
+        self.assertEqual(
+            json.loads((self.destination / "anr-events-summary.json").read_text(encoding="utf-8")),
+            {"scope": "device-history", "status": "unrecognized", "events": []},
+        )
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertEqual(published.getvalue(), "")
+
+    def test_anr_events_write_failure_preserves_ui_failure_console_and_fixture_cleanup(self):
+        self.device.call.side_effect = [
+            (0, b"", b""), (0, b"", b""),
+            (0, b"1700000100.250 1000 1001 I am_anr: [0,6175,com.android.systemui,0,private]\n", b""),
+        ]
+        self.device.clear = mock.Mock()
+        self.device.bootstrap = mock.Mock(return_value={})
+        write_text = Path.write_text
+
+        def fail_events_write(path, *args, **kwargs):
+            if path == self.destination / "anr-events-summary.json":
+                raise OSError(SYNTHETIC_SECRET)
+            return write_text(path, *args, **kwargs)
+
+        published = io.StringIO()
+        with mock.patch.object(Path, "write_text", new=fail_events_write):
+            with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                result, safe_to_continue = runner.run_ordinary_flow(
+                    SimpleNamespace(flow_timeout=60), self.device,
+                    {"name": "chatting", "fixture": True}, self.flow, self.output,
+                    runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+                )
+        self.assertEqual(result[0], self.flow)
+        self.assertEqual(result[2], ["maestro-flow-failed"])
+        self.assertTrue(safe_to_continue)
+        operations = [call.args[0] for call in self.device.bootstrap.call_args_list]
+        self.assertEqual(operations, ["prepare", "cleanup"])
+        self.assertEqual(self.device.clear.call_count, 2)
+        self.assertEqual(
+            (self.destination / "console.log").read_text(encoding="utf-8"),
+            "Maestro UI assertion failed: [REDACTED]",
+        )
+        self.assertFalse((self.destination / "anr-events-summary.json").exists())
+        self.assertEqual(published.getvalue(), "")
+
+    def test_anr_events_interruption_propagates_unchanged_and_keeps_sanitized_console(self):
+        write_text = Path.write_text
+        for stage in ("read", "parse", "write"):
+            with self.subTest(stage=stage):
+                interruption = runner.RunInterrupted("run-interrupted")
+                self.device.call.side_effect = [
+                    (0, b"", b""), (0, b"", b""),
+                    interruption if stage == "read" else (0, b"", b""),
+                ]
+
+                def interrupt_events_write(path, *args, **kwargs):
+                    if path == self.destination / "anr-events-summary.json":
+                        raise interruption
+                    return write_text(path, *args, **kwargs)
+
+                with contextlib.ExitStack() as patches:
+                    if stage == "parse":
+                        patches.enter_context(mock.patch.object(
+                            runner, "parse_anr_events", side_effect=interruption,
+                        ))
+                    elif stage == "write":
+                        patches.enter_context(mock.patch.object(
+                            Path, "write_text", new=interrupt_events_write,
+                        ))
+                    with self.assertRaises(runner.RunInterrupted) as caught:
+                        runner.run_maestro(
+                            self.device, self.flow, self.output, runner.Redactor(CREDENTIALS), timeout=60,
+                        )
+                self.assertIs(caught.exception, interruption)
+                self.assertEqual(
+                    (self.destination / "console.log").read_text(encoding="utf-8"),
+                    "Maestro UI assertion failed: [REDACTED]",
+                )
+                self.assertFalse((self.destination / "anr-events-summary.json").exists())
+
+
+class AnrCheckpointTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="maestro-checkpoint-test-")
+        self.addCleanup(temporary.cleanup)
+        self.destination = Path(temporary.name) / "failure"
+        self.device = SimpleNamespace(call=mock.Mock(side_effect=[
+            (0, b"<no ANR has occurred>\n", b""),
+            (0, b"--------- beginning of events\n", b""),
+            (0, b"1700000123\n", b""), (0, b"91.25 200.50\n", b""),
+        ]))
+
+    def capture(self):
+        runner.capture_anr_checkpoint(self.device, self.destination, "failure")
+        return json.loads((self.destination / "checkpoint.json").read_text(encoding="utf-8"))
+
+    def test_checkpoint_separates_host_capture_window_device_clocks_and_historical_events(self):
+        private = "synthetic-private-checkpoint-window"
+        self.device.call.side_effect = [
+            (0, ("ANR in com.android.systemui\n  Reason: Broadcast of Intent { " + private + " }\n"
+                 "Load: 14.67 / 12.04 / 6.64\n98.5% TOTAL: private\n").encode(), b"private-stderr"),
+            (0, ("1700000100.25 6175 6176 I am_anr: [0,6175,com.android.systemui,0,"
+                 "Input dispatching timed out (" + private + ")]\n").encode(), b"private-stderr"),
+            (0, b"1700000123\n", b""), (0, b"91.25 200.50\n", b""),
+        ]
+        with mock.patch.object(runner.time, "time", side_effect=[1700000200.0, 1700000201.0]):
+            with mock.patch.object(runner.time, "monotonic", side_effect=[100.0, 101.0]):
+                metadata = self.capture()
+        self.assertEqual(metadata, {
+            "phase": "failure", "scope": "device-history",
+            "host_capture_started_epoch": 1700000200.0, "host_capture_ended_epoch": 1700000201.0,
+            "host_capture_started_monotonic": 100.0, "host_capture_ended_monotonic": 101.0,
+            "device_clock": {"status": "captured", "wall_epoch": 1700000123.0, "uptime_seconds": 91.25},
+            "last_anr_status": "captured", "anr_events_status": "captured",
+        })
+        last_anr = json.loads((self.destination / "last-anr-summary.json").read_text())
+        self.assertEqual(last_anr, {
+            "status": "captured", "scope": "device-history",
+            "process": "system-ui", "reason": "broadcast",
+            "load_average": [14.67, 12.04, 6.64], "total_cpu_percent": 98.5,
+        })
+        events = json.loads((self.destination / "anr-events-summary.json").read_text())
+        self.assertEqual(events, {
+            "status": "captured", "scope": "device-history",
+            "events": [{"timestamp_epoch": 1700000100.25, "process": "system-ui", "reason": "input-dispatch"}],
+        })
+        for path in self.destination.iterdir():
+            content = path.read_text()
+            for secret in (private, "private-stderr", "com.android.systemui", "6175", "Intent", "timed out"):
+                self.assertNotIn(secret, content)
+
+    def test_missing_malformed_and_partial_sources_never_become_clean_anr_evidence(self):
+        for last, events, wall, uptime, expected in (
+            (b"", b"", b"1700000123", b"91.25 200", ("empty", "empty", "captured")),
+            (b"private", b"private", b"nan", b"-1 0", ("unrecognized", "unrecognized", "unrecognized")),
+            (b"  Reason: Input dispatching timed out (private)", b"", b"1700000123", b"private",
+             ("partial", "empty", "partial")),
+            (None, None, None, None, ("unavailable", "unavailable", "unavailable")),
+        ):
+            with self.subTest(expected=expected):
+                self.device.call.side_effect = [
+                    (0, value, b"") if value is not None else (1, b"private-output", b"private-stderr")
+                    for value in (last, events, wall, uptime)
+                ]
+                metadata = self.capture()
+                self.assertEqual(
+                    (metadata["last_anr_status"], metadata["anr_events_status"], metadata["device_clock"]["status"]),
+                    expected,
+                )
+                self.assertEqual(metadata["scope"], "device-history")
+                if expected[2] in ("unavailable", "unrecognized"):
+                    self.assertIsNone(metadata["device_clock"]["wall_epoch"])
+                    self.assertIsNone(metadata["device_clock"]["uptime_seconds"])
+                for path in self.destination.iterdir():
+                    self.assertNotIn("private", path.read_text())
+
+    def test_failed_reads_keep_other_sources_and_numeric_metadata(self):
+        for failure in (runner.RunnerFailure("tool-timeout"), OSError(SYNTHETIC_SECRET)):
+            with self.subTest(failure=type(failure).__name__):
+                self.device.call.side_effect = [
+                    failure, (0, b"", b""), failure, (0, b"91.25 200\n", b""),
+                ]
+                metadata = self.capture()
+                self.assertEqual(metadata["last_anr_status"], "unavailable")
+                self.assertEqual(metadata["anr_events_status"], "empty")
+                self.assertEqual(metadata["device_clock"], {
+                    "status": "partial", "wall_epoch": None, "uptime_seconds": 91.25,
+                })
+                self.assertNotIn(SYNTHETIC_SECRET, str(metadata))
+
+    def test_parse_failure_does_not_discard_other_checkpoint_sources(self):
+        with mock.patch.object(runner, "parse_last_anr", side_effect=ValueError(SYNTHETIC_SECRET)):
+            metadata = self.capture()
+        self.assertEqual(metadata["last_anr_status"], "unrecognized")
+        self.assertEqual(metadata["anr_events_status"], "empty")
+        self.assertEqual(metadata["device_clock"]["status"], "captured")
+        self.assertNotIn(SYNTHETIC_SECRET, str(metadata))
+
+    def test_nonfinite_numbers_are_unknown_and_never_serialized_as_infinity(self):
+        huge = "9" * 400
+        self.device.call.side_effect = [
+            (0, ("ANR in com.android.systemui\nReason: Broadcast of Intent\n"
+                 "Load: " + huge + " / 1 / 2\n" + huge + "% TOTAL:\n").encode(), b""),
+            (0, b"", b""), (0, huge.encode(), b""), (0, (huge + " 1\n").encode(), b""),
+        ]
+        metadata = self.capture()
+        self.assertEqual(metadata["device_clock"]["status"], "unrecognized")
+        last_anr = json.loads((self.destination / "last-anr-summary.json").read_text())
+        self.assertIsNone(last_anr["load_average"])
+        self.assertIsNone(last_anr["total_cpu_percent"])
+        for path in self.destination.iterdir():
+            self.assertNotIn("Infinity", path.read_text())
+            self.assertNotIn("NaN", path.read_text())
+
+    def test_single_artifact_write_failure_keeps_other_summary_and_checkpoint(self):
+        write_text = Path.write_text
+
+        def write(path, *args, **kwargs):
+            if path.name == "last-anr-summary.json":
+                raise OSError(SYNTHETIC_SECRET)
+            return write_text(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "write_text", new=write):
+            metadata = self.capture()
+        self.assertEqual(metadata["last_anr_status"], "empty")
+        self.assertTrue((self.destination / "anr-events-summary.json").is_file())
+        self.assertFalse((self.destination / "last-anr-summary.json").exists())
+
+    def test_interruption_during_checkpoint_read_preserves_cancellation(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.side_effect = interruption
+        with self.assertRaises(runner.RunInterrupted) as caught:
+            self.capture()
+        self.assertIs(caught.exception, interruption)
+        self.assertFalse(self.destination.exists())
 
 
 class EmulatorInputTests(unittest.TestCase):
