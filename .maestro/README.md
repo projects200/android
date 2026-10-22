@@ -143,7 +143,11 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 
 ### 기능 descriptor와 공유 계약
 
-`--suite ci`는 smoke-tabs → 현재 트리의 모든 `.maestro/suites/<feature>.json`(파일명 순, 각 flows 선언 순) → login-screen입니다. `all`은 여기에 기존 exercise 회귀 두 개를 포함합니다. **`regression`은 기존 운동 두 개만** 실행하며 전체 기능 회귀의 별칭이 아닙니다. `--suite <feature>`는 해당 descriptor만 실행합니다. descriptor가 없으면 그 기능을 실행했다고 주장하지 않으며 잘못된 descriptor/빈 flows/없는 파일/중복 흐름은 실패합니다. 기능 상세는 `.maestro/README-<feature>.md`를 참조합니다.
+`--suite ci`는 smoke-tabs → `chatting`을 제외한 현재 트리의 `.maestro/suites/<feature>.json`(파일명 순, 각 flows 선언 순) → login-screen입니다. 현재 19개를 실행하며 두 기기 채팅 4개만 기본 선택에서 제외합니다. `matching-member-to-chat`과 smoke의 채팅 탭 검증은 유지합니다.
+
+`all`은 채팅 4개와 기존 exercise 회귀 두 개까지 포함하며 두 기기가 필요합니다. **`regression`은 기존 운동 두 개만** 실행하며 전체 기능 회귀의 별칭이 아닙니다. `--suite <feature>`는 해당 descriptor만 실행하므로 `--suite chatting` 독립 실행도 유지합니다. descriptor가 없으면 그 기능을 실행했다고 주장하지 않으며 잘못된 descriptor/빈 flows/없는 파일/중복 흐름은 실패합니다. 기능 상세는 `.maestro/README-<feature>.md`를 참조합니다.
+
+채팅 전용 job은 이번 변경에서 추가하지 않습니다. 기본 `ci` 성공은 채팅 4개 통과의 증거가 아니며, 채팅 제외가 System UI ANR의 원인 해결을 뜻하지 않습니다.
 
 descriptor 스키마(모든 필드 필수):
 
@@ -191,9 +195,9 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 
 |트리거|ref/신뢰 조건|suite/결과|
 |---|---|---|
-|`push`|`refs/heads/dev`만 허용|`ci`(smoke + 현재 트리의 실제 기능)|
+|`push`|`refs/heads/dev`만 허용|`ci`(현재 19개, 두 기기 채팅 4개 제외)|
 |`push`|다른 branch/tag ref|트리거 필터에서 제외, 비밀 미제공|
-|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`ci`(smoke + 현재 트리의 실제 기능)|
+|`pull_request`|base가 `dev`, 같은 저장소 head, 작성자 association `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`|`ci`(현재 19개, 두 기기 채팅 4개 제외)|
 |`pull_request`|base가 `dev`, fork head 또는 비신뢰 작성자|비밀 없는 거절 job 실패, 인증 job 미실행|
 |`pull_request`|다른 base branch|트리거 필터에서 제외, 비밀 미제공|
 |`workflow_dispatch`|ref `refs/heads/dev`, 선택한 suite|`regression`, `all`, `ci`|
@@ -204,7 +208,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - 세 실행 경로 모두 **`maestro-dev` 환경**과 기존 `maestro-dev-dedicated-account` concurrency group을 유지합니다. `deployment: false`로 새 Deployment 기록 생성을 끄되, 환경 Secrets와 ref 제한 정책은 계속 적용됩니다. 기존 Deployment 기록과 Actions 검사·로그는 유지됩니다.
 - 인증 실행에는 외부 `maestro-dev` 정책에서 `dev`와 각 대상 PR의 정확한 `refs/pull/<번호>/merge` ref를 허용해야 합니다. 워크플로는 이 정책을 생성하거나 넓히지 않습니다. required reviewers 설정도 별도 환경 정책이며 `deployment: false`의 효과가 아닙니다.
 - 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
-- Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 두 번째 계정 입력이 없어도 소스 빌드 결과는 확인할 수 있지만 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
+- Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 소스 빌드 뒤 선택된 descriptor의 필수 입력이 없으면 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
 - CI 에뮬레이터는 호스트 기본 시간대에 의존하지 않도록 `-timezone Asia/Seoul`로 시작합니다. `--configure-emulator`의 재부팅 후 한국어·서울 시간대 검증은 유지합니다.
 - SDK 설정은 `packages: 'platform-tools'`를 명시해 액션 기본 목록의 구형 `tools` 설치를 제외합니다. `sdkmanager`는 액션이 별도로 설치하는 `cmdline-tools`를 사용합니다.
 - KVM 설정은 러너 계정을 기록하고, udev 이벤트 처리가 끝날 때까지 최대 30초 기다린 뒤 `/dev/kvm` 권한을 확인합니다. `Enable KVM` 단계에만 명령 추적을 켜므로 실패한 명령을 로그에서 구분할 수 있으며, 장치가 없거나 읽기·쓰기 권한이 없으면 계속 실패 처리합니다.
@@ -232,6 +236,8 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 |`MAESTRO_MATCHING_SEARCH_QUERY`|matching의 실제 ASCII 검색어|
 |`MAESTRO_MATCHING_CATALOG_PLACE_NAME`|실제 Kakao 검색 결과에서 유일하게 일치하는 장소명|
 |`MAESTRO_MATCHING_ROOM_ID`|matching 두 계정의 검증할 기존 전용 방(정리 시 보존)|
+
+기본 `ci`는 채팅 전용 `MAESTRO_PEER_AUTH_STATE_JSON`, `MAESTRO_PEER_FIXTURE_START_DATE`, `MAESTRO_CHAT_ROOM_ID`를 요구하지 않습니다. matching의 `MAESTRO_PEER_MEMBER_ID`, `MAESTRO_MATCHING_ROOM_ID`와 지도 입력은 계속 필수입니다. `all`과 `chatting`은 채팅 입력도 모두 요구합니다.
 
 peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다. workflow는 정확히 이 이름을 authenticated preflight와 emulator 실행 단계에만 전달합니다. 누락 시 **이름만** 표시하고 실패합니다. CI 계정 잠금은 기능별 job으로 나누지 않습니다. GitHub concurrency의 `queue: max`는 최대 100개의 pending job을 대기시키며, 용량을 넘는 job은 취소됩니다. FIFO 순서는 workflow dispatch 순서가 아니라 job이 concurrency 대기에 들어간 순서입니다([공식 문서](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)).
 
@@ -269,6 +275,8 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 사용자 보고 run `39007766770`에서는 고정 keystore 복원과 APK 빌드가 성공했고 smoke·피드·타이머·로그인은 통과했습니다. matching 세 플로우는 모두 `matching_map_ready` 대기에서 실패했으며 SDK callback의 종류·코드는 아직 수집되지 않았습니다. 이번 SDK 진단 변경은 정적 확인만 했고 로컬 빌드·테스트·기기 실행은 수행하지 않았습니다. 고정 서명 이후에도 실패 원인은 미확정입니다.
 이번 ANR checkpoint·호스트 주기 진단은 정적으로만 검토했으며 로컬 Python 테스트·빌드·lint·formatter·adb·Maestro는 실행하지 않았습니다. 게시 후 승인된 CI의 unittest·APK 빌드·실제 인증 Maestro 결과를 별도로 확인해야 하며 진단 추가 후에도 기존 ANR로 실패할 수 있습니다.
+
+이번 기본 `ci` 선택 변경에서는 로컬 코드 실행·빌드·테스트·lint·formatter·기기 검증을 수행하지 않았습니다. 승인된 원격 CI에서 Python 회귀 테스트·APK 빌드와 채팅을 제외한 19개 플로우의 실제 결과를 확인해야 합니다. 기본 `ci` 성공과 명시적 `chatting`/`all`의 채팅 검증 결과는 별개입니다.
 
 저장소 루트에서 사용하는 표준 라이브러리 회귀 테스트 명령:
 

@@ -237,7 +237,11 @@ def select_suites(name):
         suites = [builtin_suite(("smoke-tabs",))]
         if name == "all":
             suites.append(builtin_suite(FLOWS["regression"]))
-        suites.extend(descriptors.values())
+        # 두 기기 채팅의 System UI ANR가 나머지 기본 CI 검증을 막지 않도록 자동 선택에서만 제외한다.
+        suites.extend(
+            descriptor for feature, descriptor in descriptors.items()
+            if name != "ci" or feature != "chatting"
+        )
         suites.append(builtin_suite(("login-screen",)))
     elif name in FLOWS:
         suites = [builtin_suite(FLOWS[name])]
