@@ -1,0 +1,21 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: "${TIMER_TIME_FIELD}"
+- extendedWaitUntil:
+    visible:
+      id: minute_et
+    timeout: 30000
+- tapOn:
+    id: minute_et
+- eraseText: 2
+- inputText: "${TIMER_MINUTES}"
+- tapOn:
+    id: second_et
+- eraseText: 2
+- inputText: "${TIMER_SECONDS}"
+- tapOn:
+    id: confirm_btn
+- assertVisible:
+    id: "${TIMER_TIME_FIELD}"
+    text: "${TIMER_MINUTES + ':' + TIMER_SECONDS}"

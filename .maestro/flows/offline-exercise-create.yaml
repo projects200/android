@@ -1,0 +1,46 @@
+appId: com.project200.undabang
+name: 오프라인 조회용 실제 운동 기록 생성
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- tapOn:
+    id: exercise_create_btn
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+    timeout: 30000
+- tapOn:
+    id: exercise_title_input
+- inputText: "${EXERCISE_TITLE}"
+- hideKeyboard
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: "${EXERCISE_START_HOUR}"
+      TIME_MINUTE: "00"
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_end_time
+      TIME_HOUR: "${EXERCISE_END_HOUR}"
+      TIME_MINUTE: "00"
+- tapOn:
+    id: exercise_complete
+- extendedWaitUntil:
+    visible:
+      id: ".*(confirm_btn|exercise_create_btn)"
+    timeout: 30000
+- runFlow:
+    when:
+      visible:
+        id: confirm_btn
+    commands:
+      - tapOn:
+          id: confirm_btn
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow: ../offline/assert-exercise-record.yaml
