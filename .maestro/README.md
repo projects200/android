@@ -149,6 +149,20 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 
 채팅 전용 job은 이번 변경에서 추가하지 않습니다. 기본 `ci` 성공은 채팅 4개 통과의 증거가 아니며, 채팅 제외가 System UI ANR의 원인 해결을 뜻하지 않습니다.
 
+### offline suite
+
+`offline` suite는 한 대의 에뮬레이터에서 실행합니다. `offline.py`가 실제 네트워크 상태를 기록한 뒤 차단·복구하고, 실행별 ownership으로 운동 기록과 타이머를 정리합니다. 채팅 peer 에뮬레이터나 `MAESTRO_PEER_*`, `MAESTRO_CHAT_ROOM_ID`는 필요하지 않습니다.
+
+```bash
+python3 .maestro/scripts/run-tests.py \
+  --suite offline \
+  --device emulator-5554 \
+  --apk app/build/outputs/apk/e2e/app-e2e.apk \
+  --configure-emulator
+```
+
+실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`와 활성화된 DEV `OFFLINE_CACHE_ENABLED` Remote Config이 필요합니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다.
+
 descriptor 스키마(모든 필드 필수):
 
 ```json
