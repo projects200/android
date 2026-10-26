@@ -40,19 +40,20 @@ internal class MaestroSetupCoordinator
                                 val today = LocalDate.now()
                                 if (request.fixtureStartDate > today) throw MaestroSetupFailure("fixture_range_invalid")
                                 val feature = request.featureRequest
-                                if (request.preserveLocalDataOnFailure) {
-                                    // 오프라인 복구는 인증을 바꾸기 전에 원 실행의 ownership을 요구합니다.
+                                val offlineCleanup =
+                                    request.operation == "cleanup" && feature?.feature == "offline"
+                                if (offlineCleanup) {
                                     protocol.validateFeatureRecovery(feature, required = true)
                                     sessionBootstrap.authenticateForOfflineCleanup(request.authState, request.memberId)
                                 } else {
                                     sessionBootstrap.authenticate(request.authState, request.memberId)
+                                    protocol.validateFeatureRecovery(feature)
                                 }
                                 // 인증과 대상 handler 확인을 모두 마친 뒤에만 서버 정리를 시작합니다.
                                 val handler =
                                     feature?.let {
                                         featureFixtures[it.feature] ?: throw MaestroSetupFailure("feature_fixture_missing")
                                     }
-                                if (!request.preserveLocalDataOnFailure) protocol.validateFeatureRecovery(feature)
                                 val variables =
                                     if (request.operation == "prepare") {
                                         fixtureCleaner.clean(request.fixtureStartDate, today)

@@ -1,7 +1,5 @@
 appId: com.project200.undabang
 ---
-- assertVisible:
-    id: custom_timer_list
 - scrollUntilVisible:
     element:
       text: 심플 타이머

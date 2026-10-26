@@ -18,6 +18,7 @@ class MaestroFeatureFixtureTest {
     private val fixture = mockk<MaestroFeatureFixture>(relaxed = true)
     private val offlineFixtures = mockk<MaestroOfflineFixtures>(relaxed = true)
     private val feature = MaestroFeatureRequest("profile", "profile-edit", "0123456789abcdef", "member", mockk())
+    private val offlineFeature = MaestroFeatureRequest("offline", "offline-exercise-create", "0123456789abcdef", "member", mockk())
 
     private fun request(operation: String) =
         MaestroSetupRequest.FixtureOperation(operation, mockk(), "member", LocalDate.of(2026, 1, 1), feature)
@@ -30,6 +31,34 @@ class MaestroFeatureFixtureTest {
             coVerify(exactly = 1) { session.authenticate(any(), "member") }
             coVerify(exactly = 0) { cleaner.clean(any(), any()) }
             verify { protocol.writeFailure("feature_fixture_missing") }
+        }
+
+    @Test
+    fun `offline prepare 실패는 회원ID와 로컬 데이터를 지키고 token만 지운다`() =
+        runTest {
+            every { protocol.consumeRequest() } returns
+                MaestroSetupRequest.FixtureOperation(
+                    "prepare",
+                    mockk(),
+                    "member",
+                    LocalDate.of(2026, 1, 1),
+                    offlineFeature,
+                )
+            coEvery { offlineFixtures.prepare(offlineFeature) } throws MaestroSetupFailure("offline_cache_flag_disabled")
+
+            MaestroSetupCoordinator(
+                protocol,
+                session,
+                cleaner,
+                mapOf("offline" to offlineFixtures),
+                offlineFixtures,
+            ).consumeRequest()
+
+            coVerify(exactly = 1) { session.authenticate(any(), "member") }
+            coVerify(exactly = 1) { session.clearTokens() }
+            coVerify(exactly = 0) { session.clearSession() }
+            verify(exactly = 1) { protocol.markFeatureRecovery(offlineFeature) }
+            verify { protocol.writeFailure("offline_cache_flag_disabled") }
         }
 
     @Test

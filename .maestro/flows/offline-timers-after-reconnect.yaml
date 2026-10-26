@@ -15,8 +15,7 @@ name: 접속 복귀 후 폼과 다시 연 목록의 최종 값
 - tapOn:
     id: timer_btn
 - extendedWaitUntil:
-    visible:
-      id: custom_timer_list
+    visible: "심플 타이머"
     timeout: 30000
 - runFlow: ../offline/assert-timer-list.yaml
 - runFlow: ../offline/prepare-timer-draft.yaml

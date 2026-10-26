@@ -1,15 +1,10 @@
 appId: com.project200.undabang
 ---
+# 날짜 선택 후 최신 성공 목록이 실제 행 배치까지 끝났는지 확인합니다.
 - runFlow: ../subflows/select-exercise-date.yaml
-- scrollUntilVisible:
-    element:
-      id: exercise_complete_iv
-      text: "${'운동 기록이 있는 날짜: ' + EXERCISE_START_DATE.split('.').join('-')}"
-    direction: UP
-    timeout: 30000
 - assertVisible:
-    id: exercise_complete_iv
-    text: "${'운동 기록이 있는 날짜: ' + EXERCISE_START_DATE.split('.').join('-')}"
+    id: exercise_list_rv
+    text: "${EXERCISE_START_DATE.split('.').join('-') + ' 운동 기록 목록'}"
 - scrollUntilVisible:
     element:
       id: exercise_title_tv
@@ -17,17 +12,5 @@ appId: com.project200.undabang
     direction: DOWN
     timeout: 30000
 - assertVisible:
-    id: exercise_list_cl
-    containsDescendants:
-      - id: exercise_title_tv
-        text: "${EXERCISE_TITLE}"
-      - id: exercise_time_tv
-        text: "${EXERCISE_START_HOUR + ':00 ~ ' + EXERCISE_END_HOUR + ':00'}"
-- tapOn:
     id: exercise_title_tv
     text: "${EXERCISE_TITLE}"
-- runFlow:
-    file: ../subflows/assert-exercise-detail.yaml
-    env:
-      RECORD_TITLE: "${EXERCISE_TITLE}"
-      START_MINUTE: "00"

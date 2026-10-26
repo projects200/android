@@ -37,12 +37,16 @@ appId: com.project200.undabang
     id: custom_timer_form_submit_btn
 - extendedWaitUntil:
     visible:
-      id: custom_timer_detail
+      text: "${NEW_TIMER_TITLE}"
     timeout: 30000
-- assertVisible: "${NEW_TIMER_TITLE}"
-- assertVisible: offline-step
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: offline-step
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "00:45"
 - back
 - extendedWaitUntil:
     visible:
-      id: custom_timer_list
+      id: custom_timer_add_card
     timeout: 30000

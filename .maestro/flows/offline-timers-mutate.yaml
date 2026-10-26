@@ -12,10 +12,15 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
     env:
       EDIT_TIMER_TITLE: "${TIMER_ORIGINAL_TITLE}"
       EXPECTED_TIMER_TIME: "00:45"
-- tapOn:
-    id: custom_timer_form_title_field
-- eraseText: 255
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "${TIMER_UPDATED_TITLE}"
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: "${TIMER_UPDATED_TITLE}"
 - hideKeyboard
 - runFlow:
     file: ../offline/set-timer-time.yaml
@@ -27,9 +32,11 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
     id: custom_timer_form_submit_btn
 - extendedWaitUntil:
     visible:
-      id: custom_timer_detail
+      text: "${TIMER_UPDATED_TITLE}"
     timeout: 30000
-- assertVisible: "${TIMER_UPDATED_TITLE}"
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "01:15"
 - back
 - scrollUntilVisible:
     element:
@@ -44,7 +51,7 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
 - tapOn: 확인
 - extendedWaitUntil:
     visible:
-      id: custom_timer_list
+      id: custom_timer_add_card
     timeout: 30000
 - runFlow:
     file: ../offline/create-timer.yaml

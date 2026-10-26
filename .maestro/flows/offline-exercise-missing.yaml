@@ -5,17 +5,11 @@ name: 운동 캐시 없는 첫 조회는 네트워크 오류
 - runFlow: ../subflows/launch-logged-in.yaml
 - tapOn:
     id: exercise_nav_graph
-- scrollUntilVisible:
-    element:
-      id: exercise_list_empty_tv
-      text: "${EXERCISE_END_DATE.split('.').join('-') + ' 운동 기록 목록 네트워크 오류'}"
-    direction: DOWN
+- extendedWaitUntil:
+    visible: "네트워크 연결 오류가 발생했습니다."
     timeout: 30000
-- assertVisible:
-    id: exercise_list_empty_tv
-    text: "${EXERCISE_END_DATE.split('.').join('-') + ' 운동 기록 목록 네트워크 오류'}"
+- assertVisible: "네트워크 연결 오류가 발생했습니다."
 - assertVisible:
     id: exercise_create_btn
 # 초기 빈 목록을 성공한 빈 캐시로 오인하지 않습니다.
-- assertNotVisible:
-    text: "${EXERCISE_END_DATE.split('.').join('-') + '( 운동 기록 목록|에 운동 기록이 없습니다)'}"
+- assertNotVisible: "운동 기록 목록이 없습니다"

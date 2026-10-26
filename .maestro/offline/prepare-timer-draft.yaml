@@ -1,15 +1,26 @@
 appId: com.project200.undabang
 ---
-- runFlow:
-    file: edit-timer.yaml
-    env:
-      EDIT_TIMER_TITLE: "${TIMER_UPDATED_TITLE}"
-      EXPECTED_TIMER_TIME: "01:15"
 - tapOn:
-    id: custom_timer_form_title_field
-- eraseText: 255
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 30000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
 - inputText: "${TIMER_DRAFT_TITLE}"
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: "${TIMER_DRAFT_TITLE}"
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- inputText: offline-step
 - hideKeyboard
+- tapOn:
+    id: custom_timer_form_add_step_btn
 - runFlow:
     file: set-timer-time.yaml
     env:
@@ -17,4 +28,3 @@ appId: com.project200.undabang
       TIMER_MINUTES: "02"
       TIMER_SECONDS: "00"
 - runFlow: assert-timer-draft.yaml
-# 완료는 누르지 않습니다. 연결 복귀와 실제 업로드 뒤에도 이 입력이 유지되어야 합니다.

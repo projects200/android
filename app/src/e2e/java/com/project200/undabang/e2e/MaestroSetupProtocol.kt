@@ -24,7 +24,7 @@ internal sealed interface MaestroSetupRequest {
         val featureRequest: MaestroFeatureRequest? = null,
     ) : MaestroSetupRequest {
         override val preserveLocalDataOnFailure: Boolean
-            get() = operation == "cleanup" && featureRequest?.feature == "offline"
+            get() = featureRequest?.feature == "offline"
     }
 
     data class OfflineObservation(

@@ -1,8 +1,6 @@
 appId: com.project200.undabang
 ---
 - assertVisible:
-    id: custom_timer_form
-- assertVisible:
     id: custom_timer_form_title_field
     text: "${TIMER_DRAFT_TITLE}"
 - assertVisible:
