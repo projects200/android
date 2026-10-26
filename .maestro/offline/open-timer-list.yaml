@@ -1,4 +1,5 @@
 appId: com.project200.undabang
 ---
+- runFlow: ../subflows/launch-logged-in.yaml
 # 기존 타이머 목록 진입 경로를 재사용합니다.
 - runFlow: ../subflows/timer-open-list.yaml

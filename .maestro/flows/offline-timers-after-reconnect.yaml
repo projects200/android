@@ -5,7 +5,6 @@ name: 접속 복귀 후 폼과 다시 연 목록의 최종 값
 - runFlow: ../offline/assert-timer-draft.yaml
 - back
 - back
-- back
 - scrollUntilVisible:
     element:
       id: timer_btn

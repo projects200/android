@@ -14,3 +14,11 @@ appId: com.project200.undabang
 - assertVisible:
     id: exercise_title_tv
     text: "${EXERCISE_TITLE}"
+- tapOn:
+    id: exercise_title_tv
+    text: "${EXERCISE_TITLE}"
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EXERCISE_TITLE}"
+      START_MINUTE: "00"
