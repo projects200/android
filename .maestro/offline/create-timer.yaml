@@ -46,7 +46,8 @@ appId: com.project200.undabang
     id: custom_timer_step_time_0
     text: "00:45"
 - back
-- extendedWaitUntil:
-    visible:
+- scrollUntilVisible:
+    element:
       id: custom_timer_add_card
+    direction: DOWN
     timeout: 30000
