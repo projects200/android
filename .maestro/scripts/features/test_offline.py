@@ -123,6 +123,7 @@ class OfflineDriverTests(unittest.TestCase):
         self.fail_cleanup = False
         self.fail_prepare = False
         self.fail_upload = False
+        self.prepared_variables = {"TIMER_STEP_NAME": "fixture-step", "TIMER_INITIAL_TIME": "00:53"}
         self.device = mock.Mock()
         self.device.clear.side_effect = lambda: self.events.append("clear")
         self.device.bootstrap.side_effect = self.bootstrap
@@ -152,7 +153,7 @@ class OfflineDriverTests(unittest.TestCase):
                 "EXERCISE_START_HOUR": "09", "EXERCISE_END_HOUR": "10"}
 
     def bootstrap(self, operation, request, **metadata):
-        stage = request.get("stage")
+        stage = request.get("stage") or metadata.get("parameters", {}).get("stage")
         self.events.append(operation + (":" + stage if stage else ""))
         if operation == "offline-observe":
             self.assertNotIn("authState", request)
@@ -160,16 +161,26 @@ class OfflineDriverTests(unittest.TestCase):
             self.assertEqual(request["memberId"], CREDENTIALS["memberId"])
             if stage == "timers-synced" and self.fail_upload:
                 raise core.RunnerFailure("offline-suite-requires-real-server-upload")
+        elif operation == "feature-observe":
+            self.assertEqual(request, {"memberId": CREDENTIALS["memberId"]})
+            self.assertEqual(metadata["feature"], "offline")
+            if stage == "timers-local-online":
+                return {"TIMER_ORIGINAL_LOCAL_ID": "original-id", "TIMER_DELETE_LOCAL_ID": "deleted-id"}
+            if stage == "timers-local-created":
+                return {"TIMER_CREATE_LOCAL_ID": "created-id"}
+            raise AssertionError("Unexpected local observation")
         else:
             self.assertEqual(request, CREDENTIALS)
             self.assertEqual(metadata["feature"], "offline")
             self.assertIn(metadata["flow"], tuple(scenario[0] for scenario in offline.SCENARIOS))
             self.assertRegex(metadata["run_id"], r"\A[a-f0-9]{32}\Z")
-            self.assertEqual(set(metadata["parameters"]), {"startedAt", "endedAt"})
+            self.assertEqual(set(metadata["parameters"]), {"startedAt", "endedAt", "initialSeconds", "updatedSeconds", "stepName"})
             if operation == "prepare" and self.fail_prepare:
                 raise core.RunnerFailure("offline-suite-requires-enabled-cache-flag")
             if operation == "cleanup" and self.fail_cleanup:
                 raise core.RunnerFailure("bootstrap-cleanup-failed")
+            if operation == "prepare":
+                return self.prepared_variables
         return {}
 
     def restore(self):
@@ -181,13 +192,20 @@ class OfflineDriverTests(unittest.TestCase):
         self.events.append(name)
         self.assertNotIn("authState", kwargs["variables"])
         self.assertNotIn("memberId", kwargs["variables"])
+        self.assertEqual(kwargs["variables"]["TIMER_STEP_NAME"], "fixture-step")
+        if name in ("offline-timers-mutate", "offline-timers-mutate-finish", "offline-timers-relaunch",
+                    "offline-timers-after-reconnect", "offline-timers-reconnect"):
+            self.assertEqual(kwargs["variables"]["TIMER_ORIGINAL_LOCAL_ID"], "original-id")
+        if name in ("offline-timers-mutate-finish", "offline-timers-relaunch",
+                    "offline-timers-after-reconnect", "offline-timers-reconnect"):
+            self.assertEqual(kwargs["variables"]["TIMER_CREATE_LOCAL_ID"], "created-id")
         if name == self.failed_phase:
             failure = core.RunInterrupted if self.interrupted else core.RunnerFailure
             raise failure("run-interrupted" if self.interrupted else "maestro-flow-failed")
 
-    def run_driver(self):
+    def run_driver(self, **inputs):
         args = SimpleNamespace(output=self.output, device="synthetic", configure_emulator=False,
-                               apk=None, flow_timeout=42)
+                               apk=None, flow_timeout=42, **inputs)
         result = offline.run_suite(args, core)
         self.assertEqual([flow for flow, _, _ in result], list(offline.FLOWS))
         self.assertEqual(core.validate_driver_results(offline.FLOWS, result), result)
@@ -201,8 +219,10 @@ class OfflineDriverTests(unittest.TestCase):
             "clear", "prepare", "offline-exercise-create", "offline-observe:exercise-online",
             "disconnect", "offline-exercise-cached", "restore", "cleanup", "clear",
             "clear", "prepare", "disconnect", "offline-exercise-missing", "restore", "cleanup", "clear",
-            "clear", "prepare", "offline-timers-online", "offline-observe:timers-online", "disconnect",
-            "offline-timers-mutate", "offline-timers-relaunch", "restore", "offline-timers-after-reconnect",
+            "clear", "prepare", "offline-timers-online", "offline-observe:timers-online",
+            "feature-observe:timers-local-online", "disconnect", "offline-timers-mutate",
+            "feature-observe:timers-local-created", "offline-timers-mutate-finish",
+            "offline-timers-relaunch", "restore", "offline-timers-after-reconnect",
             "offline-observe:timers-synced", "offline-timers-reconnect", "restore", "cleanup", "clear",
         ])
         calls = self.device.bootstrap.call_args_list
@@ -210,6 +230,18 @@ class OfflineDriverTests(unittest.TestCase):
             cleanup = next(call for call in calls if call.args[0] == "cleanup" and call.kwargs == prepare.kwargs)
             self.assertEqual(prepare.args[1], cleanup.args[1])
         self.assertEqual(len({call.kwargs["run_id"] for call in calls if call.args[0] == "prepare"}), 3)
+
+    def test_nondefault_inputs_remain_identical_for_prepare_local_observation_server_and_cleanup(self):
+        result = self.run_driver(offline_initial_seconds=53, offline_updated_seconds=97, offline_step_name="set-639")
+        self.assertTrue(all(not errors for errors in result.values()))
+        for call in self.device.bootstrap.call_args_list:
+            if call.args[0] == "offline-observe":
+                parameters = call.args[1]
+            else:
+                parameters = call.kwargs["parameters"]
+            self.assertEqual(parameters["initialSeconds"], "53")
+            self.assertEqual(parameters["updatedSeconds"], "97")
+            self.assertEqual(parameters["stepName"], "set-639")
 
     def test_interruption_restores_before_cleanup_and_reports_unexecuted_phases(self):
         self.failed_phase = "offline-exercise-cached"
@@ -300,7 +332,7 @@ class OfflineDriverTests(unittest.TestCase):
     def test_missing_or_symlinked_helper_fails_before_device_setup(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for folder, names in (("flows", offline.FLOWS), ("offline", offline.HELPERS)):
+            for folder, names in (("flows", (*offline.FLOWS, "offline-timers-mutate-finish")), ("offline", offline.HELPERS)):
                 parent = root / ".maestro" / folder
                 parent.mkdir(parents=True)
                 for name in names:

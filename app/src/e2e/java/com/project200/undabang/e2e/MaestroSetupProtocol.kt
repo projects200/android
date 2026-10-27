@@ -123,19 +123,26 @@ internal class MaestroSetupProtocol
                         )
                     }
                     "offline-observe" -> {
-                        requireKeys(json, setOf("operation", "memberId", "runId", "flow", "startedAt", "endedAt", "stage"))
+                        requireKeys(
+                            json,
+                            setOf("operation", "memberId", "runId", "flow", "stage") + MaestroOfflineTimerInput.PARAMETER_KEYS,
+                        )
                         val memberId = json.get("memberId") as? String
                         if (memberId.isNullOrBlank()) throw MaestroSetupFailure("invalid_request")
                         val feature =
                             MaestroFeatureRequest(
                                 "offline",
-                                json.getString("flow"),
-                                json.getString("runId"),
+                                json.get("flow") as? String ?: throw MaestroSetupFailure("invalid_request"),
+                                json.get("runId") as? String ?: throw MaestroSetupFailure("invalid_request"),
                                 memberId,
-                                JSONObject().put("startedAt", json.getString("startedAt")).put("endedAt", json.getString("endedAt")),
+                                JSONObject().apply {
+                                    for (key in MaestroOfflineTimerInput.PARAMETER_KEYS) {
+                                        put(key, json.get(key) as? String ?: throw MaestroSetupFailure("invalid_request"))
+                                    }
+                                },
                             )
                         val run = MaestroOfflineFixtures.run(feature)
-                        val stage = json.getString("stage")
+                        val stage = json.get("stage") as? String ?: throw MaestroSetupFailure("invalid_request")
                         if (stage !in MaestroOfflineFixtures.STAGES) throw MaestroSetupFailure("invalid_request")
                         MaestroSetupRequest.OfflineObservation(memberId, run, stage, feature)
                     }

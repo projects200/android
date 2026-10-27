@@ -1456,7 +1456,22 @@ def main():
     parser.add_argument("--apk", help="Install this exact e2e APK after checking effective ARM ABI support")
     parser.add_argument("--flow-timeout", type=int, default=900, help="Per-flow Maestro timeout in seconds")
     parser.add_argument("--configure-emulator", action="store_true", help="Set ko-KR/Asia-Seoul and reboot a rootable emulator")
+    parser.add_argument("--timer-initial-seconds", type=int, choices=range(1, 3600), metavar="1..3599")
+    parser.add_argument("--timer-updated-seconds", type=int, choices=range(1, 3600), metavar="1..3599")
+    parser.add_argument("--offline-initial-seconds", type=int, choices=range(5, 3600), metavar="5..3599")
+    parser.add_argument("--offline-updated-seconds", type=int, choices=range(5, 3600), metavar="5..3599")
+    parser.add_argument("--offline-step-name", help="ASCII step name, 1..40 characters")
     args = parser.parse_args()
+    if args.offline_step_name is not None and not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9 _-]{0,39}", args.offline_step_name):
+        parser.error("--offline-step-name must match [A-Za-z0-9][A-Za-z0-9 _-]{0,39}")
+    offline_initial = 45 if args.offline_initial_seconds is None else args.offline_initial_seconds
+    offline_updated = 75 if args.offline_updated_seconds is None else args.offline_updated_seconds
+    if offline_initial == offline_updated:
+        parser.error("offline initial and updated seconds must differ")
+    timer_initial = 41 if args.timer_initial_seconds is None else args.timer_initial_seconds
+    timer_updated = 42 if args.timer_updated_seconds is None else args.timer_updated_seconds
+    if timer_initial == timer_updated:
+        parser.error("timer-simple-preset-crud initial and updated seconds must differ")
     if args.flow_timeout <= 0:
         parser.error("--flow-timeout must be positive")
     signal.signal(signal.SIGINT, interrupt)

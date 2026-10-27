@@ -79,6 +79,22 @@ class MaestroProfileRecoveryTest {
         }
 
     @Test
+    fun `정규식 문자가 있는 실제 소개도 원문 그대로 복구하고 재조회한다`() =
+        runTest {
+            baseline()
+            val literal = original.copy(bio = "[run].* (3+2)? $ ^ \\E")
+            MaestroProfilePolicy.validateText(literal.nickname, literal.gender, literal.bio)
+            coEvery { api.getProfile() } returnsMany
+                listOf(success(profile("e2e$runId", "e2e-intro-$runId")), success(profile(bio = literal.bio)))
+            coEvery { api.editProfile(literal) } returns success<Unit?>(null)
+
+            recovery.restore(literal, listOf(preference), null, null, "profile-edit", runId)
+
+            coVerify(exactly = 1) { api.editProfile(literal) }
+            coVerify(exactly = 2) { api.getProfile() }
+        }
+
+    @Test
     fun `빈 소개 PUT 성공 뒤 null이나 다른 문자열을 읽으면 복구 실패다`() =
         runTest {
             baseline()

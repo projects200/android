@@ -51,6 +51,7 @@ class MaestroProfilePolicyTest {
     fun `앱이 허용하는 한글 닉네임과 문장부호 소개는 복구 가능한 기준으로 받는다`() {
         MaestroProfilePolicy.validateText("운동하는사람1", "UNKNOWN", "주 3회 헬스, 러닝 좋아해요!")
         MaestroProfilePolicy.validateText("OriginalUser", "FEMALE", "a".repeat(50))
+        MaestroProfilePolicy.validateText("OriginalUser", "UNKNOWN", "[run].* (3+2)? $ ^ \\E")
     }
 
     @Test

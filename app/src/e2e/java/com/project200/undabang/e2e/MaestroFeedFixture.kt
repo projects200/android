@@ -4,6 +4,8 @@ import android.content.ContentValues
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.icu.text.DateFormat
+import android.icu.text.DisplayContext
 import android.media.ExifInterface
 import android.net.Uri
 import android.os.Build
@@ -16,6 +18,7 @@ import java.security.MessageDigest
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
@@ -47,6 +50,7 @@ internal class MaestroFeedFixture
                     put("FEED_IMAGE_${image.label}_NAME", image.name)
                     put("FEED_IMAGE_${image.label}_SHA256", image.sha256)
                     put("FEED_IMAGE_${image.label}_TAKEN", image.taken.toString())
+                    put("FEED_IMAGE_${image.label}_CAPTURE_TEXT", captureText(image.taken))
                 }
             }
         }
@@ -147,6 +151,11 @@ internal class MaestroFeedFixture
 
         internal fun images(owner: MaestroFeedOwnership): List<Image> =
             listOf(image(owner, "B", Color.BLUE, 1704067200000), image(owner, "A", Color.RED, 1704153600000))
+
+        internal fun captureText(taken: Long): String =
+            DateFormat.getInstanceForSkeleton("MMMdyhmmss", Locale.getDefault())
+                .apply { setContext(DisplayContext.CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE) }
+                .format(Date(taken))
 
         private fun image(
             owner: MaestroFeedOwnership,

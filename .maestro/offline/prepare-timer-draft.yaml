@@ -17,7 +17,7 @@ appId: com.project200.undabang
     text: "${TIMER_DRAFT_TITLE}"
 - tapOn:
     id: custom_timer_form_new_step_name_field
-- inputText: offline-step
+- inputText: ${TIMER_STEP_NAME}
 - hideKeyboard
 - tapOn:
     id: custom_timer_form_add_step_btn

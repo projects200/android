@@ -1,0 +1,84 @@
+appId: com.project200.undabang
+name: 커스텀 실행 타이머 생성 단계
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- evalScript: ${output.tag = TIMER_CUSTOM_TITLE}
+- evalScript: ${output.stepSec = 30}
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible: ${output.tag}
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- tapOn:
+    id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: ${output.tag}
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: ${output.tag}
+
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepA"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepA"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepB"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepB"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: ${output.stepSec}
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:30"
+- assertVisible:
+    id: custom_timer_form_step_time_1
+    text: "00:30"
+- tapOn:
+    id: custom_timer_form_submit_btn
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_remaining_time
+      text: "00:30"
+    timeout: 10000
+- assertVisible:
+    id: custom_timer_active_step_0
+- assertVisible:
+    id: custom_timer_repeat_off

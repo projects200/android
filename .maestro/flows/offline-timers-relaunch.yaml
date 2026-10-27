@@ -7,8 +7,9 @@ name: 오프라인 재실행 후 생성 수정 삭제 영속성과 작성 중 �
 - runFlow:
     file: ../offline/edit-timer.yaml
     env:
+      EDIT_TIMER_LOCAL_ID: ${TIMER_CREATE_LOCAL_ID}
       EDIT_TIMER_TITLE: "${TIMER_CREATE_TITLE}"
-      EXPECTED_TIMER_TIME: "00:45"
+      EXPECTED_TIMER_TIME: ${TIMER_INITIAL_TIME}
 - back
 - back
 - scrollUntilVisible:

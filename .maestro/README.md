@@ -163,6 +163,20 @@ python3 .maestro/scripts/run-tests.py \
 
 실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`와 활성화된 DEV `OFFLINE_CACHE_ENABLED` Remote Config이 필요합니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다.
 
+타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
+호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.
+
+prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSeconds`, `updatedSeconds`, `stepName`입니다. prepare가 run-owned `TIMER_CREATE_TITLE`, `TIMER_ORIGINAL_TITLE`, `TIMER_UPDATED_TITLE`, `TIMER_DELETE_TITLE`, `TIMER_DRAFT_TITLE`, `TIMER_STEP_NAME`, `TIMER_INITIAL_*`/`TIMER_UPDATED_*`(`SECONDS` 총초, `MINUTES_PART`, `SECONDS_PART`, `TIME`)를 반환하며 driver는 반환값을 버리지 않고 UI에 전달합니다. 알 수 없는 키·JSON 숫자·선행 0·범위 밖 입력은 실패합니다.
+
+`offline-observe`는 위 다섯 문자열 입력과 `memberId`, `runId`, `flow`, `stage`를 받고 실제 DEV 인증과 서버 GET을 유지합니다. `timers-online`은 기존/삭제 대상의 initial 시간, `timers-synced`는 생성 initial·수정 updated 시간과 정확한 단계명·개수 1·순서 0을 확인합니다. post-action 앱 값을 기대값으로 만들지 않습니다. private `maestro-offline-state.json`은 사전 입력·회원/flow/run 소유권·기준 localId와 확인한 생성 ID를 보존합니다. 관찰·정리에서 입력이나 소유권이 바뀌면 실패하고 최종 성공한 앱 데이터 제거 전까지 저널을 지우지 않습니다.
+준비가 스냅샷 저장 전에 실패했다면 정리는 coordinator의 동일 ownership 확인을 유지하고 실행 이름과 서버 상세를 재확인한 행만 삭제합니다. 스냅샷이 있으면 기존 입력·소유권 검증을 생략하지 않습니다.
+
+Room ID 관찰은 `feature-observe`의 `timers-local-online`(기존/삭제)·`timers-local-created`(오프라인 생성) 단계입니다. `TIMER_ORIGINAL_LOCAL_ID`, `TIMER_DELETE_LOCAL_ID`, `TIMER_CREATE_LOCAL_ID`를 실제 새 소유 행에서만 얻습니다. 단절 중 이 두 단계는 recovery ownership과 현재 로컬 회원·인증 상태를 검증하고 네트워크 인증 없이 Room만 읽습니다. 서버 검증 단계의 실제 인증을 대체하지 않습니다. 모든 카드 선택은 `custom_timer_<localId>`이며 제목과 시간은 별도로 단언합니다.
+
+목록 부재 검사는 `timer_list_scroll`과 운동의 실제 `scroll_view`를 swipe 시작점으로 삼습니다. 겹치는 중간 구간마다 부재를 확인하고 실제 끝 경계까지 필수 검사하며, bounded 반복 한도 소진은 성공이 아닙니다. 타이머는 호출자가 UP 검색을 시작할 수 있는 목록 끝, 운동은 캘린더 위치로 복귀합니다. 날짜 선택은 정확한 ISO 날짜와 선택적인 ` 동기화 대기` 상태만 허용합니다. Maestro 2.11.0이 날짜 표현식을 보간하도록 정규식 끝 앵커 `$`는 `${...}` 밖에 둡니다. 인접 월의 같은 일 숫자는 선택하지 않으며 기존의 현재/직전 월 이동 범위를 넓히지 않습니다. pending 상태 설명은 그대로 노출됩니다.
+
+이번 변경에서는 실행하지 않았습니다. 운영자는 Python offline/timer/feed driver tests와 `:app:testE2eUnitTest`, 타이머 UI instrumentation을 실행하고, 로컬·CI에서 비기본 입력·재실행·실제 서버 재연결·긴 목록의 처음/중간/끝 삭제 잔존·빈 상태/로딩 구분을 확인해야 합니다. E2E는 실제 DEV API·Room·UI를 사용하며 단위 테스트 fake나 관찰한 ID를 성공값의 대체물로 사용하지 않습니다. 로컬과 CI는 서로 다른 전용 계정 또는 겹치지 않는 실행 시간을 사용해야 합니다.
+
 descriptor 스키마(모든 필드 필수):
 
 ```json

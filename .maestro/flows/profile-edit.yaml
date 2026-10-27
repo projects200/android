@@ -18,36 +18,13 @@ tags:
     visible:
       id: profile_edit_loaded
     timeout: 30000
-- scrollUntilVisible:
-    element:
-      id: profile_edit_nickname_field
-    direction: DOWN
-- assertVisible:
-    id: profile_edit_nickname_field
-    text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
-- copyTextFrom:
-    id: profile_edit_nickname_field
-- evalScript: ${output.originalNickname = maestro.copiedText}
-- assertTrue: ${output.originalNickname === E2E_PROFILE_ORIGINAL_NICKNAME}
-- scrollUntilVisible:
-    element:
-      id: profile_edit_introduction_field
-    direction: DOWN
-# 빈 입력은 hint를 복사하지 않고, 로드된 실제 값의 상태를 확인한 뒤 API 원문을 보관합니다.
-- assertVisible:
-    id: "${E2E_PROFILE_ORIGINAL_BIO === '' ? 'profile_edit_introduction_empty' : 'profile_edit_introduction_present'}"
-- evalScript: ${output.originalIntroduction = E2E_PROFILE_ORIGINAL_BIO}
 - runFlow:
-    when:
-      true: ${E2E_PROFILE_ORIGINAL_BIO !== ''}
-    commands:
-      - assertVisible:
-          id: profile_edit_introduction_field
-          text: ${E2E_PROFILE_ORIGINAL_BIO}
-      - copyTextFrom:
-          id: profile_edit_introduction_field
-      - evalScript: ${output.originalIntroduction = maestro.copiedText}
-      - assertTrue: ${output.originalIntroduction === E2E_PROFILE_ORIGINAL_BIO}
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
+- evalScript: ${output.originalNickname = E2E_PROFILE_ORIGINAL_NICKNAME}
+- evalScript: ${output.originalIntroduction = E2E_PROFILE_ORIGINAL_BIO}
 - scrollUntilVisible:
     element:
       id: profile_edit_nickname_field
@@ -172,6 +149,9 @@ tags:
       id: nickname_tv
       text: ${output.originalNickname}
     timeout: 15000
+- copyTextFrom:
+    id: nickname_tv
+- assertTrue: ${maestro.copiedText === output.originalNickname}
 - runFlow:
     when:
       true: ${output.originalIntroduction !== ''}
@@ -179,11 +159,10 @@ tags:
       - scrollUntilVisible:
           element:
             id: introduction_tv
-            text: ${output.originalIntroduction}
           direction: DOWN
-      - assertVisible:
+      - copyTextFrom:
           id: introduction_tv
-          text: ${output.originalIntroduction}
+      - assertTrue: ${maestro.copiedText === output.originalIntroduction}
 # 저장 뒤 다시 편집기를 열어 실제 서버 재조회가 끝난 입력 상태로 빈 원문까지 검증합니다.
 - scrollUntilVisible:
     element:
@@ -195,26 +174,8 @@ tags:
     visible:
       id: profile_edit_loaded
     timeout: 30000
-- scrollUntilVisible:
-    element:
-      id: profile_edit_nickname_field
-    direction: DOWN
-- assertVisible:
-    id: profile_edit_nickname_field
-    text: ${output.originalNickname}
-- scrollUntilVisible:
-    element:
-      id: profile_edit_introduction_field
-    direction: DOWN
-- assertVisible:
-    id: "${output.originalIntroduction === '' ? 'profile_edit_introduction_empty' : 'profile_edit_introduction_present'}"
 - runFlow:
-    when:
-      true: ${output.originalIntroduction !== ''}
-    commands:
-      - assertVisible:
-          id: profile_edit_introduction_field
-          text: ${output.originalIntroduction}
-      - copyTextFrom:
-          id: profile_edit_introduction_field
-      - assertTrue: ${maestro.copiedText === output.originalIntroduction}
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${output.originalNickname}
+      EXPECTED_INTRODUCTION: ${output.originalIntroduction}

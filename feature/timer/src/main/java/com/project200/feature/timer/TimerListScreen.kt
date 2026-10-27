@@ -68,6 +68,7 @@ fun TimerListScreen(
             modifier =
                 Modifier
                     .fillMaxSize()
+                    .testTag("timer_list_scroll")
                     .verticalScroll(rememberScrollState()),
         ) {
             Spacer(Modifier.height(20.dp))
@@ -104,6 +105,7 @@ private fun SimpleTimerCard(
                 .shadow(elevation = 4.dp, shape = RoundedCornerShape(15.dp), clip = false)
                 .clip(RoundedCornerShape(15.dp))
                 .background(ColorMain)
+                .testTag("simple_timer_card")
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -149,8 +151,8 @@ private fun CustomTimerCard(
                     indication = null,
                     onClick = onClick,
                 )
-                // 실행 표식이 서버 제목과 겹쳐도 새로 만든 로컬 행만 선택합니다.
-                .testTag(if (timer.serverId == null) "custom_timer_local_${timer.name}" else "custom_timer_${timer.localId}"),
+                // 제목 수정과 서버 ID 배정 뒤에도 같은 로컬 행을 선택합니다
+                .testTag("custom_timer_${timer.localId}"),
         contentAlignment = Alignment.Center,
     ) {
         Text(

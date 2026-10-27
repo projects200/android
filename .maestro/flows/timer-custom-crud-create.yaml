@@ -1,0 +1,98 @@
+appId: com.project200.undabang
+name: 커스텀 타이머 생성과 값 확인 단계
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+
+- evalScript: ${output.tag = TIMER_CUSTOM_TITLE}
+
+- scrollUntilVisible:
+    element:
+      id: custom_timer_add_card
+    direction: DOWN
+    timeout: 30000
+- assertNotVisible: ${output.tag}
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+
+# 제목
+- tapOn:
+    id: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: ${output.tag}
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: ${output.tag}
+
+# 스텝1: StepA, 5초
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepA"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepA"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "5"
+- tapOn:
+    id: custom_timer_form_add_step_btn
+
+# 스텝2: StepB, 5초 (footer의 시간 기본값도 다시 덮어씁니다)
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "StepB"
+- assertVisible:
+    id: custom_timer_form_new_step_name_field
+    text: "StepB"
+- tapOn:
+    id: custom_timer_form_new_step_time
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: "0"
+      TIMER_SECONDS: "5"
+- tapOn:
+    id: custom_timer_form_add_step_btn
+
+- runFlow: ../subflows/timer-hide-keyboard.yaml
+- assertVisible: "StepA"
+- assertVisible: "StepB"
+- assertVisible:
+    id: custom_timer_form_step_time_0
+    text: "00:05"
+- assertVisible:
+    id: custom_timer_form_step_time_1
+    text: "00:05"
+- tapOn:
+    id: custom_timer_form_submit_btn
+
+# 생성 성공 시 상세 화면으로 이동합니다 (popUpTo로 폼이 스택에서 빠짐)
+- extendedWaitUntil:
+    notVisible:
+      id: custom_timer_form_title_field
+    timeout: 20000
+- extendedWaitUntil:
+    visible: ${output.tag}
+    timeout: 20000
+- assertVisible:
+    id: custom_timer_step_name_0
+    text: "StepA"
+- assertVisible:
+    id: custom_timer_step_time_0
+    text: "00:05"
+- assertVisible:
+    id: custom_timer_step_name_1
+    text: "StepB"
+- assertVisible:
+    id: custom_timer_step_time_1
+    text: "00:05"

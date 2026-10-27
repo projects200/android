@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
+import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerDetailStepDTO
 import com.project200.data.dto.CustomTimerSummaryDTO
@@ -15,6 +16,8 @@ import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.TimerMutationResponseDTO
 import com.project200.data.impl.AuthRepositoryImpl
 import com.project200.data.local.PreferenceManager
+import com.project200.data.local.entity.CustomTimerEntity
+import com.project200.data.local.entity.SyncState
 import com.project200.domain.manager.SessionDataCleaner
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
@@ -41,6 +44,7 @@ import net.openid.appauth.TokenResponse
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -65,7 +69,8 @@ class MaestroOfflineRecoveryTest {
     private val commonCleaner = mockk<MaestroFixtureCleaner>(relaxed = true)
     private val preferences = PreferenceManager(context)
     private val protocol = MaestroSetupProtocol(context)
-    private val offline = MaestroOfflineFixtures(api, mockk(), mockk())
+    private val local = mockk<TimerLocalDataSource>()
+    private val offline = MaestroOfflineFixtures(api, mockk(), mockk(), context, local)
 
     // 실제 AuthRepository가 clearAll을 호출하면 pending 증거가 사라지는 경계를 감지합니다.
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
@@ -74,6 +79,7 @@ class MaestroOfflineRecoveryTest {
             "0123456789abcdef0123456789abcdef",
             LocalDateTime.of(2026, 1, 1, 9, 0),
             LocalDateTime.of(2026, 1, 1, 10, 0),
+            MaestroOfflineTimerInput(45, 75, "offline-step"),
         )
     private val feature =
         MaestroFeatureRequest(
@@ -81,7 +87,12 @@ class MaestroOfflineRecoveryTest {
             "offline-timers-online",
             run.id,
             MEMBER,
-            JSONObject().put("startedAt", run.startedAt.toString()).put("endedAt", run.endedAt.toString()),
+            JSONObject()
+                .put("startedAt", run.startedAt.toString())
+                .put("endedAt", run.endedAt.toString())
+                .put("initialSeconds", "45")
+                .put("updatedSeconds", "75")
+                .put("stepName", "offline-step"),
         )
     private val recoveryFile = File(context.filesDir, "maestro-feature-recovery.json")
     private val resultFile = File(context.filesDir, "maestro-result.json")
@@ -148,6 +159,15 @@ class MaestroOfflineRecoveryTest {
         coEvery { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) } returns
             BaseResponse(false, "SERVER_ERROR", "private diagnostic")
         protocol.markFeatureRecovery(feature)
+        File(context.filesDir, "maestro-offline-state.json").writeText(
+            JSONObject()
+                .put("memberId", MEMBER)
+                .put("runId", feature.runId)
+                .put("flow", feature.flow)
+                .put("parameters", feature.parameters)
+                .put("baselineLocalIds", JSONArray())
+                .toString(),
+        )
         recoveryBytes = recoveryFile.readBytes()
     }
 
@@ -158,6 +178,7 @@ class MaestroOfflineRecoveryTest {
         protocol.clearOutputs()
         protocol.completeFeatureRecovery()
         preferences.clearMemberId()
+        File(context.filesDir, "maestro-offline-state.json").delete()
     }
 
     @Test
@@ -426,6 +447,100 @@ class MaestroOfflineRecoveryTest {
         }
 
     @Test
+    fun `단절 중 식별자 관찰도 현재 인증이 없으면 Room을 읽지 않는다`() =
+        runTest {
+            current = AuthState()
+            File(context.filesDir, "maestro-request.json").writeText(
+                JSONObject()
+                    .put("operation", "feature-observe")
+                    .put("feature", feature.feature)
+                    .put("flow", feature.flow)
+                    .put("runId", feature.runId)
+                    .put("memberId", MEMBER)
+                    .put("parameters", JSONObject(feature.parameters.toString()).put("stage", "timers-local-created"))
+                    .toString(),
+            )
+
+            coordinator.consumeRequest()
+
+            assertFailure("untrusted_session")
+            assertPreserved()
+            coVerify(exactly = 0) { local.getCustomTimers() }
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `단절 중 식별자 관찰은 현재 회원과 ownership을 검증하고 서버 인증이나 변경을 하지 않는다`() =
+        runTest {
+            current = authorizedState()
+            coEvery { local.getCustomTimers() } returns
+                listOf(
+                    CustomTimerEntity(
+                        MEMBER,
+                        "owned",
+                        null,
+                        SyncState.CREATE_PENDING,
+                        run.createdTimer,
+                        emptyList(),
+                        "create-owned",
+                        null,
+                        1,
+                    ),
+                )
+            File(context.filesDir, "maestro-request.json").writeText(
+                JSONObject()
+                    .put("operation", "feature-observe")
+                    .put("feature", feature.feature)
+                    .put("flow", feature.flow)
+                    .put("runId", feature.runId)
+                    .put("memberId", MEMBER)
+                    .put("parameters", JSONObject(feature.parameters.toString()).put("stage", "timers-local-created"))
+                    .toString(),
+            )
+
+            coordinator.consumeRequest()
+
+            assertThat(result().getString("status")).isEqualTo("observed")
+            assertThat(result().getJSONObject("variables").getString("TIMER_CREATE_LOCAL_ID")).isEqualTo("owned")
+            assertPreserved()
+            assertThat(current.isAuthorized).isTrue()
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `관찰 프로토콜은 알 수 없는 키와 숫자형 입력을 파싱 단계에서 거절한다`() {
+        for ((key, value) in listOf("extra" to "value", "initialSeconds" to 53, "stage" to 1)) {
+            writeObservation()
+            val file = File(context.filesDir, "maestro-request.json")
+            file.writeText(JSONObject(file.readText()).put(key, value).toString())
+
+            val failure = assertThrows(MaestroSetupFailure::class.java) { protocol.consumeRequest() }
+
+            assertThat(failure.reason).isEqualTo("invalid_request")
+            assertPreserved()
+        }
+    }
+
+    @Test
+    fun `서버 관찰에서 입력을 바꾸면 원래 snapshot을 유지하고 조회 전에 실패한다`() =
+        runTest {
+            current = authorizedState()
+            writeObservation()
+            val file = File(context.filesDir, "maestro-request.json")
+            file.writeText(JSONObject(file.readText()).put("updatedSeconds", "97").toString())
+
+            coordinator.consumeRequest()
+
+            assertFailure("offline_snapshot_input_mismatch")
+            assertPreserved()
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
     fun `일반 인증은 기존 회원 초기화와 등록 저장소의 계정 경계 정리를 유지한다`() =
         runTest {
             val memberId = bootstrap.authenticate(savedState, MEMBER)
@@ -488,6 +603,9 @@ class MaestroOfflineRecoveryTest {
                 .put("flow", feature.flow)
                 .put("startedAt", run.startedAt.toString())
                 .put("endedAt", run.endedAt.toString())
+                .put("initialSeconds", "45")
+                .put("updatedSeconds", "75")
+                .put("stepName", "offline-step")
                 .put("stage", "timers-synced")
                 .toString(),
         )

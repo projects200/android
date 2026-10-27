@@ -1360,6 +1360,67 @@ class AnrCheckpointTests(unittest.TestCase):
         self.assertFalse(self.destination.exists())
 
 
+class CommandLineArgumentTests(unittest.TestCase):
+    def assert_invalid_arguments(self, suite, arguments, message):
+        stderr = io.StringIO()
+        with contextlib.ExitStack() as patches:
+            patches.enter_context(mock.patch.object(
+                runner.sys, "argv", ["run-tests.py", "--suite", suite, *arguments],
+            ))
+            patches.enter_context(contextlib.redirect_stderr(stderr))
+            run_suite = patches.enter_context(mock.patch.object(runner, "run_suite"))
+            signal_handler = patches.enter_context(mock.patch.object(runner.signal, "signal"))
+            with self.assertRaises(SystemExit) as caught:
+                runner.main()
+            self.assertEqual(caught.exception.code, 2)
+            run_suite.assert_not_called()
+            signal_handler.assert_not_called()
+            self.assertIn(message, stderr.getvalue())
+
+    def test_offline_step_name_is_rejected_before_device_setup(self):
+        for name in ("", "step.1", " leading", "한글", "a" * 41, "step\n"):
+            with self.subTest(name=name):
+                self.assert_invalid_arguments("offline", ["--offline-step-name", name], "--offline-step-name")
+
+    def test_equal_offline_effective_durations_are_rejected(self):
+        for arguments in (
+            ["--offline-initial-seconds", "75"],
+            ["--offline-updated-seconds", "45"],
+            ["--offline-initial-seconds", "53", "--offline-updated-seconds", "53"],
+        ):
+            with self.subTest(arguments=arguments):
+                self.assert_invalid_arguments("offline", arguments, "offline initial and updated seconds must differ")
+
+    def test_equal_crud_effective_durations_are_rejected(self):
+        for arguments in (
+            ["--timer-initial-seconds", "42"],
+            ["--timer-updated-seconds", "41"],
+            ["--timer-initial-seconds", "53", "--timer-updated-seconds", "53"],
+        ):
+            with self.subTest(arguments=arguments):
+                self.assert_invalid_arguments("timer", arguments, "timer-simple-preset-crud")
+
+    def test_valid_defaults_and_custom_inputs_reach_suite_execution(self):
+        for suite, arguments in (
+            ("timer", []),
+            ("offline", []),
+            ("timer", ["--timer-initial-seconds", "53", "--timer-updated-seconds", "97"]),
+            ("offline", [
+                "--offline-initial-seconds", "53", "--offline-updated-seconds", "97",
+                "--offline-step-name", "Step 639_-",
+            ]),
+            ("offline", ["--offline-step-name", "a" * 40]),
+        ):
+            with self.subTest(suite=suite, arguments=arguments), contextlib.ExitStack() as patches:
+                patches.enter_context(mock.patch.object(
+                    runner.sys, "argv", ["run-tests.py", "--suite", suite, *arguments],
+                ))
+                patches.enter_context(mock.patch.object(runner.signal, "signal"))
+                run_suite = patches.enter_context(mock.patch.object(runner, "run_suite", return_value=0))
+                self.assertEqual(runner.main(), 0)
+                run_suite.assert_called_once()
+
+
 class EmulatorInputTests(unittest.TestCase):
     def input_method(self, subtypes):
         return runner.ET.fromstring(

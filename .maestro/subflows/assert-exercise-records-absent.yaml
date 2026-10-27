@@ -17,7 +17,7 @@ appId: com.project200.undabang
             id: date_tv
           direction: UP
           timeout: 30000
-      # 느린 20% 이동으로 관찰 영역을 겹칩니다. 끝에 못 도달하면 아래 필수 단언이 실패합니다.
+      # 부모 중앙에서 화면 위쪽 10%까지 천천히 이동해 이전 관찰 영역을 겹칩니다
       - repeat:
           times: 200
           while:
@@ -29,8 +29,9 @@ appId: com.project200.undabang
                 id: exercise_title_tv
                 text: "${ABSENT_RECORD_PATTERN}"
             - swipe:
-                start: "50%, 60%"
-                end: "50%, 40%"
+                from:
+                  id: scroll_view
+                direction: UP
                 duration: 2000
       # 컨테이너 일부가 아니라 마지막 행의 아래쪽 시간 텍스트까지 관찰해야 종료합니다.
       - assertVisible:

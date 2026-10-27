@@ -17,9 +17,10 @@ appId: com.project200.undabang
 - assertVisible:
     id: date_tv
     text: "${EXERCISE_START_DATE.substring(0, 4) + '년 ' + parseInt(EXERCISE_START_DATE.substring(5, 7), 10) + '월'}"
+# Maestro 2.11.0은 $가 든 표현식을 보간하지 않으므로 정규식 앵커를 밖에 둡니다.
 - tapOn:
     id: calendar_day_tv
-    text: "${EXERCISE_START_DATE.split('.').join('-')}"
+    text: "^${EXERCISE_START_DATE.split('.').join('-')}( 동기화 대기)?$"
 # 로딩 기본값이나 이전 날짜의 행이 아닌, 새로 렌더링된 목록/빈 상태를 기다립니다.
 - scrollUntilVisible:
     element:

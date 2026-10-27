@@ -73,7 +73,7 @@ name: 심플 타이머 실행 검증 단계
 - extendedWaitUntil:
     visible:
       id: simple_timer_play_icon
-    timeout: 60000
+    timeout: ${(parseInt(TIMER_INITIAL_SECONDS, 10) + 15) * 1000}
 - extendedWaitUntil:
     visible:
       id: simple_timer_remaining_time

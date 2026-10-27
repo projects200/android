@@ -20,13 +20,11 @@ tags:
       id: profile_edit_loaded
     timeout: 30000
 
-- scrollUntilVisible:
-    element:
-      id: profile_edit_nickname_field
-    direction: DOWN
-- assertVisible:
-    id: profile_edit_nickname_field
-    text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+- runFlow:
+    file: ../subflows/profile-assert-inputs.yaml
+    env:
+      EXPECTED_NICKNAME: ${E2E_PROFILE_ORIGINAL_NICKNAME}
+      EXPECTED_INTRODUCTION: ${E2E_PROFILE_ORIGINAL_BIO}
 - evalScript: ${output.nickA = 'e2ea' + E2E_RUN_ID}
 - evalScript: ${output.nickB = 'e2eb' + E2E_RUN_ID}
 
@@ -112,5 +110,7 @@ tags:
 - extendedWaitUntil:
     visible:
       id: nickname_tv
-      text: ${E2E_PROFILE_ORIGINAL_NICKNAME}
     timeout: 15000
+- copyTextFrom:
+    id: nickname_tv
+- assertTrue: ${maestro.copiedText === E2E_PROFILE_ORIGINAL_NICKNAME}

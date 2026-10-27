@@ -14,8 +14,8 @@ name: 심플 타이머 실행 생성 단계
 - runFlow:
     file: ../subflows/timer-set-time.yaml
     env:
-      TIMER_MINUTES: "0"
-      TIMER_SECONDS: "45"
+      TIMER_MINUTES: ${TIMER_INITIAL_MINUTES_PART}
+      TIMER_SECONDS: ${TIMER_INITIAL_SECONDS_PART}
 - extendedWaitUntil:
     visible: "심플 타이머"
     timeout: 10000

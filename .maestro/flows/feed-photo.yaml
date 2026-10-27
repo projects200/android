@@ -36,7 +36,7 @@ tags:
 - runFlow:
     file: ../subflows/feed-pick-image.yaml
     env:
-      IMAGE_INDEX: ${FEED_IMAGE_A_INDEX}
+      IMAGE_SELECTOR: ${FEED_IMAGE_A_SELECTOR}
 - tapOn:
     id: feed_form_complete_button
 
@@ -89,7 +89,7 @@ tags:
 - runFlow:
     file: ../subflows/feed-pick-image.yaml
     env:
-      IMAGE_INDEX: ${FEED_IMAGE_B_INDEX}
+      IMAGE_SELECTOR: ${FEED_IMAGE_B_SELECTOR}
 - tapOn:
     id: feed_form_complete_button
 - extendedWaitUntil:

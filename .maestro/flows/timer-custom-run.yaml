@@ -5,89 +5,28 @@ tags:
   - requires-login
 ---
 # 같은 길이의 두 스텝으로 실행·정지·재개·활성 스텝 전환을 실제 상태에서 관찰합니다.
+
 - runFlow: ../subflows/launch-logged-in.yaml
 - runFlow: ../subflows/timer-open-list.yaml
-- evalScript: ${output.tag = 'e2e611r-' + E2E_RUN_ID}
+- evalScript: ${output.tag = TIMER_CUSTOM_TITLE}
 - evalScript: ${output.stepSec = 30}
 - scrollUntilVisible:
     element:
-      id: custom_timer_add_card
+      id: "custom_timer_${TIMER_CUSTOM_LOCAL_ID}"
     direction: DOWN
     timeout: 30000
-- assertNotVisible:
-    id: "custom_timer_local_${output.tag}"
 - tapOn:
-    id: custom_timer_add_card
-- extendedWaitUntil:
-    visible:
-      id: custom_timer_form_title_field
-    timeout: 20000
-- tapOn:
-    id: custom_timer_form_title_field
-- runFlow: ../subflows/timer-ascii-keyboard.yaml
-- inputText: ${output.tag}
-- assertVisible:
-    id: custom_timer_form_title_field
-    text: ${output.tag}
-
-- tapOn:
-    id: custom_timer_form_new_step_name_field
-- runFlow: ../subflows/timer-ascii-keyboard.yaml
-- inputText: "StepA"
-- assertVisible:
-    id: custom_timer_form_new_step_name_field
-    text: "StepA"
-- tapOn:
-    id: custom_timer_form_new_step_time
-- runFlow:
-    file: ../subflows/timer-set-time.yaml
-    env:
-      TIMER_MINUTES: "0"
-      TIMER_SECONDS: ${output.stepSec}
-- tapOn:
-    id: custom_timer_form_add_step_btn
-- tapOn:
-    id: custom_timer_form_new_step_name_field
-- runFlow: ../subflows/timer-ascii-keyboard.yaml
-- inputText: "StepB"
-- assertVisible:
-    id: custom_timer_form_new_step_name_field
-    text: "StepB"
-- tapOn:
-    id: custom_timer_form_new_step_time
-- runFlow:
-    file: ../subflows/timer-set-time.yaml
-    env:
-      TIMER_MINUTES: "0"
-      TIMER_SECONDS: ${output.stepSec}
-- tapOn:
-    id: custom_timer_form_add_step_btn
-- runFlow: ../subflows/timer-hide-keyboard.yaml
-- assertVisible:
-    id: custom_timer_form_step_time_0
-    text: "00:30"
-- assertVisible:
-    id: custom_timer_form_step_time_1
-    text: "00:30"
-- tapOn:
-    id: custom_timer_form_submit_btn
-- extendedWaitUntil:
-    notVisible:
-      id: custom_timer_form_title_field
-    timeout: 20000
+    id: "custom_timer_${TIMER_CUSTOM_LOCAL_ID}"
 - extendedWaitUntil:
     visible: ${output.tag}
     timeout: 20000
-- extendedWaitUntil:
-    visible:
-      id: custom_timer_remaining_time
-      text: "00:30"
-    timeout: 10000
+- assertVisible:
+    id: custom_timer_remaining_time
+    text: "00:30"
 - assertVisible:
     id: custom_timer_active_step_0
 - assertVisible:
     id: custom_timer_repeat_off
-
 # 반복을 시작 전에 켭니다. 마지막 스텝에 도착한 뒤 뒤늦게 켜지 않습니다.
 - tapOn:
     id: custom_timer_repeat_off
@@ -236,4 +175,4 @@ tags:
     direction: DOWN
     timeout: 30000
 - assertNotVisible:
-    id: "custom_timer_local_${output.tag}"
+    id: "custom_timer_${TIMER_CUSTOM_LOCAL_ID}"

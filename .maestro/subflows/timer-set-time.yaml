@@ -1,21 +1,19 @@
 appId: com.project200.undabang
 ---
-# 새 스텝과 프리셋의 기본값은 01:00입니다. 호출부가 분과 초를 모두 지정합니다.
-# 중앙 탭은 전체 선택을 커서로 바꿀 수 있어, 두 자리 숫자 오른쪽을 눌러 끝에서 지웁니다.
+# 호출자가 분과 초를 모두 지정하며 커서 위치와 무관하게 전체 값을 교체합니다
 - extendedWaitUntil:
     visible:
       id: minute_et
     timeout: 10000
-# 좁은 화면에서는 분·초 필드가 겹치므로, 분 탭 좌표는 초 필드 밖에 둡니다.
-- tapOn:
-    id: minute_et
-    point: "75%, 50%"
-- eraseText: 2
+- runFlow:
+    file: timer-clear-text.yaml
+    env:
+      FIELD_ID: minute_et
 - inputText: "${('0' + TIMER_MINUTES).slice(-2)}"
-- tapOn:
-    id: second_et
-    point: "90%, 50%"
-- eraseText: 2
+- runFlow:
+    file: timer-clear-text.yaml
+    env:
+      FIELD_ID: second_et
 - inputText: "${('0' + TIMER_SECONDS).slice(-2)}"
 # 기본값의 뒷자리가 남거나 입력이 범위 제한에 걸렸으면 확인 버튼을 누르기 전에 실패합니다.
 - runFlow: timer-hide-keyboard.yaml

@@ -2,10 +2,15 @@ appId: com.project200.undabang
 ---
 - scrollUntilVisible:
     element:
-      text: "${EDIT_TIMER_TITLE}"
+      id: "custom_timer_${EDIT_TIMER_LOCAL_ID}"
     direction: UP
     timeout: 30000
-- tapOn: "${EDIT_TIMER_TITLE}"
+- assertVisible:
+    id: "custom_timer_${EDIT_TIMER_LOCAL_ID}"
+    containsDescendants:
+      - text: ${EDIT_TIMER_TITLE}
+- tapOn:
+    id: "custom_timer_${EDIT_TIMER_LOCAL_ID}"
 - extendedWaitUntil:
     visible:
       id: custom_timer_menu_btn
@@ -20,7 +25,7 @@ appId: com.project200.undabang
     timeout: 30000
 - assertVisible:
     id: custom_timer_form_step_name_0
-    text: offline-step
+    text: ${TIMER_STEP_NAME}
 - assertVisible:
     id: custom_timer_form_step_time_0
     text: "${EXPECTED_TIMER_TIME}"

@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 실제 localId 관찰 뒤 오프라인 목록 전체 확인
+---
+- runFlow: ../offline/assert-timer-list.yaml

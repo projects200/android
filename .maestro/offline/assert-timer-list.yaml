@@ -2,7 +2,7 @@ appId: com.project200.undabang
 ---
 - scrollUntilVisible:
     element:
-      text: 심플 타이머
+      id: simple_timer_card
     direction: UP
     timeout: 30000
 # 한 화면의 부재가 아니라 목록 끝의 추가 카드까지 겹치는 영역을 관찰합니다.
@@ -13,30 +13,41 @@ appId: com.project200.undabang
         id: custom_timer_add_card
     commands:
       - assertNotVisible: "${TIMER_DELETE_TITLE + '|' + TIMER_ORIGINAL_TITLE + '|' + TIMER_DRAFT_TITLE}"
+      - assertNotVisible:
+          id: "custom_timer_${TIMER_DELETE_LOCAL_ID}"
       - swipe:
-          start: "50%, 60%"
-          end: "50%, 40%"
+          from:
+            id: timer_list_scroll
+          direction: UP
           duration: 2000
 - assertVisible:
     id: custom_timer_add_card
 - assertNotVisible: "${TIMER_DELETE_TITLE + '|' + TIMER_ORIGINAL_TITLE + '|' + TIMER_DRAFT_TITLE}"
+- assertNotVisible:
+    id: "custom_timer_${TIMER_DELETE_LOCAL_ID}"
 - scrollUntilVisible:
     element:
-      text: "${TIMER_CREATE_TITLE}"
+      id: "custom_timer_${TIMER_CREATE_LOCAL_ID}"
     direction: UP
     timeout: 30000
-- assertVisible: "${TIMER_CREATE_TITLE}"
+- assertVisible:
+    id: "custom_timer_${TIMER_CREATE_LOCAL_ID}"
+    containsDescendants:
+      - text: ${TIMER_CREATE_TITLE}
 - scrollUntilVisible:
     element:
-      text: 심플 타이머
+      id: simple_timer_card
     direction: UP
     timeout: 30000
 - scrollUntilVisible:
     element:
-      text: "${TIMER_UPDATED_TITLE}"
+      id: "custom_timer_${TIMER_ORIGINAL_LOCAL_ID}"
     direction: DOWN
     timeout: 30000
-- assertVisible: "${TIMER_UPDATED_TITLE}"
+- assertVisible:
+    id: "custom_timer_${TIMER_ORIGINAL_LOCAL_ID}"
+    containsDescendants:
+      - text: ${TIMER_UPDATED_TITLE}
 # 호출자가 모든 행을 UP 방향으로 찾을 수 있도록 끝으로 돌려놓습니다.
 - scrollUntilVisible:
     element:

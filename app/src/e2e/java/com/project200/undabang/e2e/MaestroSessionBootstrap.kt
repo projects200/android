@@ -74,6 +74,14 @@ internal class MaestroSessionBootstrap
             return refreshAndVerifySameMember(expectedMemberId)
         }
 
+        suspend fun verifyLocalCurrent(expectedMemberId: String) {
+            requireLocalMember(expectedMemberId)
+            val state = currentState()
+            if (!state.isAuthorized || state.refreshToken.isNullOrBlank()) {
+                throw MaestroSetupFailure("untrusted_session")
+            }
+        }
+
         private suspend fun refresh() {
             // 만료 시각이나 가져온 ID 토큰을 믿지 않고 실제 DEV 서버에서 새 토큰을 발급받습니다
             if (authManager.refreshAccessToken() !is TokenRefreshResult.Success) {

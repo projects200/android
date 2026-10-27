@@ -25,9 +25,12 @@ internal class MaestroTimerFixture
     ) : MaestroFeatureFixture {
         override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
             requireRequest(request)
+            if (request.parameters.has("stage")) fail("invalid_feature_request")
             if (stateFile().exists()) fail("timer_recovery_required")
 
             val baselineLocalIds = localDataSource.getSimpleTimers().map { it.localId }
+            val baselineCustomLocalIds = localDataSource.getCustomTimers().map { it.localId }
+            val input = simpleInput(request)
             val baselineServer = read(api.getSimpleTimers())
             val baselineCustom = read(api.getCustomTimerList())
             writeState(
@@ -36,12 +39,15 @@ internal class MaestroTimerFixture
                     .put("runId", request.runId)
                     .put("flow", request.flow)
                     .put("baselineLocalIds", JSONArray(baselineLocalIds))
+                    .put("baselineCustomLocalIds", JSONArray(baselineCustomLocalIds))
+                    .put("inputs", input?.json() ?: JSONObject())
+                    .put("customTitle", customMarker(request))
                     .put("baselineServer", simpleTimersJson(baselineServer))
                     .put("baselineCustomServer", customTimersJson(baselineCustom))
                     .put("ownedServerIds", JSONArray())
                     .put("ownedCustomServerIds", JSONArray()),
             )
-            return emptyMap()
+            return input?.variables() ?: mapOf("TIMER_CUSTOM_TITLE" to customMarker(request))
         }
 
         override suspend fun observe(
@@ -49,11 +55,18 @@ internal class MaestroTimerFixture
             stage: String,
         ): Map<String, String> {
             requireRequest(request)
+            if ((stage.startsWith("simple-") && request.flow !in SIMPLE_FLOWS) ||
+                (stage == "custom-created" && request.flow !in setOf("timer-custom-crud", "timer-custom-run")) ||
+                (request.parameters.has("stage") && request.parameters.getString("stage") != stage)
+            ) {
+                fail("invalid_request")
+            }
             val state = readState(request)
             return when (stage) {
                 "simple-baseline" -> observeBaseline(state)
-                "simple-created" -> observeCreated(request, state)
-                "simple-synced" -> observeSynced(request, state)
+                "simple-created" -> observeCreated(state)
+                "simple-synced" -> observeSynced(state)
+                "custom-created" -> observeCustomCreated(state)
                 "simple-deleted" -> {
                     captureOwnedServerId(state)
                     writeState(state)
@@ -65,6 +78,7 @@ internal class MaestroTimerFixture
 
         override suspend fun cleanup(request: MaestroFeatureRequest) {
             requireRequest(request)
+            if (request.parameters.has("stage")) fail("invalid_feature_request")
             if (!stateFile().exists()) return
             val state = readState(request)
             captureOwnedServerId(state)
@@ -117,29 +131,42 @@ internal class MaestroTimerFixture
             return emptyMap()
         }
 
-        private suspend fun observeCreated(
-            request: MaestroFeatureRequest,
-            state: JSONObject,
-        ): Map<String, String> {
+        private suspend fun observeCreated(state: JSONObject): Map<String, String> {
             val baseline = stringArray(state.getJSONArray("baselineLocalIds")).toSet()
-            val current = localDataSource.getSimpleTimers()
-            val created = current.filterNot { it.localId in baseline }
+            val created = localDataSource.getSimpleTimers().filterNot { it.localId in baseline }
             if (created.size != 1) fail("timer_local_id_missing")
             val timer = created.single()
-            state.put("simpleLocalId", timer.localId)
-                .put("createRequestId", timer.createRequestId)
-                .put("createdTime", timer.time)
+            if (state.has("simpleLocalId") && state.getString("simpleLocalId") != timer.localId) {
+                fail("timer_local_identity_changed")
+            }
+            state.put("simpleLocalId", timer.localId).put("createRequestId", timer.createRequestId)
             writeState(state)
+            if (timer.time != MaestroSimpleTimerInput.parse(state.getJSONObject("inputs")).initialSeconds) {
+                fail("timer_local_value_mismatch")
+            }
             return mapOf("TIMER_LOCAL_ID" to timer.localId)
         }
 
-        private suspend fun observeSynced(
-            request: MaestroFeatureRequest,
-            state: JSONObject,
-        ): Map<String, String> {
+        private suspend fun observeCustomCreated(state: JSONObject): Map<String, String> {
+            val baseline = stringArray(state.getJSONArray("baselineCustomLocalIds")).toSet()
+            val created =
+                localDataSource.getCustomTimers().filter {
+                    it.localId !in baseline && it.name == state.getString("customTitle")
+                }
+            if (created.size != 1) fail("timer_custom_local_id_missing")
+            val timer = created.single()
+            if (state.has("customLocalId") && state.getString("customLocalId") != timer.localId) {
+                fail("timer_custom_identity_changed")
+            }
+            state.put("customLocalId", timer.localId).put("customCreateRequestId", timer.createRequestId)
+            writeState(state)
+            return mapOf("TIMER_CUSTOM_LOCAL_ID" to timer.localId)
+        }
+
+        private suspend fun observeSynced(state: JSONObject): Map<String, String> {
             val localId = state.optString("simpleLocalId").takeIf { it.isNotBlank() } ?: fail("timer_local_id_missing")
-            val expectedTime =
-                if (request.flow == "timer-simple-preset-crud") 42 else state.getInt("createdTime")
+            val input = MaestroSimpleTimerInput.parse(state.getJSONObject("inputs"))
+            val expectedTime = if (state.getString("flow") == "timer-simple-preset-crud") input.updatedSeconds else input.initialSeconds
             var observed: Long? = null
             withTimeoutOrNull(SERVER_ID_TIMEOUT_MS) {
                 while (observed == null) {
@@ -174,11 +201,16 @@ internal class MaestroTimerFixture
         private fun requireRequest(request: MaestroFeatureRequest) {
             if (request.feature != "timer" || request.flow !in FLOWS ||
                 !Regex("[a-f0-9]{16,32}").matches(request.runId) ||
-                request.parameters.keys().asSequence().any { it != "stage" }
+                (request.flow !in SIMPLE_FLOWS && request.parameters.keys().asSequence().any { it != "stage" }) ||
+                (request.parameters.has("stage") && request.parameters.get("stage") !is String)
             ) {
                 fail("invalid_feature_request")
             }
+            simpleInput(request)
         }
+
+        private fun simpleInput(request: MaestroFeatureRequest): MaestroSimpleTimerInput? =
+            if (request.flow in SIMPLE_FLOWS) MaestroSimpleTimerInput.parse(request.parameters) else null
 
         private fun readState(request: MaestroFeatureRequest): JSONObject {
             if (!stateFile().isFile) fail("timer_snapshot_missing")
@@ -188,6 +220,10 @@ internal class MaestroTimerFixture
                 state.getString("flow") != request.flow
             ) {
                 fail("timer_snapshot_identity_invalid")
+            }
+            val input = simpleInput(request)
+            if (input != null && input != MaestroSimpleTimerInput.parse(state.getJSONObject("inputs"))) {
+                fail("timer_snapshot_input_mismatch")
             }
             return state
         }
@@ -266,6 +302,7 @@ internal class MaestroTimerFixture
             private const val PRIVATE_FILE_MODE = 384
             private const val POLL_INTERVAL_MS = 2_000L
             private const val SERVER_ID_TIMEOUT_MS = 120_000L
+            private val SIMPLE_FLOWS = setOf("timer-simple-preset-crud", "timer-simple-run")
             private val FLOWS =
                 setOf(
                     "timer-simple-preset-crud",
