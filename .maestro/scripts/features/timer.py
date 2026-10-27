@@ -46,6 +46,8 @@ def _run_simple(core, args, device, flow, output, redactor, credentials, run_id)
         prepared = True
         variables.update(device.bootstrap("prepare", credentials, feature="timer", flow=flow, run_id=run_id, parameters={}))
         _run_maestro(core, args, device, flow, flow_output, redactor, variables)
+        _observe(device, credentials, flow, run_id, "simple-baseline")
+        _run_maestro(core, args, device, flow + "-create", flow_output, redactor, variables)
         variables.update(_observe(device, credentials, flow, run_id, "simple-created"))
         if flow == "timer-simple-preset-crud":
             _run_maestro(core, args, device, flow + "-continue", flow_output, redactor, variables)

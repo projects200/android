@@ -1,5 +1,5 @@
 appId: com.project200.undabang
-name: 심플 타이머 실행 생성 단계
+name: 심플 타이머 실행 생성 전 목록 단계
 tags:
   - regression
   - requires-login
@@ -12,13 +12,3 @@ tags:
       id: simple_timer_add_cell
     direction: DOWN
     timeout: 30000
-- tapOn:
-    id: simple_timer_add_cell
-- runFlow:
-    file: ../subflows/timer-set-time.yaml
-    env:
-      TIMER_MINUTES: "0"
-      TIMER_SECONDS: "45"
-- extendedWaitUntil:
-    visible: "심플 타이머"
-    timeout: 10000

@@ -51,6 +51,7 @@ internal class MaestroTimerFixture
             requireRequest(request)
             val state = readState(request)
             return when (stage) {
+                "simple-baseline" -> observeBaseline(state)
                 "simple-created" -> observeCreated(request, state)
                 "simple-synced" -> observeSynced(request, state)
                 "simple-deleted" -> {
@@ -108,6 +109,12 @@ internal class MaestroTimerFixture
                 fail("timer_server_cleanup_failed")
             }
             deleteState()
+        }
+
+        private suspend fun observeBaseline(state: JSONObject): Map<String, String> {
+            state.put("baselineLocalIds", JSONArray(localDataSource.getSimpleTimers().map { it.localId }))
+            writeState(state)
+            return emptyMap()
         }
 
         private suspend fun observeCreated(

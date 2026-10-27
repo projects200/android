@@ -56,13 +56,17 @@ class TimerDriverTest(unittest.TestCase):
         self.assertEqual(result[2], [])
         self.assertEqual(
             [event[0] for event in device.events],
-            ["clear", "prepare", "flow", "feature-observe", "flow", "feature-observe", "flow", "feature-observe", "cleanup", "clear"],
+            [
+                "clear", "prepare", "flow", "feature-observe", "flow", "feature-observe",
+                "flow", "feature-observe", "flow", "feature-observe", "cleanup", "clear",
+            ],
         )
         self.assertEqual(device.events[1][2], {})
-        self.assertEqual(device.events[3][2], {"stage": "simple-created"})
-        self.assertEqual(device.events[5][2], {"stage": "simple-synced"})
-        self.assertEqual(device.events[7][2], {"stage": "simple-deleted"})
-        self.assertEqual(device.events[4][2], {"E2E_RUN_ID": "abcdef0123456789", "TIMER_LOCAL_ID": "local-id"})
+        self.assertEqual(device.events[3][2], {"stage": "simple-baseline"})
+        self.assertEqual(device.events[5][2], {"stage": "simple-created"})
+        self.assertEqual(device.events[7][2], {"stage": "simple-synced"})
+        self.assertEqual(device.events[9][2], {"stage": "simple-deleted"})
+        self.assertEqual(device.events[6][2], {"E2E_RUN_ID": "abcdef0123456789", "TIMER_LOCAL_ID": "local-id"})
 
 
 if __name__ == "__main__":
