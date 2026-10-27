@@ -237,7 +237,6 @@ def select_suites(name):
         suites = [builtin_suite(("smoke-tabs",))]
         if name == "all":
             suites.append(builtin_suite(FLOWS["regression"]))
-        # 두 기기 채팅의 System UI ANR가 나머지 기본 CI 검증을 막지 않도록 자동 선택에서만 제외한다.
         suites.extend(
             descriptor for feature, descriptor in descriptors.items()
             if name != "ci" or feature != "chatting"
@@ -291,7 +290,7 @@ def safe_variables(variables):
 def feature_metadata(operation, feature, flow, run_id, parameters):
     if all(value is None for value in (feature, flow, run_id, parameters)):
         return {}
-    if (operation not in ("prepare", "cleanup")
+    if (operation not in ("prepare", "cleanup", "feature-observe")
             or not isinstance(feature, str) or not FEATURE_NAME.fullmatch(feature)
             or not isinstance(flow, str) or not FLOW_NAME.fullmatch(flow)
             or not isinstance(run_id, str) or not re.fullmatch(r"[a-f0-9]{16,32}", run_id)
@@ -771,18 +770,26 @@ class Device:
 
     def bootstrap(self, operation, credentials=None, timeout=300, feature=None, flow=None,
                   run_id=None, parameters=None):
-        if operation not in ("prepare", "cleanup", "export"):
+        if operation not in ("prepare", "cleanup", "export", "offline-observe", "feature-observe"):
             raise RunnerFailure("invalid-bootstrap-operation")
         metadata = feature_metadata(operation, feature, flow, run_id, parameters)
         request = {"operation": operation, **(credentials or {}), **metadata}
-        self.require("shell", "am", "force-stop", APP_ID)
+        # 관찰은 실행 중 Room과 미저장 폼을 초기화하지 않습니다.
+        if operation not in ("offline-observe", "feature-observe"):
+            self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
         # shell -T는 PTY 없이 stdin과 원격 종료 상태를 전달합니다. argv에는 고정 명령만 넣습니다.
         script = "umask 077; mkdir -p files && cat > " + REQUEST
         self.require("shell", "-T", "run-as", APP_ID, "sh", "-c", shlex.quote(script), payload=payload)
         self.require("shell", "am", "start", "-W", "-n", COMPONENT)
-        expected = {"prepare": "ready", "cleanup": "cleaned", "export": "exported"}[operation]
+        expected = {
+            "prepare": "ready",
+            "cleanup": "cleaned",
+            "export": "exported",
+            "offline-observe": "observed",
+            "feature-observe": "observed",
+        }[operation]
         # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
         probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
         deadline = time.monotonic() + timeout
@@ -800,10 +807,28 @@ class Device:
             if not isinstance(result, dict) or result.get("status") != expected:
                 # 앱의 reason도 외부 입력이므로 해당 기능에서 검토된 준비 코드만 고정 오류로 공개합니다.
                 failure = "bootstrap-" + operation + "-failed"
-                if (operation == "prepare" and isinstance(result, dict)
-                        and result.get("status") == "failed" and isinstance(result.get("reason"), str)):
+                if (
+                    operation in ("prepare", "offline-observe", "feature-observe") and
+                    isinstance(result, dict) and
+                    result.get("status") == "failed" and
+                    isinstance(result.get("reason"), str)
+                ):
                     reason = result["reason"]
-                    if feature is None:
+                    if operation == "offline-observe" or feature == "offline":
+                        failure = {
+                            "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
+                            "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
+                            "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
+                            "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
+                        }.get(reason, failure)
+                    elif feature == "timer":
+                        failure = {
+                            "timer_local_id_missing": "timer-local-id-not-observed",
+                            "timer_local_id_changed": "timer-local-id-changed",
+                            "timer_server_id_missing": "timer-server-id-not-observed",
+                            "timer_server_cleanup_failed": "timer-server-cleanup-failed",
+                        }.get(reason, failure)
+                    elif feature is None:
                         failure = COMMON_PREPARE_FAILURES.get(reason, failure)
                     elif feature == "profile":
                         failure = PROFILE_PREPARE_FAILURES.get(reason, failure)

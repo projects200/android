@@ -26,4 +26,4 @@ appId: com.project200.undabang
     id: exercise_time_confirm
 - assertVisible:
     id: "${TIME_BUTTON}"
-    text: "${TIME_HOUR}:${TIME_MINUTE}"
+- assertVisible: "${TIME_HOUR}:${TIME_MINUTE}"

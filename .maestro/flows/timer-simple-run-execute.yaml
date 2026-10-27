@@ -1,0 +1,88 @@
+appId: com.project200.undabang
+name: 심플 타이머 실행 검증 단계
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- tapOn: "심플 타이머"
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_preset_${TIMER_LOCAL_ID}"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    id: "simple_timer_preset_${TIMER_LOCAL_ID}"
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_pause_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.running1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: simple_timer_remaining_time
+      text: ${output.running1}
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.runningSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.runningSeconds > 0 && output.runningSeconds < (parseInt(output.running1.split(':')[0], 10) * 60 + parseInt(output.running1.split(':')[1], 10))}
+    label: 실행 상태에서 남은 시간이 감소하는지 확인
+- tapOn:
+    id: simple_timer_pause_icon
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_play_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.paused1 = maestro.copiedText}
+- evalScript: ${output.pauseUntil = Date.now() + 2000}
+- repeat:
+    while:
+      true: ${Date.now() < output.pauseUntil}
+    commands:
+      - assertVisible:
+          id: simple_timer_play_icon
+      - copyTextFrom:
+          id: simple_timer_remaining_time
+      - assertTrue:
+          condition: ${output.paused1 == maestro.copiedText}
+          label: 일시정지 중 남은 시간이 유지되는지 확인
+- tapOn:
+    id: simple_timer_play_icon
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_pause_icon
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.resumed1 = maestro.copiedText}
+- extendedWaitUntil:
+    notVisible:
+      id: simple_timer_remaining_time
+      text: ${output.resumed1}
+    timeout: 10000
+- copyTextFrom:
+    id: simple_timer_remaining_time
+- evalScript: ${output.resumedSeconds = parseInt(maestro.copiedText.split(':')[0], 10) * 60 + parseInt(maestro.copiedText.split(':')[1], 10)}
+- assertTrue:
+    condition: ${output.resumedSeconds > 0 && output.resumedSeconds < (parseInt(output.resumed1.split(':')[0], 10) * 60 + parseInt(output.resumed1.split(':')[1], 10))}
+    label: 재개 상태에서 남은 시간이 다시 감소하는지 확인
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_play_icon
+    timeout: 60000
+- extendedWaitUntil:
+    visible:
+      id: simple_timer_remaining_time
+      text: "00:00"
+    timeout: 10000
+- tapOn:
+    id: "simple_timer_menu_${TIMER_LOCAL_ID}"
+- tapOn: "삭제"
+- assertNotVisible:
+    id: "simple_timer_preset_${TIMER_LOCAL_ID}"
+- assertNotVisible:
+    id: "simple_timer_menu_${TIMER_LOCAL_ID}"

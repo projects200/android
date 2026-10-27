@@ -1,0 +1,9 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: ${TIMER_TIME_FIELD}
+- runFlow:
+    file: ../subflows/timer-set-time.yaml
+    env:
+      TIMER_MINUTES: ${TIMER_MINUTES}
+      TIMER_SECONDS: ${TIMER_SECONDS}

@@ -17,6 +17,11 @@ internal data class MaestroFeatureRequest(
 internal interface MaestroFeatureFixture {
     suspend fun prepare(request: MaestroFeatureRequest): Map<String, String>
 
+    suspend fun observe(
+        request: MaestroFeatureRequest,
+        stage: String,
+    ): Map<String, String> = throw MaestroSetupFailure("feature_observe_unsupported")
+
     /**
      * 같은 feature/flow/runId/memberId의 재시도에도 복구를 완료해야 합니다.
      * 후속 운동 정리나 세션 제거가 실패할 수 있으므로 snapshot과 ownership 증거를 삭제하지 않습니다.

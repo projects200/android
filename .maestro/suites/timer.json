@@ -7,7 +7,7 @@
     "timer-form-validation"
   ],
   "apiLevel": 30,
-  "fixture": false,
+  "fixture": true,
   "requiredEnvironment": [],
-  "driver": null
+  "driver": "timer"
 }

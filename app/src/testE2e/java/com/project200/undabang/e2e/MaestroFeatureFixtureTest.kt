@@ -16,7 +16,9 @@ class MaestroFeatureFixtureTest {
     private val session = mockk<MaestroSessionBootstrap>(relaxed = true)
     private val cleaner = mockk<MaestroFixtureCleaner>(relaxed = true)
     private val fixture = mockk<MaestroFeatureFixture>(relaxed = true)
+    private val offlineFixtures = mockk<MaestroOfflineFixtures>(relaxed = true)
     private val feature = MaestroFeatureRequest("profile", "profile-edit", "0123456789abcdef", "member", mockk())
+    private val offlineFeature = MaestroFeatureRequest("offline", "offline-exercise-create", "0123456789abcdef", "member", mockk())
 
     private fun request(operation: String) =
         MaestroSetupRequest.FixtureOperation(operation, mockk(), "member", LocalDate.of(2026, 1, 1), feature)
@@ -25,10 +27,38 @@ class MaestroFeatureFixtureTest {
     fun `handler가 없으면 인증 뒤 서버 정리 전에 실패한다`() =
         runTest {
             every { protocol.consumeRequest() } returns request("prepare")
-            MaestroSetupCoordinator(protocol, session, cleaner, emptyMap()).consumeRequest()
+            MaestroSetupCoordinator(protocol, session, cleaner, emptyMap(), offlineFixtures).consumeRequest()
             coVerify(exactly = 1) { session.authenticate(any(), "member") }
             coVerify(exactly = 0) { cleaner.clean(any(), any()) }
             verify { protocol.writeFailure("feature_fixture_missing") }
+        }
+
+    @Test
+    fun `offline prepare 실패는 회원ID와 로컬 데이터를 지키고 token만 지운다`() =
+        runTest {
+            every { protocol.consumeRequest() } returns
+                MaestroSetupRequest.FixtureOperation(
+                    "prepare",
+                    mockk(),
+                    "member",
+                    LocalDate.of(2026, 1, 1),
+                    offlineFeature,
+                )
+            coEvery { offlineFixtures.prepare(offlineFeature) } throws MaestroSetupFailure("offline_cache_flag_disabled")
+
+            MaestroSetupCoordinator(
+                protocol,
+                session,
+                cleaner,
+                mapOf("offline" to offlineFixtures),
+                offlineFixtures,
+            ).consumeRequest()
+
+            coVerify(exactly = 1) { session.authenticate(any(), "member") }
+            coVerify(exactly = 1) { session.clearTokens() }
+            coVerify(exactly = 0) { session.clearSession() }
+            verify(exactly = 1) { protocol.markFeatureRecovery(offlineFeature) }
+            verify { protocol.writeFailure("offline_cache_flag_disabled") }
         }
 
     @Test
@@ -36,7 +66,7 @@ class MaestroFeatureFixtureTest {
         runTest {
             every { protocol.consumeRequest() } returns request("prepare")
             coEvery { fixture.prepare(feature) } returns mapOf("PROFILE_NAME" to "test-name")
-            MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture)).consumeRequest()
+            MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture), offlineFixtures).consumeRequest()
             coVerifyOrder {
                 session.authenticate(any(), "member")
                 cleaner.clean(any(), any())
@@ -51,7 +81,7 @@ class MaestroFeatureFixtureTest {
         runTest {
             every { protocol.consumeRequest() } returns request("cleanup")
             coEvery { fixture.cleanup(feature) } throws MaestroSetupFailure("profile_restore_failed")
-            MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture)).consumeRequest()
+            MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture), offlineFixtures).consumeRequest()
             coVerify(exactly = 0) { cleaner.clean(any(), any()) }
             verify(exactly = 0) { protocol.completeFeatureRecovery() }
             verify { protocol.writeFailure("profile_restore_failed") }
@@ -65,7 +95,7 @@ class MaestroFeatureFixtureTest {
             coEvery { cleaner.clean(any(), any()) } coAnswers {
                 if (attempts++ == 0) throw MaestroSetupFailure("fixture_read_failed")
             }
-            val coordinator = MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture))
+            val coordinator = MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture), offlineFixtures)
 
             coordinator.consumeRequest()
 
@@ -103,7 +133,7 @@ class MaestroFeatureFixtureTest {
             coEvery { session.clearSession() } coAnswers {
                 if (attempts++ == 0) throw MaestroSetupFailure("local_session_clear_failed")
             }
-            val coordinator = MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture))
+            val coordinator = MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture), offlineFixtures)
 
             coordinator.consumeRequest()
 

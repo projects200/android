@@ -333,11 +333,8 @@ private fun TimerCell(
             style = MaterialTheme.typography.contentBold,
             fontSize = 22.sp,
             color = ColorBlack,
-            // 격리 실행에서 만든 로컬 프리셋만 고릅니다. 같은 시간의 서버 행은 선택자가 다릅니다.
-            modifier =
-                Modifier.align(Alignment.Center).testTag(
-                    if (timer.serverId == null) "simple_timer_local_preset_${timer.time}" else "simple_timer_preset_${timer.localId}",
-                ),
+            // localId는 동기화 전후에도 같은 행을 가리킵니다
+            modifier = Modifier.align(Alignment.Center).testTag("simple_timer_preset_${timer.localId}"),
         )
         Box(
             modifier =
@@ -357,10 +354,7 @@ private fun TimerCell(
                             indication = null,
                             onClick = { menuExpanded = true },
                         )
-                        // 시간 충돌이 있어도 가져온 서버 프리셋의 메뉴를 열지 않습니다.
-                        .testTag(
-                            if (timer.serverId == null) "simple_timer_local_menu_${timer.time}" else "simple_timer_menu_${timer.localId}",
-                        ),
+                        .testTag("simple_timer_menu_${timer.localId}"),
             )
             DropdownMenu(
                 expanded = menuExpanded,

@@ -27,15 +27,13 @@ python3 .maestro/scripts/run-tests.py --suite timer --device emulator-5554 \
 
 ## 격리와 소유권
 
-`fixture:false`, `requiredEnvironment:[]`, `driver:null`은 타이머 전용 서버 fixture나 Python hook이 없다는 뜻입니다. 인증 생략을 뜻하지 않습니다. 공통 러너는 **각 플로우마다** force-stop/`pm clear` → 실제 세션 prepare → 실제 UI 실행 → cleanup → 최종 clear를 수행합니다. 개인 설치가 아닌 전용 기기만 사용하세요.
+`fixture:true`, `driver:"timer"`는 타이머 전용 Room 관찰과 서버 소유권 정리를 사용한다는 뜻입니다. 심플 CRUD·실행은 생성 단계와 검증 단계를 나눕니다. 생성 뒤 fixture가 baseline과 현재 Room 행의 차이로 `localId`를 확정하고, 이후 Maestro 단계는 `TIMER_LOCAL_ID`를 전달받아 같은 행을 끝까지 선택합니다. 관찰 요청은 앱 데이터나 인증 세션을 초기화하지 않습니다.
 
-새 UI 타이머는 현재 구현에서 UUID `localId`, `serverId=null`인 로컬 생성 대기 행입니다. 기존 서버 목록 GET은 별도 서버 행을 가져오며, UI 쓰기는 로컬 저장소를 변경합니다. 타이머 업로드 동기화나 타이머 서버 DELETE를 이 suite가 추가하지 않습니다. 최종 clear는 로컬 행·서비스 상태를 없애지만 기존 서버 타이머를 삭제하지 않습니다. 향후 업로드 동기화가 추가되면 이 정리 계약을 다시 검토해야 합니다.
+서버에 올라간 타이머는 실행 state에 기록된 `serverId`만 정리합니다. baseline 서버 ID와 일치하거나 확인되지 않은 추가 행은 삭제하지 않습니다. 정리 실패 시 recovery marker와 실행별 state를 남겨 다음 실행을 중단하고 같은 소유권으로 재시도합니다.
 
-심플 프리셋의 `simple_timer_local_preset_<초>`와 `simple_timer_local_menu_<초>`는 `serverId=null` 행에만 붙습니다. 서버 행은 `localId` 기반의 별도 태그를 사용합니다. 각 격리 플로우는 생성 전 해당 로컬 시간의 부재를 확인하고 프리셋 하나만 만들므로 이 태그가 가리키는 행을 소유합니다. 시간만 같은 서버 행은 실행·수정·삭제 대상이 아닙니다. 서버 목록이 늦게 도착하더라도 같은 시간의 서버 행이 로컬 전용 선택자가 되지 않습니다. 이 방식은 서버 목록이 비어 있다고 추정하는 부재 검사나 서버 행을 고르는 전역 시간 텍스트에 의존하지 않습니다.
+심플 프리셋과 메뉴의 선택자는 각각 `simple_timer_preset_<localId>`와 `simple_timer_menu_<localId>`입니다. `localId`는 서버 ID 연결과 시간 수정 뒤에도 유지됩니다. 시간 기반 선택자는 폐기했습니다.
 
 커스텀 타이머는 `e2e611c-<E2E_RUN_ID>` / `e2e611r-<E2E_RUN_ID>`로 만들고 `custom_timer_local_<제목>` 카드로 재진입합니다. 같은 제목의 서버 행에는 이 로컬 태그가 없습니다. CRUD 수정 제목은 같은 표식에 `-ed`만 붙입니다. 검증 플로우의 `e2e611v-<E2E_RUN_ID>`는 저장하지 않습니다. 기존 서버 목록이 길면 실제 스크롤로 추가 카드와 소유한 카드를 찾습니다.
-
-심플 CRUD 내부 재실행은 `launch-logged-in.yaml`의 `clearState:false`를 유지합니다. 중간 prepare나 clear를 넣지 않으므로 실제 Room 저장과 인증 유지가 검증 대상입니다.
 
 ## 텍스트·시간 입력과 실행 상태
 

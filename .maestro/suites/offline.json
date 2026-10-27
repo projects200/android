@@ -1,0 +1,16 @@
+{
+  "flows": [
+    "offline-exercise-create",
+    "offline-exercise-cached",
+    "offline-exercise-missing",
+    "offline-timers-online",
+    "offline-timers-mutate",
+    "offline-timers-relaunch",
+    "offline-timers-after-reconnect",
+    "offline-timers-reconnect"
+  ],
+  "apiLevel": 30,
+  "fixture": true,
+  "requiredEnvironment": [],
+  "driver": "offline"
+}

@@ -1,0 +1,30 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: custom_timer_add_card
+- extendedWaitUntil:
+    visible:
+      id: custom_timer_form_title_field
+    timeout: 30000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: custom_timer_form_title_field
+- runFlow: ../subflows/timer-ascii-keyboard.yaml
+- inputText: "${TIMER_DRAFT_TITLE}"
+- assertVisible:
+    id: custom_timer_form_title_field
+    text: "${TIMER_DRAFT_TITLE}"
+- tapOn:
+    id: custom_timer_form_new_step_name_field
+- inputText: offline-step
+- hideKeyboard
+- tapOn:
+    id: custom_timer_form_add_step_btn
+- runFlow:
+    file: set-timer-time.yaml
+    env:
+      TIMER_TIME_FIELD: custom_timer_form_step_time_0
+      TIMER_MINUTES: "02"
+      TIMER_SECONDS: "00"
+- runFlow: assert-timer-draft.yaml
