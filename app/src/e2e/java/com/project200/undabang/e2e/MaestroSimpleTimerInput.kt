@@ -12,8 +12,7 @@ internal data class MaestroSimpleTimerInput(
             putMaestroTimerTimes(initialSeconds, updatedSeconds)
         }
 
-    fun json(): JSONObject =
-        JSONObject().put("initialSeconds", initialSeconds.toString()).put("updatedSeconds", updatedSeconds.toString())
+    fun json(): JSONObject = JSONObject().put("initialSeconds", initialSeconds.toString()).put("updatedSeconds", updatedSeconds.toString())
 
     companion object {
         fun parse(parameters: JSONObject): MaestroSimpleTimerInput {

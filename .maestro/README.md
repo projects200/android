@@ -173,7 +173,7 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 
 Room ID 관찰은 `feature-observe`의 `timers-local-online`(기존/삭제)·`timers-local-created`(오프라인 생성) 단계입니다. `TIMER_ORIGINAL_LOCAL_ID`, `TIMER_DELETE_LOCAL_ID`, `TIMER_CREATE_LOCAL_ID`를 실제 새 소유 행에서만 얻습니다. 단절 중 이 두 단계는 recovery ownership과 현재 로컬 회원·인증 상태를 검증하고 네트워크 인증 없이 Room만 읽습니다. 서버 검증 단계의 실제 인증을 대체하지 않습니다. 모든 카드 선택은 `custom_timer_<localId>`이며 제목과 시간은 별도로 단언합니다.
 
-목록 부재 검사는 `timer_list_scroll`과 운동의 실제 `scroll_view`를 swipe 시작점으로 삼습니다. 겹치는 중간 구간마다 부재를 확인하고 실제 끝 경계까지 필수 검사하며, bounded 반복 한도 소진은 성공이 아닙니다. 타이머는 호출자가 UP 검색을 시작할 수 있는 목록 끝, 운동은 캘린더 위치로 복귀합니다. 날짜 선택은 정확한 ISO 날짜와 선택적인 ` 동기화 대기` 상태만 허용합니다. 인접 월의 같은 일 숫자는 선택하지 않으며 기존의 현재/직전 월 이동 범위를 넓히지 않습니다. pending 상태 설명은 그대로 노출됩니다.
+목록 부재 검사는 `timer_list_scroll`과 운동의 실제 `scroll_view`를 swipe 시작점으로 삼습니다. 겹치는 중간 구간마다 부재를 확인하고 실제 끝 경계까지 필수 검사하며, bounded 반복 한도 소진은 성공이 아닙니다. 타이머는 호출자가 UP 검색을 시작할 수 있는 목록 끝, 운동은 캘린더 위치로 복귀합니다. 날짜 선택은 정확한 ISO 날짜와 선택적인 ` 동기화 대기` 상태만 허용합니다. Maestro 2.11.0이 날짜 표현식을 보간하도록 정규식 끝 앵커 `$`는 `${...}` 밖에 둡니다. 인접 월의 같은 일 숫자는 선택하지 않으며 기존의 현재/직전 월 이동 범위를 넓히지 않습니다. pending 상태 설명은 그대로 노출됩니다.
 
 이번 변경에서는 실행하지 않았습니다. 운영자는 Python offline/timer/feed driver tests와 `:app:testE2eUnitTest`, 타이머 UI instrumentation을 실행하고, 로컬·CI에서 비기본 입력·재실행·실제 서버 재연결·긴 목록의 처음/중간/끝 삭제 잔존·빈 상태/로딩 구분을 확인해야 합니다. E2E는 실제 DEV API·Room·UI를 사용하며 단위 테스트 fake나 관찰한 ID를 성공값의 대체물로 사용하지 않습니다. 로컬과 CI는 서로 다른 전용 계정 또는 겹치지 않는 실행 시간을 사용해야 합니다.
 
