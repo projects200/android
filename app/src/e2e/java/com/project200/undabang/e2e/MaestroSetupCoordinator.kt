@@ -74,6 +74,7 @@ internal class MaestroSetupCoordinator
                             }
                             is MaestroSetupRequest.OfflineObservation -> {
                                 protocol.validateFeatureRecovery(request.featureRequest, required = true)
+                                offlineFixtures.validateRequest(request.featureRequest)
                                 offlineFixtures.validateDate(request.run)
                                 sessionBootstrap.verifyCurrent(request.memberId)
                                 offlineFixtures.observe(request.run, request.stage)
@@ -81,7 +82,14 @@ internal class MaestroSetupCoordinator
                             }
                             is MaestroSetupRequest.FeatureObservation -> {
                                 protocol.validateFeatureRecovery(request.featureRequest, required = true)
-                                sessionBootstrap.verifyCurrent(request.memberId)
+                                if (request.featureRequest.feature == "offline" &&
+                                    request.stage in setOf("timers-local-online", "timers-local-created")
+                                ) {
+                                    // 단절 중에는 복구 표식과 현재 회원만 검증하고 Room 식별자만 읽습니다
+                                    sessionBootstrap.verifyLocalCurrent(request.memberId)
+                                } else {
+                                    sessionBootstrap.verifyCurrent(request.memberId)
+                                }
                                 val handler =
                                     featureFixtures[request.featureRequest.feature]
                                         ?: throw MaestroSetupFailure("feature_fixture_missing")

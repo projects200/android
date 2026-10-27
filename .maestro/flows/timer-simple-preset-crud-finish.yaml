@@ -11,7 +11,7 @@ name: 심플 타이머 프리셋 삭제 단계
     timeout: 30000
 - assertVisible:
     id: "simple_timer_preset_${TIMER_LOCAL_ID}"
-    text: "00:42"
+    text: ${TIMER_UPDATED_TIME}
 - tapOn:
     id: "simple_timer_menu_${TIMER_LOCAL_ID}"
 - tapOn: "삭제"

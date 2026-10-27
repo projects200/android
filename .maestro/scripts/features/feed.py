@@ -3,6 +3,10 @@
 import re
 
 
+def _literal(value):
+    return r"\Q" + value.replace(r"\E", r"\E\\E\Q") + r"\E"
+
+
 def before_flow(core, device, flow, variables, credentials, run_id):
     if flow != "feed-photo":
         return {}
@@ -21,6 +25,9 @@ def before_flow(core, device, flow, variables, credentials, run_id):
         name = variables.get("FEED_IMAGE_" + label + "_NAME")
         digest = variables.get("FEED_IMAGE_" + label + "_SHA256", "")
         taken = variables.get("FEED_IMAGE_" + label + "_TAKEN", "")
+        capture = variables.get("FEED_IMAGE_" + label + "_CAPTURE_TEXT", "")
+        if not capture or any(ord(char) < 32 for char in capture):
+            raise core.RunnerFailure("feed-photo-invalid-media-metadata")
         if name != "maestro-feed-" + run_id + "-" + label + ".png" or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise core.RunnerFailure("feed-photo-invalid-media-metadata")
         if not re.fullmatch(r"[0-9]+", taken):
@@ -32,7 +39,7 @@ def before_flow(core, device, flow, variables, credentials, run_id):
     raw = device.require(
         "shell", "content", "query", "--uri", "content://media/external/images/media",
         "--projection", "_id:_display_name:datetaken:relative_path",
-        "--sort", "'datetaken DESC, _id DESC'",
+        "--sort", "'_id ASC'",
     ).decode("utf-8", "replace")
     rows = []
     for line in raw.splitlines():
@@ -43,7 +50,19 @@ def before_flow(core, device, flow, variables, credentials, run_id):
         if not match:
             raise core.RunnerFailure("feed-photo-unexpected-media-provider-result")
         rows.append(match.groups())
-    if rows != expected:
-        # 개인 사진을 지우거나 첫 썸네일로 대체하지 않습니다. 정확히 A/B만 있는 새 CI 갤러리가 필요합니다.
-        raise core.RunnerFailure("feed-photo-gallery-must-contain-only-run-images")
-    return {"FEED_IMAGE_A_INDEX": "0", "FEED_IMAGE_B_INDEX": "1"}
+    if len(rows) != len(set(rows)) or any(rows.count(row) != 1 for row in expected):
+        raise core.RunnerFailure("feed-photo-owned-media-mismatch")
+    # 같은 초의 외부 사진은 native 설명이 같아질 수 있어 선택 전에 거절합니다
+    expected_seconds = {int(row[1]) // 1000 for row in expected}
+    if len(expected_seconds) != 2 or any(
+            row not in expected and (row[0] in {item[0] for item in expected}
+                                     or int(row[1]) // 1000 in expected_seconds)
+            for row in rows):
+        raise core.RunnerFailure("feed-photo-ambiguous-media-metadata")
+    captures = [variables["FEED_IMAGE_" + label + "_CAPTURE_TEXT"] for label in ("A", "B")]
+    if len(set(captures)) != 2:
+        raise core.RunnerFailure("feed-photo-ambiguous-media-metadata")
+    return {
+        "FEED_IMAGE_" + label + "_SELECTOR": "(?s).*" + _literal(capture) + ".*"
+        for label, capture in zip(("A", "B"), captures)
+    }

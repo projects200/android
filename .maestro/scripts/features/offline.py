@@ -4,6 +4,7 @@ from pathlib import Path
 import re
 import signal
 import time
+from typing import NamedTuple
 
 
 SCENARIOS = (
@@ -18,12 +19,29 @@ HELPERS = (
     "set-timer-time", "assert-timer-list", "prepare-timer-draft", "assert-timer-draft",
 )
 
+class OfflineTimerInput(NamedTuple):
+    initial_seconds: int
+    updated_seconds: int
+    step_name: str
+
+    def parameters(self):
+        return {"initialSeconds": str(self.initial_seconds), "updatedSeconds": str(self.updated_seconds),
+                "stepName": self.step_name}
+
+
+def scenario_input(args):
+    return OfflineTimerInput(
+        45 if getattr(args, "offline_initial_seconds", None) is None else args.offline_initial_seconds,
+        75 if getattr(args, "offline_updated_seconds", None) is None else args.offline_updated_seconds,
+        "offline-step" if getattr(args, "offline_step_name", None) is None else args.offline_step_name,
+    )
+
 
 def validate_paths(core):
     base = core.ROOT / ".maestro"
     if base.is_symlink() or not base.is_dir():
         raise core.RunnerFailure("invalid-offline-flow-directory")
-    for folder, names in (("flows", FLOWS), ("offline", HELPERS)):
+    for folder, names in (("flows", (*FLOWS, "offline-timers-mutate-finish")), ("offline", HELPERS)):
         directory = base / folder
         if directory.is_symlink() or not directory.is_dir():
             raise core.RunnerFailure("invalid-offline-flow-directory")
@@ -91,11 +109,7 @@ class NetworkState:
 def offline_variables(device):
     variables = device.exercise_variables()
     run_id = variables["EXERCISE_TITLE"].removeprefix("maestro-e2e-")
-    prefix = "maestro-offline-" + run_id
-    return {**variables, "E2E_RUN_ID": run_id,
-            "TIMER_CREATE_TITLE": prefix + "-create", "TIMER_ORIGINAL_TITLE": prefix + "-update",
-            "TIMER_UPDATED_TITLE": prefix + "-updated", "TIMER_DELETE_TITLE": prefix + "-delete",
-            "TIMER_DRAFT_TITLE": prefix + "-draft"}
+    return {**variables, "E2E_RUN_ID": run_id}
 
 
 def run_suite(args, core):
@@ -132,6 +146,7 @@ def run_suite(args, core):
             parameters = {
                 "startedAt": variables["EXERCISE_START_DATE"].replace(".", "-") + "T" + variables["EXERCISE_START_HOUR"] + ":00:00",
                 "endedAt": variables["EXERCISE_END_DATE"].replace(".", "-") + "T" + variables["EXERCISE_END_HOUR"] + ":00:00",
+                **scenario_input(args).parameters(),
             }
             metadata = {"feature": "offline", "flow": owner, "run_id": run_id, "parameters": parameters}
             output = args.output / "offline" / owner
@@ -141,7 +156,7 @@ def run_suite(args, core):
             device.clear()
             safe_to_continue = True
             prepared = True
-            device.bootstrap("prepare", credentials, **metadata)
+            variables.update(core.safe_variables(device.bootstrap("prepare", credentials, **metadata)))
 
             def phase(flow):
                 nonlocal owner
@@ -159,6 +174,12 @@ def run_suite(args, core):
                     **parameters, "stage": stage,
                 })
 
+            def observe_local(stage):
+                variables.update(core.safe_variables(device.bootstrap(
+                    "feature-observe", {"memberId": credentials["memberId"]},
+                    **{**metadata, "parameters": {**parameters, "stage": stage}},
+                )))
+
             if scenario == SCENARIOS[0]:
                 phase("offline-exercise-create")
                 observe("exercise-online")
@@ -170,8 +191,11 @@ def run_suite(args, core):
             else:
                 phase("offline-timers-online")
                 observe("timers-online")
+                observe_local("timers-local-online")
                 network.disconnect()
                 phase("offline-timers-mutate")
+                observe_local("timers-local-created")
+                core.run_maestro(device, "offline-timers-mutate-finish", output, redactor, args.flow_timeout, variables=variables)
                 phase("offline-timers-relaunch")
                 network.restore()
                 phase("offline-timers-after-reconnect")

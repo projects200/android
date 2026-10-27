@@ -11,15 +11,15 @@ name: 심플 타이머 프리셋 수정 단계
     timeout: 30000
 - assertVisible:
     id: "simple_timer_preset_${TIMER_LOCAL_ID}"
-    text: "00:41"
+    text: ${TIMER_INITIAL_TIME}
 - tapOn:
     id: "simple_timer_menu_${TIMER_LOCAL_ID}"
 - tapOn: "수정"
 - runFlow:
     file: ../subflows/timer-set-time.yaml
     env:
-      TIMER_MINUTES: "0"
-      TIMER_SECONDS: "42"
+      TIMER_MINUTES: ${TIMER_UPDATED_MINUTES_PART}
+      TIMER_SECONDS: ${TIMER_UPDATED_SECONDS_PART}
 - scrollUntilVisible:
     element:
       id: "simple_timer_preset_${TIMER_LOCAL_ID}"
@@ -27,7 +27,7 @@ name: 심플 타이머 프리셋 수정 단계
     timeout: 10000
 - assertVisible:
     id: "simple_timer_preset_${TIMER_LOCAL_ID}"
-    text: "00:42"
+    text: ${TIMER_UPDATED_TIME}
 - back
 - extendedWaitUntil:
     visible: "심플 타이머"
@@ -40,4 +40,4 @@ name: 심플 타이머 프리셋 수정 단계
     timeout: 30000
 - assertVisible:
     id: "simple_timer_preset_${TIMER_LOCAL_ID}"
-    text: "00:42"
+    text: ${TIMER_UPDATED_TIME}

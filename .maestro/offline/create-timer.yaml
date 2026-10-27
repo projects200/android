@@ -17,22 +17,22 @@ appId: com.project200.undabang
 - hideKeyboard
 - tapOn:
     id: custom_timer_form_new_step_name_field
-- inputText: offline-step
+- inputText: ${TIMER_STEP_NAME}
 - hideKeyboard
 - runFlow:
     file: set-timer-time.yaml
     env:
       TIMER_TIME_FIELD: custom_timer_form_new_step_time
-      TIMER_MINUTES: "00"
-      TIMER_SECONDS: "45"
+      TIMER_MINUTES: ${TIMER_INITIAL_MINUTES_PART}
+      TIMER_SECONDS: ${TIMER_INITIAL_SECONDS_PART}
 - tapOn:
     id: custom_timer_form_add_step_btn
 - assertVisible:
     id: custom_timer_form_step_name_0
-    text: offline-step
+    text: ${TIMER_STEP_NAME}
 - assertVisible:
     id: custom_timer_form_step_time_0
-    text: "00:45"
+    text: ${TIMER_INITIAL_TIME}
 - tapOn:
     id: custom_timer_form_submit_btn
 - extendedWaitUntil:
@@ -41,10 +41,10 @@ appId: com.project200.undabang
     timeout: 30000
 - assertVisible:
     id: custom_timer_step_name_0
-    text: offline-step
+    text: ${TIMER_STEP_NAME}
 - assertVisible:
     id: custom_timer_step_time_0
-    text: "00:45"
+    text: ${TIMER_INITIAL_TIME}
 - back
 - scrollUntilVisible:
     element:

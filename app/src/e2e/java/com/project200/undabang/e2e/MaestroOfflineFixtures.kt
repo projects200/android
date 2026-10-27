@@ -1,14 +1,22 @@
 package com.project200.undabang.e2e
 
+import android.content.Context
+import android.system.Os
+import android.util.AtomicFile
 import com.project200.data.api.ApiService
 import com.project200.data.datasource.FeatureFlagDataSource
+import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.DeleteTimerRequestDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.domain.repository.AppUpdateRepository
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONArray
+import org.json.JSONObject
+import java.io.File
 import java.time.LocalDate
 import java.time.LocalDateTime
 import javax.inject.Inject
@@ -17,6 +25,7 @@ internal data class MaestroOfflineRun(
     val id: String,
     val startedAt: LocalDateTime,
     val endedAt: LocalDateTime,
+    val timerInput: MaestroOfflineTimerInput,
 ) {
     init {
         if (!ID_PATTERN.matches(id) || endedAt != startedAt.plusHours(1) ||
@@ -34,6 +43,16 @@ internal data class MaestroOfflineRun(
     val draftTimer: String = "maestro-offline-$id-draft"
     val timerNames: Set<String> = setOf(createdTimer, originalTimer, updatedTimer, deletedTimer, draftTimer)
 
+    fun variables(): Map<String, String> =
+        timerInput.variables() +
+            mapOf(
+                "TIMER_CREATE_TITLE" to createdTimer,
+                "TIMER_ORIGINAL_TITLE" to originalTimer,
+                "TIMER_UPDATED_TITLE" to updatedTimer,
+                "TIMER_DELETE_TITLE" to deletedTimer,
+                "TIMER_DRAFT_TITLE" to draftTimer,
+            )
+
     companion object {
         private val ID_PATTERN = Regex("[a-f0-9]{32}")
     }
@@ -46,19 +65,108 @@ internal class MaestroOfflineFixtures
         private val api: ApiService,
         private val featureFlags: FeatureFlagDataSource,
         private val appUpdateRepository: AppUpdateRepository,
+        @ApplicationContext private val context: Context,
+        private val localDataSource: TimerLocalDataSource,
     ) : MaestroFeatureFixture {
         override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
             val run = run(request)
+            if (request.parameters.has("stage")) throw MaestroSetupFailure("invalid_feature_request")
+            val file = snapshot().baseFile
+            if (file.exists() || File(file.path + ".bak").exists() || File(file.path + ".new").exists()) {
+                throw MaestroSetupFailure("offline_recovery_required")
+            }
+            save(
+                JSONObject()
+                    .put("memberId", request.memberId)
+                    .put("runId", request.runId)
+                    .put("flow", request.flow)
+                    .put("parameters", request.parameters)
+                    .put("baselineLocalIds", JSONArray(localDataSource.getCustomTimers().map { it.localId })),
+            )
             validateDate(run)
             clean(run)
             requireCacheEnabled()
-            return emptyMap()
+            return run.variables()
         }
 
         override suspend fun cleanup(request: MaestroFeatureRequest) {
+            if (request.parameters.has("stage")) throw MaestroSetupFailure("invalid_feature_request")
+            val file = snapshot().baseFile
+            if (file.exists() || File(file.path + ".bak").exists()) validateRequest(request)
             val run = run(request)
             validateDate(run)
             clean(run)
+        }
+
+        fun validateRequest(request: MaestroFeatureRequest): JSONObject {
+            run(request)
+            val saved =
+                try {
+                    JSONObject(snapshot().openRead().bufferedReader().use { it.readText() })
+                } catch (_: Exception) {
+                    throw MaestroSetupFailure("offline_snapshot_missing")
+                }
+            if (saved.getString("memberId") != request.memberId || saved.getString("runId") != request.runId ||
+                saved.getString("flow") != request.flow
+            ) {
+                throw MaestroSetupFailure("offline_snapshot_identity_invalid")
+            }
+            val expected = saved.getJSONObject("parameters")
+            if (MaestroOfflineTimerInput.PARAMETER_KEYS.any { expected.getString(it) != request.parameters.getString(it) }) {
+                throw MaestroSetupFailure("offline_snapshot_input_mismatch")
+            }
+            return saved
+        }
+
+        override suspend fun observe(
+            request: MaestroFeatureRequest,
+            stage: String,
+        ): Map<String, String> {
+            val run = run(request)
+            if (request.flow != "offline-timers-online" ||
+                (request.parameters.has("stage") && request.parameters.getString("stage") != stage)
+            ) {
+                throw MaestroSetupFailure("invalid_request")
+            }
+            val saved = validateRequest(request)
+            val roles =
+                when (stage) {
+                    "timers-local-online" -> mapOf("ORIGINAL" to run.originalTimer, "DELETE" to run.deletedTimer)
+                    "timers-local-created" -> mapOf("CREATE" to run.createdTimer)
+                    else -> throw MaestroSetupFailure("invalid_request")
+                }
+            val baseline = saved.getJSONArray("baselineLocalIds")
+            val baselineIds = (0 until baseline.length()).map { baseline.getString(it) }.toSet()
+            val current = localDataSource.getCustomTimers()
+            val variables = mutableMapOf<String, String>()
+            for ((role, name) in roles) {
+                val owned = current.filter { it.localId !in baselineIds && it.name == name }
+                val timer = owned.singleOrNull() ?: throw MaestroSetupFailure("offline_timer_local_id_missing")
+                val key = "localId$role"
+                if (saved.has(key) && saved.getString(key) != timer.localId) {
+                    throw MaestroSetupFailure("offline_timer_identity_changed")
+                }
+                saved.put(key, timer.localId)
+                variables["TIMER_${role}_LOCAL_ID"] = timer.localId
+            }
+            save(saved)
+            return variables
+        }
+
+        private fun snapshot() = AtomicFile(File(context.filesDir, "maestro-offline-state.json"))
+
+        private fun save(saved: JSONObject) {
+            val file = snapshot()
+            val stream = file.startWrite()
+            try {
+                Os.fchmod(stream.fd, PRIVATE_FILE_MODE)
+                stream.write(saved.toString().toByteArray(Charsets.UTF_8))
+                stream.fd.sync()
+                file.finishWrite(stream)
+            } catch (_: Exception) {
+                file.failWrite(stream)
+                throw MaestroSetupFailure("offline_snapshot_write_failed")
+            }
         }
 
         suspend fun requireCacheEnabled() {
@@ -88,8 +196,16 @@ internal class MaestroOfflineFixtures
             }
             val expected =
                 when (stage) {
-                    "timers-online" -> mapOf(run.originalTimer to 45, run.deletedTimer to 45)
-                    "timers-synced" -> mapOf(run.createdTimer to 45, run.updatedTimer to 75)
+                    "timers-online" ->
+                        mapOf(
+                            run.originalTimer to run.timerInput.initialSeconds,
+                            run.deletedTimer to run.timerInput.initialSeconds,
+                        )
+                    "timers-synced" ->
+                        mapOf(
+                            run.createdTimer to run.timerInput.initialSeconds,
+                            run.updatedTimer to run.timerInput.updatedSeconds,
+                        )
                     else -> throw MaestroSetupFailure("invalid_request")
                 }
             val observed =
@@ -113,7 +229,15 @@ internal class MaestroOfflineFixtures
             if (owned.size != expected.size || owned.map { it.customTimerName }.toSet() != expected.keys) return false
             for (summary in owned) {
                 val detail = read(api.getCustomTimer(summary.customTimerId))
-                if (!matchesTimer(detail, summary.customTimerId, summary.customTimerName, expected.getValue(summary.customTimerName))) {
+                if (
+                    !matchesTimer(
+                        detail,
+                        summary.customTimerId,
+                        summary.customTimerName,
+                        expected.getValue(summary.customTimerName),
+                        run.timerInput.stepName,
+                    )
+                ) {
                     return false
                 }
             }
@@ -168,12 +292,13 @@ internal class MaestroOfflineFixtures
         }
 
         companion object {
+            private const val PRIVATE_FILE_MODE = 384
             private val FLOWS = setOf("offline-exercise-create", "offline-exercise-missing", "offline-timers-online")
 
             fun run(request: MaestroFeatureRequest): MaestroOfflineRun {
                 MaestroFeaturePolicy.validateIdentity(request.feature, request.flow, request.runId)
                 if (request.feature != "offline" || request.flow !in FLOWS ||
-                    request.parameters.keys().asSequence().toSet() != setOf("startedAt", "endedAt")
+                    request.parameters.keys().asSequence().toSet() - "stage" != MaestroOfflineTimerInput.PARAMETER_KEYS
                 ) {
                     throw MaestroSetupFailure("invalid_feature_request")
                 }
@@ -182,6 +307,7 @@ internal class MaestroOfflineFixtures
                         request.runId,
                         LocalDateTime.parse(request.parameters.getString("startedAt")),
                         LocalDateTime.parse(request.parameters.getString("endedAt")),
+                        MaestroOfflineTimerInput.parse(request.parameters),
                     )
                 } catch (_: Exception) {
                     throw MaestroSetupFailure("invalid_feature_request")
@@ -196,10 +322,11 @@ internal class MaestroOfflineFixtures
                 id: Long,
                 name: String,
                 seconds: Int,
+                stepName: String,
             ): Boolean =
                 detail.customTimerId == id && detail.customTimerName == name && detail.customTimerStepCount == 1 &&
                     detail.customTimerSteps.singleOrNull()?.let {
-                        it.customTimerStepName == "offline-step" && it.customTimerStepOrder == 0 && it.customTimerStepTime == seconds
+                        it.customTimerStepName == stepName && it.customTimerStepOrder == 0 && it.customTimerStepTime == seconds
                     } == true
         }
     }

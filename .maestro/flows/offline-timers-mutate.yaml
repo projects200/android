@@ -10,8 +10,9 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
 - runFlow:
     file: ../offline/edit-timer.yaml
     env:
+      EDIT_TIMER_LOCAL_ID: ${TIMER_ORIGINAL_LOCAL_ID}
       EDIT_TIMER_TITLE: "${TIMER_ORIGINAL_TITLE}"
-      EXPECTED_TIMER_TIME: "00:45"
+      EXPECTED_TIMER_TIME: ${TIMER_INITIAL_TIME}
 - runFlow:
     file: ../subflows/timer-clear-text.yaml
     env:
@@ -26,8 +27,8 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
     file: ../offline/set-timer-time.yaml
     env:
       TIMER_TIME_FIELD: custom_timer_form_step_time_0
-      TIMER_MINUTES: "01"
-      TIMER_SECONDS: "15"
+      TIMER_MINUTES: ${TIMER_UPDATED_MINUTES_PART}
+      TIMER_SECONDS: ${TIMER_UPDATED_SECONDS_PART}
 - tapOn:
     id: custom_timer_form_submit_btn
 - extendedWaitUntil:
@@ -36,14 +37,19 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
     timeout: 30000
 - assertVisible:
     id: custom_timer_step_time_0
-    text: "01:15"
+    text: ${TIMER_UPDATED_TIME}
 - back
 - scrollUntilVisible:
     element:
-      text: "${TIMER_DELETE_TITLE}"
+      id: "custom_timer_${TIMER_DELETE_LOCAL_ID}"
     direction: DOWN
     timeout: 30000
-- tapOn: "${TIMER_DELETE_TITLE}"
+- assertVisible:
+    id: "custom_timer_${TIMER_DELETE_LOCAL_ID}"
+    containsDescendants:
+      - text: ${TIMER_DELETE_TITLE}
+- tapOn:
+    id: "custom_timer_${TIMER_DELETE_LOCAL_ID}"
 - tapOn:
     id: custom_timer_menu_btn
 - tapOn: 삭제하기
@@ -57,4 +63,3 @@ name: 실제 오프라인 커스텀 타이머 수정 삭제 생성
     file: ../offline/create-timer.yaml
     env:
       NEW_TIMER_TITLE: "${TIMER_CREATE_TITLE}"
-- runFlow: ../offline/assert-timer-list.yaml

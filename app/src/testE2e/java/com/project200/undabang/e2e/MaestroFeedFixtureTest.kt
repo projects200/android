@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.graphics.Color
+import android.icu.text.DateFormat
 import android.media.ExifInterface
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
@@ -24,6 +25,8 @@ import org.robolectric.annotation.GraphicsMode
 import java.io.File
 import java.security.MessageDigest
 import java.time.LocalDateTime
+import java.util.Locale
+import java.util.TimeZone
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [33], manifest = Config.NONE, application = Application::class)
@@ -69,6 +72,26 @@ class MaestroFeedFixtureTest {
         assertThat(images.getValue("B").taken).isEqualTo(1704067200000L)
         assertThat(images.getValue("A").taken).isGreaterThan(images.getValue("B").taken)
         assertThat(images.getValue("A").sha256).isNotEqualTo(images.getValue("B").sha256)
+    }
+
+    @Test
+    fun `picker 촬영 설명은 기기의 locale과 timezone을 사용한다`() {
+        val originalLocale = Locale.getDefault()
+        val originalZone = TimeZone.getDefault()
+        try {
+            Locale.setDefault(Locale.KOREA)
+            TimeZone.setDefault(TimeZone.getTimeZone("Asia/Seoul"))
+            val korean = fixture.captureText(1704153600000)
+            assertThat(DateFormat.getInstanceForSkeleton("MMMdyhmmss", Locale.KOREA).parse(korean).time).isEqualTo(1704153600000L)
+            Locale.setDefault(Locale.US)
+            TimeZone.setDefault(TimeZone.getTimeZone("UTC"))
+            val english = fixture.captureText(1704153600000)
+            assertThat(DateFormat.getInstanceForSkeleton("MMMdyhmmss", Locale.US).parse(english).time).isEqualTo(1704153600000L)
+            assertThat(english).isNotEqualTo(korean)
+        } finally {
+            Locale.setDefault(originalLocale)
+            TimeZone.setDefault(originalZone)
+        }
     }
 
     @Test
