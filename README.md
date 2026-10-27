@@ -262,6 +262,7 @@ Windows에서는 `./gradlew` 대신 `gradlew.bat`를 사용합니다. 설정 파
 ./gradlew testDebugUnitTest :domain:test     # Android 모듈 + domain 단위 테스트
 ./gradlew :feature:timer:testDebugUnitTest   # 타이머 모듈 단위 테스트
 ./gradlew jacocoLogicReport                 # UseCase·ViewModel 커버리지
+./gradlew jacocoLogicCoverageVerification       # 라인 커버리지 80% 미만이면 실패
 ./gradlew :app:assembleDebug                # 디버그 APK
 ```
 
