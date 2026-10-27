@@ -79,6 +79,15 @@ internal class MaestroSetupCoordinator
                                 offlineFixtures.observe(request.run, request.stage)
                                 protocol.writeStatus("observed")
                             }
+                            is MaestroSetupRequest.FeatureObservation -> {
+                                protocol.validateFeatureRecovery(request.featureRequest, required = true)
+                                sessionBootstrap.verifyCurrent(request.memberId)
+                                val handler =
+                                    featureFixtures[request.featureRequest.feature]
+                                        ?: throw MaestroSetupFailure("feature_fixture_missing")
+                                val variables = handler.observe(request.featureRequest, request.stage)
+                                protocol.writeStatus("observed", variables)
+                            }
                         }
                     } catch (failure: MaestroSetupFailure) {
                         failClosed(failure.reason, preserveLocalDataOnFailure)

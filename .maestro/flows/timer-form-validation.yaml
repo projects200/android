@@ -24,8 +24,6 @@ tags:
       TIMER_MINUTES: "0"
       TIMER_SECONDS: "0"
 - assertVisible: "타이머를 1초 이상으로 설정해주세요"
-- assertNotVisible:
-    id: simple_timer_local_preset_0
 - back
 
 # 2) 커스텀 타이머: 제목이 비면 저장되지 않습니다

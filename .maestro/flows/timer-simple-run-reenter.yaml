@@ -1,0 +1,14 @@
+appId: com.project200.undabang
+name: 심플 타이머 실행 재진입 단계
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- runFlow: ../subflows/timer-open-list.yaml
+- tapOn: "심플 타이머"
+- scrollUntilVisible:
+    element:
+      id: "simple_timer_preset_${TIMER_LOCAL_ID}"
+    direction: DOWN
+    timeout: 30000
+- assertVisible:
+    id: "simple_timer_preset_${TIMER_LOCAL_ID}"
+    text: "00:45"

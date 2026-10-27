@@ -49,6 +49,11 @@ class TimerLocalDataSource
             return timerDao.getSimpleTimers(memberId)
         }
 
+        suspend fun getSimpleTimer(localId: String): SimpleTimerEntity? {
+            val memberId = currentMemberId() ?: return null
+            return timerDao.getSimpleTimer(memberId, localId)
+        }
+
         suspend fun countSimpleTimers(): Int {
             val memberId = currentMemberId() ?: return 0
             return timerDao.countSimpleTimers(memberId)

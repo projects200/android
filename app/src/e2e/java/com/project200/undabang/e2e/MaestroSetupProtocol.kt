@@ -24,12 +24,20 @@ internal sealed interface MaestroSetupRequest {
         val featureRequest: MaestroFeatureRequest? = null,
     ) : MaestroSetupRequest {
         override val preserveLocalDataOnFailure: Boolean
-            get() = featureRequest?.feature == "offline"
+            get() = featureRequest?.feature in setOf("offline", "timer")
     }
 
     data class OfflineObservation(
         val memberId: String,
         val run: MaestroOfflineRun,
+        val stage: String,
+        val featureRequest: MaestroFeatureRequest,
+    ) : MaestroSetupRequest {
+        override val preserveLocalDataOnFailure: Boolean = true
+    }
+
+    data class FeatureObservation(
+        val memberId: String,
         val stage: String,
         val featureRequest: MaestroFeatureRequest,
     ) : MaestroSetupRequest {
@@ -94,6 +102,24 @@ internal class MaestroSetupProtocol
                                 } else {
                                     null
                                 },
+                        )
+                    }
+                    "feature-observe" -> {
+                        requireKeys(json, setOf("operation", "memberId", "feature", "flow", "runId", "parameters"))
+                        val memberId = json.get("memberId") as? String
+                        val feature = json.get("feature") as? String
+                        val flow = json.get("flow") as? String
+                        val runId = json.get("runId") as? String
+                        if (memberId.isNullOrBlank() || feature == null || flow == null || runId == null) {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
+                        MaestroFeaturePolicy.validateIdentity(feature, flow, runId)
+                        val parameters = json.getJSONObject("parameters")
+                        val stage = parameters.get("stage") as? String ?: throw MaestroSetupFailure("invalid_request")
+                        MaestroSetupRequest.FeatureObservation(
+                            memberId = memberId,
+                            stage = stage,
+                            featureRequest = MaestroFeatureRequest(feature, flow, runId, memberId, parameters),
                         )
                     }
                     "offline-observe" -> {

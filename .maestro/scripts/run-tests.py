@@ -290,7 +290,7 @@ def safe_variables(variables):
 def feature_metadata(operation, feature, flow, run_id, parameters):
     if all(value is None for value in (feature, flow, run_id, parameters)):
         return {}
-    if (operation not in ("prepare", "cleanup")
+    if (operation not in ("prepare", "cleanup", "feature-observe")
             or not isinstance(feature, str) or not FEATURE_NAME.fullmatch(feature)
             or not isinstance(flow, str) or not FLOW_NAME.fullmatch(flow)
             or not isinstance(run_id, str) or not re.fullmatch(r"[a-f0-9]{16,32}", run_id)
@@ -770,12 +770,12 @@ class Device:
 
     def bootstrap(self, operation, credentials=None, timeout=300, feature=None, flow=None,
                   run_id=None, parameters=None):
-        if operation not in ("prepare", "cleanup", "export", "offline-observe"):
+        if operation not in ("prepare", "cleanup", "export", "offline-observe", "feature-observe"):
             raise RunnerFailure("invalid-bootstrap-operation")
         metadata = feature_metadata(operation, feature, flow, run_id, parameters)
         request = {"operation": operation, **(credentials or {}), **metadata}
-        # 관찰은 실행 중 Worker와 미저장 폼을 중단하거나 세션/Room을 초기화하지 않습니다.
-        if operation != "offline-observe":
+        # 관찰은 실행 중 Room과 미저장 폼을 초기화하지 않습니다.
+        if operation not in ("offline-observe", "feature-observe"):
             self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -788,6 +788,7 @@ class Device:
             "cleanup": "cleaned",
             "export": "exported",
             "offline-observe": "observed",
+            "feature-observe": "observed",
         }[operation]
         # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
         probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
@@ -807,7 +808,7 @@ class Device:
                 # 앱의 reason도 외부 입력이므로 해당 기능에서 검토된 준비 코드만 고정 오류로 공개합니다.
                 failure = "bootstrap-" + operation + "-failed"
                 if (
-                    operation in ("prepare", "offline-observe") and
+                    operation in ("prepare", "offline-observe", "feature-observe") and
                     isinstance(result, dict) and
                     result.get("status") == "failed" and
                     isinstance(result.get("reason"), str)
@@ -819,6 +820,13 @@ class Device:
                             "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
                             "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
                             "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
+                        }.get(reason, failure)
+                    elif feature == "timer":
+                        failure = {
+                            "timer_local_id_missing": "timer-local-id-not-observed",
+                            "timer_local_id_changed": "timer-local-id-changed",
+                            "timer_server_id_missing": "timer-server-id-not-observed",
+                            "timer_server_cleanup_failed": "timer-server-cleanup-failed",
                         }.get(reason, failure)
                     elif feature is None:
                         failure = COMMON_PREPARE_FAILURES.get(reason, failure)
