@@ -281,7 +281,8 @@ class ExerciseMainViewModelTest {
 
             // Given 2: refresh 시 반환될 새로운 데이터 정의
             val newSampleCounts = listOf(ExerciseCount(today.withDayOfMonth(25), 3))
-            coEvery { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today, refresh = true) } returns BaseResult.Success(newSampleCounts)
+            coEvery { mockGetExerciseCountUseCase.invoke(thisMonth.atDay(1), today, refresh = true) } returns
+                BaseResult.Success(newSampleCounts)
             coEvery { mockGetScoreUseCase.invoke() } returns BaseResult.Success(Score(80))
 
             // When: refreshData 재호출 (UseCase 2번 추가 호출)
@@ -566,8 +567,10 @@ class ExerciseMainViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.scrollPosition = 240
             val expected = listOf(item("changed-local", selected))
-            coEvery { mockGetExerciseRecordListUseCase(selected, false, true) } returns BaseResult.Success(expected, isCachedSnapshot = true)
-            coEvery { mockGetExerciseCountUseCase(any(), any(), false, true) } returns BaseResult.Success(listOf(ExerciseCount(selected, 1)))
+            coEvery { mockGetExerciseRecordListUseCase(selected, false, true) } returns
+                BaseResult.Success(expected, isCachedSnapshot = true)
+            coEvery { mockGetExerciseCountUseCase(any(), any(), false, true) } returns
+                BaseResult.Success(listOf(ExerciseCount(selected, 1)))
 
             viewModel.onOwnWrite()
             testDispatcher.scheduler.advanceUntilIdle()
@@ -635,7 +638,8 @@ class ExerciseMainViewModelTest {
             val error = BaseResult.Error("401", "인증 실패")
             val expected = listOf(item("cached-local", today))
             coEvery { mockGetExerciseRecordListUseCase(today, refresh = true) } returns BaseResult.Success(expected, error, true)
-            coEvery { mockGetExerciseCountUseCase(any(), any(), refresh = true) } returns BaseResult.Success(listOf(ExerciseCount(today, 1)), error, true)
+            coEvery { mockGetExerciseCountUseCase(any(), any(), refresh = true) } returns
+                BaseResult.Success(listOf(ExerciseCount(today, 1)), error, true)
             val messages = mutableListOf<String>()
             val observer = Observer<String?> { message -> if (message != null) messages.add(message) }
             viewModel.toastMessage.observeForever(observer)

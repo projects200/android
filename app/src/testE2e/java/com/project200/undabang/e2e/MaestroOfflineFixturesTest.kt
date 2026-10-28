@@ -51,7 +51,7 @@ class MaestroOfflineFixturesTest {
     fun setUp() {
         File(context.filesDir, "maestro-offline-state.json").delete()
         every { local.currentMemberId() } returns "member"
-        coEvery { local.getCustomTimers() } returns emptyList()
+        coEvery { local.getCustomTimers("member") } returns emptyList()
     }
 
     @Test
@@ -149,7 +149,7 @@ class MaestroOfflineFixturesTest {
     @Test
     fun `스냅샷 저장 전 준비가 실패해도 실행 이름과 상세를 재확인한 행만 정리한다`() =
         runTest {
-            coEvery { local.getCustomTimers() } throws IllegalStateException("local read failed")
+            coEvery { local.getCustomTimers("member") } throws IllegalStateException("local read failed")
             try {
                 fixtures.prepare(request(run))
                 throw AssertionError("실패할 준비가 성공했습니다")
@@ -332,17 +332,17 @@ class MaestroOfflineFixturesTest {
     fun `기준 동명 행을 보존하고 이번 생성의 ID만 반환하며 중복이나 교체는 거절한다`() =
         runTest {
             val baseline = localTimer("baseline", run.createdTimer)
-            coEvery { local.getCustomTimers() } returns listOf(baseline)
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline)
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
             coEvery { api.getCustomTimerList() } returns timerList()
             val request = request(run)
             fixtures.prepare(request)
             val owned = localTimer("owned", run.createdTimer)
-            coEvery { local.getCustomTimers() } returns listOf(baseline, owned)
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, owned)
             assertThat(fixtures.observe(request, "timers-local-created")).containsEntry("TIMER_CREATE_LOCAL_ID", "owned")
-            coEvery { local.getCustomTimers() } returns listOf(baseline, owned, localTimer("duplicate", run.createdTimer))
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, owned, localTimer("duplicate", run.createdTimer))
             expectFailure("offline_timer_local_id_missing") { fixtures.observe(request, "timers-local-created") }
-            coEvery { local.getCustomTimers() } returns listOf(baseline, localTimer("replacement", run.createdTimer))
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, localTimer("replacement", run.createdTimer))
             expectFailure("offline_timer_identity_changed") { fixtures.observe(request, "timers-local-created") }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
         }

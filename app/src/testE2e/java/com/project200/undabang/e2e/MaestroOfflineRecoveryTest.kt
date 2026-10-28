@@ -466,7 +466,7 @@ class MaestroOfflineRecoveryTest {
 
             assertFailure("untrusted_session")
             assertPreserved()
-            coVerify(exactly = 0) { local.getCustomTimers() }
+            coVerify(exactly = 0) { local.getCustomTimers(MEMBER) }
             coVerify(exactly = 0) { authManager.refreshAccessToken() }
             assertNoFixtureCalls()
         }
@@ -475,7 +475,7 @@ class MaestroOfflineRecoveryTest {
     fun `단절 중 식별자 관찰은 현재 회원과 ownership을 검증하고 서버 인증이나 변경을 하지 않는다`() =
         runTest {
             current = authorizedState()
-            coEvery { local.getCustomTimers() } returns
+            coEvery { local.getCustomTimers(MEMBER) } returns
                 listOf(
                     CustomTimerEntity(
                         MEMBER,

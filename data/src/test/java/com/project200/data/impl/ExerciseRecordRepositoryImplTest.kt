@@ -628,7 +628,8 @@ class ExerciseRecordRepositoryImplTest {
                 assertThat(local.getDetailByLocalId(id)?.title).isEqualTo("운동")
             }
             coEvery { remote.getExerciseList(date) } returns response(listOf(itemDto().copy(exerciseTitle = "명시 갱신")))
-            assertThat((repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success).data.single().title).isEqualTo("명시 갱신")
+            val result = repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success
+            assertThat(result.data.single().title).isEqualTo("명시 갱신")
         }
 
     @Test
@@ -639,7 +640,8 @@ class ExerciseRecordRepositoryImplTest {
                 memberId = "member-b"
                 response(ExerciseIdDto(7L))
             }
-            assertThat((repository.updateExerciseRecord(record().copy(title = "수정"), id) as BaseResult.Error).errorCode).isEqualTo("ACCOUNT_CHANGED")
+            val result = repository.updateExerciseRecord(record().copy(title = "수정"), id) as BaseResult.Error
+            assertThat(result.errorCode).isEqualTo("ACCOUNT_CHANGED")
             assertThat(database.exerciseRecordDao().getListByDate("member-b", date)).isEmpty()
             assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.title).isEqualTo("운동")
         }
