@@ -15,6 +15,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -303,5 +304,25 @@ class MypageViewModelTest {
             // Then
             assertThat(viewModel.profile.value).isEqualTo(updatedProfile)
             coVerify(exactly = 2) { mockGetUserProfileUseCase() }
+        }
+
+    @Test
+    fun `캐시 캘린더를 먼저 표시하고 백그라운드 완료는 선택 월과 표시 날짜를 바꾸지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<List<ExerciseCount>>>()
+            coEvery { mockGetUserProfileUseCase() } returns BaseResult.Success(sampleProfile)
+            coEvery { mockGetExerciseCountInMonthUseCase(any(), any(), false) } returns
+                BaseResult.Success(sampleExerciseCounts, isCachedSnapshot = true)
+            coEvery { mockGetExerciseCountInMonthUseCase(any(), any(), true) } coAnswers { response.await() }
+            createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            val displayed = sampleExerciseCounts.filter { it.count > 0 }.map { it.date }.toSet()
+            assertThat(viewModel.exerciseDates.value).isEqualTo(displayed)
+            response.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.exerciseDates.value).isEqualTo(displayed)
+            assertThat(viewModel.selectedMonth.value).isEqualTo(currentYearMonth)
+            coVerify(exactly = 1) { mockGetExerciseCountInMonthUseCase(any(), any(), false) }
+            coVerify(exactly = 1) { mockGetExerciseCountInMonthUseCase(any(), any(), true) }
         }
 }

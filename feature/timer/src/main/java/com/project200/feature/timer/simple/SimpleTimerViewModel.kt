@@ -59,6 +59,7 @@ class SimpleTimerViewModel
         val timerItems: StateFlow<List<SimpleTimer>> = _timerItems.asStateFlow()
 
         private var isAscending = true
+        private var listRequestId = 0L
 
         // 이벤트를 전달할 SharedFlow 생성
         private val _toastMessage = MutableSharedFlow<SimpleTimerToastMessage>()
@@ -78,21 +79,27 @@ class SimpleTimerViewModel
             service.value?.setAndStartTimer(timeInSeconds)
         }
 
-        /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 읽습니다 */
-        fun loadTimerItems() {
+        /** 최초 스냅샷을 표시한 뒤 별도 갱신은 Room에만 반영합니다 */
+        fun loadTimerItems(refresh: Boolean = false) {
+            val requestId = ++listRequestId
             viewModelScope.launch {
-                val result = getSimpleTimersUseCase()
-                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                val result = getSimpleTimersUseCase(refresh)
+                if (requestId != listRequestId) return@launch
                 if (result is BaseResult.Success) {
                     _timerItems.value = sortTimers(result.data, isAscending)
+                    if (!refresh && result.isCachedSnapshot) {
+                        viewModelScope.launch { getSimpleTimersUseCase(refresh = true) }
+                    }
                 }
             }
         }
 
         /** 내 쓰기 직후 재조회용입니다. 서버를 보지 않습니다 */
         private fun reloadLocalTimerItems() {
+            val requestId = ++listRequestId
             viewModelScope.launch {
                 val result = getLocalSimpleTimersUseCase()
+                if (requestId != listRequestId) return@launch
                 // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
                 if (result is BaseResult.Success) {
                     _timerItems.value = sortTimers(result.data, isAscending)
@@ -120,6 +127,7 @@ class SimpleTimerViewModel
         fun addTimerItem(time: Int) {
             if (_timerItems.value.size >= MAX_TIMER_COUNT) return
 
+            listRequestId++
             viewModelScope.launch {
                 when (addSimpleTimerUseCase(time)) {
                     is BaseResult.Success -> reloadLocalTimerItems()
@@ -129,6 +137,7 @@ class SimpleTimerViewModel
         }
 
         fun deleteTimerItem(localId: String) {
+            listRequestId++
             viewModelScope.launch {
                 when (deleteSimpleTimerUseCase(localId)) {
                     is BaseResult.Success -> reloadLocalTimerItems()
@@ -152,6 +161,7 @@ class SimpleTimerViewModel
             localId: String,
             time: Int,
         ) {
+            listRequestId++
             viewModelScope.launch {
                 when (editSimpleTimerUseCase(localId, time)) {
                     is BaseResult.Success -> reloadLocalTimerItems()

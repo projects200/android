@@ -48,7 +48,7 @@ class ExerciseDetailFragment : Fragment() {
                     onBackClick = { findNavController().navigateUp() },
                     onShareClick = ::handleShareClick,
                     onMenuClick = ::showExerciseDetailMenu,
-                    onRefreshClick = { viewModel.getExerciseRecord(args.recordId, force = true) },
+                    onRefreshClick = { viewModel.getExerciseRecord(args.recordId, refresh = true, force = true) },
                 )
             }
         }

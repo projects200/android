@@ -6,6 +6,7 @@ import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.createInMemoryDatabase
 import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.SyncState
+import com.project200.data.local.entity.TimerSnapshotEntity
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
@@ -275,7 +276,11 @@ class TimerLocalDataSourceTest {
             // Given
             val localId = dataSource.createSimpleTimer(time = 60)!!
             val snapshot = dataSource.claimSimpleTimer(MEMBER_ID, localId)!!
-            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 60)))
+            dataSource.replaceSyncedSimpleTimers(
+                listOf(ServerSimpleTimer(serverId = 7L, time = 60)),
+                MEMBER_ID,
+                dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE),
+            )
 
             // When
             dataSource.completeSimple(snapshot, serverId = 7L)
@@ -294,6 +299,8 @@ class TimerLocalDataSourceTest {
             val snapshot = dataSource.claimCustomTimer(MEMBER_ID, localId)!!
             dataSource.replaceSyncedCustomTimers(
                 listOf(ServerCustomTimer(serverId = 9L, name = "8세트", steps = steps)),
+                MEMBER_ID,
+                dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.CUSTOM),
             )
 
             // When
@@ -329,7 +336,11 @@ class TimerLocalDataSourceTest {
             dataSource.updateSimpleTimer(localId, time = 999)
 
             // When: 서버는 옛 값을 그대로 들고 있다
-            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 60)))
+            dataSource.replaceSyncedSimpleTimers(
+                listOf(ServerSimpleTimer(serverId = 7L, time = 60)),
+                MEMBER_ID,
+                dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE),
+            )
 
             // Then
             val kept = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
@@ -345,7 +356,11 @@ class TimerLocalDataSourceTest {
             markSynced(localId, serverId = 7L)
 
             // When: 서버 값이 바뀌어 내려온다
-            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 7L, time = 120)))
+            dataSource.replaceSyncedSimpleTimers(
+                listOf(ServerSimpleTimer(serverId = 7L, time = 120)),
+                MEMBER_ID,
+                dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE),
+            )
 
             // Then
             val updated = database.timerDao().getSimpleTimer(MEMBER_ID, localId)!!
@@ -362,7 +377,7 @@ class TimerLocalDataSourceTest {
             markSynced(localId, serverId = 7L)
 
             // When: 서버 목록이 비어 있다
-            dataSource.replaceSyncedSimpleTimers(emptyList())
+            dataSource.replaceSyncedSimpleTimers(emptyList(), MEMBER_ID, dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE))
 
             // Then
             assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, localId)).isNull()
@@ -372,7 +387,7 @@ class TimerLocalDataSourceTest {
     fun `심플 서버 반영 - 새 서버 행은 새 localId로 추가된다`() =
         runTest {
             // When
-            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 9L, time = 45)))
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(serverId = 9L, time = 45)), MEMBER_ID, 0L)
 
             // Then
             val saved = dataSource.getSimpleTimers().single()
@@ -393,6 +408,8 @@ class TimerLocalDataSourceTest {
             // When
             dataSource.replaceSyncedCustomTimers(
                 listOf(ServerCustomTimer(serverId = 10L, name = "새 타이머", steps = newSteps)),
+                MEMBER_ID,
+                dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.CUSTOM),
             )
 
             // Then: 삭제 대기 행은 그대로, 새 행은 스텝까지 반영된다
@@ -430,6 +447,41 @@ class TimerLocalDataSourceTest {
 
             // When & Then
             assertThat(dataSource.getSimpleTimers()).isEmpty()
+        }
+
+    @Test
+    fun `전송 완료와 충돌 해결도 revision을 올려 이전 GET을 반영하지 않는다`() =
+        runTest {
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 60)), MEMBER_ID, 0L)
+            val id = dataSource.getSimpleTimers().single().localId
+            dataSource.updateSimpleTimer(id, 90)
+            val receipt = dataSource.claimSimpleTimer(MEMBER_ID, id)!!
+            val revision = dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE)
+            dataSource.completeSimple(receipt, 7L)
+            assertThat(dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE)).isGreaterThan(revision)
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 60)), MEMBER_ID, revision)
+            assertThat(dataSource.getSimpleTimer(id)?.time).isEqualTo(90)
+            assertThat(dataSource.getSimpleTimer(id)?.syncState).isEqualTo(SyncState.SYNCED)
+
+            dataSource.updateSimpleTimer(id, 120)
+            val conflict = dataSource.claimSimpleTimer(MEMBER_ID, id)!!
+            val conflictRevision = dataSource.snapshotRevision(MEMBER_ID, TimerSnapshotEntity.SIMPLE)
+            dataSource.resolveSimpleConflict(conflict, ServerSimpleTimer(7L, 180))
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 60)), MEMBER_ID, conflictRevision)
+            assertThat(dataSource.getSimpleTimer(id)?.time).isEqualTo(180)
+        }
+
+    @Test
+    fun `이전 회원 영수증과 목록은 새 회원에게 반영되지 않는다`() =
+        runTest {
+            val id = dataSource.createSimpleTimer(60)!!
+            val receipt = dataSource.claimSimpleTimer(MEMBER_ID, id)!!
+            every { preferenceManager.getMemberId() } returns "member-b"
+            dataSource.completeSimple(receipt, 7L)
+            dataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 90)), MEMBER_ID, 1L)
+            assertThat(database.timerDao().getSimpleTimer(MEMBER_ID, id)?.serverId).isNull()
+            assertThat(database.timerDao().getSimpleTimers("member-b")).isEmpty()
+            assertThat(database.timerDao().getSnapshot("member-b", TimerSnapshotEntity.SIMPLE)).isNull()
         }
 
     companion object {

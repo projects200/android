@@ -32,6 +32,7 @@ class MypageViewModel
         val selectedMonth: LiveData<YearMonth> = _selectedMonth
 
         private val exerciseCache = mutableMapOf<YearMonth, Set<LocalDate>>()
+        private val monthRequestIds = mutableMapOf<YearMonth, Long>()
 
         private val _exerciseDates = MutableLiveData<Set<LocalDate>>(emptySet())
         val exerciseDates: LiveData<Set<LocalDate>> = _exerciseDates
@@ -73,13 +74,17 @@ class MypageViewModel
             yearMonth: YearMonth,
             today: LocalDate,
         ) {
+            val requestId = (monthRequestIds[yearMonth] ?: 0) + 1
+            monthRequestIds[yearMonth] = requestId
             viewModelScope.launch {
                 val startDate = yearMonth.atDay(1)
                 // 이번 달인 경우, 끝 날짜를 오늘로 설정
                 val endDate =
                     if (yearMonth == YearMonth.from(today)) today else yearMonth.atEndOfMonth()
 
-                when (val result = getExerciseCountInMonthUseCase(startDate, endDate)) {
+                val result = getExerciseCountInMonthUseCase(startDate, endDate, refresh = false)
+                if (monthRequestIds[yearMonth] != requestId) return@launch
+                when (result) {
                     is BaseResult.Success -> {
                         // 운동 기록 횟수 set 으로 변환
                         val datesWithExercise =
@@ -90,6 +95,9 @@ class MypageViewModel
 
                         exerciseCache[yearMonth] = datesWithExercise
                         _exerciseDates.value = exerciseCache.values.flatten().toSet()
+                        if (result.isCachedSnapshot) {
+                            viewModelScope.launch { getExerciseCountInMonthUseCase(startDate, endDate, refresh = true) }
+                        }
                     }
 
                     is BaseResult.Error -> {

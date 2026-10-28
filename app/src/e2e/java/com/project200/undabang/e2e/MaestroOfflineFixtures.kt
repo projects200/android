@@ -4,13 +4,11 @@ import android.content.Context
 import android.system.Os
 import android.util.AtomicFile
 import com.project200.data.api.ApiService
-import com.project200.data.datasource.FeatureFlagDataSource
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.DeleteTimerRequestDTO
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetExerciseRecordListDto
-import com.project200.domain.repository.AppUpdateRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -63,8 +61,6 @@ internal class MaestroOfflineFixtures
     @Inject
     constructor(
         private val api: ApiService,
-        private val featureFlags: FeatureFlagDataSource,
-        private val appUpdateRepository: AppUpdateRepository,
         @ApplicationContext private val context: Context,
         private val localDataSource: TimerLocalDataSource,
     ) : MaestroFeatureFixture {
@@ -85,7 +81,6 @@ internal class MaestroOfflineFixtures
             )
             validateDate(run)
             clean(run)
-            requireCacheEnabled()
             return run.variables()
         }
 
@@ -167,12 +162,6 @@ internal class MaestroOfflineFixtures
                 file.failWrite(stream)
                 throw MaestroSetupFailure("offline_snapshot_write_failed")
             }
-        }
-
-        suspend fun requireCacheEnabled() {
-            // 기본값 false인 플래그를 가정하지 않고 실제 fetch/activate 경로에서 확인합니다.
-            appUpdateRepository.getUpdateInfo().getOrElse { throw MaestroSetupFailure("offline_flag_fetch_failed") }
-            if (!featureFlags.isOfflineCacheEnabled()) throw MaestroSetupFailure("offline_cache_flag_disabled")
         }
 
         fun validateDate(run: MaestroOfflineRun) {

@@ -6,9 +6,19 @@ import androidx.room.Upsert
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
+import com.project200.data.local.entity.TimerSnapshotEntity
 
 @Dao
 interface TimerDao {
+    @Query("SELECT * FROM timer_snapshot WHERE memberId = :memberId AND timerType = :timerType")
+    suspend fun getSnapshot(
+        memberId: String,
+        timerType: String,
+    ): TimerSnapshotEntity?
+
+    @Upsert
+    suspend fun upsertSnapshot(snapshot: TimerSnapshotEntity)
+
     /** 삭제 대기 행은 화면에서 이미 사라진 타이머라 조회에서 뺍니다 */
     @Query(
         "SELECT * FROM simple_timer " +

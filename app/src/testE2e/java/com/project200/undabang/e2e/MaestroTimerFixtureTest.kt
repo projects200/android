@@ -14,6 +14,7 @@ import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
@@ -44,6 +45,7 @@ class MaestroTimerFixtureTest {
     @Before
     fun setUp() {
         File(context.filesDir, "maestro-timer-state.json").delete()
+        every { local.currentMemberId() } returns "member"
         coEvery { local.getSimpleTimers() } returns emptyList()
         coEvery { local.getCustomTimers() } returns emptyList()
         coEvery { api.getSimpleTimers() } returns success(GetSimpleTimersDTO(0, emptyList()))

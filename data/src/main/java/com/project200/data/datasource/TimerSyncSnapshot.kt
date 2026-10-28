@@ -4,6 +4,7 @@ import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.SyncState
 
 sealed interface TimerSyncSnapshot {
+    val memberId: String
     val localId: String
     val serverId: Long?
     val state: SyncState
@@ -11,6 +12,7 @@ sealed interface TimerSyncSnapshot {
     val editedAt: Long
 
     data class Simple(
+        override val memberId: String,
         override val localId: String,
         override val serverId: Long?,
         override val state: SyncState,
@@ -21,6 +23,7 @@ sealed interface TimerSyncSnapshot {
     ) : TimerSyncSnapshot
 
     data class Custom(
+        override val memberId: String,
         override val localId: String,
         override val serverId: Long?,
         override val state: SyncState,

@@ -161,7 +161,7 @@ python3 .maestro/scripts/run-tests.py \
   --configure-emulator
 ```
 
-실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`와 활성화된 DEV `OFFLINE_CACHE_ENABLED` Remote Config이 필요합니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다.
+실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`가 필요합니다. 로컬 우선 읽기는 기본 동작이며 Remote Config 활성화는 필요하지 않습니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다. 첫 저장 스냅샷을 표시한 뒤의 서버 갱신은 Room만 바꾸며, 표시 중인 목록·상세·수정 폼은 명시적 새로고침이나 로컬 복귀 조회까지 유지됩니다.
 
 타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
 호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.

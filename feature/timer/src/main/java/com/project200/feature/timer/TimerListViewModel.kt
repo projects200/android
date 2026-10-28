@@ -22,26 +22,33 @@ class TimerListViewModel
     ) : ViewModel() {
         private val _customTimerList = MutableStateFlow<List<CustomTimer>>(emptyList())
         val customTimerList: StateFlow<List<CustomTimer>> = _customTimerList.asStateFlow()
+        private var listRequestId = 0L
 
         init {
             loadCustomTimers()
         }
 
-        /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 읽습니다 */
-        fun loadCustomTimers() {
+        /** 최초 스냅샷을 표시한 뒤 별도 갱신은 Room에만 반영합니다 */
+        fun loadCustomTimers(refresh: Boolean = false) {
+            val requestId = ++listRequestId
             viewModelScope.launch {
-                val result = getCustomTimerListUseCase()
-                // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
+                val result = getCustomTimerListUseCase(refresh)
+                if (requestId != listRequestId) return@launch
                 if (result is BaseResult.Success) {
                     _customTimerList.value = result.data
+                    if (!refresh && result.isCachedSnapshot) {
+                        viewModelScope.launch { getCustomTimerListUseCase(refresh = true) }
+                    }
                 }
             }
         }
 
         /** savedStateHandle 새로고침 플래그로 복귀했을 때 씁니다. 서버를 보지 않고, 실패해도 기존 목록을 유지합니다 */
         fun refreshLocalCustomTimers() {
+            val requestId = ++listRequestId
             viewModelScope.launch {
                 val result = getLocalCustomTimerListUseCase()
+                if (requestId != listRequestId) return@launch
                 // 로컬 스냅샷이 이미 화면에 있어 조회 실패를 알릴 것이 없다
                 if (result is BaseResult.Success) {
                     _customTimerList.value = result.data

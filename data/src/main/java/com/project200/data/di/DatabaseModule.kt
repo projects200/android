@@ -62,6 +62,23 @@ abstract class DatabaseModule {
                 }
             }
 
+        val MIGRATION_4_5 =
+            object : Migration(4, 5) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS timer_snapshot " +
+                            "(memberId TEXT NOT NULL, timerType TEXT NOT NULL, hasSnapshot INTEGER NOT NULL, " +
+                            "revision INTEGER NOT NULL, PRIMARY KEY(memberId, timerType))",
+                    )
+                    db.execSQL(
+                        "INSERT INTO timer_snapshot SELECT DISTINCT memberId, 'simple', 1, 0 FROM simple_timer",
+                    )
+                    db.execSQL(
+                        "INSERT INTO timer_snapshot SELECT DISTINCT memberId, 'custom', 1, 0 FROM custom_timer",
+                    )
+                }
+            }
+
         @Provides
         @Singleton
         fun provideUndabangTypeConverters(moshi: Moshi): UndabangTypeConverters {
@@ -88,7 +105,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
         }

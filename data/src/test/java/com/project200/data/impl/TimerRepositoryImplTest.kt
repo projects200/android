@@ -68,6 +68,11 @@ class TimerRepositoryImplTest {
         every { localDataSource.isCurrentMember(MEMBER_ID) } returns true
         coEvery { localDataSource.getPendingSimpleTimers() } returns emptyList()
         coEvery { localDataSource.getPendingCustomTimers() } returns emptyList()
+        coEvery { localDataSource.snapshotRevision(MEMBER_ID, any()) } returns 0L
+        coEvery { localDataSource.getSimpleTimers() } returns emptyList()
+        coEvery { localDataSource.getCustomTimers() } returns emptyList()
+        coEvery { localDataSource.getSimpleSnapshot(MEMBER_ID) } coAnswers { localDataSource.getSimpleTimers() }
+        coEvery { localDataSource.getCustomSnapshot(MEMBER_ID) } coAnswers { localDataSource.getCustomTimers() }
         repository = TimerRepositoryImpl(apiService, localDataSource, UnconfinedTestDispatcher(), timerSyncScheduler)
     }
 
@@ -117,6 +122,7 @@ class TimerRepositoryImplTest {
                     .copy(createRequestId = createRequestId)
             val snapshot =
                 TimerSyncSnapshot.Simple(
+                    memberId = MEMBER_ID,
                     localId = "local-1",
                     serverId = null,
                     state = SyncState.CREATE_PENDING,
@@ -142,11 +148,11 @@ class TimerRepositoryImplTest {
                     message = "",
                     data = GetSimpleTimersDTO(1, listOf(SimpleTimerDTO(8L, 90))),
                 )
-            coEvery { localDataSource.replaceSyncedSimpleTimers(any()) } returns Unit
+            coEvery { localDataSource.replaceSyncedSimpleTimers(any(), MEMBER_ID, 0L) } returns Unit
             coEvery { localDataSource.getSimpleTimers() } returns listOf(pending.copy(serverId = 7L))
 
             // When
-            repository.getSimpleTimers()
+            repository.getSimpleTimers(refresh = true)
 
             // Then
             coVerifyOrder {
@@ -160,7 +166,7 @@ class TimerRepositoryImplTest {
                 )
                 localDataSource.completeSimple(snapshot, 7L)
                 apiService.getSimpleTimers()
-                localDataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(8L, 90)))
+                localDataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(8L, 90)), MEMBER_ID, 0L)
             }
         }
 
@@ -170,15 +176,15 @@ class TimerRepositoryImplTest {
             // Given
             coEvery { apiService.getSimpleTimers() } returns
                 BaseResponse(succeed = true, code = "200", message = "", data = GetSimpleTimersDTO(1, listOf(SimpleTimerDTO(7L, 60))))
-            coEvery { localDataSource.replaceSyncedSimpleTimers(any()) } returns Unit
+            coEvery { localDataSource.replaceSyncedSimpleTimers(any(), MEMBER_ID, 0L) } returns Unit
             val localSnapshot = listOf(simpleEntity("local-1", 7L, 60))
             coEvery { localDataSource.getSimpleTimers() } returns localSnapshot
 
             // When
-            val result = repository.getSimpleTimers()
+            val result = repository.getSimpleTimers(refresh = true)
 
             // Then
-            coVerify(exactly = 1) { localDataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 60))) }
+            coVerify(exactly = 1) { localDataSource.replaceSyncedSimpleTimers(listOf(ServerSimpleTimer(7L, 60)), MEMBER_ID, 0L) }
             assertThat(result).isEqualTo(BaseResult.Success(localSnapshot.map { it.toModel() }))
         }
 
@@ -191,11 +197,13 @@ class TimerRepositoryImplTest {
             coEvery { localDataSource.getSimpleTimers() } returns localSnapshot
 
             // When
-            val result = repository.getSimpleTimers()
+            val result = repository.getSimpleTimers(refresh = true) as BaseResult.Success
 
             // Then
-            coVerify(exactly = 0) { localDataSource.replaceSyncedSimpleTimers(any()) }
-            assertThat(result).isEqualTo(BaseResult.Success(localSnapshot.map { it.toModel() }))
+            coVerify(exactly = 0) { localDataSource.replaceSyncedSimpleTimers(any(), any(), any()) }
+            assertThat(result.data).isEqualTo(localSnapshot.map { it.toModel() })
+            assertThat(result.isCachedSnapshot).isTrue()
+            assertThat(result.refreshError?.errorCode).isEqualTo("NETWORK_ERROR")
         }
 
     @Test
@@ -206,10 +214,10 @@ class TimerRepositoryImplTest {
                 BaseResponse(succeed = false, code = "SERVER_ERROR", message = "서버 오류")
 
             // When
-            val result = repository.getSimpleTimers()
+            val result = repository.getSimpleTimers(refresh = true)
 
             // Then
-            coVerify(exactly = 0) { localDataSource.replaceSyncedSimpleTimers(any()) }
+            coVerify(exactly = 0) { localDataSource.replaceSyncedSimpleTimers(any(), any(), any()) }
             assertThat(result).isEqualTo(BaseResult.Error(errorCode = "SERVER_ERROR", message = "서버 오류"))
         }
 
@@ -235,6 +243,7 @@ class TimerRepositoryImplTest {
             val pending = simpleEntity("local-1", null, 60, SyncState.CREATE_PENDING)
             val snapshot =
                 TimerSyncSnapshot.Simple(
+                    memberId = MEMBER_ID,
                     localId = "local-1",
                     serverId = null,
                     state = SyncState.CREATE_PENDING,
@@ -340,18 +349,20 @@ class TimerRepositoryImplTest {
                     message = "",
                     data = GetCustomTimerDetailDTO(5L, "8세트", 1, listOf(stepDto)),
                 )
-            coEvery { localDataSource.replaceSyncedCustomTimers(any()) } returns Unit
+            coEvery { localDataSource.replaceSyncedCustomTimers(any(), MEMBER_ID, 0L) } returns Unit
             val localSnapshot =
                 listOf(customEntity("local-1", 5L, "8세트", listOf(CachedTimerStep(1, "운동", 30))))
             coEvery { localDataSource.getCustomTimers() } returnsMany listOf(emptyList(), localSnapshot)
 
             // When
-            val result = repository.getCustomTimerList()
+            val result = repository.getCustomTimerList(refresh = true)
 
             // Then
             coVerify(exactly = 1) {
                 localDataSource.replaceSyncedCustomTimers(
                     listOf(ServerCustomTimer(5L, "8세트", listOf(CachedTimerStep(1, "운동", 30)))),
+                    MEMBER_ID,
+                    0L,
                 )
             }
             assertThat(result).isEqualTo(BaseResult.Success(localSnapshot.map { it.toModel() }))
@@ -376,15 +387,17 @@ class TimerRepositoryImplTest {
             coEvery { apiService.getCustomTimer(6L) } throws IOException("오프라인")
             val cached = customEntity("local-cached", 5L, "캐시 있음", listOf(CachedTimerStep(1, "운동", 30)))
             coEvery { localDataSource.getCustomTimers() } returns listOf(cached)
-            coEvery { localDataSource.replaceSyncedCustomTimers(any()) } returns Unit
+            coEvery { localDataSource.replaceSyncedCustomTimers(any(), MEMBER_ID, 0L) } returns Unit
 
             // When
-            repository.getCustomTimerList()
+            repository.getCustomTimerList(refresh = true)
 
             // Then: serverId 6L은 캐시가 없어 반영 목록에서 빠진다
             coVerify(exactly = 1) {
                 localDataSource.replaceSyncedCustomTimers(
                     listOf(ServerCustomTimer(5L, "캐시 있음", listOf(CachedTimerStep(1, "운동", 30)))),
+                    MEMBER_ID,
+                    0L,
                 )
             }
         }
@@ -398,11 +411,13 @@ class TimerRepositoryImplTest {
             coEvery { localDataSource.getCustomTimers() } returns localSnapshot
 
             // When
-            val result = repository.getCustomTimerList()
+            val result = repository.getCustomTimerList(refresh = true) as BaseResult.Success
 
             // Then
-            coVerify(exactly = 0) { localDataSource.replaceSyncedCustomTimers(any()) }
-            assertThat(result).isEqualTo(BaseResult.Success(localSnapshot.map { it.toModel() }))
+            coVerify(exactly = 0) { localDataSource.replaceSyncedCustomTimers(any(), any(), any()) }
+            assertThat(result.data).isEqualTo(localSnapshot.map { it.toModel() })
+            assertThat(result.isCachedSnapshot).isTrue()
+            assertThat(result.refreshError?.errorCode).isEqualTo("NETWORK_ERROR")
         }
 
     @Test
@@ -413,10 +428,10 @@ class TimerRepositoryImplTest {
                 BaseResponse(succeed = false, code = "SERVER_ERROR", message = "서버 오류")
 
             // When
-            val result = repository.getCustomTimerList()
+            val result = repository.getCustomTimerList(refresh = true)
 
             // Then
-            coVerify(exactly = 0) { localDataSource.replaceSyncedCustomTimers(any()) }
+            coVerify(exactly = 0) { localDataSource.replaceSyncedCustomTimers(any(), any(), any()) }
             assertThat(result).isEqualTo(BaseResult.Error(errorCode = "SERVER_ERROR", message = "서버 오류"))
         }
 

@@ -17,6 +17,7 @@ import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +92,47 @@ class SimpleTimerViewModelTest {
             deleteSimpleTimerUseCase = mockDeleteSimpleTimerUseCase,
         )
     }
+
+    @Test
+    fun `캐시를 먼저 표시하고 백그라운드 완료는 목록과 정렬을 바꾸지 않으며 명시 갱신만 적용한다`() =
+        runTest {
+            val remote = CompletableDeferred<BaseResult<List<SimpleTimer>>>()
+            coEvery { mockGetSimpleTimersUseCase(false) } returns BaseResult.Success(sampleTimers, isCachedSnapshot = true)
+            coEvery { mockGetSimpleTimersUseCase(true) } coAnswers { remote.await() }
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.timerItems.value.map { it.time }).containsExactly(30, 60, 120).inOrder()
+            viewModel.changeSortOrder()
+            val displayed = viewModel.timerItems.value
+            val updated = listOf(SimpleTimer(localId = "new", time = 300))
+            remote.complete(BaseResult.Success(updated))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.timerItems.value).isEqualTo(displayed)
+            viewModel.loadTimerItems(refresh = true)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.timerItems.value).isEqualTo(updated)
+            coVerify(exactly = 1) { mockGetSimpleTimersUseCase(false) }
+            coVerify(exactly = 2) { mockGetSimpleTimersUseCase(true) }
+        }
+
+    @Test
+    fun `초기 미적중의 늦은 응답은 자신의 로컬 수정 결과를 교체하지 않는다`() =
+        runTest {
+            val initial = CompletableDeferred<BaseResult<List<SimpleTimer>>>()
+            coEvery { mockGetSimpleTimersUseCase(false) } coAnswers { initial.await() }
+            coEvery { mockEditSimpleTimerUseCase("1", 180) } returns BaseResult.Success(Unit)
+            val changed = listOf(SimpleTimer(localId = "1", time = 180))
+            coEvery { mockGetLocalSimpleTimersUseCase() } returns BaseResult.Success(changed)
+            viewModel = createViewModel()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.updateTimerItem("1", 180)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.timerItems.value).isEqualTo(changed)
+            initial.complete(BaseResult.Success(sampleTimers))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.timerItems.value).isEqualTo(changed)
+            coVerify(exactly = 0) { mockGetSimpleTimersUseCase(true) }
+        }
 
     @Test
     fun `init - ViewModel 생성 시 서비스가 바인딩된다`() =
