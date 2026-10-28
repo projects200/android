@@ -39,7 +39,6 @@ class TimerRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val timerSyncScheduler: TimerSyncScheduler,
     ) : TimerRepository {
-
         override suspend fun getSimpleTimers(refresh: Boolean): BaseResult<List<SimpleTimer>> {
             val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
             if (!refresh) {
