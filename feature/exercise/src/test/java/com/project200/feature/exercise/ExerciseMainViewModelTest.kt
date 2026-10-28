@@ -744,6 +744,16 @@ class ExerciseMainViewModelTest {
                 BaseResult.Success(listOf(ExerciseCount(today, 1)), isCachedSnapshot = true)
             coEvery { mockGetExerciseRecordListUseCase(today, true, false) } coAnswers { listResponse.await() }
             coEvery { mockGetExerciseCountUseCase(any(), any(), true, false) } coAnswers { countResponse.await() }
+            viewModel =
+                ExerciseMainViewModel(
+                    mockGetExerciseCountUseCase,
+                    mockGetScoreUseCase,
+                    mockGetScorePolicyUseCase,
+                    mockGetExerciseRecordListUseCase,
+                    mockGetExpectedScoreInfoUseCase,
+                    mockClockProvider,
+                    mockNetworkMonitor,
+                )
             testDispatcher.scheduler.runCurrent()
             assertThat(viewModel.exerciseList.value).isEqualTo(cached)
             assertThat(viewModel.exerciseDates.value).containsExactly(today)
@@ -773,6 +783,16 @@ class ExerciseMainViewModelTest {
             val countResponse = CompletableDeferred<BaseResult<List<ExerciseCount>>>()
             coEvery { mockGetExerciseRecordListUseCase(today, false, false) } coAnswers { listResponse.await() }
             coEvery { mockGetExerciseCountUseCase(any(), any(), false, false) } coAnswers { countResponse.await() }
+            viewModel =
+                ExerciseMainViewModel(
+                    mockGetExerciseCountUseCase,
+                    mockGetScoreUseCase,
+                    mockGetScorePolicyUseCase,
+                    mockGetExerciseRecordListUseCase,
+                    mockGetExpectedScoreInfoUseCase,
+                    mockClockProvider,
+                    mockNetworkMonitor,
+                )
             testDispatcher.scheduler.runCurrent()
             val changed = listOf(item("own-write", today))
             coEvery { mockGetExerciseRecordListUseCase(today, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
