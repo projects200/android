@@ -41,6 +41,7 @@ import net.openid.appauth.AuthorizationServiceConfiguration
 import net.openid.appauth.AuthorizationServiceDiscovery
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.TokenResponse
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.After
@@ -51,6 +52,8 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
+import retrofit2.HttpException
+import retrofit2.Response
 import java.io.File
 import java.io.IOException
 import java.time.LocalDate
@@ -149,7 +152,8 @@ class MaestroOfflineRecoveryTest {
         }
         coEvery { dataCleaner.clearAll() } coAnswers { pending.clear() }
         val repository = AuthRepositoryImpl(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher())
-        bootstrap = MaestroSessionBootstrap(config, stateManager, authManager, repository, api)
+        val registrationCheck = MaestroRegistrationCheck(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher())
+        bootstrap = MaestroSessionBootstrap(config, stateManager, authManager, repository, registrationCheck)
         coordinator = MaestroSetupCoordinator(protocol, bootstrap, commonCleaner, mapOf("offline" to offline), offline)
         coEvery { api.getIsRegistered() } returns success(GetIsRegisteredData(MEMBER, true))
         coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
@@ -279,18 +283,18 @@ class MaestroOfflineRecoveryTest {
     @Test
     fun `등록 조회 실패와 누락 본문과 미가입은 로컬 회원이나 pending을 바꾸지 않는다`() =
         runTest {
-            for (response in listOf(
-                BaseResponse<GetIsRegisteredData>(false, "SERVER_ERROR", "private diagnostic"),
-                BaseResponse<GetIsRegisteredData>(true, "OK", ""),
-                success(GetIsRegisteredData(MEMBER, false)),
-                success(GetIsRegisteredData("", true)),
+            for ((response, reason) in listOf(
+                BaseResponse<GetIsRegisteredData>(false, "SERVER_ERROR", "private diagnostic") to "registration_business_error",
+                BaseResponse<GetIsRegisteredData>(true, "OK", "") to "registration_response_missing",
+                success(GetIsRegisteredData(MEMBER, false)) to "registration_unregistered",
+                success(GetIsRegisteredData("", true)) to "registration_member_id_missing",
             )) {
                 coEvery { api.getIsRegistered() } returns response
                 writeCleanup()
 
                 coordinator.consumeRequest()
 
-                assertFailure("registration_failed")
+                assertFailure(reason)
                 assertPreserved()
             }
             assertNoFixtureCalls()
@@ -304,7 +308,7 @@ class MaestroOfflineRecoveryTest {
 
             coordinator.consumeRequest()
 
-            assertFailure("setup_failed")
+            assertFailure("registration_network_error")
             assertPreserved()
             assertThat(current.isAuthorized).isFalse()
             assertNoFixtureCalls()
@@ -552,6 +556,30 @@ class MaestroOfflineRecoveryTest {
             coVerify(exactly = 1) { dataCleaner.clearAll() }
             coVerify(exactly = 1) { authManager.refreshAccessToken() }
             coVerify(exactly = 1) { api.getIsRegistered() }
+        }
+
+    @Test
+    fun `실제 등록 HTTP 실패는 private 결과로 전달되고 fixture 준비나 정리를 시작하지 않는다`() =
+        runTest {
+            val fixture = mockk<MaestroFeatureFixture>()
+            val coordinator = MaestroSetupCoordinator(protocol, bootstrap, commonCleaner, mapOf("offline" to fixture), offline)
+            val secret = "SYNTHETIC_SECRET token/member/body/message/https://private.example.test"
+            coEvery { api.getIsRegistered() } throws HttpException(Response.error<Unit>(502, secret.toResponseBody()))
+            writeCleanup()
+            val requestFile = File(context.filesDir, "maestro-request.json")
+            requestFile.writeText(JSONObject(requestFile.readText()).put("operation", "prepare").toString())
+
+            coordinator.consumeRequest()
+
+            assertFailure("registration_http_502")
+            assertThat(resultFile.readText()).doesNotContain(secret)
+            assertThat(resultFile.readText()).doesNotContain(MEMBER)
+            assertThat(result().keys().asSequence().toSet()).containsExactly("status", "reason")
+            coVerify(exactly = 1) { api.getIsRegistered() }
+            coVerify(exactly = 0) { fixture.prepare(any()) }
+            coVerify(exactly = 0) { fixture.cleanup(any()) }
+            coVerify(exactly = 0) { dataCleaner.clearAll() }
+            assertNoFixtureCalls()
         }
 
     private fun authorizedState(client: String = CLIENT): AuthState {

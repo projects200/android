@@ -72,6 +72,8 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 결과 파일이 아직 없을 때만 고정 probe가 종료 코드 `3`을 반환해 기존 0.5초 간격으로 기다립니다. 파일이 있으면 `cat`의 실패 상태를 그대로 전달합니다. `run-as`·쓰기·읽기·삭제의 다른 nonzero는 즉시 실패합니다. 종료 코드 `0`이라도 빈 본문/잘못된 JSON은 `invalid-bootstrap-result`로 즉시 실패하며, 요청 작업에 맞는 `ready`/`cleaned`/`exported`가 아니면 성공하지 않습니다.
 
+등록 조회 진단은 기존 private 결과의 고정 `reason`만 console/JUnit의 `bootstrap-<operation>-failed-registration-<분류>`로 전달합니다. 분류는 `unregistered`, `response-missing`, `member-id-missing`, `authentication-failed`, `user-id-header-missing`, `business-error`, `network-error`, `network-timeout`, `parse-error`, `unknown`, `http-100`–`http-599`이며, 예를 들어 HTTP 401/502는 `bootstrap-prepare-failed-registration-http-401`/`...-http-502`로 구분합니다. 앱 reason은 각각 `registration_` 접두사와 밑줄을 쓰며 HTTP만 `registration_http_<숫자>`입니다. 호스트는 정확한 allowlist와 전체 일치하는 100–599 숫자만 공개하고 임의 코드·추가 문자열·개행은 기존 일반 실패로 처리합니다. 기능 종류와 무관하게 prepare/cleanup/export/관찰에 적용하며 기존 기능별 실패·정리 정책은 유지합니다. 원래 요청 한 번만 관찰하고 재시도하지 않으며 토큰·회원 ID·본문·예외 메시지·URL은 진단에 포함하지 않습니다.
+
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 
 ## 무인 실행: 실제 세션을 매 플로우에 독립 복원

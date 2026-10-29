@@ -150,5 +150,9 @@ dependencies {
 
     implementation(libs.firebase.crashlytics.ktx)
 
+    // E2E 진단에서 기존 네트워크 예외 타입만 참조하며 일반 빌드 의존성은 바꾸지 않습니다.
+    "e2eImplementation"(libs.retrofit.core)
+    "e2eImplementation"(libs.moshi.kotlin)
+
     "testE2eImplementation"(libs.robolectric)
 }

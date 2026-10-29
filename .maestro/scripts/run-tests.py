@@ -61,6 +61,21 @@ COMMON_PREPARE_FAILURES = {
     "setup_failed": "bootstrap-prepare-failed-setup",
 }
 
+REGISTRATION_FAILURES = {
+    "registration_failed": "registration",
+    "registration_unregistered": "registration-unregistered",
+    "registration_response_missing": "registration-response-missing",
+    "registration_member_id_missing": "registration-member-id-missing",
+    "registration_authentication_failed": "registration-authentication-failed",
+    "registration_user_id_header_missing": "registration-user-id-header-missing",
+    "registration_business_error": "registration-business-error",
+    "registration_network_error": "registration-network-error",
+    "registration_network_timeout": "registration-network-timeout",
+    "registration_parse_error": "registration-parse-error",
+    "registration_unknown": "registration-unknown",
+}
+REGISTRATION_HTTP_FAILURE = re.compile(r"registration_http_([1-5][0-9]{2})")
+
 PROFILE_PREPARE_FAILURES = {
     "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
     "profile_fixture_read_failed": "bootstrap-prepare-failed-profile-fixture-read-failed",
@@ -805,16 +820,23 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱의 reason도 외부 입력이므로 해당 기능에서 검토된 준비 코드만 고정 오류로 공개합니다.
+                # 앱 reason도 외부 입력이므로 검토된 고정 코드와 유효 HTTP 숫자만 공개합니다.
                 failure = "bootstrap-" + operation + "-failed"
                 if (
-                    operation in ("prepare", "offline-observe", "feature-observe") and
                     isinstance(result, dict) and
                     result.get("status") == "failed" and
                     isinstance(result.get("reason"), str)
                 ):
                     reason = result["reason"]
-                    if operation == "offline-observe" or feature == "offline":
+                    registration = REGISTRATION_FAILURES.get(reason)
+                    http = REGISTRATION_HTTP_FAILURE.fullmatch(reason)
+                    if registration is not None:
+                        failure += "-" + registration
+                    elif http is not None:
+                        failure += "-registration-http-" + http.group(1)
+                    elif operation not in ("prepare", "offline-observe", "feature-observe"):
+                        pass
+                    elif operation == "offline-observe" or feature == "offline":
                         failure = {
                             "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
                             "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
