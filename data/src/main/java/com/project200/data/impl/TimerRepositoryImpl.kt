@@ -16,6 +16,7 @@ import com.project200.data.dto.SimpleTimerRequest
 import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SyncState
+import com.project200.data.local.entity.TimerSnapshotEntity
 import com.project200.data.mapper.toCachedSteps
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toServerModel
@@ -38,34 +39,44 @@ class TimerRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val timerSyncScheduler: TimerSyncScheduler,
     ) : TimerRepository {
-        private suspend fun syncPendingBeforeFetch() {
-            val memberId = localDataSource.currentMemberId() ?: return
+        override suspend fun getSimpleTimers(refresh: Boolean): BaseResult<List<SimpleTimer>> {
+            val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
+            if (!refresh) {
+                localDataSource.getSimpleSnapshot(memberId)?.let {
+                    if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+                    return BaseResult.Success(it.map { row -> row.toModel() }, isCachedSnapshot = true)
+                }
+            }
             syncPendingTimers(memberId)
-        }
-
-        override suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>> {
-            syncPendingBeforeFetch()
-            val listResult =
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            val revision = localDataSource.snapshotRevision(memberId, TimerSnapshotEntity.SIMPLE)
+            val result =
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
-                    apiCall = { apiService.getSimpleTimers() },
-                    mapper = { dto: GetSimpleTimersDTO? ->
-                        dto?.simpleTimers?.map { it.toServerModel() } ?: emptyList()
+                    apiCall = {
+                        if (!localDataSource.isCurrentMember(memberId)) throw IllegalStateException(ACCOUNT_CHANGED_CODE)
+                        apiService.getSimpleTimers()
                     },
+                    mapper = { dto: GetSimpleTimersDTO? -> dto?.simpleTimers?.map { it.toServerModel() } ?: emptyList() },
                 )
-            return when (listResult) {
-                is BaseResult.Success -> {
-                    localDataSource.replaceSyncedSimpleTimers(listResult.data)
-                    getLocalSimpleTimers()
-                }
-                is BaseResult.Error -> {
-                    if (listResult.errorCode == NETWORK_ERROR_CODE) getLocalSimpleTimers() else listResult
-                }
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            if (result is BaseResult.Success) localDataSource.replaceSyncedSimpleTimers(result.data, memberId, revision)
+            val snapshot = localDataSource.getSimpleSnapshot(memberId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            return when {
+                result is BaseResult.Success && snapshot != null -> BaseResult.Success(snapshot.map { it.toModel() })
+                result is BaseResult.Error && result.errorCode == NETWORK_ERROR_CODE && snapshot != null ->
+                    BaseResult.Success(snapshot.map { it.toModel() }, refreshError = result, isCachedSnapshot = true)
+                result is BaseResult.Error -> result
+                else -> BaseResult.Error("CACHE_ERROR", "저장된 타이머를 불러올 수 없습니다")
             }
         }
 
         override suspend fun getLocalSimpleTimers(): BaseResult<List<SimpleTimer>> {
-            return BaseResult.Success(localDataSource.getSimpleTimers().map { it.toModel() })
+            val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
+            val snapshot = localDataSource.getSimpleTimers(memberId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            return BaseResult.Success(snapshot.map { it.toModel() })
         }
 
         override suspend fun addSimpleTimer(time: Int): BaseResult<String> {
@@ -96,42 +107,63 @@ class TimerRepositoryImpl
          * 상세 조회가 실패한 항목은 반영에서 빼고, 로컬에 이미 값이 있으면 그 값으로 채워 지워지지
          * 않게 합니다
          */
-        override suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>> {
-            syncPendingBeforeFetch()
-            val listResult =
+        override suspend fun getCustomTimerList(refresh: Boolean): BaseResult<List<CustomTimer>> {
+            val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
+            if (!refresh) {
+                localDataSource.getCustomSnapshot(memberId)?.let {
+                    if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+                    return BaseResult.Success(it.map { row -> row.toModel() }, isCachedSnapshot = true)
+                }
+            }
+            syncPendingTimers(memberId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            val revision = localDataSource.snapshotRevision(memberId, TimerSnapshotEntity.CUSTOM)
+            val result =
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
-                    apiCall = { apiService.getCustomTimerList() },
+                    apiCall = {
+                        if (!localDataSource.isCurrentMember(memberId)) throw IllegalStateException(ACCOUNT_CHANGED_CODE)
+                        apiService.getCustomTimerList()
+                    },
                     mapper = { dto: GetCustomTimerListDTO? -> dto?.customTimers ?: emptyList() },
                 )
-            return when (listResult) {
-                is BaseResult.Success -> {
-                    val cachedByServerId =
-                        localDataSource.getCustomTimers()
-                            .mapNotNull { entity -> entity.serverId?.let { it to entity } }
-                            .toMap()
-                    val reflected =
-                        listResult.data.mapNotNull { summary ->
-                            fetchCustomTimerDetail(summary.customTimerId, cachedByServerId[summary.customTimerId])
-                        }
-                    localDataSource.replaceSyncedCustomTimers(reflected)
-                    getLocalCustomTimerList()
-                }
-                is BaseResult.Error -> {
-                    if (listResult.errorCode == NETWORK_ERROR_CODE) getLocalCustomTimerList() else listResult
-                }
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            if (result is BaseResult.Success) {
+                val cachedByServerId =
+                    localDataSource.getCustomTimers(memberId)
+                        .mapNotNull { entity -> entity.serverId?.let { it to entity } }
+                        .toMap()
+                val reflected =
+                    result.data.mapNotNull { summary ->
+                        if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+                        fetchCustomTimerDetail(memberId, summary.customTimerId, cachedByServerId[summary.customTimerId])
+                    }
+                localDataSource.replaceSyncedCustomTimers(reflected, memberId, revision)
+            }
+            val snapshot = localDataSource.getCustomSnapshot(memberId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            return when {
+                result is BaseResult.Success && snapshot != null -> BaseResult.Success(snapshot.map { it.toModel() })
+                result is BaseResult.Error && result.errorCode == NETWORK_ERROR_CODE && snapshot != null ->
+                    BaseResult.Success(snapshot.map { it.toModel() }, refreshError = result, isCachedSnapshot = true)
+                result is BaseResult.Error -> result
+                else -> BaseResult.Error("CACHE_ERROR", "저장된 타이머를 불러올 수 없습니다")
             }
         }
 
         // 실패한 항목만 조용히 빠지고, 캐시된 값이 있으면 그 값으로 자리를 지킵니다
         private suspend fun fetchCustomTimerDetail(
+            memberId: String,
             serverId: Long,
             cached: CustomTimerEntity?,
         ): ServerCustomTimer? {
             val detailResult =
                 apiCallBuilder(
                     ioDispatcher = ioDispatcher,
-                    apiCall = { apiService.getCustomTimer(serverId) },
+                    apiCall = {
+                        check(localDataSource.isCurrentMember(memberId)) { ACCOUNT_CHANGED_CODE }
+                        apiService.getCustomTimer(serverId)
+                    },
                     mapper = { dto: GetCustomTimerDetailDTO? ->
                         (dto ?: throw IllegalStateException("커스텀 타이머 상세가 없습니다")).toServerModel()
                     },
@@ -143,11 +175,16 @@ class TimerRepositoryImpl
         }
 
         override suspend fun getLocalCustomTimerList(): BaseResult<List<CustomTimer>> {
-            return BaseResult.Success(localDataSource.getCustomTimers().map { it.toModel() })
+            val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
+            val snapshot = localDataSource.getCustomTimers(memberId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
+            return BaseResult.Success(snapshot.map { it.toModel() })
         }
 
         override suspend fun getCustomTimer(localId: String): BaseResult<CustomTimer> {
+            val memberId = localDataSource.currentMemberId() ?: return noMemberIdError()
             val entity = localDataSource.getCustomTimer(localId) ?: return notFoundError(localId)
+            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
             return BaseResult.Success(entity.toModel())
         }
 
@@ -239,6 +276,7 @@ class TimerRepositoryImpl
                     )
                 return when (result) {
                     is BaseResult.Success -> {
+                        if (!localDataSource.isCurrentMember(memberId)) return TimerSyncResult.Skipped
                         localDataSource.completeSimple(snapshot, result.data)
                         TimerSyncResult.Success
                     }
@@ -309,6 +347,7 @@ class TimerRepositoryImpl
                     )
                 return when (result) {
                     is BaseResult.Success -> {
+                        if (!localDataSource.isCurrentMember(memberId)) return TimerSyncResult.Skipped
                         localDataSource.completeCustom(snapshot, result.data)
                         TimerSyncResult.Success
                     }

@@ -8,6 +8,7 @@ import com.project200.data.local.entity.CachedTimerStep
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
+import com.project200.data.local.entity.TimerSnapshotEntity
 import timber.log.Timber
 import java.util.UUID
 import javax.inject.Inject
@@ -28,8 +29,8 @@ data class ServerCustomTimer(
 /**
  * 타이머를 읽고 씁니다. 기기가 원본이라 서버 응답 없이도 생성과 수정이 끝납니다.
  *
- * 계정 조건을 여기서 한 번에 겁니다. 호출부가 memberId를 넘기지 않게 해서 조건을
- * 빠뜨린 쿼리가 나올 자리를 없앱니다
+ * 계정 조건을 여기서 한 번에 겁니다. 원격 응답에는 요청 전에 잡은 memberId와
+ * revision을 사용하여 다른 계정이나 새 로컬 수정에 응답이 반영되지 않게 합니다
  *
  * 상태 전이 규칙은 셋입니다.
  * 생성 대기 행을 고치면 생성 대기를 유지합니다. 수정 대기로 바꾸면 전송 작업이
@@ -44,9 +45,47 @@ class TimerLocalDataSource
         private val timerDao: TimerDao,
         private val preferenceManager: PreferenceManager,
     ) {
-        suspend fun getSimpleTimers(): List<SimpleTimerEntity> {
-            val memberId = currentMemberId() ?: return emptyList()
+        suspend fun getSimpleTimers(memberId: String? = currentMemberId()): List<SimpleTimerEntity> {
+            if (memberId == null || !isCurrentMember(memberId)) return emptyList()
             return timerDao.getSimpleTimers(memberId)
+        }
+
+        suspend fun getSimpleSnapshot(memberId: String): List<SimpleTimerEntity>? =
+            database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction null
+                val rows = timerDao.getSimpleTimers(memberId)
+                rows.takeIf { it.isNotEmpty() || timerDao.getSnapshot(memberId, TimerSnapshotEntity.SIMPLE)?.hasSnapshot == true }
+            }
+
+        suspend fun getCustomSnapshot(memberId: String): List<CustomTimerEntity>? =
+            database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction null
+                val rows = timerDao.getCustomTimers(memberId)
+                rows.takeIf { it.isNotEmpty() || timerDao.getSnapshot(memberId, TimerSnapshotEntity.CUSTOM)?.hasSnapshot == true }
+            }
+
+        suspend fun snapshotRevision(
+            memberId: String,
+            timerType: String,
+        ): Long = timerDao.getSnapshot(memberId, timerType)?.revision ?: 0
+
+        private suspend fun markSnapshot(
+            memberId: String,
+            timerType: String,
+        ) {
+            timerDao.upsertSnapshot(TimerSnapshotEntity(memberId, timerType, true, snapshotRevision(memberId, timerType) + 1))
+        }
+
+        private suspend fun mutateSnapshot(
+            memberId: String,
+            timerType: String,
+            block: suspend () -> Unit,
+        ) {
+            database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction
+                block()
+                markSnapshot(memberId, timerType)
+            }
         }
 
         suspend fun getSimpleTimer(localId: String): SimpleTimerEntity? {
@@ -62,18 +101,20 @@ class TimerLocalDataSource
         suspend fun createSimpleTimer(time: Int): String? {
             val memberId = currentMemberId() ?: return null
             val localId = newId()
-            timerDao.upsertSimpleTimer(
-                SimpleTimerEntity(
-                    memberId = memberId,
-                    localId = localId,
-                    serverId = null,
-                    syncState = SyncState.CREATE_PENDING,
-                    time = time,
-                    createRequestId = newId(),
-                    pendingEditId = null,
-                    editedAt = now(),
-                ),
-            )
+            mutateSnapshot(memberId, TimerSnapshotEntity.SIMPLE) {
+                timerDao.upsertSimpleTimer(
+                    SimpleTimerEntity(
+                        memberId = memberId,
+                        localId = localId,
+                        serverId = null,
+                        syncState = SyncState.CREATE_PENDING,
+                        time = time,
+                        createRequestId = newId(),
+                        pendingEditId = null,
+                        editedAt = now(),
+                    ),
+                )
+            }
             return localId
         }
 
@@ -82,24 +123,26 @@ class TimerLocalDataSource
             time: Int,
         ) {
             val memberId = currentMemberId() ?: return
-            val current = timerDao.getSimpleTimer(memberId, localId) ?: return
-            timerDao.upsertSimpleTimer(
-                current.copy(
-                    time = time,
-                    syncState = nextStateOnEdit(current.syncState),
-                    pendingEditId = newId(),
-                    editedAt = now(),
-                ),
-            )
+            mutateSnapshot(memberId, TimerSnapshotEntity.SIMPLE) {
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@mutateSnapshot
+                timerDao.upsertSimpleTimer(
+                    current.copy(
+                        time = time,
+                        syncState = nextStateOnEdit(current.syncState),
+                        pendingEditId = newId(),
+                        editedAt = now(),
+                    ),
+                )
+            }
         }
 
         suspend fun deleteSimpleTimer(localId: String) {
             val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@withTransaction
+            mutateSnapshot(memberId, TimerSnapshotEntity.SIMPLE) {
+                val current = timerDao.getSimpleTimer(memberId, localId) ?: return@mutateSnapshot
                 if (current.serverId == null && current.inFlightState == null) {
                     timerDao.deleteSimpleTimer(memberId, localId)
-                    return@withTransaction
+                    return@mutateSnapshot
                 }
                 timerDao.upsertSimpleTimer(
                     current.copy(
@@ -111,8 +154,8 @@ class TimerLocalDataSource
             }
         }
 
-        suspend fun getCustomTimers(): List<CustomTimerEntity> {
-            val memberId = currentMemberId() ?: return emptyList()
+        suspend fun getCustomTimers(memberId: String? = currentMemberId()): List<CustomTimerEntity> {
+            if (memberId == null || !isCurrentMember(memberId)) return emptyList()
             return timerDao.getCustomTimers(memberId)
         }
 
@@ -127,19 +170,21 @@ class TimerLocalDataSource
         ): String? {
             val memberId = currentMemberId() ?: return null
             val localId = newId()
-            timerDao.upsertCustomTimer(
-                CustomTimerEntity(
-                    memberId = memberId,
-                    localId = localId,
-                    serverId = null,
-                    syncState = SyncState.CREATE_PENDING,
-                    name = name,
-                    steps = steps,
-                    createRequestId = newId(),
-                    pendingEditId = null,
-                    editedAt = now(),
-                ),
-            )
+            mutateSnapshot(memberId, TimerSnapshotEntity.CUSTOM) {
+                timerDao.upsertCustomTimer(
+                    CustomTimerEntity(
+                        memberId = memberId,
+                        localId = localId,
+                        serverId = null,
+                        syncState = SyncState.CREATE_PENDING,
+                        name = name,
+                        steps = steps,
+                        createRequestId = newId(),
+                        pendingEditId = null,
+                        editedAt = now(),
+                    ),
+                )
+            }
             return localId
         }
 
@@ -149,25 +194,27 @@ class TimerLocalDataSource
             steps: List<CachedTimerStep>,
         ) {
             val memberId = currentMemberId() ?: return
-            val current = timerDao.getCustomTimer(memberId, localId) ?: return
-            timerDao.upsertCustomTimer(
-                current.copy(
-                    name = name,
-                    steps = steps,
-                    syncState = nextStateOnEdit(current.syncState),
-                    pendingEditId = newId(),
-                    editedAt = now(),
-                ),
-            )
+            mutateSnapshot(memberId, TimerSnapshotEntity.CUSTOM) {
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@mutateSnapshot
+                timerDao.upsertCustomTimer(
+                    current.copy(
+                        name = name,
+                        steps = steps,
+                        syncState = nextStateOnEdit(current.syncState),
+                        pendingEditId = newId(),
+                        editedAt = now(),
+                    ),
+                )
+            }
         }
 
         suspend fun deleteCustomTimer(localId: String) {
             val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getCustomTimer(memberId, localId) ?: return@withTransaction
+            mutateSnapshot(memberId, TimerSnapshotEntity.CUSTOM) {
+                val current = timerDao.getCustomTimer(memberId, localId) ?: return@mutateSnapshot
                 if (current.serverId == null && current.inFlightState == null) {
                     timerDao.deleteCustomTimer(memberId, localId)
-                    return@withTransaction
+                    return@mutateSnapshot
                 }
                 timerDao.upsertCustomTimer(
                     current.copy(
@@ -198,9 +245,14 @@ class TimerLocalDataSource
          * 서버 행을 잘라내지 않습니다. 판정 단위는 목록 전체가 아니라 타이머 하나이고,
          * 개수는 서버가 정합니다
          */
-        suspend fun replaceSyncedSimpleTimers(server: List<ServerSimpleTimer>) {
-            val memberId = currentMemberId() ?: return
+        suspend fun replaceSyncedSimpleTimers(
+            server: List<ServerSimpleTimer>,
+            memberId: String,
+            expectedRevision: Long,
+        ) {
             database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction
+                if (snapshotRevision(memberId, TimerSnapshotEntity.SIMPLE) != expectedRevision) return@withTransaction
                 val pendingServerIds = timerDao.getPendingSimpleTimerServerIds(memberId).toSet()
                 val incoming = server.filterNot { it.serverId in pendingServerIds }
                 val incomingServerIds = incoming.map { it.serverId }
@@ -228,6 +280,7 @@ class TimerLocalDataSource
                         )
                     },
                 )
+                markSnapshot(memberId, TimerSnapshotEntity.SIMPLE)
             }
         }
 
@@ -237,9 +290,14 @@ class TimerLocalDataSource
          * 대기 행이 걸린 서버ID는 건드리지 않고, 동기화 완료 행은 자리를 갱신하며 localId를
          * 이어 씁니다. 서버 목록에 없는 로컬 동기화 완료 행은 지웁니다
          */
-        suspend fun replaceSyncedCustomTimers(server: List<ServerCustomTimer>) {
-            val memberId = currentMemberId() ?: return
+        suspend fun replaceSyncedCustomTimers(
+            server: List<ServerCustomTimer>,
+            memberId: String,
+            expectedRevision: Long,
+        ) {
             database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction
+                if (snapshotRevision(memberId, TimerSnapshotEntity.CUSTOM) != expectedRevision) return@withTransaction
                 val pendingServerIds = timerDao.getPendingCustomTimerServerIds(memberId).toSet()
                 val incoming = server.filterNot { it.serverId in pendingServerIds }
                 val incomingServerIds = incoming.map { it.serverId }
@@ -268,6 +326,7 @@ class TimerLocalDataSource
                         )
                     },
                 )
+                markSnapshot(memberId, TimerSnapshotEntity.CUSTOM)
             }
         }
 
@@ -281,6 +340,7 @@ class TimerLocalDataSource
                 if (current.syncState == SyncState.SYNCED) return@withTransaction null
                 val snapshot =
                     TimerSyncSnapshot.Simple(
+                        memberId = memberId,
                         localId = current.localId,
                         serverId = current.serverId,
                         state = current.inFlightState ?: current.syncState,
@@ -312,6 +372,7 @@ class TimerLocalDataSource
                 if (current.syncState == SyncState.SYNCED) return@withTransaction null
                 val snapshot =
                     TimerSyncSnapshot.Custom(
+                        memberId = memberId,
                         localId = current.localId,
                         serverId = current.serverId,
                         state = current.inFlightState ?: current.syncState,
@@ -339,9 +400,9 @@ class TimerLocalDataSource
             snapshot: TimerSyncSnapshot.Simple,
             serverId: Long,
         ) {
-            val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@withTransaction
+            val memberId = snapshot.memberId
+            mutateSnapshot(memberId, TimerSnapshotEntity.SIMPLE) {
+                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@mutateSnapshot
                 val newerEdit =
                     current.inFlightState == snapshot.state &&
                         (current.editedAt != snapshot.editedAt || current.pendingEditId != snapshot.editId)
@@ -374,9 +435,9 @@ class TimerLocalDataSource
             snapshot: TimerSyncSnapshot.Custom,
             serverId: Long,
         ) {
-            val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@withTransaction
+            val memberId = snapshot.memberId
+            mutateSnapshot(memberId, TimerSnapshotEntity.CUSTOM) {
+                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@mutateSnapshot
                 val newerEdit =
                     current.inFlightState == snapshot.state &&
                         (current.editedAt != snapshot.editedAt || current.pendingEditId != snapshot.editId)
@@ -410,9 +471,9 @@ class TimerLocalDataSource
             snapshot: TimerSyncSnapshot.Simple,
             server: ServerSimpleTimer?,
         ) {
-            val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@withTransaction
+            val memberId = snapshot.memberId
+            mutateSnapshot(memberId, TimerSnapshotEntity.SIMPLE) {
+                val current = timerDao.getSimpleTimer(memberId, snapshot.localId) ?: return@mutateSnapshot
                 if (server == null) {
                     timerDao.deleteSimpleTimer(memberId, snapshot.localId)
                 } else {
@@ -436,9 +497,9 @@ class TimerLocalDataSource
             snapshot: TimerSyncSnapshot.Custom,
             server: ServerCustomTimer?,
         ) {
-            val memberId = currentMemberId() ?: return
-            database.withTransaction {
-                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@withTransaction
+            val memberId = snapshot.memberId
+            mutateSnapshot(memberId, TimerSnapshotEntity.CUSTOM) {
+                val current = timerDao.getCustomTimer(memberId, snapshot.localId) ?: return@mutateSnapshot
                 if (server == null) {
                     timerDao.deleteCustomTimer(memberId, snapshot.localId)
                 } else {
@@ -464,8 +525,9 @@ class TimerLocalDataSource
             snapshot: TimerSyncSnapshot,
             errorCode: String?,
         ) {
-            val memberId = currentMemberId() ?: return
+            val memberId = snapshot.memberId
             database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction
                 when (snapshot) {
                     is TimerSyncSnapshot.Simple -> {
                         timerDao.getSimpleTimer(memberId, snapshot.localId)?.let { current ->

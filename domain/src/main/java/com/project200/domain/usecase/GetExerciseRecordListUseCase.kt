@@ -9,7 +9,7 @@ import javax.inject.Inject
 class GetExerciseRecordListUseCase @Inject constructor(
     private val exerciseRecordRepository: ExerciseRecordRepository
 ) {
-    suspend operator fun invoke(date: LocalDate, refresh: Boolean = true, localOnly: Boolean = false): BaseResult<List<ExerciseListItem>> {
+    suspend operator fun invoke(date: LocalDate, refresh: Boolean = false, localOnly: Boolean = false): BaseResult<List<ExerciseListItem>> {
         return exerciseRecordRepository.getExerciseRecordList(date, refresh, localOnly)
     }
 }

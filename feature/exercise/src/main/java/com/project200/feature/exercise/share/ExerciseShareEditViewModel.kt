@@ -44,6 +44,7 @@ class ExerciseShareEditViewModel
         private val _shareEvent = MutableSharedFlow<ShareEventData>()
         val shareEvent: SharedFlow<ShareEventData> = _shareEvent.asSharedFlow()
         private var initializedRecordId: String? = null
+        private var recordRequestId = 0L
         private val notifications = Channel<String>(Channel.BUFFERED)
         val refreshMessages = notifications.receiveAsFlow()
 
@@ -55,13 +56,19 @@ class ExerciseShareEditViewModel
         fun loadExerciseRecord(recordId: String) {
             if (initializedRecordId == recordId) return
             initializedRecordId = recordId
+            val requestId = ++recordRequestId
             viewModelScope.launch {
                 _isLoading.value = true
-                when (val result = getExerciseRecordDetailUseCase(recordId)) {
+                val result = getExerciseRecordDetailUseCase(recordId, refresh = false)
+                if (requestId != recordRequestId) return@launch
+                when (result) {
                     is BaseResult.Success -> {
                         _exerciseRecord.value = result.data
                         _backgroundImageUrl.value = result.data.pictures?.firstOrNull()?.url
                         result.refreshError?.let { notifications.send(it.message ?: "기록을 새로고침하지 못했습니다.") }
+                        if (result.isCachedSnapshot) {
+                            viewModelScope.launch { getExerciseRecordDetailUseCase(recordId, refresh = true) }
+                        }
                     }
                     is BaseResult.Error -> {
                         notifications.send(result.message ?: "기록을 불러오는데 실패했습니다.")

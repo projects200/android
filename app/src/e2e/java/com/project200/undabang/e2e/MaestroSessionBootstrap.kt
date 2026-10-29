@@ -1,8 +1,6 @@
 package com.project200.undabang.e2e
 
 import android.net.Uri
-import com.project200.data.api.ApiService
-import com.project200.domain.model.RegistrationStatus
 import com.project200.domain.repository.AuthRepository
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
@@ -26,7 +24,7 @@ internal class MaestroSessionBootstrap
         private val authStateManager: AuthStateManager,
         private val authManager: AuthManager,
         private val authRepository: AuthRepository,
-        private val apiService: ApiService,
+        private val registrationCheck: MaestroRegistrationCheck,
     ) {
         suspend fun authenticate(
             state: AuthState,
@@ -95,12 +93,7 @@ internal class MaestroSessionBootstrap
 
         private suspend fun refreshAndVerify(expectedMemberId: String?): String {
             refresh()
-            if (authRepository.checkIsRegistered() != RegistrationStatus.Registered) {
-                throw MaestroSetupFailure("registration_failed")
-            }
-            val memberId =
-                authRepository.getMemberId()?.takeIf { it.isNotBlank() }
-                    ?: throw MaestroSetupFailure("registration_failed")
+            val memberId = registrationCheck.requireRegistered()
             if (expectedMemberId != null && memberId != expectedMemberId) {
                 throw MaestroSetupFailure("member_mismatch")
             }
@@ -109,11 +102,8 @@ internal class MaestroSessionBootstrap
 
         private suspend fun refreshAndVerifySameMember(expectedMemberId: String): String {
             refresh()
-            // 등록 확인 Repository는 회원 교체 시 Room을 지우므로 관찰·복구에서는 직접 조회합니다.
-            val response = apiService.getIsRegistered()
-            val memberId =
-                response.data?.takeIf { response.succeed && it.isRegistered }?.memberId?.takeIf { it.isNotBlank() }
-                    ?: throw MaestroSetupFailure("registration_failed")
+            // 관찰·복구의 등록 조회는 회원 저장이나 Room 삭제를 실행하지 않습니다.
+            val memberId = registrationCheck.readRegisteredMember()
             if (memberId != expectedMemberId) throw MaestroSetupFailure("member_mismatch")
             requireLocalMember(expectedMemberId)
             return memberId

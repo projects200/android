@@ -11,6 +11,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -358,5 +359,45 @@ class ExerciseShareEditViewModelTest {
                 val newState = awaitItem()
                 assertThat(newState.theme).isEqualTo(StickerTheme.LIGHT)
             }
+        }
+
+    @Test
+    fun `캐시 공유 폼은 즉시 보이고 백그라운드 완료는 배경 사진 테마와 로딩을 바꾸지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            coEvery { mockGetExerciseRecordDetailUseCase("local", false) } returns BaseResult.Success(sampleRecord, isCachedSnapshot = true)
+            coEvery { mockGetExerciseRecordDetailUseCase("local", true) } coAnswers { response.await() }
+            viewModel = createViewModel()
+            viewModel.loadExerciseRecord("local")
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.exerciseRecord.value).isEqualTo(sampleRecord)
+            assertThat(viewModel.isLoading.value).isFalse()
+            viewModel.selectTheme(StickerTheme.LIGHT)
+            response.complete(BaseResult.Success(sampleRecordNoPictures))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.exerciseRecord.value).isEqualTo(sampleRecord)
+            assertThat(viewModel.backgroundImageUrl.value).isEqualTo(sampleRecord.pictures!!.first().url)
+            assertThat(viewModel.selectedTheme.value).isEqualTo(StickerTheme.LIGHT)
+            assertThat(viewModel.isLoading.value).isFalse()
+            coVerify(exactly = 1) { mockGetExerciseRecordDetailUseCase("local", true) }
+        }
+
+    @Test
+    fun `이전 공유 기록의 늦은 초기 응답은 선택한 기록과 배경을 덮지 않는다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            coEvery { mockGetExerciseRecordDetailUseCase("old", false) } coAnswers { response.await() }
+            coEvery { mockGetExerciseRecordDetailUseCase("selected", false) } returns BaseResult.Success(sampleRecordNoPictures)
+            viewModel = createViewModel()
+            viewModel.loadExerciseRecord("old")
+            testDispatcher.scheduler.runCurrent()
+            viewModel.loadExerciseRecord("selected")
+            testDispatcher.scheduler.runCurrent()
+            response.complete(BaseResult.Success(sampleRecord))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.exerciseRecord.value).isEqualTo(sampleRecordNoPictures)
+            assertThat(viewModel.backgroundImageUrl.value).isNull()
+            assertThat(viewModel.isLoading.value).isFalse()
+            coVerify(exactly = 0) { mockGetExerciseRecordDetailUseCase(any(), true) }
         }
 }

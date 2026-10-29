@@ -10,7 +10,7 @@ class GetCustomTimerListUseCase
     constructor(
         private val timerRepository: TimerRepository,
     ) {
-        suspend operator fun invoke(): BaseResult<List<CustomTimer>> {
-            return timerRepository.getCustomTimerList()
+        suspend operator fun invoke(refresh: Boolean = false): BaseResult<List<CustomTimer>> {
+            return timerRepository.getCustomTimerList(refresh)
         }
     }

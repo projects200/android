@@ -10,8 +10,8 @@ class GetSimpleTimersUseCase
     constructor(
         private val timerRepository: TimerRepository,
     ) {
-        /** 화면 최초 진입용입니다. 온라인이면 서버 목록을 반영한 뒤 로컬에서 읽습니다 */
-        suspend operator fun invoke(): BaseResult<List<SimpleTimer>> {
-            return timerRepository.getSimpleTimers()
+        /** 로컬 스냅샷을 우선 읽고 명시적 refresh만 서버 갱신을 기다립니다 */
+        suspend operator fun invoke(refresh: Boolean = false): BaseResult<List<SimpleTimer>> {
+            return timerRepository.getSimpleTimers(refresh)
         }
     }

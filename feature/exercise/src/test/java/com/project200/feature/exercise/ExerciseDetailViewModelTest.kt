@@ -15,6 +15,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -172,6 +173,7 @@ class ExerciseDetailViewModelTest {
     fun `갱신 실패는 캐시 상세를 유지하고 알림을 한 번만 전달한다`() =
         runTest(testDispatcher) {
             coEvery { mockGetExerciseUseCase(recordId) } returns BaseResult.Success(sampleRecord, BaseResult.Error("401", "인증 실패"), true)
+            coEvery { mockGetExerciseUseCase(recordId, refresh = true) } returns BaseResult.Error("401", "인증 실패")
             viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
@@ -191,12 +193,12 @@ class ExerciseDetailViewModelTest {
             viewModel.getExerciseRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
             val changed = sampleRecord.copy(title = "수정한 운동")
-            coEvery { mockGetExerciseUseCase(recordId, false) } returns BaseResult.Success(changed, isCachedSnapshot = true)
+            coEvery { mockGetExerciseUseCase(recordId, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
             viewModel.onOwnWrite(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
-            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false) }
-            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, true) }
+            coVerify(exactly = 0) { mockGetExerciseUseCase(recordId, true) }
         }
 
     @Test
@@ -207,7 +209,7 @@ class ExerciseDetailViewModelTest {
             viewModel.onScreenStarted(recordId)
             viewModel.onScreenStarted(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
-            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true, false) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, false) }
             val changed = sampleRecord.copy(title = "복귀한 로컬 상세")
             coEvery { mockGetExerciseUseCase(recordId, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
             viewModel.onScreenStopped()
@@ -216,7 +218,7 @@ class ExerciseDetailViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
             assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
             coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, true) }
-            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, true, false) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, false) }
         }
 
     @Test
@@ -231,5 +233,46 @@ class ExerciseDetailViewModelTest {
             viewModel.consumeDeleteResult()
             assertThat(viewModel.deleteResult.replayCache).isEmpty()
             coVerify(exactly = 1) { mockDeleteExerciseUseCase(recordId) }
+        }
+
+    @Test
+    fun `캐시 상세는 즉시 보이고 백그라운드 완료는 표시를 유지하며 명시 갱신만 바꾼다`() =
+        runTest(testDispatcher) {
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            val updated = sampleRecord.copy(title = "서버 최신")
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord, isCachedSnapshot = true)
+            coEvery { mockGetExerciseUseCase(recordId, true, false) } coAnswers { response.await() }
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+            response.complete(BaseResult.Success(updated))
+            testDispatcher.scheduler.runCurrent()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+            viewModel.getExerciseRecord(recordId, refresh = true, force = true)
+            testDispatcher.scheduler.runCurrent()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(updated)
+            coVerify(exactly = 2) { mockGetExerciseUseCase(recordId, true, false) }
+        }
+
+    @Test
+    fun `초기 미적중이 늦어도 자신의 수정과 다른 기록 선택을 덮지 않는다`() =
+        runTest(testDispatcher) {
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } coAnswers { response.await() }
+            val changed = sampleRecord.copy(title = "내 수정")
+            coEvery { mockGetExerciseUseCase(recordId, false, true) } returns BaseResult.Success(changed, isCachedSnapshot = true)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onOwnWrite(recordId)
+            testDispatcher.scheduler.runCurrent()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
+            val selected = sampleRecord.copy(title = "다른 기록")
+            coEvery { mockGetExerciseUseCase("other", false, false) } returns BaseResult.Success(selected)
+            viewModel.getExerciseRecord("other")
+            testDispatcher.scheduler.runCurrent()
+            response.complete(BaseResult.Success(sampleRecord))
+            testDispatcher.scheduler.runCurrent()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(selected)
+            coVerify(exactly = 0) { mockGetExerciseUseCase(any(), true, false) }
         }
 }

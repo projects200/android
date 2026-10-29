@@ -11,7 +11,6 @@ import com.project200.presentation.utils.mapCodeToFailure
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -44,7 +43,7 @@ class ExerciseDetailViewModel
 
         fun getExerciseRecord(
             recordId: String,
-            refresh: Boolean = true,
+            refresh: Boolean = false,
             force: Boolean = false,
             localOnly: Boolean = false,
         ) {
@@ -52,13 +51,15 @@ class ExerciseDetailViewModel
             initializedRecordId = recordId
             val currentRequest = ++requestId
             viewModelScope.launch {
-                delay(LOADING_DELAY)
                 val result = exerciseRecordDetailUseCase(recordId, refresh, localOnly)
                 if (currentRequest != requestId) return@launch
                 when (result) {
                     is BaseResult.Success -> {
                         _exerciseRecord.value = UiState.Success(result.data)
                         result.refreshError?.let { notifications.send(it.message ?: "기록을 새로고침하지 못했습니다.") }
+                        if (!refresh && !localOnly && result.isCachedSnapshot) {
+                            viewModelScope.launch { exerciseRecordDetailUseCase(recordId, refresh = true) }
+                        }
                     }
                     is BaseResult.Error -> {
                         if (refresh && _exerciseRecord.value is UiState.Success) {
@@ -89,10 +90,11 @@ class ExerciseDetailViewModel
 
         fun onOwnWrite(recordId: String) {
             localReadSinceStop = true
-            getExerciseRecord(recordId, refresh = false, force = true)
+            getExerciseRecord(recordId, refresh = false, force = true, localOnly = true)
         }
 
         fun deleteExerciseRecord(recordId: String) {
+            requestId++
             viewModelScope.launch {
                 _deleteResult.emit(deleteExerciseRecordUseCase(recordId))
             }
@@ -101,9 +103,5 @@ class ExerciseDetailViewModel
         @OptIn(ExperimentalCoroutinesApi::class)
         fun consumeDeleteResult() {
             _deleteResult.resetReplayCache()
-        }
-
-        companion object {
-            private const val LOADING_DELAY = 300L
         }
     }

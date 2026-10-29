@@ -72,6 +72,8 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 결과 파일이 아직 없을 때만 고정 probe가 종료 코드 `3`을 반환해 기존 0.5초 간격으로 기다립니다. 파일이 있으면 `cat`의 실패 상태를 그대로 전달합니다. `run-as`·쓰기·읽기·삭제의 다른 nonzero는 즉시 실패합니다. 종료 코드 `0`이라도 빈 본문/잘못된 JSON은 `invalid-bootstrap-result`로 즉시 실패하며, 요청 작업에 맞는 `ready`/`cleaned`/`exported`가 아니면 성공하지 않습니다.
 
+등록 조회 진단은 기존 private 결과의 고정 `reason`만 console/JUnit의 `bootstrap-<operation>-failed-registration-<분류>`로 전달합니다. 분류는 `unregistered`, `response-missing`, `member-id-missing`, `authentication-failed`, `user-id-header-missing`, `business-error`, `network-error`, `network-timeout`, `parse-error`, `unknown`, `http-100`–`http-599`이며, 예를 들어 HTTP 401/502는 `bootstrap-prepare-failed-registration-http-401`/`...-http-502`로 구분합니다. 앱 reason은 각각 `registration_` 접두사와 밑줄을 쓰며 HTTP만 `registration_http_<숫자>`입니다. 호스트는 정확한 allowlist와 전체 일치하는 100–599 숫자만 공개하고 임의 코드·추가 문자열·개행은 기존 일반 실패로 처리합니다. 기능 종류와 무관하게 prepare/cleanup/export/관찰에 적용하며 기존 기능별 실패·정리 정책은 유지합니다. 원래 요청 한 번만 관찰하고 재시도하지 않으며 토큰·회원 ID·본문·예외 메시지·URL은 진단에 포함하지 않습니다.
+
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 
 ## 무인 실행: 실제 세션을 매 플로우에 독립 복원
@@ -161,7 +163,7 @@ python3 .maestro/scripts/run-tests.py \
   --configure-emulator
 ```
 
-실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`와 활성화된 DEV `OFFLINE_CACHE_ENABLED` Remote Config이 필요합니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다.
+실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`가 필요합니다. 로컬 우선 읽기는 기본 동작이며 Remote Config 활성화는 필요하지 않습니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다. 첫 저장 스냅샷을 표시한 뒤의 서버 갱신은 Room만 바꾸며, 표시 중인 목록·상세·수정 폼은 명시적 새로고침이나 로컬 복귀 조회까지 유지됩니다.
 
 타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
 호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.

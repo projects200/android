@@ -6,7 +6,6 @@ import com.project200.common.di.IoDispatcher
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
-import com.project200.data.datasource.FeatureFlagDataSource
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
@@ -25,6 +24,7 @@ import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.repository.ExerciseRecordRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -38,13 +38,16 @@ class ExerciseRecordRepositoryImpl
     constructor(
         private val remoteDataSource: ExerciseRecordRemoteDataSource,
         private val localDataSource: ExerciseRecordLocalDataSource,
-        private val featureFlagDataSource: FeatureFlagDataSource,
         private val networkMonitor: NetworkMonitor,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         @ApplicationContext private val context: Context,
     ) : ExerciseRecordRepository {
-        // 갱신 응답이 자신의 쓰기 뒤에 반영되어 새 값을 되돌리지 않도록 요청과 반영을 함께 직렬화합니다.
-        private val mutex = Mutex()
+        // 네트워크는 상태 락 밖에서 기다리고, 쓰기 시작과 종료가 이전 조회를 무효화합니다
+        private val stateMutex = Mutex()
+        private val writeMutex = Mutex()
+        private val refreshMutex = Mutex()
+        private var generation = 0L
+        private var activeWrites = 0
 
         override suspend fun getExerciseCountByRange(
             startDate: LocalDate,
@@ -52,16 +55,19 @@ class ExerciseRecordRepositoryImpl
             refresh: Boolean,
             localOnly: Boolean,
         ): BaseResult<List<ExerciseCount>> =
-            serialized {
+            withContext(ioDispatcher) {
                 cachedRead(
                     refresh = refresh,
                     localOnly = localOnly,
                     read = { localDataSource.getCountsSnapshot(startDate, endDate, it) },
                     save = { memberId, data -> localDataSource.replaceCountsByRange(startDate, endDate, data, memberId) },
-                    remote = {
+                    remote = { memberId ->
                         apiCallBuilder(
                             ioDispatcher,
-                            { remoteDataSource.getExerciseCountsByRange(startDate, endDate) },
+                            {
+                                requireCurrentMember(memberId)
+                                remoteDataSource.getExerciseCountsByRange(startDate, endDate)
+                            },
                             { dto: List<GetExerciseCountByRangeDTO>? ->
                                 dto?.map { it.toModel() } ?: throw NoSuchElementException("구간별 운동 횟수 조회 응답 데이터가 없습니다.")
                             },
@@ -75,16 +81,19 @@ class ExerciseRecordRepositoryImpl
             refresh: Boolean,
             localOnly: Boolean,
         ): BaseResult<List<ExerciseListItem>> =
-            serialized {
+            withContext(ioDispatcher) {
                 cachedRead(
                     refresh = refresh,
                     localOnly = localOnly,
                     read = { localDataSource.getListSnapshot(date, it) },
                     save = { memberId, data -> localDataSource.replaceSyncedListByDate(date, data, memberId) },
-                    remote = {
+                    remote = { memberId ->
                         apiCallBuilder(
                             ioDispatcher,
-                            { remoteDataSource.getExerciseList(date) },
+                            {
+                                requireCurrentMember(memberId)
+                                remoteDataSource.getExerciseList(date)
+                            },
                             { dto: List<GetExerciseRecordListDto>? -> dto?.map { it.toModel() } ?: emptyList() },
                         )
                     },
@@ -96,9 +105,9 @@ class ExerciseRecordRepositoryImpl
             refresh: Boolean,
             localOnly: Boolean,
         ): BaseResult<ExerciseRecord> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = if (enabled) localDataSource.currentMemberId() else null
+            withContext(ioDispatcher) {
+                val memberId = localDataSource.currentMemberId()
+                if (!localDataSource.isCurrentMember(memberId)) return@withContext accountChangedError()
                 val serverId = serverId(recordId, memberId)
                 cachedRead(
                     refresh = refresh && serverId != null,
@@ -111,7 +120,7 @@ class ExerciseRecordRepositoryImpl
                     save = { owner, data ->
                         localDataSource.saveSyncedDetail(serverId!!, data, owner, recordId.takeIf { it.toLongOrNull() == null })
                     },
-                    remote = { serverId?.let { remoteDetail(it) } ?: localOnlyError() },
+                    remote = { owner -> serverId?.let { remoteDetail(it, owner) } ?: localOnlyError() },
                 )
             }
 
@@ -120,42 +129,51 @@ class ExerciseRecordRepositoryImpl
             localOnly: Boolean,
             read: suspend (String?) -> T?,
             save: suspend (String?, T) -> Unit,
-            remote: suspend () -> BaseResult<T>,
+            remote: suspend (String?) -> BaseResult<T>,
             owner: String? = null,
         ): BaseResult<T> {
-            if (!featureFlagDataSource.isOfflineCacheEnabled()) return remote()
             val memberId = owner ?: localDataSource.currentMemberId()
-            if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
-            val connected = networkMonitor.isCurrentlyConnected()
             try {
-                localDataSource.prepareCache(memberId)
-                if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
-                if (!refresh || !connected || localOnly) {
-                    val snapshot = read(memberId)
-                    if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
-                    if (snapshot != null) return BaseResult.Success(snapshot, isCachedSnapshot = true)
-                    if (!connected || localOnly) return networkError()
-                }
-                val result = remote()
-                if (!localDataSource.isCurrentMember(memberId)) return accountChangedError()
-                return when (result) {
-                    is BaseResult.Success -> {
-                        save(memberId, result.data)
-                        val snapshot = read(memberId)
-                        if (!localDataSource.isCurrentMember(memberId)) {
-                            accountChangedError()
-                        } else {
-                            snapshot?.let { BaseResult.Success(it) } ?: cacheError()
+                val initial =
+                    stateMutex.withLock {
+                        if (!localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
+                        localDataSource.prepareCache(memberId)
+                        if (!localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
+                        val connected = networkMonitor.isCurrentlyConnected()
+                        if (!refresh || !connected || localOnly) {
+                            val snapshot = read(memberId)
+                            if (!localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
+                            if (snapshot != null) return@withLock BaseResult.Success(snapshot, isCachedSnapshot = true)
+                            if (!connected || localOnly) return@withLock networkError()
                         }
+                        null
                     }
-                    is BaseResult.Error -> {
+                if (initial != null) return initial
+                return refreshMutex.withLock refresh@{
+                    val revision =
+                        stateMutex.withLock revision@{
+                            if (!localDataSource.isCurrentMember(memberId)) return@revision null
+                            generation to (activeWrites > 0)
+                        } ?: return@refresh accountChangedError()
+                    if (!localDataSource.isCurrentMember(memberId)) return@refresh accountChangedError()
+                    val result = remote(memberId)
+                    stateMutex.withLock apply@{
+                        if (!localDataSource.isCurrentMember(memberId)) return@apply accountChangedError()
+                        val stale = generation != revision.first || revision.second || activeWrites > 0
+                        localDataSource.prepareCache(memberId)
+                        if (result is BaseResult.Success && !stale) save(memberId, result.data)
                         val snapshot = read(memberId)
-                        if (!localDataSource.isCurrentMember(memberId)) {
-                            accountChangedError()
-                        } else if (snapshot == null) {
-                            result
-                        } else {
-                            BaseResult.Success(snapshot, refreshError = result, isCachedSnapshot = true)
+                        when {
+                            !localDataSource.isCurrentMember(memberId) -> accountChangedError()
+                            snapshot != null ->
+                                BaseResult.Success(
+                                    snapshot,
+                                    refreshError = (result as? BaseResult.Error)?.takeUnless { stale },
+                                    isCachedSnapshot = stale || result is BaseResult.Error,
+                                )
+                            stale -> cacheError()
+                            result is BaseResult.Error -> result
+                            else -> cacheError()
                         }
                     }
                 }
@@ -168,19 +186,20 @@ class ExerciseRecordRepositoryImpl
         }
 
         override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = writeMemberId()
+            write { memberId ->
                 val result =
                     apiCallBuilder(
                         ioDispatcher,
-                        { remoteDataSource.postExerciseRecord(record.toPostExerciseDTO()) },
+                        {
+                            requireCurrentMember(memberId)
+                            remoteDataSource.postExerciseRecord(record.toPostExerciseDTO())
+                        },
                         { dto: PostExerciseResponseDTO? -> dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.") },
                     )
-                if (result !is BaseResult.Success) return@serialized result
+                if (result !is BaseResult.Success) return@write result
                 var id = result.data.recordId
                 val error =
-                    cacheAfterWrite(memberId, enabled) {
+                    cacheAfterWrite(memberId) {
                         id = localDataSource.reconcileRecord(id.toLong(), record, memberId) ?: id
                     }
                 BaseResult.Success(result.data.copy(recordId = id), error)
@@ -190,22 +209,23 @@ class ExerciseRecordRepositoryImpl
             record: ExerciseRecord,
             recordId: String,
         ): BaseResult<String> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = writeMemberId()
-                val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
-                val previous = if (enabled) localDataSource.getDetailByServerId(id, memberId) else null
+            write { memberId ->
+                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+                val previous = localDataSource.getDetailByServerId(id, memberId)
                 val result =
                     apiCallBuilder(
                         ioDispatcher,
-                        { remoteDataSource.patchExerciseRecord(id, record.toPatchExerciseDTO()) },
+                        {
+                            requireCurrentMember(memberId)
+                            remoteDataSource.patchExerciseRecord(id, record.toPatchExerciseDTO())
+                        },
                         { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("운동 기록 수정 응답 데이터가 없습니다.") },
                     )
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
                         val error =
-                            cacheAfterWrite(memberId, enabled) {
+                            cacheAfterWrite(memberId) {
                                 localDataSource.reconcileRecord(id, record.copy(pictures = record.pictures ?: previous?.pictures), memberId)
                             }
                         BaseResult.Success(recordId, error)
@@ -217,10 +237,8 @@ class ExerciseRecordRepositoryImpl
             recordId: String,
             images: List<String>,
         ): BaseResult<String> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = writeMemberId()
-                val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
+            write { memberId ->
+                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
                 val imageUris =
                     images.mapNotNull {
                         try {
@@ -234,20 +252,24 @@ class ExerciseRecordRepositoryImpl
                     }
                 val imageParts = imageUris.mapNotNull { it.toMultipartBodyPart(context, "pictures") }
                 if (imageParts.isEmpty() && imageUris.isNotEmpty()) {
-                    return@serialized BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
+                    return@write BaseResult.Error("CONVERSION_FAILED", "이미지 파일 변환에 실패했습니다.")
                 }
                 val result =
                     apiCallBuilder(
                         ioDispatcher,
-                        { remoteDataSource.postExerciseImages(id, imageParts) },
+                        {
+                            requireCurrentMember(memberId)
+                            remoteDataSource.postExerciseImages(id, imageParts)
+                        },
                         { dto: ExerciseIdDto? -> dto?.exerciseId ?: throw NoSuchElementException("이미지 업로드 응답 데이터가 없습니다.") },
                     )
                 when (result) {
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
+                        val detail = remoteDetail(id, memberId)
                         val error =
-                            cacheAfterWrite(memberId, enabled) {
-                                when (val detail = remoteDetail(id)) {
+                            cacheAfterWrite(memberId) {
+                                when (detail) {
                                     is BaseResult.Success -> localDataSource.reconcileRecord(id, detail.data, memberId)
                                     is BaseResult.Error -> {
                                         localDataSource.invalidateImages(id, memberId)
@@ -264,15 +286,21 @@ class ExerciseRecordRepositoryImpl
             recordId: String,
             imageIds: List<Long>,
         ): BaseResult<Unit> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = writeMemberId()
-                val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
-                val previous = if (enabled) localDataSource.getDetailByServerId(id, memberId) else null
-                val result = apiCallBuilder(ioDispatcher, { remoteDataSource.deleteExerciseImages(id, imageIds) }, { Unit })
-                if (result !is BaseResult.Success) return@serialized result
+            write { memberId ->
+                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+                val previous = localDataSource.getDetailByServerId(id, memberId)
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        {
+                            requireCurrentMember(memberId)
+                            remoteDataSource.deleteExerciseImages(id, imageIds)
+                        },
+                        { Unit },
+                    )
+                if (result !is BaseResult.Success) return@write result
                 val error =
-                    cacheAfterWrite(memberId, enabled) {
+                    cacheAfterWrite(memberId) {
                         if (previous != null) {
                             localDataSource.reconcileRecord(
                                 id,
@@ -287,20 +315,32 @@ class ExerciseRecordRepositoryImpl
             }
 
         override suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit> =
-            serialized {
-                val enabled = featureFlagDataSource.isOfflineCacheEnabled()
-                val memberId = writeMemberId()
-                val id = serverId(recordId, memberId) ?: return@serialized localOnlyError()
-                val result = apiCallBuilder(ioDispatcher, { remoteDataSource.deleteExerciseRecord(id) }, { Unit })
-                if (result !is BaseResult.Success) return@serialized result
-                val error = cacheAfterWrite(memberId, enabled) { localDataSource.reconcileDeletedRecord(id, memberId) }
+            write { memberId ->
+                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        {
+                            requireCurrentMember(memberId)
+                            remoteDataSource.deleteExerciseRecord(id)
+                        },
+                        { Unit },
+                    )
+                if (result !is BaseResult.Success) return@write result
+                val error = cacheAfterWrite(memberId) { localDataSource.reconcileDeletedRecord(id, memberId) }
                 BaseResult.Success(Unit, error)
             }
 
-        private suspend fun remoteDetail(serverId: Long): BaseResult<ExerciseRecord> =
+        private suspend fun remoteDetail(
+            serverId: Long,
+            memberId: String?,
+        ): BaseResult<ExerciseRecord> =
             apiCallBuilder(
                 ioDispatcher,
-                { remoteDataSource.getExerciseRecordDetail(serverId) },
+                {
+                    requireCurrentMember(memberId)
+                    remoteDataSource.getExerciseRecordDetail(serverId)
+                },
                 { dto: GetExerciseRecordData? -> dto?.toModel() ?: throw NoSuchElementException("운동 상세 정보 응답 데이터가 없습니다.") },
             )
 
@@ -309,7 +349,11 @@ class ExerciseRecordRepositoryImpl
             memberId: String?,
         ): Long? =
             recordId.toLongOrNull()?.takeIf { it > 0 }
-                ?: localDataSource.resolveServerId(recordId, memberId ?: localDataSource.currentMemberId())
+                ?: localDataSource.resolveServerId(recordId, memberId)
+
+        private fun requireCurrentMember(memberId: String?) {
+            check(localDataSource.isCurrentMember(memberId)) { "ACCOUNT_CHANGED" }
+        }
 
         private fun writeMemberId(): String? =
             try {
@@ -334,23 +378,45 @@ class ExerciseRecordRepositoryImpl
 
         private suspend fun cacheAfterWrite(
             memberId: String?,
-            enabled: Boolean,
             block: suspend () -> Unit,
-        ): BaseResult.Error? {
-            if (!enabled) return invalidateAfterWrite(memberId)
-            return try {
-                block()
-                null
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                invalidateAfterWrite(memberId)
-                Timber.e(e, "서버 쓰기 후 운동 기록 캐시 반영 실패")
-                cacheError(e)
+        ): BaseResult.Error? =
+            stateMutex.withLock {
+                if (!localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
+                try {
+                    block()
+                    null
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    invalidateAfterWrite(memberId)
+                    Timber.e(e, "서버 쓰기 후 운동 기록 캐시 반영 실패")
+                    cacheError(e)
+                }
             }
-        }
 
-        private suspend fun <T> serialized(block: suspend () -> T): T = withContext(ioDispatcher) { mutex.withLock { block() } }
+        private suspend fun <T> write(block: suspend (String) -> BaseResult<T>): BaseResult<T> =
+            withContext(ioDispatcher) {
+                writeMutex.withLock writer@{
+                    val memberId = writeMemberId()
+                    if (memberId == null || !localDataSource.isCurrentMember(memberId)) return@writer accountChangedError()
+                    stateMutex.withLock {
+                        generation++
+                        activeWrites++
+                    }
+                    try {
+                        if (!localDataSource.isCurrentMember(memberId)) return@writer accountChangedError()
+                        val result = block(memberId)
+                        if (localDataSource.isCurrentMember(memberId)) result else accountChangedError()
+                    } finally {
+                        withContext(NonCancellable) {
+                            stateMutex.withLock {
+                                generation++
+                                activeWrites--
+                            }
+                        }
+                    }
+                }
+            }
 
         private fun networkError() = BaseResult.Error("NETWORK_ERROR", "네트워크 연결 오류가 발생했습니다.")
 

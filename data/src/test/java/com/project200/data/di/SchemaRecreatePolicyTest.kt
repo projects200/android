@@ -8,6 +8,7 @@ import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.SimpleTimerEntity
 import com.project200.data.local.entity.SyncState
+import com.project200.data.local.entity.TimerSnapshotEntity
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.test.runTest
@@ -79,7 +80,7 @@ class SchemaRecreatePolicyTest {
         }
 
     @Test
-    fun `3에서 4 마이그레이션은 전송 대기 행과 기존 캐시를 보존한다`() =
+    fun `3에서 현재 버전 마이그레이션은 전송 대기 행과 기존 캐시를 보존한다`() =
         runTest {
             var database = openDatabase()
             val pendingRecord =
@@ -142,9 +143,10 @@ class SchemaRecreatePolicyTest {
             }
             database = openDatabase()
 
-            assertThat(database.openHelper.readableDatabase.version).isEqualTo(4)
+            assertThat(database.openHelper.readableDatabase.version).isEqualTo(5)
             assertThat(database.exerciseRecordDao().getListByDate("member-a", date)).containsExactly(pendingRecord)
             assertThat(database.timerDao().getSimpleTimer("member-a", "pending-timer")).isEqualTo(pendingTimer)
+            assertThat(database.timerDao().getSnapshot("member-a", TimerSnapshotEntity.SIMPLE)?.hasSnapshot).isTrue()
             assertThat(database.exerciseCountDao().getRange("member-a", date, date))
                 .containsExactly(ExerciseCountEntity("member-a", date, 2))
             database.close()

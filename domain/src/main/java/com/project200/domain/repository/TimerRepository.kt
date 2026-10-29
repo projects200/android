@@ -9,14 +9,14 @@ import com.project200.domain.model.TimerSyncResult
 /**
  * 타이머는 기기가 원본입니다. 쓰기는 로컬에 먼저 반영되고 전송은 워커가 맡습니다.
  *
- * 읽기는 스냅샷 1회입니다. 온라인이면 서버 목록을 받아 로컬에 반영한 뒤 로컬에서 읽고,
- * 오프라인이거나 조회가 실패하면 로컬만 읽습니다. 화면은 지속 구독을 두지 않습니다
+ * 읽기는 로컬 스냅샷 우선입니다. 미조회 목록과 명시적 refresh만 서버를 기다립니다
+ * 화면은 캐시를 먼저 표시한 뒤 별도 갱신하며 지속 구독을 두지 않습니다
  *
  * 인자로 받는 식별자는 모두 localId입니다
  */
 interface TimerRepository {
-    /** 서버 목록을 반영한 뒤 로컬 스냅샷을 돌려줍니다. 전송 대기 행은 서버 값으로 덮지 않습니다 */
-    suspend fun getSimpleTimers(): BaseResult<List<SimpleTimer>>
+    /** refresh=true만 서버 갱신을 기다립니다. 전송 대기 행은 서버 값으로 덮지 않습니다 */
+    suspend fun getSimpleTimers(refresh: Boolean = false): BaseResult<List<SimpleTimer>>
 
     /** 화면 복귀나 내 쓰기 직후에 씁니다. 서버를 보지 않습니다 */
     suspend fun getLocalSimpleTimers(): BaseResult<List<SimpleTimer>>
@@ -30,7 +30,7 @@ interface TimerRepository {
 
     suspend fun deleteSimpleTimer(localId: String): BaseResult<Unit>
 
-    suspend fun getCustomTimerList(): BaseResult<List<CustomTimer>>
+    suspend fun getCustomTimerList(refresh: Boolean = false): BaseResult<List<CustomTimer>>
 
     suspend fun getLocalCustomTimerList(): BaseResult<List<CustomTimer>>
 

@@ -99,6 +99,7 @@ class ExerciseFormViewModel
         private val _timeSelectionState = MutableStateFlow(TimeSelectionState.NONE)
         val timeSelectionState: StateFlow<TimeSelectionState> = _timeSelectionState.asStateFlow()
         private var initializedRecordId: String? = null
+        private var initialRequestId = 0L
 
         @OptIn(ExperimentalCoroutinesApi::class)
         fun consumeCreateResult() {
@@ -114,6 +115,7 @@ class ExerciseFormViewModel
         fun loadInitialRecord(recordId: String) {
             if (initializedRecordId == recordId) return
             initializedRecordId = recordId
+            val requestId = ++initialRequestId
             if (recordId.isEmpty()) {
                 // 생성 모드
                 isEditMode = false
@@ -129,10 +131,15 @@ class ExerciseFormViewModel
             } else {
                 // 수정 모드
                 viewModelScope.launch {
-                    when (val result = getExerciseRecordDetailUseCase(recordId)) {
+                    val result = getExerciseRecordDetailUseCase(recordId, refresh = false)
+                    if (requestId != initialRequestId) return@launch
+                    when (result) {
                         is BaseResult.Success -> {
                             setupEditMode(result.data)
                             if (result.refreshError != null) refreshNotifications.send(R.string.exercise_load_fail)
+                            if (result.isCachedSnapshot) {
+                                viewModelScope.launch { getExerciseRecordDetailUseCase(recordId, refresh = true) }
+                            }
                         }
                         is BaseResult.Error -> {
                             refreshNotifications.send(R.string.exercise_load_fail)

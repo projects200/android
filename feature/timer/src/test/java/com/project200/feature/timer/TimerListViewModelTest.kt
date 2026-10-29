@@ -10,6 +10,7 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -55,6 +56,40 @@ class TimerListViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    @Test
+    fun `빈 캐시는 즉시 표시하고 백그라운드 완료는 적용하지 않으며 명시 갱신만 표시한다`() =
+        runTest {
+            val response = CompletableDeferred<BaseResult<List<CustomTimer>>>()
+            coEvery { getCustomTimerListUseCase(false) } returns BaseResult.Success(emptyList(), isCachedSnapshot = true)
+            coEvery { getCustomTimerListUseCase(true) } coAnswers { response.await() }
+            viewModel = TimerListViewModel(getCustomTimerListUseCase, getLocalCustomTimerListUseCase)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.customTimerList.value).isEmpty()
+            coVerify(exactly = 1) { getCustomTimerListUseCase(true) }
+            response.complete(BaseResult.Success(listOf(sampleTimer)))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.customTimerList.value).isEmpty()
+            viewModel.loadCustomTimers(refresh = true)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.customTimerList.value).containsExactly(sampleTimer)
+        }
+
+    @Test
+    fun `초기 미적중보다 복귀의 로컬 목록이 우선하며 중복 갱신하지 않는다`() =
+        runTest {
+            val initial = CompletableDeferred<BaseResult<List<CustomTimer>>>()
+            coEvery { getCustomTimerListUseCase(false) } coAnswers { initial.await() }
+            coEvery { getLocalCustomTimerListUseCase() } returns BaseResult.Success(listOf(sampleTimer))
+            viewModel = TimerListViewModel(getCustomTimerListUseCase, getLocalCustomTimerListUseCase)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.refreshLocalCustomTimers()
+            testDispatcher.scheduler.runCurrent()
+            initial.complete(BaseResult.Success(emptyList()))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.customTimerList.value).containsExactly(sampleTimer)
+            coVerify(exactly = 0) { getCustomTimerListUseCase(true) }
+        }
 
     @Test
     fun `init - ViewModel 생성 시 GetCustomTimerListUseCase로 커스텀 타이머 목록을 로드한다`() =

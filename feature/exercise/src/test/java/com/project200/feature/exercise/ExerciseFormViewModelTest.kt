@@ -35,6 +35,7 @@ import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import io.mockk.mockk
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -662,5 +663,50 @@ class ExerciseFormViewModelTest {
             assertThat(viewModel.createResult.replayCache).isEmpty()
             coVerify(exactly = 1) { mockCreateUseCase(any()) }
             coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
+        }
+
+    @Test
+    fun `캐시로 폼을 한 번만 초기화하고 백그라운드 완료 뒤에도 작성 시간과 이미지를 유지한다`() =
+        runTest(testDispatcher) {
+            setupViewModelForCreateMode()
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            coEvery { mockGetDetailUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord, isCachedSnapshot = true)
+            coEvery { mockGetDetailUseCase(recordId, true, false) } coAnswers { response.await() }
+            viewModel.loadInitialRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.initialDataLoaded.value).isEqualTo(sampleRecord)
+            val editedStart = sampleRecord.startedAt.minusHours(1)
+            viewModel.setStartTime(editedStart)
+            val image = mockk<Uri>()
+            every { image.toString() } returns imageUriString
+            viewModel.addImage(listOf(image))
+            val draftImages = viewModel.imageItems.value
+            response.complete(BaseResult.Success(sampleRecord.copy(title = "서버 최신", startedAt = now.minusHours(1))))
+            testDispatcher.scheduler.runCurrent()
+            viewModel.loadInitialRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.startTime.value).isEqualTo(editedStart)
+            assertThat(viewModel.imageItems.value).isEqualTo(draftImages)
+            assertThat(viewModel.initialDataLoaded.value).isEqualTo(sampleRecord)
+            coVerify(exactly = 1) { mockGetDetailUseCase(recordId, false, false) }
+            coVerify(exactly = 1) { mockGetDetailUseCase(recordId, true, false) }
+        }
+
+    @Test
+    fun `이전 기록의 초기 미적중 응답은 새로 선택한 폼을 초기화하지 않는다`() =
+        runTest(testDispatcher) {
+            setupViewModelForCreateMode()
+            val response = CompletableDeferred<BaseResult<ExerciseRecord>>()
+            coEvery { mockGetDetailUseCase(recordId, false, false) } coAnswers { response.await() }
+            val selected = sampleRecord.copy(title = "새 기록")
+            coEvery { mockGetDetailUseCase("other", false, false) } returns BaseResult.Success(selected)
+            viewModel.loadInitialRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.loadInitialRecord("other")
+            testDispatcher.scheduler.runCurrent()
+            response.complete(BaseResult.Success(sampleRecord))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.initialDataLoaded.value).isEqualTo(selected)
+            coVerify(exactly = 0) { mockGetDetailUseCase(any(), true, false) }
         }
 }

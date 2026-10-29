@@ -396,6 +396,122 @@ class SessionTransportTests(unittest.TestCase):
                 )
         self.assert_no_credential_arguments()
 
+    def test_registration_transport_failure_reaches_existing_junit_without_private_fields(self):
+        self.transport.result = json.dumps({
+            "status": "failed", "reason": "registration_http_502",
+            "token": SYNTHETIC_SECRET, "memberId": CREDENTIALS["memberId"],
+            "message": SYNTHETIC_SECRET, "url": SYNTHETIC_SECRET,
+        }).encode("utf-8")
+        with self.assertRaises(runner.RunnerFailure) as caught:
+            self.device.bootstrap("prepare", CREDENTIALS)
+        expected = "bootstrap-prepare-failed-registration-http-502"
+        self.assertEqual(str(caught.exception), expected)
+
+        runner.write_report(self.host, [("smoke-tabs", 0, [str(caught.exception)])])
+
+        report = (self.host / "report.xml").read_text(encoding="utf-8")
+        failure = runner.ET.fromstring(report).find("testcase/failure")
+        self.assertEqual(failure.get("message"), expected)
+        self.assertEqual(failure.text, expected)
+        self.assertNotIn(SYNTHETIC_SECRET, report)
+        self.assertNotIn(CREDENTIALS["memberId"], report)
+        self.assert_no_credential_arguments()
+
+    def test_registration_failures_cross_private_transport_for_every_operation_and_feature(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            ("registration_failed", "registration"),
+            ("registration_http_100", "registration-http-100"),
+            ("registration_http_401", "registration-http-401"),
+            ("registration_http_502", "registration-http-502"),
+            ("registration_http_599", "registration-http-599"),
+            ("registration_unregistered", "registration-unregistered"),
+            ("registration_response_missing", "registration-response-missing"),
+            ("registration_member_id_missing", "registration-member-id-missing"),
+            ("registration_authentication_failed", "registration-authentication-failed"),
+            ("registration_user_id_header_missing", "registration-user-id-header-missing"),
+            ("registration_business_error", "registration-business-error"),
+            ("registration_network_error", "registration-network-error"),
+            ("registration_network_timeout", "registration-network-timeout"),
+            ("registration_parse_error", "registration-parse-error"),
+            ("registration_unknown", "registration-unknown"),
+        )
+        operations = (
+            ("prepare", None), ("cleanup", None), ("export", None),
+            ("offline-observe", None), ("feature-observe", "offline"),
+            *(("prepare", feature) for feature in (
+                "profile", "matching", "offline", "timer", "feed", "chatting",
+            )),
+            ("cleanup", "offline"),
+        )
+        for operation, feature in operations:
+            metadata = {} if feature is None else {
+                "feature": feature, "flow": feature + "-registration",
+                "run_id": "0123456789abcdef", "parameters": {},
+            }
+            for reason, suffix in reasons:
+                with self.subTest(operation=operation, feature=feature, reason=reason):
+                    payload = json.dumps({
+                        "status": "failed", "reason": reason,
+                        "message": SYNTHETIC_SECRET, "body": SYNTHETIC_SECRET,
+                        "variables": {"MEMBER_ID": SYNTHETIC_SECRET},
+                    }).encode("utf-8")
+                    self.transport.result = payload
+                    self.assert_failure(
+                        "bootstrap-" + operation + "-failed-" + suffix,
+                        lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                    self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_untrusted_registration_reasons_remain_generic_without_secret_output(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "registration_http_099", "registration_http_600", "registration_http_999",
+            "registration_http_-1", "registration_http_0401", "registration_http_4010",
+            "registration_http_４０１", "registration_http_401\n", "registration_http_401 ",
+            "registration_http_401-" + SYNTHETIC_SECRET,
+            "registration_unregistered\n" + SYNTHETIC_SECRET,
+            "registration_authentication_failed-" + SYNTHETIC_SECRET,
+            "registration_arbitrary_server_code", SYNTHETIC_SECRET,
+            {"reason": "registration_http_401", "private": SYNTHETIC_SECRET},
+            ["registration_parse_error", SYNTHETIC_SECRET], None, 401, True,
+        )
+        for operation, feature in (
+            ("prepare", None), ("prepare", "profile"), ("prepare", "offline"),
+            ("cleanup", "offline"), ("export", None), ("offline-observe", None),
+            ("feature-observe", "timer"),
+        ):
+            metadata = {} if feature is None else {
+                "feature": feature, "flow": feature + "-registration",
+                "run_id": "0123456789abcdef", "parameters": {},
+            }
+            for index, reason in enumerate(reasons):
+                with self.subTest(operation=operation, feature=feature, case=index):
+                    self.transport.result = json.dumps({
+                        "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.assert_failure(
+                        "bootstrap-" + operation + "-failed",
+                        lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_registration_reason_requires_failed_status(self):
+        self.transport.pending_sleeps = 0
+        for status in ("exported", None, "unknown"):
+            for reason in ("registration_http_401", "registration_parse_error"):
+                with self.subTest(status=status, reason=reason):
+                    self.transport.result = json.dumps({
+                        "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.assert_failure(
+                        "bootstrap-prepare-failed",
+                        lambda: self.device.bootstrap("prepare", CREDENTIALS),
+                    )
+
     def test_matching_prepare_failure_reason_is_exposed_as_fixed_code(self):
         self.transport.pending_sleeps = 0
         cases = (

@@ -5,7 +5,6 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
-import com.project200.data.datasource.FeatureFlagDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetExerciseCountByRangeDTO
@@ -34,6 +33,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import okhttp3.MultipartBody
@@ -56,7 +56,6 @@ class ExerciseRecordRepositoryImplTest {
     private lateinit var local: ExerciseRecordLocalDataSource
     private lateinit var repository: ExerciseRecordRepositoryImpl
     private val remote = mockk<ExerciseRecordRemoteDataSource>()
-    private val flags = mockk<FeatureFlagDataSource>()
     private val network = mockk<NetworkMonitor>()
     private val preferences = mockk<PreferenceManager>()
     private val date = LocalDate.of(2026, 10, 10)
@@ -73,14 +72,12 @@ class ExerciseRecordRepositoryImplTest {
             if (secondArg<Boolean>()) invalidatedMembers.add(firstArg()) else invalidatedMembers.remove(firstArg())
             Unit
         }
-        every { flags.isOfflineCacheEnabled() } returns true
         every { network.isCurrentlyConnected() } returns true
         local = ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), database.exerciseRecordDao(), preferences)
         repository =
             ExerciseRecordRepositoryImpl(
                 remote,
                 local,
-                flags,
                 network,
                 UnconfinedTestDispatcher(),
                 RuntimeEnvironment.getApplication(),
@@ -146,54 +143,17 @@ class ExerciseRecordRepositoryImplTest {
             local.replaceSyncedListByDate(date, listOf(itemDto().toModel()))
             val id = local.getListByDate(date).single().recordId
             coEvery { remote.getExerciseList(date) } throws IOException("연결 실패")
-            val networkResult = repository.getExerciseRecordList(date) as BaseResult.Success
+            val networkResult = repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success
             assertThat(networkResult.data.single().recordId).isEqualTo(id)
             assertThat(networkResult.refreshError?.errorCode).isEqualTo("NETWORK_ERROR")
 
             coEvery { remote.getExerciseList(date) } returns BaseResponse(succeed = false, code = "401", message = "인증 실패")
-            val authResult = repository.getExerciseRecordList(date) as BaseResult.Success
+            val authResult = repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success
             assertThat(authResult.refreshError?.errorCode).isEqualTo("401")
             assertThat(authResult.isCachedSnapshot).isTrue()
             assertThat(authResult.data.single().recordId).isEqualTo(id)
             coEvery { remote.getExerciseList(nextDate) } returns BaseResponse(succeed = false, code = "BUSINESS_ERROR", message = "조회 불가")
             assertThat((repository.getExerciseRecordList(nextDate) as BaseResult.Error).errorCode).isEqualTo("BUSINESS_ERROR")
-        }
-
-    @Test
-    fun `플래그가 꺼지면 연결 상태나 Room 쓰기에 의존하지 않고 서버 응답과 오류를 반환한다`() =
-        runTest {
-            every { flags.isOfflineCacheEnabled() } returns false
-            every { network.isCurrentlyConnected() } returns false
-            val brokenLocal = mockk<ExerciseRecordLocalDataSource>()
-            val legacy =
-                ExerciseRecordRepositoryImpl(
-                    remote,
-                    brokenLocal,
-                    flags,
-                    network,
-                    UnconfinedTestDispatcher(),
-                    RuntimeEnvironment.getApplication(),
-                )
-            coEvery { remote.getExerciseCountsByRange(date, nextDate) } returns response(listOf(GetExerciseCountByRangeDTO(date, 1)))
-            coEvery { remote.getExerciseList(date) } returns response(listOf(itemDto()))
-            coEvery { remote.getExerciseRecordDetail(7L) } returns response(detailDto())
-            coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
-
-            assertThat(
-                (legacy.getExerciseCountByRange(date, nextDate, refresh = false) as BaseResult.Success).data.single().count,
-            ).isEqualTo(1)
-            assertThat((legacy.getExerciseRecordList(date, refresh = false) as BaseResult.Success).data.single().recordId).isEqualTo("7")
-            assertThat((legacy.getExerciseDetail("7") as BaseResult.Success).data.title).isEqualTo("운동")
-            val created = legacy.createExerciseRecord(record()) as BaseResult.Success
-            assertThat(created.data.recordId).isEqualTo("7")
-            assertThat(created.data.earnedPoints).isEqualTo(3)
-            assertThat(created.refreshError).isNull()
-            assertThat(created.isCachedSnapshot).isFalse()
-            coEvery { remote.getExerciseList(date) } throws IOException("연결 없음")
-            assertThat((legacy.getExerciseRecordList(date) as BaseResult.Error).errorCode).isEqualTo("NETWORK_ERROR")
-            coEvery { remote.getExerciseList(date) } returns BaseResponse(succeed = false, code = "401", message = "인증 실패")
-            assertThat((legacy.getExerciseRecordList(date) as BaseResult.Error).errorCode).isEqualTo("401")
-            coVerify(exactly = 0) { brokenLocal.replaceSyncedListByDate(any(), any(), any()) }
         }
 
     @Test
@@ -345,12 +305,16 @@ class ExerciseRecordRepositoryImplTest {
                 pendingResponse.await()
             }
             coEvery { remote.patchExerciseRecord(7L, any()) } returns response(ExerciseIdDto(7L))
-            val refresh = async { repository.getExerciseRecordList(date) }
+            val refresh = async { repository.getExerciseRecordList(date, refresh = true) }
             entered.await()
             val edit = async { repository.updateExerciseRecord(record().copy(title = "새 내용"), id) }
+            assertThat(edit.await()).isInstanceOf(BaseResult.Success::class.java)
+            assertThat(refresh.isCompleted).isFalse()
+            assertThat((repository.getExerciseRecordList(date) as BaseResult.Success).data.single().title).isEqualTo("새 내용")
+            assertThat((repository.getExerciseDetail(id) as BaseResult.Success).data.title).isEqualTo("새 내용")
             pendingResponse.complete(response(listOf(itemDto())))
-            refresh.await()
-            edit.await()
+            val refreshed = refresh.await() as BaseResult.Success
+            assertThat(refreshed.data.single().title).isEqualTo("새 내용")
             assertThat(local.getListByDate(date).single().title).isEqualTo("새 내용")
             assertThat(local.getDetailByLocalId(id)?.title).isEqualTo("새 내용")
         }
@@ -377,26 +341,6 @@ class ExerciseRecordRepositoryImplTest {
             } catch (expected: CancellationException) {
                 assertThat(expected.message).isEqualTo("취소")
             }
-        }
-
-    @Test
-    fun `플래그 OFF 삭제 뒤 ON 오프라인 조회는 이전 목록과 상세를 반환하지 않는다`() =
-        runTest {
-            val id = local.reconcileRecord(7L, record(), memberId)!!
-            local.replaceCountsByRange(date, date, listOf(com.project200.domain.model.ExerciseCount(date, 1)))
-            local.replaceSyncedListByDate(date, listOf(itemDto().toModel()))
-            every { flags.isOfflineCacheEnabled() } returns false
-            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-            assertThat(repository.deleteExerciseRecord("7")).isInstanceOf(BaseResult.Success::class.java)
-            assertThat(invalidatedMembers).contains(memberId)
-
-            every { flags.isOfflineCacheEnabled() } returns true
-            every { network.isCurrentlyConnected() } returns false
-            assertThat(repository.getExerciseRecordList(date, refresh = false)).isInstanceOf(BaseResult.Error::class.java)
-            assertThat(repository.getExerciseDetail(id, refresh = false)).isInstanceOf(BaseResult.Error::class.java)
-            assertThat(local.getDetailByLocalId(id)).isNull()
-            assertThat(local.getCountsSnapshot(date, date, memberId)).isNull()
-            assertThat(invalidatedMembers).isEmpty()
         }
 
     @Test
@@ -437,7 +381,6 @@ class ExerciseRecordRepositoryImplTest {
                 ExerciseRecordRepositoryImpl(
                     remote,
                     failingLocal,
-                    flags,
                     network,
                     UnconfinedTestDispatcher(),
                     RuntimeEnvironment.getApplication(),
@@ -475,7 +418,6 @@ class ExerciseRecordRepositoryImplTest {
                 ExerciseRecordRepositoryImpl(
                     remote,
                     failingLocal,
-                    flags,
                     network,
                     UnconfinedTestDispatcher(),
                     RuntimeEnvironment.getApplication(),
@@ -502,45 +444,7 @@ class ExerciseRecordRepositoryImplTest {
         }
 
     @Test
-    fun `플래그 OFF의 모든 서버 쓰기는 무효 표시 저장 실패를 성공 경고로 반환하고 재시도하지 않는다`() =
-        runTest {
-            every { flags.isOfflineCacheEnabled() } returns false
-            val failure = IOException("무효 표시 저장 실패")
-            every { preferences.setExerciseCacheInvalidated(memberId, true) } throws failure
-            coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
-            coEvery { remote.patchExerciseRecord(7L, any()) } returns response(ExerciseIdDto(7L))
-            coEvery { remote.postExerciseImages(7L, any()) } returns response(ExerciseIdDto(7L))
-            coEvery { remote.deleteExerciseImages(7L, any()) } returns response<Unit?>(null)
-            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-
-            val created = repository.createExerciseRecord(record()) as BaseResult.Success
-            val updated = repository.updateExerciseRecord(record(), "7") as BaseResult.Success
-            val uploaded = repository.uploadExerciseRecordImages("7", emptyList()) as BaseResult.Success
-            val imagesDeleted = repository.deleteExerciseRecordImages("7", listOf(1L)) as BaseResult.Success
-            val deleted = repository.deleteExerciseRecord("7") as BaseResult.Success
-
-            listOf(created, updated, uploaded, imagesDeleted, deleted).forEach { result ->
-                assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
-                assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
-                assertThat(result.isCachedSnapshot).isFalse()
-            }
-            assertThat(created.data.recordId).isEqualTo("7")
-            assertThat(created.data.earnedPoints).isEqualTo(3)
-            assertThat(updated.data).isEqualTo("7")
-            assertThat(uploaded.data).isEqualTo("7")
-            assertThat(imagesDeleted.data).isEqualTo(Unit)
-            assertThat(deleted.data).isEqualTo(Unit)
-            assertThat(invalidatedMembers).isEmpty()
-            verify(exactly = 5) { preferences.setExerciseCacheInvalidated(memberId, true) }
-            coVerify(exactly = 1) { remote.postExerciseRecord(any()) }
-            coVerify(exactly = 1) { remote.patchExerciseRecord(7L, any()) }
-            coVerify(exactly = 1) { remote.postExerciseImages(7L, any()) }
-            coVerify(exactly = 1) { remote.deleteExerciseImages(7L, listOf(1L)) }
-            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
-        }
-
-    @Test
-    fun `플래그 ON 캐시 반영과 무효 표시 저장이 함께 실패해도 서버 성공과 반영 오류를 반환한다`() =
+    fun `캐시 반영과 무효 표시 저장이 함께 실패해도 서버 성공과 반영 오류를 반환한다`() =
         runTest {
             val id = local.reconcileRecord(7L, record(), memberId)!!
             val failure = IOException("Room 반영 실패")
@@ -551,7 +455,6 @@ class ExerciseRecordRepositoryImplTest {
                 ExerciseRecordRepositoryImpl(
                     remote,
                     failingLocal,
-                    flags,
                     network,
                     UnconfinedTestDispatcher(),
                     RuntimeEnvironment.getApplication(),
@@ -566,27 +469,6 @@ class ExerciseRecordRepositoryImplTest {
             assertThat(result.isCachedSnapshot).isFalse()
             assertThat(invalidatedMembers).isEmpty()
             verify(exactly = 1) { preferences.setExerciseCacheInvalidated(memberId, true) }
-            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
-        }
-
-    @Test
-    fun `플래그 OFF 쓰기 중 계정이 바뀌어도 무효 표시 실패는 원래 회원의 경고로 반환한다`() =
-        runTest {
-            every { flags.isOfflineCacheEnabled() } returns false
-            val failure = IOException("원래 회원 무효 표시 저장 실패")
-            every { preferences.setExerciseCacheInvalidated("member-a", true) } throws failure
-            coEvery { remote.deleteExerciseRecord(7L) } coAnswers {
-                memberId = "member-b"
-                response<Unit?>(null)
-            }
-
-            val result = repository.deleteExerciseRecord("7") as BaseResult.Success
-
-            assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
-            assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
-            verify(exactly = 1) { preferences.setExerciseCacheInvalidated("member-a", true) }
-            verify(exactly = 0) { preferences.setExerciseCacheInvalidated("member-b", any()) }
-            assertThat(invalidatedMembers).isEmpty()
             coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
         }
 
@@ -617,46 +499,7 @@ class ExerciseRecordRepositoryImplTest {
         }
 
     @Test
-    fun `플래그 OFF의 모든 서버 쓰기는 회원 캐시를 무효로 표시한다`() =
-        runTest {
-            every { flags.isOfflineCacheEnabled() } returns false
-            coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
-            coEvery { remote.patchExerciseRecord(7L, any()) } returns response(ExerciseIdDto(7L))
-            coEvery { remote.postExerciseImages(7L, any()) } returns response(ExerciseIdDto(7L))
-            coEvery { remote.deleteExerciseImages(7L, any()) } returns response<Unit?>(null)
-            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-            val writes: List<suspend () -> BaseResult<*>> =
-                listOf(
-                    { repository.createExerciseRecord(record()) },
-                    { repository.updateExerciseRecord(record(), "7") },
-                    { repository.uploadExerciseRecordImages("7", emptyList()) },
-                    { repository.deleteExerciseRecordImages("7", listOf(1L)) },
-                    { repository.deleteExerciseRecord("7") },
-                )
-            writes.forEach { write ->
-                invalidatedMembers.clear()
-                assertThat(write()).isInstanceOf(BaseResult.Success::class.java)
-                assertThat(invalidatedMembers).containsExactly(memberId)
-            }
-        }
-
-    @Test
-    fun `플래그 OFF 쓰기 후 무효 표시의 취소는 숨기거나 서버 쓰기를 반복하지 않는다`() =
-        runTest {
-            every { flags.isOfflineCacheEnabled() } returns false
-            every { preferences.setExerciseCacheInvalidated(any(), true) } throws CancellationException("무효 표시 취소")
-            coEvery { remote.deleteExerciseRecord(7L) } returns response<Unit?>(null)
-            try {
-                repository.deleteExerciseRecord("7")
-                throw AssertionError("취소가 전파되지 않았습니다")
-            } catch (expected: CancellationException) {
-                assertThat(expected.message).isEqualTo("무효 표시 취소")
-            }
-            coVerify(exactly = 1) { remote.deleteExerciseRecord(7L) }
-        }
-
-    @Test
-    fun `플래그 ON 반영 실패 후 무효 표시의 취소는 캐시 경고로 숨기지 않는다`() =
+    fun `반영 실패 후 무효 표시의 취소는 캐시 경고로 숨기지 않는다`() =
         runTest {
             val id = local.reconcileRecord(7L, record(), memberId)!!
             val failingLocal = spyk(local)
@@ -666,7 +509,6 @@ class ExerciseRecordRepositoryImplTest {
                 ExerciseRecordRepositoryImpl(
                     remote,
                     failingLocal,
-                    flags,
                     network,
                     UnconfinedTestDispatcher(),
                     RuntimeEnvironment.getApplication(),
@@ -692,6 +534,116 @@ class ExerciseRecordRepositoryImplTest {
             assertThat(local.getDetailByLocalId(id)).isEqualTo(result.data)
             assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, id)?.serverId).isEqualTo(7L)
             coVerify(exactly = 1) { remote.getExerciseRecordDetail(7L) }
+        }
+
+    @Test
+    fun `캐시 집계와 상세는 서버 갱신이 대기하는 동안 즉시 읽을 수 있다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            local.replaceCountsByRange(date, nextDate, listOf(com.project200.domain.model.ExerciseCount(date, 1)))
+            val entered = CompletableDeferred<Unit>()
+            val countsResponse = CompletableDeferred<BaseResponse<List<GetExerciseCountByRangeDTO>>>()
+            coEvery { remote.getExerciseCountsByRange(date, nextDate) } coAnswers {
+                entered.complete(Unit)
+                countsResponse.await()
+            }
+            val refreshCounts = async { repository.getExerciseCountByRange(date, nextDate, refresh = true) }
+            entered.await()
+            val counts = repository.getExerciseCountByRange(date, nextDate) as BaseResult.Success
+            assertThat(counts.isCachedSnapshot).isTrue()
+            assertThat(counts.data.single().count).isEqualTo(1)
+            assertThat((repository.getExerciseDetail(id) as BaseResult.Success).data.title).isEqualTo("운동")
+            assertThat(refreshCounts.isCompleted).isFalse()
+            countsResponse.complete(response(emptyList()))
+            assertThat((refreshCounts.await() as BaseResult.Success).data).isEmpty()
+
+            val detailEntered = CompletableDeferred<Unit>()
+            val detailResponse = CompletableDeferred<BaseResponse<GetExerciseRecordData>>()
+            coEvery { remote.getExerciseRecordDetail(7L) } coAnswers {
+                detailEntered.complete(Unit)
+                detailResponse.await()
+            }
+            val refreshDetail = async { repository.getExerciseDetail(id, refresh = true) }
+            detailEntered.await()
+            val detail = repository.getExerciseDetail(id) as BaseResult.Success
+            assertThat(detail.isCachedSnapshot).isTrue()
+            assertThat(detail.data.title).isEqualTo("운동")
+            assertThat((repository.getExerciseCountByRange(date, nextDate) as BaseResult.Success).data).isEmpty()
+            assertThat(refreshDetail.isCompleted).isFalse()
+            detailResponse.complete(response(detailDto().copy(exerciseTitle = "새 상세")))
+            assertThat((refreshDetail.await() as BaseResult.Success).data.title).isEqualTo("새 상세")
+        }
+
+    @Test
+    fun `진행 중 쓰기와 겹친 조회는 쓰기 완료 전에도 오래된 응답을 반영하지 않는다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            val entered = CompletableDeferred<Unit>()
+            val writeResponse = CompletableDeferred<BaseResponse<ExerciseIdDto>>()
+            coEvery { remote.patchExerciseRecord(7L, any()) } coAnswers {
+                entered.complete(Unit)
+                writeResponse.await()
+            }
+            val edit = async { repository.updateExerciseRecord(record().copy(title = "내 수정"), id) }
+            entered.await()
+            coEvery { remote.getExerciseList(date) } returns response(listOf(itemDto().copy(exerciseTitle = "쓰기 전 서버")))
+            val result = repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success
+            assertThat(result.data.single().title).isEqualTo("운동")
+            assertThat(result.isCachedSnapshot).isTrue()
+            assertThat(edit.isCompleted).isFalse()
+            writeResponse.complete(response(ExerciseIdDto(7L)))
+            assertThat(edit.await()).isInstanceOf(BaseResult.Success::class.java)
+            assertThat(local.getListByDate(date).single().title).isEqualTo("내 수정")
+        }
+
+    @Test
+    fun `실패하거나 취소한 쓰기도 이전 GET을 무효화하고 다음 갱신을 막지 않는다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            for (cancelWrite in listOf(false, true)) {
+                val entered = CompletableDeferred<Unit>()
+                val pendingResponse = CompletableDeferred<BaseResponse<List<GetExerciseRecordListDto>>>()
+                coEvery { remote.getExerciseList(date) } coAnswers {
+                    entered.complete(Unit)
+                    pendingResponse.await()
+                }
+                val refresh = async { repository.getExerciseRecordList(date, refresh = true) }
+                entered.await()
+                if (cancelWrite) {
+                    val writeEntered = CompletableDeferred<Unit>()
+                    val blocked = CompletableDeferred<BaseResponse<ExerciseIdDto>>()
+                    coEvery { remote.patchExerciseRecord(7L, any()) } coAnswers {
+                        writeEntered.complete(Unit)
+                        blocked.await()
+                    }
+                    val edit = async { repository.updateExerciseRecord(record(), id) }
+                    writeEntered.await()
+                    edit.cancelAndJoin()
+                } else {
+                    coEvery { remote.patchExerciseRecord(7L, any()) } throws IOException("쓰기 실패")
+                    assertThat(repository.updateExerciseRecord(record(), id)).isInstanceOf(BaseResult.Error::class.java)
+                }
+                pendingResponse.complete(response(listOf(itemDto().copy(exerciseTitle = "오래된 응답"))))
+                assertThat((refresh.await() as BaseResult.Success).data.single().title).isEqualTo("운동")
+                assertThat(local.getDetailByLocalId(id)?.title).isEqualTo("운동")
+            }
+            coEvery { remote.getExerciseList(date) } returns response(listOf(itemDto().copy(exerciseTitle = "명시 갱신")))
+            val result = repository.getExerciseRecordList(date, refresh = true) as BaseResult.Success
+            assertThat(result.data.single().title).isEqualTo("명시 갱신")
+        }
+
+    @Test
+    fun `쓰기 응답 중 계정 변경은 다른 회원 캐시나 성공 결과를 만들지 않는다`() =
+        runTest {
+            val id = local.reconcileRecord(7L, record(), memberId)!!
+            coEvery { remote.patchExerciseRecord(7L, any()) } coAnswers {
+                memberId = "member-b"
+                response(ExerciseIdDto(7L))
+            }
+            val result = repository.updateExerciseRecord(record().copy(title = "수정"), id) as BaseResult.Error
+            assertThat(result.errorCode).isEqualTo("ACCOUNT_CHANGED")
+            assertThat(database.exerciseRecordDao().getListByDate("member-b", date)).isEmpty()
+            assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.title).isEqualTo("운동")
         }
 
     private fun record(day: LocalDate = date) = ExerciseRecord("운동", "본문", "OTHER", day.atTime(9, 0), day.atTime(10, 0), "공원", null)

@@ -113,7 +113,7 @@ class ExerciseMainViewModel
 
         private fun loadExercisesForDate(
             date: LocalDate,
-            refresh: Boolean = true,
+            refresh: Boolean = false,
             localOnly: Boolean = false,
         ) {
             val requestId = ++exerciseListRequestId
@@ -128,6 +128,9 @@ class ExerciseMainViewModel
                         _exerciseList.value = result.data
                         _isExerciseListLoaded.value = true
                         result.refreshError?.let { notifyRefreshError(it) }
+                        if (!refresh && !localOnly && result.isCachedSnapshot) {
+                            viewModelScope.launch { getExerciseRecordListUseCase(date, refresh = true) }
+                        }
                     }
                     is BaseResult.Error -> {
                         _exerciseListError.value = result
@@ -140,7 +143,7 @@ class ExerciseMainViewModel
         private fun getExerciseCounts(
             yearMonth: YearMonth,
             today: LocalDate,
-            refresh: Boolean = true,
+            refresh: Boolean = false,
             localOnly: Boolean = false,
         ) {
             val requestId = (monthRequestIds[yearMonth] ?: 0) + 1
@@ -157,6 +160,9 @@ class ExerciseMainViewModel
                         _pendingDates.value = pendingDateCache.values.flatten().toSet()
                         if (yearMonth == clockProvider.yearMonthNow()) _exerciseCount.value = result.data.sumOf { it.count }
                         result.refreshError?.let { notifyRefreshError(it) }
+                        if (!refresh && !localOnly && result.isCachedSnapshot) {
+                            viewModelScope.launch { getExerciseCountInMonthUseCase(yearMonth.atDay(1), endDate, refresh = true) }
+                        }
                     }
                     is BaseResult.Error -> notifyRefreshError(result)
                 }
@@ -254,11 +260,11 @@ class ExerciseMainViewModel
             getScore()
         }
 
-        /** 자신의 생성·수정·삭제 후에는 캐시 우선으로 읽고, 온라인 미적중만 갱신합니다. */
+        /** 자신의 생성·수정·삭제 후에는 네트워크 없이 Room만 다시 읽습니다 */
         fun onOwnWrite() {
             localReadSinceStop = true
             refreshNotificationShown = false
-            reloadExerciseQueries(refresh = false)
+            reloadExerciseQueries(refresh = false, localOnly = true)
             getScore()
             loadExpectedScoreInfo()
         }

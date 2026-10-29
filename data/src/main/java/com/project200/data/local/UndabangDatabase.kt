@@ -12,6 +12,7 @@ import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.SimpleTimerEntity
+import com.project200.data.local.entity.TimerSnapshotEntity
 
 /**
  * 오프라인 캐시용 로컬 데이터베이스입니다.
@@ -27,8 +28,9 @@ import com.project200.data.local.entity.SimpleTimerEntity
         ExerciseCacheQueryEntity::class,
         SimpleTimerEntity::class,
         CustomTimerEntity::class,
+        TimerSnapshotEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(UndabangTypeConverters::class)

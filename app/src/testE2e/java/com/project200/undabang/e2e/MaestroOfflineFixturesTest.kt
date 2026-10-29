@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
-import com.project200.data.datasource.FeatureFlagDataSource
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerDetailStepDTO
@@ -17,8 +16,6 @@ import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.TimerMutationResponseDTO
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SyncState
-import com.project200.domain.model.UpdateInfo
-import com.project200.domain.repository.AppUpdateRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
@@ -39,11 +36,9 @@ import java.time.LocalDateTime
 @Config(sdk = [33], manifest = Config.NONE, application = Application::class)
 class MaestroOfflineFixturesTest {
     private val api = mockk<ApiService>()
-    private val flags = mockk<FeatureFlagDataSource>()
-    private val updates = mockk<AppUpdateRepository>()
     private val context: Context = RuntimeEnvironment.getApplication()
     private val local = mockk<TimerLocalDataSource>()
-    private val fixtures = MaestroOfflineFixtures(api, flags, updates, context, local)
+    private val fixtures = MaestroOfflineFixtures(api, context, local)
     private val run =
         MaestroOfflineRun(
             "0123456789abcdef0123456789abcdef",
@@ -55,20 +50,9 @@ class MaestroOfflineFixturesTest {
     @Before
     fun setUp() {
         File(context.filesDir, "maestro-offline-state.json").delete()
-        coEvery { local.getCustomTimers() } returns emptyList()
+        every { local.currentMemberId() } returns "member"
+        coEvery { local.getCustomTimers("member") } returns emptyList()
     }
-
-    @Test
-    fun `실제 활성화된 캐시 플래그가 꺼져 있으면 준비를 거절한다`() =
-        runTest {
-            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
-            every { flags.isOfflineCacheEnabled() } returns false
-
-            expectFailure("offline_cache_flag_disabled") { fixtures.requireCacheEnabled() }
-
-            coVerify(exactly = 1) { updates.getUpdateInfo() }
-            coVerify(exactly = 0) { api.getExerciseList(any()) }
-        }
 
     @Test
     fun `서버 목록과 상세의 정확한 이름 시간 스텝을 직접 확인한다`() =
@@ -165,7 +149,7 @@ class MaestroOfflineFixturesTest {
     @Test
     fun `스냅샷 저장 전 준비가 실패해도 실행 이름과 상세를 재확인한 행만 정리한다`() =
         runTest {
-            coEvery { local.getCustomTimers() } throws IllegalStateException("local read failed")
+            coEvery { local.getCustomTimers("member") } throws IllegalStateException("local read failed")
             try {
                 fixtures.prepare(request(run))
                 throw AssertionError("실패할 준비가 성공했습니다")
@@ -239,13 +223,11 @@ class MaestroOfflineFixturesTest {
         }
 
     @Test
-    fun `공통 feature 준비는 실행별 정리 뒤 실제 플래그를 검사하고 정리는 같은 요청을 재사용한다`() =
+    fun `공통 feature 준비와 정리는 플래그 없이 같은 소유 요청을 재사용한다`() =
         runTest {
             val request = request(run)
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
             coEvery { api.getCustomTimerList() } returns timerList()
-            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
-            every { flags.isOfflineCacheEnabled() } returns true
 
             val variables = fixtures.prepare(request)
             assertThat(variables["TIMER_INITIAL_TIME"]).isEqualTo("00:45")
@@ -257,8 +239,6 @@ class MaestroOfflineFixturesTest {
             coVerifyOrder {
                 api.getExerciseList(run.startedAt.toLocalDate())
                 api.getCustomTimerList()
-                updates.getUpdateInfo()
-                flags.isOfflineCacheEnabled()
                 api.getExerciseList(run.startedAt.toLocalDate())
                 api.getCustomTimerList()
             }
@@ -277,7 +257,6 @@ class MaestroOfflineFixturesTest {
             }
             coVerify(exactly = 0) { api.getExerciseList(any()) }
             coVerify(exactly = 0) { api.getCustomTimerList() }
-            coVerify(exactly = 0) { updates.getUpdateInfo() }
         }
 
     @Test
@@ -286,8 +265,6 @@ class MaestroOfflineFixturesTest {
             val changed = run.copy(timerInput = MaestroOfflineTimerInput(53, 97, "set-639"))
             coEvery { api.getExerciseList(changed.startedAt.toLocalDate()) } returns success(emptyList())
             coEvery { api.getCustomTimerList() } returns timerList()
-            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
-            every { flags.isOfflineCacheEnabled() } returns true
             val variables = fixtures.prepare(request(changed))
             assertThat(variables["TIMER_INITIAL_TIME"]).isEqualTo("00:53")
             assertThat(variables["TIMER_UPDATED_TIME"]).isEqualTo("01:37")
@@ -322,8 +299,6 @@ class MaestroOfflineFixturesTest {
         runTest {
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
             coEvery { api.getCustomTimerList() } returns timerList()
-            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
-            every { flags.isOfflineCacheEnabled() } returns true
             fixtures.prepare(request(run))
             val changed = request(run.copy(timerInput = MaestroOfflineTimerInput(53, 97, "set-639")))
             expectFailure("offline_snapshot_input_mismatch") { fixtures.validateRequest(changed) }
@@ -357,19 +332,17 @@ class MaestroOfflineFixturesTest {
     fun `기준 동명 행을 보존하고 이번 생성의 ID만 반환하며 중복이나 교체는 거절한다`() =
         runTest {
             val baseline = localTimer("baseline", run.createdTimer)
-            coEvery { local.getCustomTimers() } returns listOf(baseline)
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline)
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
             coEvery { api.getCustomTimerList() } returns timerList()
-            coEvery { updates.getUpdateInfo() } returns Result.success(mockk<UpdateInfo>())
-            every { flags.isOfflineCacheEnabled() } returns true
             val request = request(run)
             fixtures.prepare(request)
             val owned = localTimer("owned", run.createdTimer)
-            coEvery { local.getCustomTimers() } returns listOf(baseline, owned)
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, owned)
             assertThat(fixtures.observe(request, "timers-local-created")).containsEntry("TIMER_CREATE_LOCAL_ID", "owned")
-            coEvery { local.getCustomTimers() } returns listOf(baseline, owned, localTimer("duplicate", run.createdTimer))
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, owned, localTimer("duplicate", run.createdTimer))
             expectFailure("offline_timer_local_id_missing") { fixtures.observe(request, "timers-local-created") }
-            coEvery { local.getCustomTimers() } returns listOf(baseline, localTimer("replacement", run.createdTimer))
+            coEvery { local.getCustomTimers("member") } returns listOf(baseline, localTimer("replacement", run.createdTimer))
             expectFailure("offline_timer_identity_changed") { fixtures.observe(request, "timers-local-created") }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
         }
