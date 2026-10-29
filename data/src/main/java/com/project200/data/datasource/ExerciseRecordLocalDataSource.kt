@@ -244,7 +244,10 @@ class ExerciseRecordLocalDataSource
                         ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
                         ?: previousLocalId
                         ?: newLocalId()
-                if (serverId !in exerciseRecordDao.getAllPendingServerIds(memberId) && !exerciseRecordDao.hasPendingRecord(memberId, localId)) {
+                if (
+                    serverId !in exerciseRecordDao.getAllPendingServerIds(memberId) &&
+                    !exerciseRecordDao.hasPendingRecord(memberId, localId)
+                ) {
                     saveRemoteDetail(memberId, localId, serverId, record)
                 }
                 localId

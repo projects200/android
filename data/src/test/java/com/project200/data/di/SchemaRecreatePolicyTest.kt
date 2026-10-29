@@ -34,8 +34,7 @@ class SchemaRecreatePolicyTest {
         context.deleteDatabase(name)
     }
 
-    private fun openDatabase(): UndabangDatabase =
-        DatabaseModule.provideUndabangDatabase(context, converters).also { database = it }
+    private fun openDatabase(): UndabangDatabase = DatabaseModule.provideUndabangDatabase(context, converters).also { database = it }
 
     @Test
     fun `지원하지 않는 과거 버전은 열기에 실패해도 원본과 파일 버전을 보존한다`() {

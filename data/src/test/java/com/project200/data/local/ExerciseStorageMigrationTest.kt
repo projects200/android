@@ -33,12 +33,10 @@ class ExerciseStorageMigrationTest {
     }
 
     @Test
-    fun `실제 스키마 4는 모든 운동 원문과 타이머 전송 상태를 보존하고 재개방한다`() =
-        runTest { assertMigration(4) }
+    fun `실제 스키마 4는 모든 운동 원문과 타이머 전송 상태를 보존하고 재개방한다`() = runTest { assertMigration(4) }
 
     @Test
-    fun `실제 스키마 5는 모든 운동 원문과 타이머 조회 이력을 보존하고 재개방한다`() =
-        runTest { assertMigration(5) }
+    fun `실제 스키마 5는 모든 운동 원문과 타이머 조회 이력을 보존하고 재개방한다`() = runTest { assertMigration(5) }
 
     private suspend fun assertMigration(version: Int) {
         var before = emptyMap<String, List<List<String?>>>()
@@ -187,8 +185,10 @@ class ExerciseStorageMigrationTest {
     ): Map<String, List<List<String?>>> {
         val columns =
             linkedMapOf(
-                "exercise_list_item" to "memberId, localId, serverId, syncState, date, sortOrder, title, personalType, startedAt, endedAt, thumbnailUrls",
-                "exercise_record_detail" to "memberId, localId, serverId, syncState, title, detail, personalType, startedAt, endedAt, location, pictures",
+                "exercise_list_item" to "memberId, localId, serverId, syncState, date, sortOrder, title, " +
+                    "personalType, startedAt, endedAt, thumbnailUrls",
+                "exercise_record_detail" to "memberId, localId, serverId, syncState, title, detail, personalType, " +
+                    "startedAt, endedAt, location, pictures",
                 "exercise_count" to "*",
                 "exercise_cache_query" to "*",
                 "simple_timer" to "*",

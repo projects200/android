@@ -224,7 +224,13 @@ class ExerciseStoragePersistenceTest {
                 every { preferences.getMemberId() } returns member
                 local.persistPending(journal(member), item(member), detail(member), listOf(image(member)))
                 database.exerciseImageDao().save(
-                    image(member).copy(localId = "remote", serverPictureId = 12, localFilePath = null, requestId = null, state = ExerciseImageState.SYNCED),
+                    image(member).copy(
+                        localId = "remote",
+                        serverPictureId = 12,
+                        localFilePath = null,
+                        requestId = null,
+                        state = ExerciseImageState.SYNCED,
+                    ),
                 )
             }
             val dao = database.exerciseSyncDao()
@@ -249,7 +255,14 @@ class ExerciseStoragePersistenceTest {
         runTest {
             val dao = database.exerciseImageDao()
             val owned = image().copy(serverPictureId = 11, state = ExerciseImageState.DELETE_PENDING)
-            val remote = image().copy(localId = "stable", serverPictureId = 12, localFilePath = null, requestId = null, state = ExerciseImageState.SYNCED)
+            val remote =
+                image().copy(
+                    localId = "stable",
+                    serverPictureId = 12,
+                    localFilePath = null,
+                    requestId = null,
+                    state = ExerciseImageState.SYNCED,
+                )
             val syncedOwned = image().copy(localId = "owned-synced", serverPictureId = 13, state = ExerciseImageState.SYNCED)
             dao.save(owned)
             dao.save(remote)
