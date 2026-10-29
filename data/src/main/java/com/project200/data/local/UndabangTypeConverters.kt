@@ -16,8 +16,8 @@ import java.time.LocalDateTime
  * 날짜는 ISO 문자열로 담습니다. 사전순 비교가 곧 시간순 비교라서
  * BETWEEN과 ORDER BY를 컬럼에 그대로 걸 수 있습니다
  *
- * 사진 목록은 JSON 문자열입니다. 사진을 따로 조회할 일이 없고 항상 기록과 함께 읽히며,
- * 리스트 순서가 그대로 보존됩니다
+ * 기존 상세 사진 JSON은 호환성을 위해 유지하며 순서와 null·빈 목록을 구분합니다
+ * 사진 전송 상태와 앱 소유 파일 경로는 별도 메타데이터 테이블에 보존합니다
  */
 @ProvidedTypeConverter
 class UndabangTypeConverters(moshi: Moshi) {

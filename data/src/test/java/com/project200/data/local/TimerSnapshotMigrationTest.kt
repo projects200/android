@@ -39,7 +39,7 @@ class TimerSnapshotMigrationTest {
     }
 
     @Test
-    fun `실제 스키마 4에서 5로 이동해 ID 대기 전송 영수증과 기존 조회 이력을 보존한다`() =
+    fun `실제 스키마 4에서 현재 버전으로 이동해 ID 대기 전송 영수증과 기존 조회 이력을 보존한다`() =
         runTest {
             createVersionFour()
             val migrated = openDatabase()
@@ -105,7 +105,7 @@ class TimerSnapshotMigrationTest {
     private fun openDatabase(): UndabangDatabase =
         Room.databaseBuilder(context, UndabangDatabase::class.java, name)
             .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
-            .addMigrations(DatabaseModule.MIGRATION_4_5)
+            .addMigrations(DatabaseModule.MIGRATION_4_5, DatabaseModule.MIGRATION_5_6)
             .allowMainThreadQueries()
             .build()
             .also { database = it }

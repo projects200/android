@@ -6,10 +6,13 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.project200.data.impl.RoomExerciseCacheCleaner
 import com.project200.data.impl.RoomSessionDataCleaner
+import com.project200.data.local.ExerciseStorageMigration
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
+import com.project200.data.local.dao.ExerciseImageDao
 import com.project200.data.local.dao.ExerciseRecordDao
+import com.project200.data.local.dao.ExerciseSyncDao
 import com.project200.data.local.dao.TimerDao
 import com.project200.domain.manager.ExerciseCacheCleaner
 import com.project200.domain.manager.SessionDataCleaner
@@ -79,6 +82,8 @@ abstract class DatabaseModule {
                 }
             }
 
+        val MIGRATION_5_6: Migration = ExerciseStorageMigration
+
         @Provides
         @Singleton
         fun provideUndabangTypeConverters(moshi: Moshi): UndabangTypeConverters {
@@ -86,12 +91,7 @@ abstract class DatabaseModule {
         }
 
         /**
-         * 2→3은 대기 행을 보존하는 추가 마이그레이션을 씁니다. 미지원 경로의 출시 전 재생성 정책은 유지합니다.
-         *
-         * 스키마를 바꿀 때는 version을 올립니다. version을 그대로 두고 스키마만 바꾸면
-         * identityHash가 어긋나 재생성 없이 크래시합니다
-         *
-         * 마이그레이션을 씁니다
+         * 지원 경로만 추가 마이그레이션으로 엽니다. 미지원 버전은 원본을 남기고 열기에 실패합니다
          */
         @Provides
         @Singleton
@@ -105,8 +105,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
-                .fallbackToDestructiveMigration()
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
         }
 
@@ -120,6 +119,18 @@ abstract class DatabaseModule {
         @Singleton
         fun provideExerciseRecordDao(database: UndabangDatabase): ExerciseRecordDao {
             return database.exerciseRecordDao()
+        }
+
+        @Provides
+        @Singleton
+        fun provideExerciseSyncDao(database: UndabangDatabase): ExerciseSyncDao {
+            return database.exerciseSyncDao()
+        }
+
+        @Provides
+        @Singleton
+        fun provideExerciseImageDao(database: UndabangDatabase): ExerciseImageDao {
+            return database.exerciseImageDao()
         }
 
         @Provides

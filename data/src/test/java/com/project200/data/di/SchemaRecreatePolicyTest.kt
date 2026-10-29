@@ -4,151 +4,107 @@ import android.database.sqlite.SQLiteDatabase
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
+import com.project200.data.local.createHistoricalDatabase
 import com.project200.data.local.entity.ExerciseCountEntity
-import com.project200.data.local.entity.ExerciseListItemEntity
-import com.project200.data.local.entity.SimpleTimerEntity
+import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.SyncState
 import com.project200.data.local.entity.TimerSnapshotEntity
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.test.runTest
+import org.junit.After
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 import java.time.LocalDate
 
-/**
- * 출시 전 스키마 정책을 검증합니다.
- *
- * 2→3은 조회 마커만 추가하고 기존 데이터를 보존합니다.
- * 미지원 파일 버전은 재생성하고, 같은 버전은 그대로 다시 엽니다
- */
 @RunWith(RobolectricTestRunner::class)
 class SchemaRecreatePolicyTest {
     private val context = RuntimeEnvironment.getApplication()
     private val converters = UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build())
-
-    private fun openDatabase(): UndabangDatabase = DatabaseModule.provideUndabangDatabase(context, converters)
-
+    private val name = UndabangDatabase.DATABASE_NAME
     private val date = LocalDate.parse("2026-09-10")
+    private var database: UndabangDatabase? = null
+
+    @After
+    fun tearDown() {
+        database?.close()
+        context.deleteDatabase(name)
+    }
+
+    private fun openDatabase(): UndabangDatabase =
+        DatabaseModule.provideUndabangDatabase(context, converters).also { database = it }
 
     @Test
-    fun `파일 버전이 코드와 어긋나면 재생성한다`() =
-        runTest {
-            // Given: 캐시가 쌓인 DB
-            var database = openDatabase()
-            val codeVersion = database.openHelper.readableDatabase.version
-            database.exerciseCountDao().upsertAll(
-                listOf(ExerciseCountEntity(memberId = "member-a", date = date, count = 2)),
-            )
-            assertThat(database.exerciseCountDao().getRange("member-a", date, date)).hasSize(1)
-            database.close()
-
-            // When: 파일 버전을 코드보다 앞선 값으로 바꿔 마이그레이션이 없는 상태를 만든다
-            val path = context.getDatabasePath(UndabangDatabase.DATABASE_NAME).absolutePath
-            val mismatched =
-                SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
-                    raw.version = codeVersion + 1
-                    raw.version
-                }
-            assertThat(mismatched).isEqualTo(codeVersion + 1)
-            database = openDatabase()
-
-            // Then: 예외 없이 열리고 캐시는 비어 있다
-            assertThat(database.exerciseCountDao().getRange("member-a", date, date)).isEmpty()
-            database.close()
+    fun `지원하지 않는 과거 버전은 열기에 실패해도 원본과 파일 버전을 보존한다`() {
+        createHistoricalDatabase(context, name, 1) {
+            it.execSQL("INSERT INTO exercise_count VALUES ('member-a', '2026-09-10', 7)")
         }
-
-    @Test
-    fun `같은 version이면 저장한 값이 유지된다`() =
-        runTest {
-            // Given
-            var database = openDatabase()
-            database.exerciseCountDao().upsertAll(
-                listOf(ExerciseCountEntity(memberId = "member-a", date = date, count = 3)),
-            )
-            database.close()
-
-            // When
-            database = openDatabase()
-
-            // Then: 재생성 정책이 정상 재열기까지 지우지는 않는다
-            val counts = database.exerciseCountDao().getRange("member-a", date, date)
-            assertThat(counts.single().count).isEqualTo(3)
-            database.close()
-        }
-
-    @Test
-    fun `3에서 현재 버전 마이그레이션은 전송 대기 행과 기존 캐시를 보존한다`() =
-        runTest {
-            var database = openDatabase()
-            val pendingRecord =
-                ExerciseListItemEntity(
-                    memberId = "member-a",
-                    localId = "pending-exercise",
-                    serverId = null,
-                    syncState = SyncState.CREATE_PENDING,
-                    date = date,
-                    sortOrder = 0,
-                    title = "대기 운동",
-                    personalType = "WEIGHT",
-                    startedAt = date.atTime(10, 0),
-                    endedAt = date.atTime(11, 0),
-                    thumbnailUrls = null,
-                )
-            val pendingTimer =
-                SimpleTimerEntity(
-                    memberId = "member-a",
-                    localId = "pending-timer",
-                    serverId = null,
-                    syncState = SyncState.CREATE_PENDING,
-                    time = 60,
-                    createRequestId = "timer-create",
-                    pendingEditId = null,
-                    editedAt = 1L,
-                )
-            database.exerciseRecordDao().upsertListItems(listOf(pendingRecord))
-            database.timerDao().upsertSimpleTimer(pendingTimer)
-            database.exerciseCountDao().upsertAll(listOf(ExerciseCountEntity("member-a", date, 2)))
-            database.close()
-
-            val path = context.getDatabasePath(UndabangDatabase.DATABASE_NAME).absolutePath
-            SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
-                raw.execSQL(
-                    "CREATE TABLE simple_timer_v3 (" +
-                        "memberId TEXT NOT NULL, localId TEXT NOT NULL, serverId INTEGER, " +
-                        "syncState TEXT NOT NULL, time INTEGER NOT NULL, createRequestId TEXT NOT NULL, " +
-                        "pendingEditId TEXT, editedAt INTEGER NOT NULL, PRIMARY KEY(memberId, localId))",
-                )
-                raw.execSQL(
-                    "INSERT INTO simple_timer_v3 " +
-                        "SELECT memberId, localId, serverId, syncState, time, createRequestId, pendingEditId, editedAt " +
-                        "FROM simple_timer",
-                )
-                raw.execSQL("DROP TABLE simple_timer")
-                raw.execSQL("ALTER TABLE simple_timer_v3 RENAME TO simple_timer")
-                raw.execSQL("CREATE INDEX index_simple_timer_memberId_serverId ON simple_timer(memberId, serverId)")
-                raw.execSQL(
-                    "CREATE TABLE custom_timer_v3 (" +
-                        "memberId TEXT NOT NULL, localId TEXT NOT NULL, serverId INTEGER, " +
-                        "syncState TEXT NOT NULL, name TEXT NOT NULL, steps TEXT NOT NULL, " +
-                        "createRequestId TEXT NOT NULL, pendingEditId TEXT, editedAt INTEGER NOT NULL, " +
-                        "PRIMARY KEY(memberId, localId))",
-                )
-                raw.execSQL("DROP TABLE custom_timer")
-                raw.execSQL("ALTER TABLE custom_timer_v3 RENAME TO custom_timer")
-                raw.execSQL("CREATE INDEX index_custom_timer_memberId_serverId ON custom_timer(memberId, serverId)")
-                raw.version = 3
+        assertThrows(IllegalStateException::class.java) { openDatabase().openHelper.writableDatabase }
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READONLY).use { raw ->
+            assertThat(raw.version).isEqualTo(1)
+            raw.rawQuery("SELECT count FROM exercise_count WHERE memberId = 'member-a'", null).use {
+                assertThat(it.moveToFirst()).isTrue()
+                assertThat(it.getInt(0)).isEqualTo(7)
             }
-            database = openDatabase()
+        }
+    }
 
-            assertThat(database.openHelper.readableDatabase.version).isEqualTo(5)
-            assertThat(database.exerciseRecordDao().getListByDate("member-a", date)).containsExactly(pendingRecord)
-            assertThat(database.timerDao().getSimpleTimer("member-a", "pending-timer")).isEqualTo(pendingTimer)
-            assertThat(database.timerDao().getSnapshot("member-a", TimerSnapshotEntity.SIMPLE)?.hasSnapshot).isTrue()
-            assertThat(database.exerciseCountDao().getRange("member-a", date, date))
-                .containsExactly(ExerciseCountEntity("member-a", date, 2))
-            database.close()
+    @Test
+    fun `미래 버전도 다운그레이드나 재생성 없이 원본을 보존한다`() {
+        SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { raw ->
+            raw.execSQL("CREATE TABLE original_data (value TEXT NOT NULL)")
+            raw.execSQL("INSERT INTO original_data VALUES ('preserved')")
+            raw.version = 7
+        }
+        assertThrows(IllegalStateException::class.java) { openDatabase().openHelper.writableDatabase }
+        SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READONLY).use { raw ->
+            assertThat(raw.version).isEqualTo(7)
+            raw.rawQuery("SELECT value FROM original_data", null).use {
+                assertThat(it.moveToFirst()).isTrue()
+                assertThat(it.getString(0)).isEqualTo("preserved")
+            }
+        }
+    }
+
+    @Test
+    fun `같은 버전은 저장한 값을 그대로 다시 연다`() =
+        runTest {
+            var db = openDatabase()
+            db.exerciseCountDao().upsertAll(listOf(ExerciseCountEntity("member-a", date, 3)))
+            db.close()
+            db = openDatabase()
+            assertThat(db.openHelper.readableDatabase.version).isEqualTo(6)
+            assertThat(db.exerciseCountDao().getRange("member-a", date, date))
+                .containsExactly(ExerciseCountEntity("member-a", date, 3))
+        }
+
+    @Test
+    fun `실제 스키마 2의 지원 경로는 모든 추가 마이그레이션을 거쳐 대기 원본을 보존한다`() =
+        runTest {
+            createHistoricalDatabase(context, name, 2) { raw ->
+                raw.execSQL("INSERT INTO exercise_count VALUES ('member-a', '2026-09-10', 2)")
+                raw.execSQL(
+                    "INSERT INTO exercise_list_item VALUES " +
+                        "('member-a', 'pending', NULL, 'CREATE_PENDING', '2026-09-10', 0, '대기 운동', 'WEIGHT', " +
+                        "'2026-09-10T10:00', '2026-09-10T11:00', NULL)",
+                )
+                raw.execSQL("INSERT INTO simple_timer VALUES ('member-a', 'timer', NULL, 'CREATE_PENDING', 60, 'create', NULL, 1)")
+            }
+            val db = openDatabase()
+            assertThat(db.openHelper.readableDatabase.version).isEqualTo(6)
+            assertThat(db.exerciseRecordDao().getListItem("member-a", "pending")?.title).isEqualTo("대기 운동")
+            assertThat(db.exerciseSyncDao().get("member-a", "pending")?.recoveryState).isEqualTo(ExerciseRecoveryState.RECOVERY_REQUIRED)
+            assertThat(db.exerciseSyncDao().getSendable("member-a")).isEmpty()
+            val timer = db.timerDao().getSimpleTimer("member-a", "timer")!!
+            assertThat(timer.syncState).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(timer.createRequestId).isEqualTo("create")
+            assertThat(timer.inFlightState).isNull()
+            assertThat(db.timerDao().getSnapshot("member-a", TimerSnapshotEntity.SIMPLE)?.hasSnapshot).isTrue()
+            assertThat(db.exerciseCountDao().getRange("member-a", date, date).single().count).isEqualTo(2)
+            db.close()
+            assertThat(openDatabase().exerciseRecordDao().getListItem("member-a", "pending")?.serverId).isNull()
         }
 }
