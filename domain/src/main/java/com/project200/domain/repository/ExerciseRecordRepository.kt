@@ -4,7 +4,8 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.ExerciseRecordCreationResult
+import com.project200.domain.model.ExerciseWriteInput
+import com.project200.domain.model.LocalExerciseSaveResult
 import java.time.LocalDate
 
 interface ExerciseRecordRepository {
@@ -12,8 +13,8 @@ interface ExerciseRecordRepository {
     suspend fun getExerciseCountByRange(startDate: LocalDate, endDate: LocalDate, refresh: Boolean = false, localOnly: Boolean = false): BaseResult<List<ExerciseCount>>
     suspend fun getExerciseDetail(recordId: String, refresh: Boolean = false, localOnly: Boolean = false): BaseResult<ExerciseRecord>
     suspend fun getExerciseRecordList(date: LocalDate, refresh: Boolean = false, localOnly: Boolean = false): BaseResult<List<ExerciseListItem>>
-    suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult>
-    suspend fun updateExerciseRecord(record: ExerciseRecord, recordId: String): BaseResult<String>
+    suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult>
+    suspend fun updateExerciseRecord(input: ExerciseWriteInput, recordId: String): BaseResult<LocalExerciseSaveResult>
     suspend fun uploadExerciseRecordImages(recordId: String, images: List<String>): BaseResult<String>
     suspend fun deleteExerciseRecordImages(recordId: String, imageIds: List<Long>): BaseResult<Unit>
     suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit>

@@ -36,7 +36,13 @@ data class ExerciseCount(
     val syncPending: Boolean = false
 )
 
-data class ExerciseRecordCreationResult(
+data class LocalExerciseSaveResult(
     val recordId: String,
-    val earnedPoints: Int
+)
+
+data class ExerciseWriteInput(
+    val record: ExerciseRecord,
+    val addedImageUris: List<String> = emptyList(),
+    // 사진 모델 전환(5/9) 전에는 기존 사진의 양수 서버 ID만 받습니다
+    val removedImageIds: Set<Long> = emptySet(),
 )

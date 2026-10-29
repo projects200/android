@@ -4,180 +4,183 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseWriteInput
+import com.project200.domain.model.LocalExerciseSaveResult
 import io.mockk.coEvery
 import io.mockk.coVerify
-import io.mockk.impl.annotations.RelaxedMockK
-import io.mockk.junit4.MockKRule
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import io.mockk.coVerifyOrder
+import io.mockk.mockk
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.test.runTest
-import org.junit.Before
-import org.junit.Rule
 import org.junit.Test
 import java.time.LocalDateTime
 
-@ExperimentalCoroutinesApi
 class EditExerciseRecordUseCaseTest {
+    private val update = mockk<UpdateExerciseRecordUseCase>()
+    private val delete = mockk<DeleteExerciseRecordImagesUseCase>()
+    private val upload = mockk<UploadExerciseRecordImagesUseCase>()
+    private val useCase = EditExerciseRecordUseCase(update, delete, upload)
+    private val id = "record-1"
+    private val time = LocalDateTime.parse("2026-09-10T10:00:00")
+    private val record = ExerciseRecord("제목", "본문", "WEIGHT", time, time.plusHours(1), "장소", null)
+    private val input = ExerciseWriteInput(record, listOf("photo"), setOf(10L, 20L))
 
-    @get:Rule
-    val mockkRule = MockKRule(this)
-
-    // 하위 UseCase들을 Mock으로 생성
-    @RelaxedMockK
-    private lateinit var mockUpdateExerciseRecordUseCase: UpdateExerciseRecordUseCase
-    @RelaxedMockK
-    private lateinit var mockDeleteExerciseRecordImagesUseCase: DeleteExerciseRecordImagesUseCase
-    @RelaxedMockK
-    private lateinit var mockUploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase
-
-    private lateinit var useCase: EditExerciseRecordUseCase
-
-    // 테스트용 데이터
-    private val recordId = "record-1"
-    private val recordToUpdate = ExerciseRecord(
-        title = "title", detail = "detail", personalType = "type",
-        startedAt = LocalDateTime.now(), endedAt = LocalDateTime.now(), location = "loc", pictures = null
-    )
-    private val imagesToDelete = listOf(10L, 20L)
-    private val newImages = listOf("path/to/image1.jpg", "path/to/image2.jpg")
-
-    @Before
-    fun setUp() {
-        useCase = EditExerciseRecordUseCase(
-            updateExerciseRecordUseCase = mockUpdateExerciseRecordUseCase,
-            deleteExerciseRecordImagesUseCase = mockDeleteExerciseRecordImagesUseCase,
-            uploadExerciseRecordImagesUseCase = mockUploadExerciseRecordImagesUseCase
-        )
+    @Test
+    fun `변경이 없으면 저장이나 사진 요청 없이 기존 화면을 유지한다`() = runTest {
+        assertThat(useCase(id, ExerciseWriteInput(record), false)).isEqualTo(ExerciseEditResult.Success(id))
+        coVerify(exactly = 0) { update(any(), any()) }
+        coVerify(exactly = 0) { delete(any(), any()) }
+        coVerify(exactly = 0) { upload(any(), any()) }
     }
 
     @Test
-    fun `변경사항 없을 시 Success 반환 및 하위 usecase 미호출`() = runTest {
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = false,
-            imagesToDelete = emptyList(),
-            newImages = emptyList()
-        )
-
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.Success::class.java)
-        coVerify(exactly = 0) { mockUpdateExerciseRecordUseCase(any(), any()) }
-        coVerify(exactly = 0) { mockDeleteExerciseRecordImagesUseCase(any(), any()) }
-        coVerify(exactly = 0) { mockUploadExerciseRecordImagesUseCase(any(), any()) }
+    fun `본문만 로컬 저장할 때 점수나 사진 응답 없이 편집 완료한다`() = runTest {
+        coEvery { update(id, ExerciseWriteInput(record)) } returns BaseResult.Success(LocalExerciseSaveResult(id))
+        assertThat(useCase(id, ExerciseWriteInput(record), true)).isEqualTo(ExerciseEditResult.Success(id))
+        coVerify(exactly = 0) { delete(any(), any()) }
+        coVerify(exactly = 0) { upload(any(), any()) }
     }
 
     @Test
-    fun `내용 및 이미지 수정 모두 성공`() = runTest {
-        // Given: 모든 하위 UseCase가 성공을 반환하도록 설정
-        coEvery { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) } returns BaseResult.Success(recordId)
-        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns BaseResult.Success(Unit)
-        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns BaseResult.Success(recordId)
-
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = true,
-            imagesToDelete = imagesToDelete,
-            newImages = newImages
-        )
-
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.Success::class.java)
-        coVerify(exactly = 1) { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) }
-        coVerify(exactly = 1) { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) }
-        coVerify(exactly = 1) { mockUploadExerciseRecordImagesUseCase(recordId, newImages) }
+    fun `본문 저장 실패는 원인과 입력을 유지하고 사진 부작용을 시작하지 않는다`() = runTest {
+        val cause = IllegalStateException("DB 저장 실패")
+        coEvery { update(id, input) } returns BaseResult.Error("CACHE_ERROR", "로컬 저장 실패", cause)
+        val result = useCase(id, input, true) as ExerciseEditResult.ContentFailure
+        assertThat(result.recordId).isEqualTo(id)
+        assertThat(result.message).isEqualTo("로컬 저장 실패")
+        assertThat(result.cause).isSameInstanceAs(cause)
+        assertThat(input.record).isEqualTo(record)
+        assertThat(input.removedImageIds).containsExactly(10L, 20L)
+        coVerify(exactly = 0) { delete(any(), any()) }
+        coVerify(exactly = 0) { upload(any(), any()) }
     }
 
     @Test
-    fun `내용 수정 실패 시 ContentFailure 반환`() = runTest {
-        // Given: 내용 수정 UseCase만 실패하도록 설정
-        val error = BaseResult.Error("CONTENT_FAIL", "내용 수정 실패")
-        coEvery { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) } returns error
-        coEvery { mockDeleteExerciseRecordImagesUseCase(any(), any()) } returns BaseResult.Success(Unit)
-
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = true,
-            imagesToDelete = imagesToDelete,
-            newImages = newImages
-        )
-
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.ContentFailure::class.java)
-        assertThat((result as ExerciseEditResult.ContentFailure).message).isEqualTo(error.message)
+    fun `잘못된 사진 삭제 ID는 본문과 사진 작업 전에 실패한다`() = runTest {
+        assertThat(useCase(id, input.copy(removedImageIds = setOf(0L, -1L)), true))
+            .isInstanceOf(ExerciseEditResult.Failure::class.java)
+        coVerify(exactly = 0) { update(any(), any()) }
+        coVerify(exactly = 0) { delete(any(), any()) }
+        coVerify(exactly = 0) { upload(any(), any()) }
     }
 
     @Test
-    fun `이미지 삭제 실패 시 ImageFailure 반환`() = runTest {
-        // Given: 이미지 삭제 UseCase가 실패하도록 설정
-        val error = BaseResult.Error("DELETE_FAIL", "이미지 삭제 실패")
-        coEvery { mockUpdateExerciseRecordUseCase(any(), any()) } returns BaseResult.Success(recordId)
-        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns error
-
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = true,
-            imagesToDelete = imagesToDelete,
-            newImages = newImages
-        )
-
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.ImageFailure::class.java)
-        assertThat((result as ExerciseEditResult.ImageFailure).message).isEqualTo(error.message)
-        // 이미지 삭제 실패 시 업로드는 호출되지 않음
-        coVerify(exactly = 0) { mockUploadExerciseRecordImagesUseCase(any(), any()) }
+    fun `본문 성공 후 사진 삭제가 끝나야 업로드하고 최초 캐시 경고를 보존한다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "본문 반영 실패")
+        coEvery { update(id, input) } returns BaseResult.Success(LocalExerciseSaveResult(id), warning)
+        coEvery { delete(id, listOf(10L, 20L)) } returns BaseResult.Success(Unit)
+        coEvery { upload(id, listOf("photo")) } returns BaseResult.Success(id)
+        val result = useCase(id, input, true) as ExerciseEditResult.Success
+        assertThat(result.refreshError).isSameInstanceAs(warning)
+        coVerifyOrder {
+            update(id, input)
+            delete(id, listOf(10L, 20L))
+            upload(id, listOf("photo"))
+        }
     }
 
     @Test
-    fun `이미지 업로드 실패 시 ImageFailure 반환`() = runTest {
-        // Given: 이미지 업로드 UseCase가 실패하도록 설정
-        val error = BaseResult.Error("UPLOAD_FAIL", "이미지 업로드 실패")
-        coEvery { mockUpdateExerciseRecordUseCase(any(), any()) } returns BaseResult.Success(recordId)
-        coEvery { mockDeleteExerciseRecordImagesUseCase(any(), any()) } returns BaseResult.Success(Unit)
-        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns error
+    fun `사진만 삭제할 때 첫 실패는 부분 완료가 아니며 업로드를 시작하지 않는다`() = runTest {
+        for (code in listOf("PHOTO_NOT_READY", "NETWORK_ERROR")) {
+            val cause = IllegalStateException(code)
+            coEvery { delete(id, any()) } returns BaseResult.Error(code, "사진 삭제 실패", cause)
 
-        // When
-        val result = useCase(
-            recordId = recordId,
-            recordToUpdate = recordToUpdate,
-            isContentChanges = true,
-            imagesToDelete = imagesToDelete,
-            newImages = newImages
-        )
+            val result = useCase(id, input, false) as ExerciseEditResult.Failure
 
-        // Then
-        assertThat(result).isInstanceOf(ExerciseEditResult.ImageFailure::class.java)
-        assertThat((result as ExerciseEditResult.ImageFailure).message).isEqualTo(error.message)
-    }
-    @Test
-    fun `내용 수정과 이미지 작업의 캐시 경고는 성공으로 합치고 서버 작업을 재시도하지 않는다`() = runTest {
-        val warning = BaseResult.Error("CACHE_ERROR", "로컬 반영 실패")
-        coEvery { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) } returns BaseResult.Success(recordId, warning)
-        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns BaseResult.Success(Unit, warning)
-        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns BaseResult.Success(recordId, warning)
-        val result = useCase(recordId, recordToUpdate, true, imagesToDelete, newImages) as ExerciseEditResult.Success
-        assertThat(result.refreshError).isEqualTo(warning)
-        coVerify(exactly = 1) { mockUpdateExerciseRecordUseCase(recordId, recordToUpdate) }
-        coVerify(exactly = 1) { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) }
-        coVerify(exactly = 1) { mockUploadExerciseRecordImagesUseCase(recordId, newImages) }
+            assertThat(result.message).isEqualTo("사진 삭제 실패")
+            assertThat(result.cause).isSameInstanceAs(cause)
+        }
+        coVerify(exactly = 0) { update(any(), any()) }
+        coVerify(exactly = 0) { upload(any(), any()) }
     }
 
     @Test
-    fun `내용 변경 없이 이미지 삭제나 업로드만 성공해도 캐시 경고를 잃지 않는다`() = runTest {
-        val warning = BaseResult.Error("CACHE_ERROR", "이미지 로컬 반영 실패")
-        coEvery { mockDeleteExerciseRecordImagesUseCase(recordId, imagesToDelete) } returns BaseResult.Success(Unit, warning)
-        coEvery { mockUploadExerciseRecordImagesUseCase(recordId, newImages) } returns BaseResult.Success(recordId, warning)
-        val deleted = useCase(recordId, recordToUpdate, false, imagesToDelete, emptyList()) as ExerciseEditResult.Success
-        val uploaded = useCase(recordId, recordToUpdate, false, emptyList(), newImages) as ExerciseEditResult.Success
-        assertThat(deleted.refreshError).isEqualTo(warning)
-        assertThat(uploaded.refreshError).isEqualTo(warning)
-        coVerify(exactly = 0) { mockUpdateExerciseRecordUseCase(any(), any()) }
+    fun `사진만 추가할 때 첫 실패는 저장 없는 실패로 원인을 보존한다`() = runTest {
+        for (code in listOf("PHOTO_NOT_READY", "NETWORK_ERROR")) {
+            val cause = IllegalStateException(code)
+            coEvery { upload(id, any()) } returns BaseResult.Error(code, "사진 추가 실패", cause)
+
+            val result = useCase(id, input.copy(removedImageIds = emptySet()), false) as ExerciseEditResult.Failure
+
+            assertThat(result.message).isEqualTo("사진 추가 실패")
+            assertThat(result.cause).isSameInstanceAs(cause)
+        }
+        coVerify(exactly = 0) { update(any(), any()) }
+        coVerify(exactly = 0) { delete(any(), any()) }
     }
 
+    @Test
+    fun `본문 저장 뒤 첫 사진 추가 실패는 실제 부분 완료와 본문 경고를 전달한다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "본문 반영 실패")
+        val photoInput = input.copy(removedImageIds = emptySet())
+        coEvery { update(id, photoInput) } returns BaseResult.Success(LocalExerciseSaveResult(id), warning)
+        coEvery { upload(id, any()) } returns BaseResult.Error("NETWORK_ERROR", "사진 추가 실패")
+
+        val result = useCase(id, photoInput, true) as ExerciseEditResult.ImageFailure
+
+        assertThat(result.recordId).isEqualTo(id)
+        assertThat(result.message).isEqualTo("사진 추가 실패")
+        assertThat(result.refreshError).isSameInstanceAs(warning)
+        coVerify(exactly = 0) { delete(any(), any()) }
+    }
+
+    @Test
+    fun `삭제 실패는 업로드를 막고 본문 경고와 사진 오류를 함께 전달한다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "본문 반영 실패")
+        coEvery { update(id, input) } returns BaseResult.Success(LocalExerciseSaveResult(id), warning)
+        coEvery { delete(id, any()) } returns BaseResult.Error("PHOTO_NOT_READY", "사진 변경 불가")
+        val result = useCase(id, input, true) as ExerciseEditResult.ImageFailure
+        assertThat(result.message).isEqualTo("사진 변경 불가")
+        assertThat(result.refreshError).isSameInstanceAs(warning)
+        coVerify(exactly = 0) { upload(any(), any()) }
+    }
+
+    @Test
+    fun `업로드 실패는 먼저 완료된 삭제의 캐시 경고를 잃지 않는다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "삭제 반영 실패")
+        coEvery { delete(id, any()) } returns BaseResult.Success(Unit, warning)
+        coEvery { upload(id, any()) } returns BaseResult.Error("UPLOAD_FAIL", "업로드 실패")
+        val result = useCase(id, input, false) as ExerciseEditResult.ImageFailure
+        assertThat(result.message).isEqualTo("업로드 실패")
+        assertThat(result.refreshError).isSameInstanceAs(warning)
+        coVerify(exactly = 0) { update(any(), any()) }
+    }
+
+    @Test
+    fun `사진만 삭제하거나 업로드해도 각 작업의 경고를 전달한다`() = runTest {
+        val warning = BaseResult.Error("CACHE_ERROR", "사진 반영 실패")
+        coEvery { delete(id, any()) } returns BaseResult.Success(Unit, warning)
+        coEvery { upload(id, any()) } returns BaseResult.Success(id, warning)
+        val deleted = useCase(id, input.copy(addedImageUris = emptyList()), false) as ExerciseEditResult.Success
+        val uploaded = useCase(id, input.copy(removedImageIds = emptySet()), false) as ExerciseEditResult.Success
+        assertThat(deleted.refreshError).isSameInstanceAs(warning)
+        assertThat(uploaded.refreshError).isSameInstanceAs(warning)
+        coVerify(exactly = 0) { update(any(), any()) }
+    }
+
+    @Test
+    fun `사진 처리 예외도 앞선 저장이 있을 때만 부분 완료로 전달한다`() = runTest {
+        val cause = IllegalStateException("사진 처리 예외")
+        coEvery { upload(id, any()) } throws cause
+        val first = useCase(id, input.copy(removedImageIds = emptySet()), false) as ExerciseEditResult.Failure
+        assertThat(first.cause).isSameInstanceAs(cause)
+
+        val warning = BaseResult.Error("CACHE_ERROR", "삭제 반영 실패")
+        coEvery { delete(id, any()) } returns BaseResult.Success(Unit, warning)
+        val partial = useCase(id, input, false) as ExerciseEditResult.ImageFailure
+        assertThat(partial.recordId).isEqualTo(id)
+        assertThat(partial.cause).isSameInstanceAs(cause)
+        assertThat(partial.refreshError).isSameInstanceAs(warning)
+        coVerify(exactly = 0) { update(any(), any()) }
+    }
+
+    @Test
+    fun `예상하지 못한 저장 예외는 실패로 전달하며 취소는 다시 던진다`() = runTest {
+        coEvery { update(id, any()) } throws IllegalStateException("저장 예외")
+        val result = useCase(id, ExerciseWriteInput(record), true) as ExerciseEditResult.Failure
+        assertThat(result.cause).isInstanceOf(IllegalStateException::class.java)
+        coEvery { update(id, any()) } throws CancellationException("취소")
+        assertThat(runCatching { useCase(id, ExerciseWriteInput(record), true) }.exceptionOrNull())
+            .isInstanceOf(CancellationException::class.java)
+    }
 }

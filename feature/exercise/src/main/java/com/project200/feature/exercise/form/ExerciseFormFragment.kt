@@ -172,12 +172,12 @@ class ExerciseFormFragment : Fragment() {
                     viewModel.createResult.collect { result ->
                         viewModel.consumeCreateResult()
                         when (result) {
-                            is SubmissionResult.Success -> {
+                            is SubmissionResult.LocalSaved -> {
                                 if (result.refreshError != null) {
                                     Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
                                 }
                                 notifyOwnWrite()
-                                handleSuccessfulCreate(result.earnedPoints)
+                                findNavController().popBackStack()
                             }
                             is SubmissionResult.PartialSuccess -> {
                                 // 부분 성공 (이미지 업로드 실패)
@@ -204,7 +204,7 @@ class ExerciseFormFragment : Fragment() {
     }
 
     private fun handleEditResult(result: ExerciseEditResult) {
-        if (result !is ExerciseEditResult.Failure) notifyOwnWrite()
+        if (result is ExerciseEditResult.Success || result is ExerciseEditResult.ImageFailure) notifyOwnWrite()
         when (result) {
             is ExerciseEditResult.Success -> {
                 // 기록 수정, 이미지 삭제/업로드 성공
@@ -220,11 +220,6 @@ class ExerciseFormFragment : Fragment() {
             is ExerciseEditResult.ContentFailure -> {
                 // 내용 수정 실패
                 Toast.makeText(requireContext(), withCacheWarning(result.message, result.refreshError != null), Toast.LENGTH_LONG).show()
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                    ExerciseDetailFragment.KEY_RECORD_UPDATED,
-                    true,
-                )
-                findNavController().popBackStack()
             }
             is ExerciseEditResult.ImageFailure -> {
                 // 이미지 삭제/업로드 실패
@@ -344,17 +339,6 @@ class ExerciseFormFragment : Fragment() {
             } else {
                 onSelected(selectedLocation)
             }
-        }
-    }
-
-    private fun handleSuccessfulCreate(earnedPoints: Int) {
-        when {
-            earnedPoints > 0 -> {
-                ScoreCongratulationDialog(earnedPoints).apply {
-                    confirmClickListener = { findNavController().popBackStack() }
-                }.show(parentFragmentManager, ScoreCongratulationDialog::class.java.name)
-            }
-            else -> findNavController().popBackStack()
         }
     }
 

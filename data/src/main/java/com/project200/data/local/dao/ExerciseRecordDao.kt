@@ -97,6 +97,20 @@ interface ExerciseRecordDao {
     ): Boolean
 
     @Query(
+        "SELECT EXISTS(SELECT 1 FROM exercise_sync WHERE memberId = :memberId AND operation = 'DELETE_PENDING' " +
+            "AND (localId = :localId OR serverId = :serverId)) " +
+            "OR EXISTS(SELECT 1 FROM exercise_list_item WHERE memberId = :memberId AND syncState = 'DELETE_PENDING' " +
+            "AND (localId = :localId OR serverId = :serverId)) " +
+            "OR EXISTS(SELECT 1 FROM exercise_record_detail WHERE memberId = :memberId AND syncState = 'DELETE_PENDING' " +
+            "AND (localId = :localId OR serverId = :serverId))",
+    )
+    suspend fun isDeleted(
+        memberId: String,
+        localId: String,
+        serverId: Long?,
+    ): Boolean
+
+    @Query(
         "UPDATE exercise_record_detail SET confirmedDate = :date " +
             "WHERE memberId = :memberId AND localId = :localId AND syncState = 'SYNCED'",
     )
@@ -241,6 +255,25 @@ interface ExerciseRecordDao {
 
     @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId " + UNPROTECTED_LIST)
     suspend fun deleteListItem(
+        memberId: String,
+        localId: String,
+    )
+
+    /** 미전송 생성 취소 전용이며 저널 제거와 같은 트랜잭션에서만 호출합니다 */
+    @Query(
+        "DELETE FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId AND serverId IS NULL " +
+            "AND NOT EXISTS (SELECT 1 FROM exercise_sync WHERE memberId = :memberId AND localId = :localId)",
+    )
+    suspend fun deleteUnsentListItem(
+        memberId: String,
+        localId: String,
+    )
+
+    @Query(
+        "DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId AND serverId IS NULL " +
+            "AND NOT EXISTS (SELECT 1 FROM exercise_sync WHERE memberId = :memberId AND localId = :localId)",
+    )
+    suspend fun deleteUnsentDetail(
         memberId: String,
         localId: String,
     )

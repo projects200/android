@@ -8,6 +8,7 @@ import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
 import com.project200.domain.usecase.EditExerciseRecordUseCase
@@ -433,13 +434,12 @@ class ExerciseFormViewModel
             newImageUris: List<String>,
         ) {
             viewModelScope.launch {
-                when (val createResult = createExerciseRecordUseCase(record)) {
+                when (val createResult = createExerciseRecordUseCase(ExerciseWriteInput(record, newImageUris))) {
                     is BaseResult.Success -> {
                         // 기록 생성 성공 시, 이미지 업로드 로직 호출
                         handleSuccessfulRecordCreation(
                             createResult.data.recordId,
                             newImageUris,
-                            createResult.data.earnedPoints,
                             createResult.refreshError,
                         )
                     }
@@ -457,14 +457,13 @@ class ExerciseFormViewModel
         private suspend fun handleSuccessfulRecordCreation(
             recordId: String,
             newImageUris: List<String>,
-            earnedPoints: Int,
             refreshError: BaseResult.Error?,
         ) {
             if (newImageUris.isNotEmpty()) {
                 when (val uploadResult = uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
                     is BaseResult.Success -> {
                         // 이미지 업로드 성공 -> 최종 성공
-                        _createResult.emit(SubmissionResult.Success(recordId, earnedPoints, refreshError ?: uploadResult.refreshError))
+                        _createResult.emit(SubmissionResult.LocalSaved(recordId, refreshError ?: uploadResult.refreshError))
                     }
                     is BaseResult.Error -> {
                         // 이미지 업로드 실패 -> 부분 성공
@@ -473,7 +472,7 @@ class ExerciseFormViewModel
                 }
             } else {
                 // 업로드할 이미지가 없음 -> 최종 성공
-                _createResult.emit(SubmissionResult.Success(recordId, earnedPoints, refreshError))
+                _createResult.emit(SubmissionResult.LocalSaved(recordId, refreshError))
             }
             _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
         }
@@ -488,10 +487,8 @@ class ExerciseFormViewModel
                 val result =
                     editExerciseRecordUseCase(
                         recordId = recordId,
-                        recordToUpdate = record,
+                        input = ExerciseWriteInput(record, newImageUris, removedPictureIds.toSet()),
                         isContentChanges = hasContentChanges(record),
-                        imagesToDelete = removedPictureIds,
-                        newImages = newImageUris,
                     )
                 _editResult.emit(result)
                 // 로딩 종료
