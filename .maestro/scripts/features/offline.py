@@ -249,11 +249,14 @@ def run_suite(args, core):
                 if prepared and restored:
                     try:
                         device.bootstrap("cleanup", credentials, **metadata)
-                    except Exception:
+                    except Exception as failure:
                         cleanup_failed = True
                         safe_to_continue = False
+                        detail = core.safe_offline_cleanup_failure(failure)
                         for flow in scenario:
                             errors[flow].append("fixture-cleanup-failed")
+                            if detail is not None:
+                                errors[flow].append(detail)
                 if prepared and (not restored or cleanup_failed):
                     for flow in scenario:
                         errors[flow].append("private-state-preserved-for-recovery")

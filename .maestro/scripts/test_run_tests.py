@@ -288,6 +288,113 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_offline_cleanup_maps_reviewed_reasons_and_preserves_private_evidence(self):
+        self.transport.pending_sleeps = 0
+        recovery = json.dumps({"private": SYNTHETIC_SECRET}).encode("utf-8")
+        publish_file(self.transport.root, runner.RECOVERY, recovery)
+        cases = (
+            ("offline_exercise_cleanup_unsafe", "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"),
+            ("offline_snapshot_identity_invalid", "bootstrap-cleanup-failed-offline-snapshot-identity-invalid"),
+            ("fixture_read_failed", "bootstrap-cleanup-failed-fixture-read"),
+            ("fixture_delete_failed", "bootstrap-cleanup-failed-fixture-delete"),
+            ("member_mismatch", "bootstrap-cleanup-failed-member-mismatch"),
+            ("registration_http_504", "bootstrap-cleanup-failed-registration-http-504"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                    "memberId": CREDENTIALS["memberId"], "date": CREDENTIALS["fixtureStartDate"],
+                }).encode("utf-8")
+                self.transport.result = payload
+                with self.assertRaises(runner.RunnerFailure) as caught:
+                    self.device.bootstrap(
+                        "cleanup", CREDENTIALS, feature="offline", flow="offline-exercise-create",
+                        run_id="0123456789abcdef", parameters={},
+                    )
+                self.assertEqual(str(caught.exception), expected)
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual((self.transport.root / runner.RECOVERY).read_bytes(), recovery)
+                self.assertEqual(self.clock.sleeps, [])
+                runner.write_report(self.host, [("offline-exercise-create", 0, [str(caught.exception)])])
+                report = (self.host / "report.xml").read_text(encoding="utf-8")
+                failure = runner.ET.fromstring(report).find("testcase/failure")
+                self.assertEqual(failure.get("message"), expected)
+                self.assertEqual(failure.text, expected)
+                for private in (SYNTHETIC_SECRET, CREDENTIALS["memberId"], CREDENTIALS["fixtureStartDate"]):
+                    self.assertNotIn(private, report)
+        self.assert_no_credential_arguments()
+
+    def test_offline_cleanup_unknown_and_malformed_reasons_remain_generic(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "offline_unknown_cleanup_failure", SYNTHETIC_SECRET,
+            "offline_exercise_cleanup_unsafe-" + SYNTHETIC_SECRET,
+            "offline_snapshot_identity_invalid\n" + SYNTHETIC_SECRET,
+            "fixture_read_failed\n", " fixture_delete_failed",
+            {"code": "member_mismatch", "private": SYNTHETIC_SECRET},
+            ["offline_snapshot_missing", SYNTHETIC_SECRET], None, 7, True,
+        )
+        for index, reason in enumerate(reasons):
+            with self.subTest(case=index):
+                payload = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(
+                    "bootstrap-cleanup-failed",
+                    lambda: self.device.bootstrap(
+                        "cleanup", CREDENTIALS, feature="offline", flow="offline-exercise-create",
+                        run_id="0123456789abcdef", parameters={},
+                    ),
+                )
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_offline_cleanup_reason_mapping_requires_failed_offline_cleanup(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("cleanup", "offline", "ready"), ("cleanup", "offline", None),
+            ("cleanup", "offline", "unknown"), ("prepare", "offline", "failed"),
+            ("offline-observe", None, "failed"), ("feature-observe", "offline", "failed"),
+            ("export", None, "failed"), ("cleanup", None, "failed"),
+            *(("cleanup", feature, "failed") for feature in (
+                "profile", "matching", "timer", "feed", "chatting",
+            )),
+        )
+        for reason in ("offline_exercise_cleanup_unsafe", "fixture_read_failed"):
+            for operation, feature, status in cases:
+                with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
+                    payload = json.dumps({
+                        "status": status, "reason": reason, "private": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.transport.result = payload
+                    metadata = {} if feature is None else {
+                        "feature": feature, "flow": feature + "-cleanup",
+                        "run_id": "0123456789abcdef", "parameters": {},
+                    }
+                    self.assert_failure(
+                        "bootstrap-" + operation + "-failed",
+                        lambda: self.device.bootstrap(operation, CREDENTIALS, **metadata),
+                    )
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                    self.assertEqual(self.clock.sleeps, [])
+        self.assert_no_credential_arguments()
+
+    def test_successful_offline_cleanup_still_removes_private_result(self):
+        self.transport.result = json.dumps({
+            "status": "cleaned", "reason": "offline_exercise_cleanup_unsafe",
+            "private": SYNTHETIC_SECRET,
+        }).encode("utf-8")
+        result = self.device.bootstrap(
+            "cleanup", CREDENTIALS, feature="offline", flow="offline-exercise-create",
+            run_id="0123456789abcdef", parameters={},
+        )
+        self.assertEqual(result, {})
+        self.assertFalse((self.transport.root / runner.RESULT).exists())
+        self.assert_no_credential_arguments()
+
     def test_profile_prepare_discloses_only_fixed_reviewed_failures(self):
         self.transport.pending_sleeps = 0
         cases = (

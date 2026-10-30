@@ -122,6 +122,7 @@ class OfflineDriverTests(unittest.TestCase):
         self.interrupted = False
         self.fail_restore = False
         self.fail_cleanup = False
+        self.cleanup_failure = None
         self.fail_prepare = False
         self.fail_upload = False
         self.failed_observation = None
@@ -187,8 +188,11 @@ class OfflineDriverTests(unittest.TestCase):
             self.assertEqual(set(metadata["parameters"]), {"startedAt", "endedAt", "initialSeconds", "updatedSeconds", "stepName"})
             if operation == "prepare" and self.fail_prepare:
                 raise core.RunnerFailure("offline-suite-requires-enabled-cache-flag")
-            if operation == "cleanup" and self.fail_cleanup:
-                raise core.RunnerFailure("bootstrap-cleanup-failed")
+            if operation == "cleanup":
+                if self.cleanup_failure is not None:
+                    raise self.cleanup_failure
+                if self.fail_cleanup:
+                    raise core.RunnerFailure("bootstrap-cleanup-failed")
             if operation == "prepare":
                 return self.prepared_variables
         return {}
@@ -219,6 +223,7 @@ class OfflineDriverTests(unittest.TestCase):
         result = offline.run_suite(args, core)
         self.assertEqual([flow for flow, _, _ in result], list(offline.FLOWS))
         self.assertEqual(core.validate_driver_results(offline.FLOWS, result), result)
+        self.results = result
         self.assertNotIn("synthetic-private-token", str(result))
         return {flow: errors for flow, _, errors in result}
 
@@ -337,6 +342,98 @@ class OfflineDriverTests(unittest.TestCase):
         self.assertIn("fixture-cleanup-failed", result["offline-exercise-create"])
         self.assertIn("private-state-preserved-for-recovery", result["offline-exercise-cached"])
         self.assertNotIn("offline-exercise-missing", self.events)
+
+    def test_reviewed_cleanup_failures_reach_report_and_keep_original_phase_failure(self):
+        codes = (
+            "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe",
+            "bootstrap-cleanup-failed-feature-recovery-owner-mismatch",
+            "bootstrap-cleanup-failed-fixture-read", "bootstrap-cleanup-failed-fixture-delete",
+            "bootstrap-cleanup-failed-registration-http-100",
+            "bootstrap-cleanup-failed-registration-http-504",
+            "bootstrap-cleanup-failed-registration-http-599",
+            "bootstrap-cleanup-timeout", "adb-operation-failed",
+        )
+        self.failed_phase = "offline-exercise-create-sync"
+        self.phase_failure = "offline-suite-exercise-server-mismatch"
+        for code in codes:
+            with self.subTest(code=code):
+                self.events.clear()
+                self.device.clear.reset_mock()
+                self.cleanup_failure = core.RunnerFailure(code)
+                result = self.run_driver()
+                self.assertEqual(self.events[-2:], ["restore", "cleanup"])
+                self.assertEqual(self.device.clear.call_count, 1)
+                self.assertNotIn("offline-exercise-missing", self.events)
+                self.assertNotIn("offline-timers-online", self.events)
+                self.assertIn(self.phase_failure, result[self.failed_phase])
+                for flow in offline.SCENARIOS[0]:
+                    self.assertIn("fixture-cleanup-failed", result[flow])
+                    self.assertIn(code, result[flow])
+                    self.assertIn("private-state-preserved-for-recovery", result[flow])
+                core.write_report(self.output, self.results)
+                report = (self.output / "report.xml").read_text(encoding="utf-8")
+                cases = {case.get("name"): case for case in core.ET.fromstring(report)}
+                failure = cases[self.failed_phase].find("failure")
+                self.assertIsNotNone(failure)
+                for evidence in (
+                    self.phase_failure, "fixture-cleanup-failed", code,
+                    "private-state-preserved-for-recovery",
+                ):
+                    self.assertIn(evidence, failure.get("message"))
+                    self.assertIn(evidence, failure.text)
+                for private in ("synthetic-private-token", CREDENTIALS["memberId"], CREDENTIALS["fixtureStartDate"]):
+                    self.assertNotIn(private, report)
+
+    def test_unknown_cleanup_failures_and_private_exceptions_stay_generic_in_report(self):
+        secret = "synthetic-private-cleanup-token"
+        known = "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"
+        failures = (
+            core.RunnerFailure("bootstrap-cleanup-failed-unknown-" + secret),
+            core.RunnerFailure(known + "-" + secret),
+            core.RunnerFailure(secret + "-" + known),
+            core.RunnerFailure(known + "\n" + secret),
+            core.RunnerFailure(known + "\n"),
+            core.RunnerFailure("offline_exercise_cleanup_unsafe"),
+            core.RunnerFailure("bootstrap-cleanup-failed-registration-http-099"),
+            core.RunnerFailure("bootstrap-cleanup-failed-registration-http-600"),
+            core.RunnerFailure("bootstrap-cleanup-failed-registration-http-4010"),
+            core.RunnerFailure("bootstrap-cleanup-failed-registration-http-401-" + secret),
+            core.RunnerFailure("bootstrap-cleanup-failed-registration-http-401\n"),
+            core.RunnerFailure("bootstrap-prepare-failed-registration-http-401"),
+            core.RunnerFailure(secret),
+            RuntimeError(known), RuntimeError(secret + "\nprivate response body"),
+        )
+        self.failed_phase = "offline-exercise-cached"
+        for index, exception in enumerate(failures):
+            with self.subTest(case=index):
+                self.events.clear()
+                self.device.clear.reset_mock()
+                self.cleanup_failure = exception
+                result = self.run_driver()
+                self.assertEqual(self.events[-2:], ["restore", "cleanup"])
+                self.assertEqual(self.device.clear.call_count, 1)
+                self.assertNotIn("offline-exercise-missing", self.events)
+                self.assertNotIn("offline-timers-online", self.events)
+                for flow in offline.SCENARIOS[0]:
+                    expected = ["fixture-cleanup-failed", "private-state-preserved-for-recovery"]
+                    if flow == self.failed_phase:
+                        expected.insert(0, self.phase_failure)
+                    if flow != offline.SCENARIOS[0][0]:
+                        expected.append("offline-phase-not-executed")
+                    self.assertEqual(result[flow], expected)
+                core.write_report(self.output, self.results)
+                report = (self.output / "report.xml").read_text(encoding="utf-8")
+                cases = {case.get("name"): case for case in core.ET.fromstring(report)}
+                failure = cases[self.failed_phase].find("failure")
+                self.assertIsNotNone(failure)
+                for evidence in (
+                    self.phase_failure, "fixture-cleanup-failed", "private-state-preserved-for-recovery",
+                ):
+                    self.assertIn(evidence, failure.get("message"))
+                    self.assertIn(evidence, failure.text)
+                self.assertNotIn(secret, report)
+                self.assertNotIn(known, report)
+                self.assertNotIn(str(exception), report)
 
     def test_pending_recovery_clear_refusal_never_prepares_or_runs_a_later_scenario(self):
         self.device.clear.side_effect = core.RunnerFailure("pending-feature-restoration-refuses-app-data-clear")
