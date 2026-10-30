@@ -116,6 +116,9 @@ internal class MaestroSetupProtocol
                         MaestroFeaturePolicy.validateIdentity(feature, flow, runId)
                         val parameters = json.getJSONObject("parameters")
                         val stage = parameters.get("stage") as? String ?: throw MaestroSetupFailure("invalid_request")
+                        if (feature == "offline" && stage !in MaestroOfflineFixtures.LOCAL_STAGES) {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
                         MaestroSetupRequest.FeatureObservation(
                             memberId = memberId,
                             stage = stage,

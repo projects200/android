@@ -14,9 +14,17 @@ class TokenInterceptor
     constructor(
         private val authStateManager: AuthStateManager,
         private val fcmTokenProvider: FcmTokenProvider,
+        private val exerciseSyncAccountGuard: ExerciseSyncAccountGuard,
     ) : Interceptor {
         override fun intercept(chain: Interceptor.Chain): Response {
             val originalRequest = chain.request()
+            val account = originalRequest.tag(ExerciseSyncAccount::class.java)
+            if (account != null) {
+                // 한 번 읽은 토큰만 검증하고 사용하여 계정 전환 중 다른 토큰을 섞지 않습니다
+                val token = authStateManager.getCurrent().idToken
+                exerciseSyncAccountGuard.requireToken(account, token)
+                return chain.proceed(originalRequest.newBuilder().header("Authorization", "Bearer $token").build())
+            }
 
             // HTTP 메서드(GET, POST 등)에 접근
             val httpMethod = originalRequest.method

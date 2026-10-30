@@ -5,6 +5,8 @@ import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.ExerciseIdDto
+import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
@@ -35,8 +37,15 @@ class MaestroFixtureCleanerTest {
     private val localDataSource = mockk<ExerciseRecordLocalDataSource>()
     private val api = mockk<ApiService>()
     private val dispatcher = StandardTestDispatcher()
+    private val recordDao = mockk<ExerciseRecordDao>()
     private val cleaner =
-        MaestroFixtureCleaner(exerciseRecordRepository, ExerciseRecordRemoteDataSource(api), localDataSource, dispatcher)
+        MaestroFixtureCleaner(
+            exerciseRecordRepository,
+            ExerciseRecordRemoteDataSource(api),
+            localDataSource,
+            dispatcher,
+            recordDao,
+        )
     private val memberId = "fixture-member"
     private val today = LocalDate.of(2026, 10, 12)
     private val title = "maestro-e2e-0123456789abcdef0123456789abcdef"
@@ -48,6 +57,7 @@ class MaestroFixtureCleanerTest {
         coEvery { localDataSource.resolveServerId("1", memberId) } returns 101L
         coEvery { localDataSource.resolveServerId("2", memberId) } returns 102L
         coEvery { localDataSource.hasPendingServerRecord(any(), memberId) } returns false
+        coEvery { recordDao.isProtected(memberId, any()) } returns false
         every { localDataSource.invalidateCache(any()) } just Runs
     }
 
@@ -106,6 +116,32 @@ class MaestroFixtureCleanerTest {
             cleaner.clean(today, today)
 
             // Then
+            assertNoServerDeletion()
+        }
+
+    @Test
+    fun `일반 대기 기록은 건너뛰고 정착한 소유 기록만 삭제한다`() =
+        runTest(dispatcher) {
+            stubCandidate()
+            coEvery { exerciseRecordRepository.getExerciseRecordList(today, refresh = true) } returns
+                success(listOf(item(3, "personal").copy(syncPending = true), item(1, title)))
+            coEvery { api.deleteExerciseRecord(101L) } returns remoteSuccess()
+
+            cleaner.clean(today, today)
+
+            coVerify(exactly = 1) { api.deleteExerciseRecord(101L) }
+            coVerify(exactly = 0) { exerciseRecordRepository.getExerciseDetail("3", any(), any()) }
+        }
+
+    @Test
+    fun `상세가 일반 제목과 대기 상태로 바뀌면 소유권부터 확인하고 보존한다`() =
+        runTest(dispatcher) {
+            stubCandidate()
+            coEvery { exerciseRecordRepository.getExerciseDetail("1", refresh = true) } returns
+                success(detail("personal").copy(syncPending = true, canModify = false))
+
+            cleaner.clean(today, today)
+
             assertNoServerDeletion()
         }
 
@@ -427,6 +463,17 @@ class MaestroFixtureCleanerTest {
         }
 
     @Test
+    fun `사진 파일이나 전송 중 저널이 남으면 투영이 정착해도 서버를 삭제하지 않는다`() =
+        runTest(dispatcher) {
+            stubCandidate()
+            coEvery { recordDao.isProtected(memberId, "1") } returns true
+
+            expectFailure("fixture_delete_failed") { cleaner.clean(today, today) }
+
+            assertNoServerDeletion()
+        }
+
+    @Test
     fun `실제 네트워크 삭제 오류는 세 번까지만 재시도하고 캐시를 유지한다`() =
         runTest(dispatcher) {
             stubCandidate()
@@ -445,7 +492,7 @@ class MaestroFixtureCleanerTest {
         runTest(dispatcher) {
             stubCandidate()
             val entered = CompletableDeferred<Unit>()
-            val response = CompletableDeferred<BaseResponse<Unit?>>()
+            val response = CompletableDeferred<BaseResponse<ExerciseIdDto?>>()
             coEvery { api.deleteExerciseRecord(101L) } coAnswers {
                 entered.complete(Unit)
                 response.await()
@@ -484,7 +531,7 @@ class MaestroFixtureCleanerTest {
 
     private fun serverError(): BaseResult<Nothing> = BaseResult.Error(errorCode = "SERVER_ERROR", message = "")
 
-    private fun remoteSuccess(): BaseResponse<Unit?> = BaseResponse(true, "OK", "")
+    private fun remoteSuccess(): BaseResponse<ExerciseIdDto?> = BaseResponse(true, "OK", "")
 
     private fun assertNoServerDeletion() {
         coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import com.project200.data.api.ApiService
 import com.project200.data.api.ChatApiService
+import com.project200.data.utils.ExerciseSyncAccountGuard
 import com.project200.data.utils.FcmTokenProvider
 import com.project200.data.utils.LocalDateAdapter
 import com.project200.data.utils.LocalDateTimeAdapter
@@ -34,8 +35,9 @@ object NetworkModule {
     fun provideAuthInterceptor(
         authStateManager: AuthStateManager,
         fcmTokenProvider: FcmTokenProvider,
+        exerciseSyncAccountGuard: ExerciseSyncAccountGuard,
     ): TokenInterceptor {
-        return TokenInterceptor(authStateManager, fcmTokenProvider)
+        return TokenInterceptor(authStateManager, fcmTokenProvider, exerciseSyncAccountGuard)
     }
 
     @Provides
@@ -78,7 +80,13 @@ object NetworkModule {
     ): OkHttpClient {
         return OkHttpClient.Builder()
             .authenticator(tokenAuthenticator)
-            .addInterceptor(loggingInterceptor)
+            .addInterceptor { chain ->
+                if (chain.request().tag(com.project200.data.utils.ExerciseSyncAccount::class.java) == null) {
+                    loggingInterceptor.intercept(chain)
+                } else {
+                    chain.proceed(chain.request())
+                }
+            }
             .addInterceptor(tokenInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

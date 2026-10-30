@@ -1,5 +1,6 @@
 package com.project200.domain.usecase
 
+import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.manager.TimerSyncScheduler
@@ -14,6 +15,7 @@ constructor(
     private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
     private val timerSyncScheduler: TimerSyncScheduler,
     private val sessionDataCleaner: SessionDataCleaner,
+    private val exerciseSyncScheduler: ExerciseSyncScheduler,
 ) {
     /**
      * 로컬 세션을 정리합니다.
@@ -36,6 +38,7 @@ constructor(
         } finally {
             fcmTokenSyncScheduler.cancel()
             timerSyncScheduler.cancel()
+            exerciseSyncScheduler.cancel()
             when (reason) {
                 SessionExitReason.USER_INITIATED -> authRepository.clearSession()
                 SessionExitReason.FORCED -> authRepository.clearTokens()

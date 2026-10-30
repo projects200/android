@@ -263,7 +263,7 @@ class ExerciseRecordLocalDataSource
             val confirmedDate =
                 if (pendingBody) previous?.confirmedDate else previous?.confirmedDate ?: item?.confirmedDate ?: detail?.confirmedDate
             val version =
-                if (pendingBody) previous?.serverVersion else previous?.serverVersion ?: item?.serverVersion ?: detail?.serverVersion
+                if (pendingBody) previous?.serverVersion else previous?.serverVersion ?: detail?.serverVersion ?: item?.serverVersion
             val operation =
                 when {
                     previous?.operation == SyncState.CREATE_PENDING -> SyncState.CREATE_PENDING
@@ -367,7 +367,9 @@ class ExerciseRecordLocalDataSource
                 if (!isCurrentMember(memberId)) return@withTransaction
                 exerciseRecordDao.deleteSyncedList(memberId)
                 exerciseRecordDao.deleteSyncedDetails(memberId)
-                exerciseCountDao.deleteByMember(memberId)
+                if (database.exerciseSyncDao().getByMember(memberId).none { it.operation != SyncState.SYNCED }) {
+                    exerciseCountDao.deleteByMember(memberId)
+                }
                 exerciseRecordDao.deleteQueries(memberId)
                 database.exerciseImageDao().deleteOrphanedRemoteCache(memberId)
             }
@@ -448,8 +450,33 @@ class ExerciseRecordLocalDataSource
             if (!isCurrentMember(memberId)) return
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
-                exerciseCountDao.deleteRange(memberId!!, startDate, endDate)
-                exerciseCountDao.upsertAll(counts.filter { it.date in startDate..endDate }.map { it.toEntity(memberId) })
+                val journals = database.exerciseSyncDao().getByMember(memberId!!)
+                val protectedDates = journals.filter { it.operation != SyncState.SYNCED }.flatMap { journal ->
+                    val dates = mutableListOf(journal.confirmedDate, journal.currentDate)
+                    journal.inFlightBody?.let { json ->
+                        try {
+                            val snapshot = org.json.JSONObject(json)
+                            listOf("submittedDate", "previousDate").forEach { key ->
+                                snapshot.optString(key).takeIf { it.isNotBlank() && it != "null" }?.let {
+                                    dates.add(LocalDate.parse(it))
+                                }
+                            }
+                        } catch (_: Exception) {
+                            // 원문을 해석하지 못하면 영향 날짜도 추정하지 않고 기준 갱신을 보류합니다
+                            return@withTransaction
+                        }
+                    }
+                    dates.filterNotNull()
+                }.toSet()
+                var replacementDate = startDate
+                val incoming = counts.associateBy { it.date }
+                while (!replacementDate.isAfter(endDate)) {
+                    if (replacementDate !in protectedDates) {
+                        exerciseCountDao.deleteRange(memberId, replacementDate, replacementDate)
+                        incoming[replacementDate]?.let { exerciseCountDao.upsertAll(listOf(it.toEntity(memberId))) }
+                    }
+                    replacementDate = replacementDate.plusDays(1)
+                }
                 var date = startDate
                 while (!date.isAfter(endDate)) {
                     exerciseRecordDao.saveQuery(ExerciseCacheQueryEntity(memberId, "count", date))
@@ -468,12 +495,13 @@ class ExerciseRecordLocalDataSource
                     .filterNot { exerciseRecordDao.isDeleted(memberId, it.localId, it.serverId) }
                     .map { item ->
                         val images = database.exerciseImageDao().getByRecord(memberId, item.localId)
+                        val pending = database.exerciseSyncDao().get(memberId, item.localId) != null
                         if (images.isEmpty()) {
-                            item.toModel()
+                            item.toModel().copy(syncPending = item.syncState != SyncState.SYNCED || pending)
                         } else {
                             item.toModel().copy(
                                 imageUrl = images.mapNotNull { it.toModel()?.source },
-                                syncPending = item.syncState != SyncState.SYNCED || images.any { it.state != ExerciseImageState.SYNCED },
+                                syncPending = item.syncState != SyncState.SYNCED || pending || images.any { it.state != ExerciseImageState.SYNCED },
                             )
                         }
                     }
@@ -527,7 +555,7 @@ class ExerciseRecordLocalDataSource
                                 ?: exerciseRecordDao.getDetailByServerId(memberId, item.recordId.toLong())
                         exerciseRecordDao.updateConfirmedDate(memberId, id, date)
                         item.toSyncedEntity(memberId, id, date, sortOrder).copy(
-                            serverVersion = previous?.serverVersion ?: oldDetail?.serverVersion,
+                            serverVersion = item.serverVersion ?: previous?.serverVersion ?: oldDetail?.serverVersion,
                             confirmedDate = date,
                         )
                     },
@@ -593,9 +621,19 @@ class ExerciseRecordLocalDataSource
 
         private suspend fun projectDetail(detail: ExerciseRecordDetailEntity): ExerciseRecord {
             val images = database.exerciseImageDao().getByRecord(detail.memberId, detail.localId)
+            val journal = database.exerciseSyncDao().get(detail.memberId, detail.localId)
+            val recovery = journal?.recoveryState == ExerciseRecoveryState.RECOVERY_REQUIRED
             return detail.toModel().copy(
-                pictures = images.mapNotNull { it.toModel() },
-                syncPending = detail.syncState != SyncState.SYNCED || images.any { it.state != ExerciseImageState.SYNCED },
+                pictures = images.mapNotNull { image ->
+                    image.toModel()?.let {
+                        if (recovery && image.state != ExerciseImageState.SYNCED) {
+                            it.copy(syncStatus = com.project200.domain.model.ExerciseImageSyncStatus.FAILED)
+                        } else {
+                            it
+                        }
+                    }
+                },
+                syncPending = detail.syncState != SyncState.SYNCED || journal != null || images.any { it.state != ExerciseImageState.SYNCED },
             )
         }
 
@@ -635,10 +673,11 @@ class ExerciseRecordLocalDataSource
             val item = exerciseRecordDao.getListItem(memberId, localId)
             val entity =
                 record.toSyncedEntity(memberId, localId, serverId).copy(
-                    serverVersion = oldDetail?.serverVersion ?: item?.serverVersion,
+                    serverVersion = record.serverVersion ?: oldDetail?.serverVersion ?: item?.serverVersion,
                     confirmedDate = item?.confirmedDate ?: oldDetail?.confirmedDate,
                 )
             exerciseRecordDao.upsertDetail(entity)
+            item?.let { exerciseRecordDao.upsertListItems(listOf(it.copy(serverVersion = entity.serverVersion))) }
             database.exerciseImageDao().refreshSynced(memberId, localId, entity.pictures)
         }
 

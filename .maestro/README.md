@@ -128,7 +128,10 @@ python3 .maestro/scripts/run-tests.py --suite login --device emulator-5554
 
 ## fixture 삭제 범위와 병렬 실행
 
-`^maestro-e2e-[a-f0-9]{32}(-edited)?$`에 정확히 맞는 제목은 **검증된 전용 계정에서 이 suite만 소유**합니다. 일반 기록 제목에 이 패턴을 사용하지 마세요. 준비/정리는 시작일~기기 오늘의 월별 운동 횟수를 읽고 기록이 있는 날짜만 조회하여 이 제목만 삭제합니다. 다른 제목·다른 계정·범위 밖 기록은 삭제하지 않습니다. 서버 오류나 계정 불일치 시 삭제를 진행하지 않습니다.
+`^maestro-e2e-[a-f0-9]{32}(-edited)?$`에 정확히 맞는 제목은 **검증된 전용 계정에서 이 suite만 소유**합니다. 일반 기록 제목에 이 패턴을 사용하지 마세요. 공통 cleaner의 **서버 삭제 후보 선택**은 시작일~기기 오늘의 월별 운동 횟수를 읽고 기록이 있는 날짜만 조회하여 이 제목으로 제한합니다. cleaner는 다른 제목·다른 계정·범위 밖 기록에 서버 DELETE를 보내지 않습니다. 서버 오류나 계정 불일치 시 삭제를 진행하지 않습니다.
+공통 cleaner는 제목의 namespace를 먼저 판별합니다. 소유하지 않은 pending 행은 서버 삭제 후보에서 건너뛰며 소유한 정착 행의 서버 정리를 막지 않습니다. 소유 행은 목록·상세 재확인과 삭제 직전 Room 보호 검사에서 대기 저널, 사진의 미동기화·로컬 파일·요청 ID 등 보호 상태가 없어야 합니다. 상세 제목이 일반 제목으로 바뀌면 pending 여부보다 소유권을 먼저 확인하여 서버 삭제에서 제외합니다.
+
+이 선택 규칙은 개인 앱 데이터 보존을 보장하지 않습니다. **전용 DEV 계정과 전용 테스트 기기를 사용해야 합니다.** 정리가 성공하면 기존 coordinator의 `clearSession()`과 호스트의 `pm clear`가 로컬 세션·앱 데이터를 초기화합니다. offline 실행의 소유 pending·in-flight·불확실 상태는 기존 failClosed 경로로 정리를 실패시키며, 이 경우 세션 데이터 전체 제거와 호스트 앱 데이터 초기화를 진행하지 않고 복구 증거를 남깁니다.
 
 UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통과시키려고 기록을 대신 생성하지 않습니다. CI는 `maestro-dev-dedicated-account` concurrency group으로 같은 계정의 job을 한 번에 하나만 실행합니다. `cancel-in-progress: false`로 실행 중인 job을 자동 취소하지 않으며, `queue: max`로 최대 100개의 pending job을 대기시킵니다. **로컬 실행끼리 또는 로컬과 CI가 같은 계정을 동시에 사용하면 서로의 예약 기록을 지울 수 있습니다.** 병렬 실행에는 서로 다른 DEV 계정을 사용하세요.
 
@@ -145,7 +148,7 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 
 ### 기능 descriptor와 공유 계약
 
-`--suite ci`는 smoke-tabs → `chatting`을 제외한 현재 트리의 `.maestro/suites/<feature>.json`(파일명 순, 각 flows 선언 순) → login-screen입니다. 현재 19개를 실행하며 두 기기 채팅 4개만 기본 선택에서 제외합니다. `matching-member-to-chat`과 smoke의 채팅 탭 검증은 유지합니다.
+`--suite ci`는 smoke-tabs → `chatting`을 제외한 현재 트리의 `.maestro/suites/<feature>.json`(파일명 순, 각 flows 선언 순) → login-screen입니다. 플로우 수는 descriptor에서 결정하며 두 기기 채팅만 기본 선택에서 제외합니다. `matching-member-to-chat`과 smoke의 채팅 탭 검증은 유지합니다.
 
 `all`은 채팅 4개와 기존 exercise 회귀 두 개까지 포함하며 두 기기가 필요합니다. **`regression`은 기존 운동 두 개만** 실행하며 전체 기능 회귀의 별칭이 아닙니다. `--suite <feature>`는 해당 descriptor만 실행하므로 `--suite chatting` 독립 실행도 유지합니다. descriptor가 없으면 그 기능을 실행했다고 주장하지 않으며 잘못된 descriptor/빈 flows/없는 파일/중복 흐름은 실패합니다. 기능 상세는 `.maestro/README-<feature>.md`를 참조합니다.
 
@@ -165,6 +168,12 @@ python3 .maestro/scripts/run-tests.py \
 
 실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`가 필요합니다. 로컬 우선 읽기는 기본 동작이며 Remote Config 활성화는 필요하지 않습니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다. 첫 저장 스냅샷을 표시한 뒤의 서버 갱신은 Room만 바꾸며, 표시 중인 목록·상세·수정 폼은 명시적 새로고침이나 로컬 복귀 조회까지 유지됩니다.
 
+운동 시나리오는 온라인 준비 → 실제 망 단절 → UI 생성 → 오프라인 재실행 → 복구와 실제 생성 동기화 → 재단절과 UI 수정 → 오프라인 재실행 → 실제 수정 동기화 → 재단절과 UI 삭제 → 오프라인 재실행 → 실제 삭제 동기화 순서입니다. 각 생성·수정·삭제, 재실행, 동기화는 descriptor의 별도 플로우/JUnit 결과입니다. cache-missing 시나리오와 타이머 시나리오는 별도 ownership으로 유지합니다.
+원제목과 `-edited` 제목, 시작 분 `00`→`05`, 종료 시각은 UI 동작 전 run 입력에서 정합니다. `exercise-local-created`/`updated`/`deleted`와 각 `-relaunch` 단계는 하나의 Room 트랜잭션으로 목록·상세·저널을 읽고 동일 localId·정확한 값·대기 상태를 확인합니다. 로컬 관찰은 recovery ownership과 현재 로컬 인증/회원을 검증하며 서버 인증·Repository refresh·Worker/동기화 use case 호출을 하지 않습니다.
+`exercise-created-synced`, `exercise-updated-synced`, `exercise-deleted-synced`는 실제 DEV 인증 후 독립 GET과 Room ACK를 최대 120초, 2초 간격으로 함께 관찰합니다. 생성에서 얻은 서버 ID는 private snapshot에 저장하고 수정·삭제에서도 같은 ID를 요구합니다. 생성/수정은 정확한 서버 목록·상세와 같은 localId의 SYNCED·저널/사진 대기 없음이 모두 필요합니다. 삭제는 캡처한 서버 ID의 부재와 원 localId의 목록·상세·저널·사진 제거가 모두 필요합니다. 빈 응답·이전 값·중복·식별자 교체·ACK 누락은 성공으로 대체하지 않습니다.
+실패/중단/타임아웃 뒤에도 원래 라디오를 먼저 복구합니다. 정리는 원제목·수정제목과 저장한 local/server ID를 함께 확인하고, 소유한 pending·in-flight·사진·불확실 상태는 직접 서버 DELETE나 앱 데이터 제거로 숨기지 않습니다. 현재 경로는 pending 로컬 생성도 자동 취소하지 않고 private snapshot/recovery를 보존한 채 실패합니다. 안전하게 정착한 소유 행만 기존 서버 정리를 허용합니다. 관찰 실패는 정리 성공으로 통과하지 않으며 뒤의 미실행 단계는 `offline-phase-not-executed`입니다.
+정리 실패는 `report.xml`의 각 해당 시나리오 플로우에 `fixture-cleanup-failed`와 검토된 고정 진단 코드(운동 정리 안전성·스냅샷/복구 소유권·fixture 읽기/삭제·인증/전송 범주 등)를 함께 남깁니다. 알 수 없는 reason이나 예외 본문은 공개하지 않고 일반 실패 표시만 남기며, 원본 private 결과 파일은 업로드하지 않습니다. 정리 실패 시 원래 단계 오류와 복구 증거를 보존하고 앱 데이터를 초기화하지 않으며 다음 시나리오를 중단합니다. 이 진단은 과거 서버 불일치나 정리 실패의 원인을 확정하지 않습니다.
+
 타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
 호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.
 
@@ -173,7 +182,7 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 `offline-observe`는 위 다섯 문자열 입력과 `memberId`, `runId`, `flow`, `stage`를 받고 실제 DEV 인증과 서버 GET을 유지합니다. `timers-online`은 기존/삭제 대상의 initial 시간, `timers-synced`는 생성 initial·수정 updated 시간과 정확한 단계명·개수 1·순서 0을 확인합니다. post-action 앱 값을 기대값으로 만들지 않습니다. private `maestro-offline-state.json`은 사전 입력·회원/flow/run 소유권·기준 localId와 확인한 생성 ID를 보존합니다. 관찰·정리에서 입력이나 소유권이 바뀌면 실패하고 최종 성공한 앱 데이터 제거 전까지 저널을 지우지 않습니다.
 준비가 스냅샷 저장 전에 실패했다면 정리는 coordinator의 동일 ownership 확인을 유지하고 실행 이름과 서버 상세를 재확인한 행만 삭제합니다. 스냅샷이 있으면 기존 입력·소유권 검증을 생략하지 않습니다.
 
-Room ID 관찰은 `feature-observe`의 `timers-local-online`(기존/삭제)·`timers-local-created`(오프라인 생성) 단계입니다. `TIMER_ORIGINAL_LOCAL_ID`, `TIMER_DELETE_LOCAL_ID`, `TIMER_CREATE_LOCAL_ID`를 실제 새 소유 행에서만 얻습니다. 단절 중 이 두 단계는 recovery ownership과 현재 로컬 회원·인증 상태를 검증하고 네트워크 인증 없이 Room만 읽습니다. 서버 검증 단계의 실제 인증을 대체하지 않습니다. 모든 카드 선택은 `custom_timer_<localId>`이며 제목과 시간은 별도로 단언합니다.
+타이머 Room ID 관찰은 `feature-observe`의 `timers-local-online`(기존/삭제)·`timers-local-created`(오프라인 생성) 단계입니다. `TIMER_ORIGINAL_LOCAL_ID`, `TIMER_DELETE_LOCAL_ID`, `TIMER_CREATE_LOCAL_ID`를 실제 새 소유 행에서만 얻습니다. 운동 로컬 단계와 함께 정확한 allowlist만 네트워크 인증 없이 Room을 읽습니다. 서버 검증 단계의 실제 인증을 대체하지 않습니다. 타이머 카드 선택은 `custom_timer_<localId>`이며 제목과 시간은 별도로 단언합니다.
 
 목록 부재 검사는 `timer_list_scroll`과 운동의 실제 `scroll_view`를 swipe 시작점으로 삼습니다. 겹치는 중간 구간마다 부재를 확인하고 실제 끝 경계까지 필수 검사하며, bounded 반복 한도 소진은 성공이 아닙니다. 타이머는 호출자가 UP 검색을 시작할 수 있는 목록 끝, 운동은 캘린더 위치로 복귀합니다. 날짜 선택은 정확한 ISO 날짜와 선택적인 ` 동기화 대기` 상태만 허용합니다. Maestro 2.11.0이 날짜 표현식을 보간하도록 정규식 끝 앵커 `$`는 `${...}` 밖에 둡니다. 인접 월의 같은 일 숫자는 선택하지 않으며 기존의 현재/직전 월 이동 범위를 넓히지 않습니다. pending 상태 설명은 그대로 노출됩니다.
 

@@ -36,6 +36,13 @@ abstract class ExerciseSyncDao {
     @Upsert
     protected abstract suspend fun upsert(entity: ExerciseSyncEntity)
 
+    /** claim/apply 트랜잭션 전용입니다. 호출자가 이전 snapshot의 전체 식별자를 확인합니다 */
+    @Upsert
+    abstract suspend fun saveSyncState(entity: ExerciseSyncEntity)
+
+    @Query("DELETE FROM exercise_sync WHERE memberId = :memberId AND localId = :localId")
+    abstract suspend fun deleteApplied(memberId: String, localId: String)
+
     /** 최신 의도를 저장할 때 기존 전송 원문과 생성 키는 변경하지 않습니다 */
     @Transaction
     open suspend fun saveDesired(entity: ExerciseSyncEntity) {

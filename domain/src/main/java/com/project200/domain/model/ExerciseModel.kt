@@ -12,7 +12,8 @@ data class ExerciseRecord(
     val location: String,
     val pictures: List<ExerciseRecordPicture>?,
     val syncPending: Boolean = false,
-    val canModify: Boolean = true
+    val canModify: Boolean = true,
+    val serverVersion: Long? = null,
 )
 
 enum class ExerciseImageSyncStatus { PENDING, SYNCED, FAILED }
@@ -31,7 +32,8 @@ data class ExerciseListItem(
     val startTime: LocalDateTime,
     val endTime: LocalDateTime,
     val imageUrl: List<String>?,
-    val syncPending: Boolean = false
+    val syncPending: Boolean = false,
+    val serverVersion: Long? = null,
 )
 
 data class ExerciseCount(

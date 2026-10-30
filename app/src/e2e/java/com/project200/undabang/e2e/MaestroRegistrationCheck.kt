@@ -2,6 +2,7 @@ package com.project200.undabang.e2e
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.impl.AuthRepositoryImpl
@@ -27,11 +28,12 @@ internal class MaestroRegistrationCheck
         private val authStateManager: AuthStateManager,
         private val sessionDataCleaner: SessionDataCleaner,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        private val imageFileStore: ExerciseImageFileStore,
     ) {
         suspend fun requireRegistered(): String {
             val observed = RegistrationObservation(apiService)
             // 실제 저장소의 회원 저장·계정 변경 시 캐시 삭제 동작을 그대로 사용합니다.
-            val repository = AuthRepositoryImpl(observed, preferences, authStateManager, sessionDataCleaner, ioDispatcher)
+            val repository = AuthRepositoryImpl(observed, preferences, authStateManager, sessionDataCleaner, ioDispatcher, imageFileStore)
             if (repository.checkIsRegistered() != RegistrationStatus.Registered) {
                 throw MaestroSetupFailure(observed.failureReason ?: "registration_unknown")
             }

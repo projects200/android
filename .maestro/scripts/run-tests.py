@@ -61,6 +61,27 @@ COMMON_PREPARE_FAILURES = {
     "setup_failed": "bootstrap-prepare-failed-setup",
 }
 
+OFFLINE_CLEANUP_FAILURES = {
+    "offline_exercise_cleanup_unsafe": "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe",
+    "offline_snapshot_missing": "bootstrap-cleanup-failed-offline-snapshot-missing",
+    "offline_snapshot_identity_invalid": "bootstrap-cleanup-failed-offline-snapshot-identity-invalid",
+    "offline_snapshot_input_mismatch": "bootstrap-cleanup-failed-offline-snapshot-input-mismatch",
+    "feature_recovery_missing": "bootstrap-cleanup-failed-feature-recovery-missing",
+    "feature_recovery_pending": "bootstrap-cleanup-failed-feature-recovery-pending",
+    "feature_recovery_owner_mismatch": "bootstrap-cleanup-failed-feature-recovery-owner-mismatch",
+    "feature_recovery_invalid": "bootstrap-cleanup-failed-feature-recovery-invalid",
+    "fixture_read_failed": "bootstrap-cleanup-failed-fixture-read",
+    "fixture_delete_failed": "bootstrap-cleanup-failed-fixture-delete",
+    "member_mismatch": "bootstrap-cleanup-failed-member-mismatch",
+    "discovery_failed": "bootstrap-cleanup-failed-discovery",
+    "refresh_failed": "bootstrap-cleanup-failed-refresh",
+    "untrusted_session": "bootstrap-cleanup-failed-untrusted-session",
+    "dev_configuration_missing": "bootstrap-cleanup-failed-dev-configuration-missing",
+    "private_file_failed": "bootstrap-cleanup-failed-private-file",
+    "local_session_clear_failed": "bootstrap-cleanup-failed-local-session-clear",
+    "setup_failed": "bootstrap-cleanup-failed-setup",
+}
+
 REGISTRATION_FAILURES = {
     "registration_failed": "registration",
     "registration_unregistered": "registration-unregistered",
@@ -75,6 +96,12 @@ REGISTRATION_FAILURES = {
     "registration_unknown": "registration-unknown",
 }
 REGISTRATION_HTTP_FAILURE = re.compile(r"registration_http_([1-5][0-9]{2})")
+OFFLINE_CLEANUP_PUBLIC_FAILURES = frozenset({
+    *OFFLINE_CLEANUP_FAILURES.values(),
+    *("bootstrap-cleanup-failed-" + suffix for suffix in REGISTRATION_FAILURES.values()),
+    "bootstrap-cleanup-failed", "bootstrap-cleanup-timeout", "adb-operation-failed",
+    "invalid-bootstrap-result", "tool-timeout", "tool-unavailable", "run-interrupted",
+})
 
 PROFILE_PREPARE_FAILURES = {
     "profile_recovery_pending": "bootstrap-prepare-failed-profile-recovery-pending",
@@ -140,6 +167,18 @@ class RunnerFailure(Exception):
 
 class RunInterrupted(RunnerFailure):
     pass
+
+
+def safe_offline_cleanup_failure(exception):
+    if not isinstance(exception, RunnerFailure):
+        return None
+    failure = str(exception)
+    if (
+        failure in OFFLINE_CLEANUP_PUBLIC_FAILURES or
+        re.fullmatch(r"bootstrap-cleanup-failed-registration-http-[1-5][0-9]{2}", failure)
+    ):
+        return failure
+    return None
 
 
 def tool_environment():
@@ -834,6 +873,8 @@ class Device:
                         failure += "-" + registration
                     elif http is not None:
                         failure += "-registration-http-" + http.group(1)
+                    elif operation == "cleanup" and feature == "offline":
+                        failure = OFFLINE_CLEANUP_FAILURES.get(reason, failure)
                     elif operation not in ("prepare", "offline-observe", "feature-observe"):
                         pass
                     elif operation == "offline-observe" or feature == "offline":
@@ -841,6 +882,8 @@ class Device:
                             "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
                             "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
                             "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
+                            "offline_exercise_local_mismatch": "offline-suite-exercise-local-mismatch",
+                            "offline_exercise_identity_changed": "offline-suite-exercise-identity-changed",
                             "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
                         }.get(reason, failure)
                     elif feature == "timer":

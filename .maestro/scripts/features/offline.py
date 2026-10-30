@@ -8,7 +8,9 @@ from typing import NamedTuple
 
 
 SCENARIOS = (
-    ("offline-exercise-create", "offline-exercise-cached"),
+    ("offline-exercise-create", "offline-exercise-cached", "offline-exercise-create-sync",
+     "offline-exercise-update", "offline-exercise-update-relaunch", "offline-exercise-update-sync",
+     "offline-exercise-delete", "offline-exercise-delete-relaunch", "offline-exercise-delete-sync"),
     ("offline-exercise-missing",),
     ("offline-timers-online", "offline-timers-mutate", "offline-timers-relaunch",
      "offline-timers-after-reconnect", "offline-timers-reconnect"),
@@ -17,6 +19,10 @@ FLOWS = tuple(flow for scenario in SCENARIOS for flow in scenario)
 HELPERS = (
     "assert-exercise-record", "open-timer-list", "create-timer", "edit-timer",
     "set-timer-time", "assert-timer-list", "prepare-timer-draft", "assert-timer-draft",
+)
+SUBFLOWS = (
+    "launch-logged-in", "select-exercise-date", "set-exercise-time",
+    "assert-exercise-detail", "assert-exercise-records-absent", "timer-clear-text",
 )
 
 class OfflineTimerInput(NamedTuple):
@@ -41,7 +47,8 @@ def validate_paths(core):
     base = core.ROOT / ".maestro"
     if base.is_symlink() or not base.is_dir():
         raise core.RunnerFailure("invalid-offline-flow-directory")
-    for folder, names in (("flows", (*FLOWS, "offline-timers-mutate-finish")), ("offline", HELPERS)):
+    for folder, names in (("flows", (*FLOWS, "offline-timers-mutate-finish")),
+                          ("offline", HELPERS), ("subflows", SUBFLOWS)):
         directory = base / folder
         if directory.is_symlink() or not directory.is_dir():
             raise core.RunnerFailure("invalid-offline-flow-directory")
@@ -158,12 +165,14 @@ def run_suite(args, core):
             prepared = True
             variables.update(core.safe_variables(device.bootstrap("prepare", credentials, **metadata)))
 
-            def phase(flow):
+            def phase(flow, observation=None):
                 nonlocal owner
                 owner = flow
                 started = time.monotonic()
                 try:
                     core.run_maestro(device, flow, output, redactor, args.flow_timeout, variables=variables)
+                    if observation is not None:
+                        observation()
                     completed.add(flow)
                 finally:
                     durations[flow] += time.monotonic() - started
@@ -181,10 +190,26 @@ def run_suite(args, core):
                 )))
 
             if scenario == SCENARIOS[0]:
-                phase("offline-exercise-create")
-                observe("exercise-online")
                 network.disconnect()
-                phase("offline-exercise-cached")
+                phase("offline-exercise-create", lambda: observe_local("exercise-local-created"))
+                phase("offline-exercise-cached", lambda: observe_local("exercise-local-created-relaunch"))
+                owner = "offline-exercise-create-sync"
+                network.restore()
+                phase("offline-exercise-create-sync", lambda: observe("exercise-created-synced"))
+                owner = "offline-exercise-update"
+                network.disconnect()
+                phase("offline-exercise-update", lambda: observe_local("exercise-local-updated"))
+                phase("offline-exercise-update-relaunch", lambda: observe_local("exercise-local-updated-relaunch"))
+                owner = "offline-exercise-update-sync"
+                network.restore()
+                phase("offline-exercise-update-sync", lambda: observe("exercise-updated-synced"))
+                owner = "offline-exercise-delete"
+                network.disconnect()
+                phase("offline-exercise-delete", lambda: observe_local("exercise-local-deleted"))
+                phase("offline-exercise-delete-relaunch", lambda: observe_local("exercise-local-deleted-relaunch"))
+                owner = "offline-exercise-delete-sync"
+                network.restore()
+                phase("offline-exercise-delete-sync", lambda: observe("exercise-deleted-synced"))
             elif scenario == SCENARIOS[1]:
                 network.disconnect()
                 phase("offline-exercise-missing")
@@ -224,11 +249,14 @@ def run_suite(args, core):
                 if prepared and restored:
                     try:
                         device.bootstrap("cleanup", credentials, **metadata)
-                    except Exception:
+                    except Exception as failure:
                         cleanup_failed = True
                         safe_to_continue = False
+                        detail = core.safe_offline_cleanup_failure(failure)
                         for flow in scenario:
                             errors[flow].append("fixture-cleanup-failed")
+                            if detail is not None:
+                                errors[flow].append(detail)
                 if prepared and (not restored or cleanup_failed):
                     for flow in scenario:
                         errors[flow].append("private-state-preserved-for-recovery")

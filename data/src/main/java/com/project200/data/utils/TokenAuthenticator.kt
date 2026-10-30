@@ -24,6 +24,7 @@ class TokenAuthenticator
     constructor(
         private val authStateManager: AuthStateManager,
         private val authManager: AuthManager,
+        private val exerciseSyncAccountGuard: ExerciseSyncAccountGuard,
     ) : Authenticator {
         override fun authenticate(
             route: Route?,
@@ -51,6 +52,13 @@ class TokenAuthenticator
             //       (TokenInterceptor 의 동일 주석 참고)
             synchronized(this) {
                 val currentIdToken = authStateManager.getCurrent().idToken
+                val account = response.request.tag(ExerciseSyncAccount::class.java)
+                if (account != null &&
+                    (!exerciseSyncAccountGuard.accepts(account, originalAccessToken) ||
+                        !exerciseSyncAccountGuard.accepts(account, currentIdToken))
+                ) {
+                    return null
+                }
 
                 // 토큰이 다른 스레드에 의해 갱신되었는지 확인
                 // 이전에 실패했던 토큰과 현재 저장된 토큰이 다르다면, 이미 토큰이 갱신 완료
@@ -70,6 +78,12 @@ class TokenAuthenticator
 
                 return when (refreshResult) {
                     is TokenRefreshResult.Success -> {
+                        if (account != null &&
+                            (!exerciseSyncAccountGuard.isCurrent(account) ||
+                                !exerciseSyncAccountGuard.accepts(account, refreshResult.tokenResponse.idToken))
+                        ) {
+                            return null
+                        }
                         // 갱신을 했는데도 이전과 동일한 토큰을 받았다면, 문제가 해결되지 않은 것이므로 루프를 중단합니다.
                         if (originalAccessToken == refreshResult.tokenResponse.idToken) {
                             Timber.tag("TokenAuthenticator").e("토큰 갱신 후에도 토큰이 동일하여 루프 방지를 위해 인증을 중단합니다.")
