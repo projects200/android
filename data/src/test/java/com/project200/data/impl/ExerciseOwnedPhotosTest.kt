@@ -102,6 +102,7 @@ class ExerciseOwnedPhotosTest {
     private fun writer(source: ExerciseRecordLocalDataSource) =
         ExerciseRecordRepositoryImpl(
             remote, source, network, dispatcher, store, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+            mockk(relaxed = true), preferences, mockk(relaxed = true),
         )
 
     private fun reopen() {

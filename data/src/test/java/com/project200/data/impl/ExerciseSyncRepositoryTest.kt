@@ -7,6 +7,7 @@ import android.util.Base64
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
+import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
@@ -18,6 +19,7 @@ import com.project200.data.dto.ExercisePictureMappingDto
 import com.project200.data.dto.ExercisePicturesDto
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.data.dto.PostExerciseResponseDTO
@@ -43,6 +45,7 @@ import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -74,6 +77,7 @@ class ExerciseSyncRepositoryTest {
     private val preferences = PreferenceManager(context)
     private val auth = mockk<AuthStateManager>()
     private val authState = mockk<AuthState>()
+    private val apiService = mockk<ApiService>()
     private val remote = mockk<ExerciseRecordRemoteDataSource>()
     private val network = mockk<NetworkMonitor>()
     private val scheduler = mockk<ExerciseSyncScheduler>(relaxed = true)
@@ -116,6 +120,7 @@ class ExerciseSyncRepositoryTest {
         every { auth.getCurrent() } returns authState
         every { authState.idToken } answers { token }
         preferences.saveMemberId(member, null)
+        coEvery { apiService.getIsRegistered() } returns success(GetIsRegisteredData(member, true))
         token = jwt(member)
         open()
         stubServer()
@@ -129,6 +134,7 @@ class ExerciseSyncRepositoryTest {
         syncLocal = ExerciseSyncLocalDataSource(db, moshi)
         repository = ExerciseRecordRepositoryImpl(
             remote, local, network, dispatcher, files, syncLocal, ExerciseSyncAccountGuard(preferences, files, auth), scheduler,
+            apiService, preferences, auth,
         )
     }
 
@@ -264,6 +270,179 @@ class ExerciseSyncRepositoryTest {
         id, requireNotNull(body.exerciseTitle), requireNotNull(body.exercisePersonalType),
         LocalDateTime.parse(body.exerciseStartedAt), LocalDateTime.parse(body.exerciseEndedAt), emptyList(),
     )
+
+    @Test
+    fun `이관된 기존 로그인 회원은 서버가 확인한 subject를 연결한 뒤 동기화한다`() = runTest {
+        val subject = "migrated-subject"
+        token = jwt(subject)
+        val id = create()
+
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
+        assertThat(preferences.getMemberSubject()).isEqualTo(subject)
+        assertThat(local.resolveServerId(id, member)).isEqualTo(100)
+        assertThat(detail(id).syncPending).isFalse()
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
+        coVerify(exactly = 1) { apiService.getIsRegistered() }
+        coVerify(exactly = 1) { remote.postExerciseRecord(any(), match { it?.memberId == member }) }
+    }
+
+    @Test
+    fun `등록 확인을 기다리는 동안에도 로컬 편집과 파일 잠금을 사용할 수 있다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        coEvery { apiService.getIsRegistered() } coAnswers {
+            entered.complete(Unit)
+            release.await()
+            success(GetIsRegisteredData(member, true))
+        }
+        val running = async { sync() }
+        entered.await()
+
+        edit(id, "B")
+        files.withLock { assertThat(preferences.getMemberSubject()).isNull() }
+        release.complete(Unit)
+
+        assertThat(running.await()).isEqualTo(ExerciseSyncResult.Success)
+        assertThat(createRequests.single().exerciseTitle).isEqualTo("B")
+    }
+
+    @Test
+    fun `서버 회원ID가 다르면 subject를 연결하지 않고 전송을 건너뛴다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        coEvery { apiService.getIsRegistered() } returns success(GetIsRegisteredData("other-member", true))
+
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+        assertThat(preferences.getMemberSubject()).isNull()
+        assertThat(journal(id).inFlightBody).isNull()
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `미가입 응답이나 실패 응답은 subject를 연결하거나 전송하지 않는다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        val original = journal(id)
+        val responses = listOf<BaseResponse<GetIsRegisteredData>>(success(GetIsRegisteredData(member, false)), BaseResponse(false, "TEMPORARY_ERROR", ""))
+        for (response in responses) {
+            coEvery { apiService.getIsRegistered() } returns response
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+            assertThat(preferences.getMemberSubject()).isNull()
+            assertThat(journal(id)).isEqualTo(original)
+        }
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `등록 확인 중 토큰 subject가 바뀌면 연결과 전송을 하지 않는다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        coEvery { apiService.getIsRegistered() } coAnswers {
+            token = jwt("changed-subject")
+            success(GetIsRegisteredData(member, true))
+        }
+
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+        assertThat(preferences.getMemberSubject()).isNull()
+        assertThat(journal(id).inFlightBody).isNull()
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `등록 확인 전후 subject가 없으면 연결과 전송을 하지 않는다`() = runTest {
+        val id = create()
+        for (before in listOf(null, "migrated-subject")) {
+            token = before?.let(::jwt)
+            coEvery { apiService.getIsRegistered() } coAnswers {
+                token = if (before == null) jwt("migrated-subject") else null
+                success(GetIsRegisteredData(member, true))
+            }
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+            assertThat(preferences.getMemberSubject()).isNull()
+            assertThat(journal(id).inFlightBody).isNull()
+        }
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `등록 확인 중 회원이나 세션이 바뀌면 이전 subject를 연결하지 않는다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        coEvery { apiService.getIsRegistered() } coAnswers {
+            preferences.saveMemberId("other-member", null)
+            success(GetIsRegisteredData(member, true))
+        }
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+        assertThat(preferences.getMemberId()).isEqualTo("other-member")
+        assertThat(preferences.getMemberSubject()).isNull()
+
+        preferences.saveMemberId(member, null)
+        coEvery { apiService.getIsRegistered() } coAnswers {
+            preferences.invalidateExerciseSession()
+            success(GetIsRegisteredData(member, true))
+        }
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+        assertThat(preferences.getMemberSubject()).isNull()
+        assertThat(journal(id).inFlightBody).isNull()
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `등록 확인 네트워크 오류는 원문과 사진을 보존하고 재시도한다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create(image = image())
+        val snapshot = requireNotNull(syncLocal.claim(member, id))
+        val original = journal(id)
+        val owned = File(requireNotNull(db.exerciseImageDao().getByRecord(member, id).single().localFilePath))
+        coEvery { apiService.getIsRegistered() } throws IOException("등록 확인 응답 유실")
+
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+        assertThat(preferences.getMemberSubject()).isNull()
+        assertThat(journal(id)).isEqualTo(original)
+        assertThat(owned.exists()).isTrue()
+        coVerify { remote wasNot Called }
+
+        coEvery { apiService.getIsRegistered() } returns success(GetIsRegisteredData(member, true))
+        assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
+        assertThat(createRequests.single()).isEqualTo(snapshot.createRequest())
+    }
+
+    @Test
+    fun `등록 확인 HTTP 오류는 인증 오류여도 snapshot을 버리지 않고 재시도한다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        syncLocal.claim(member, id)
+        val original = journal(id)
+        for (status in listOf(401, 503)) {
+            val body = okhttp3.ResponseBody.create(null, "")
+            coEvery { apiService.getIsRegistered() } throws retrofit2.HttpException(retrofit2.Response.error<GetIsRegisteredData>(status, body))
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+            assertThat(preferences.getMemberSubject()).isNull()
+            assertThat(journal(id)).isEqualTo(original)
+        }
+        coVerify { remote wasNot Called }
+    }
+
+    @Test
+    fun `등록 확인 취소는 재시도 결과로 숨기지 않고 snapshot을 보존한다`() = runTest {
+        token = jwt("migrated-subject")
+        val id = create()
+        syncLocal.claim(member, id)
+        val original = journal(id)
+        coEvery { apiService.getIsRegistered() } throws CancellationException("등록 확인 취소")
+
+        try {
+            sync()
+            throw AssertionError("취소가 전파되지 않았습니다")
+        } catch (expected: CancellationException) {
+            assertThat(expected.message).isEqualTo("등록 확인 취소")
+        }
+        assertThat(preferences.getMemberSubject()).isNull()
+        assertThat(journal(id)).isEqualTo(original)
+        coVerify { remote wasNot Called }
+    }
 
     @Test
     fun `생성 응답 유실 뒤 재개방해도 snapshot A와 같은 키를 재전송하고 최신 B를 후속 수정한다`() = runTest {

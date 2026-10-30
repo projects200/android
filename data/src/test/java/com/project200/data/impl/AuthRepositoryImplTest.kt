@@ -130,6 +130,27 @@ class AuthRepositoryImplTest {
         }
 
     @Test
+    fun `가입 확인 - 요청 중 토큰 subject가 바뀌면 subject를 저장하지 않는다`() =
+        runTest {
+            every { mockPreferenceManager.getMemberId() } returns "member-a"
+            coEvery { mockApiService.getIsRegistered() } answers {
+                token = jwt("other-subject")
+                BaseResponse(
+                    succeed = true,
+                    code = "SUCCESS",
+                    message = "",
+                    data = GetIsRegisteredData(memberId = "member-a", isRegistered = true),
+                )
+            }
+
+            val result = repository.checkIsRegistered()
+
+            assertThat(result).isEqualTo(RegistrationStatus.Registered)
+            coVerify(exactly = 0) { mockSessionDataCleaner.clearAll() }
+            verify(exactly = 1) { mockPreferenceManager.saveMemberId("member-a", null) }
+        }
+
+    @Test
     fun `가입 확인 - 이전 회원ID가 없으면 로컬 캐시를 지운다`() =
         runTest {
             // Given: 로그아웃 도중 캐시 삭제만 실패한 상태를 흡수한다
@@ -159,7 +180,7 @@ class AuthRepositoryImplTest {
         }
 
     @Test
-    fun `회원가입 - 서버 회원ID와 현재 ID 토큰의 subject를 함께 저장한다`() =
+    fun `회원가입 - 요청 전후 토큰 subject가 같으면 서버 회원ID와 함께 저장한다`() =
         runTest {
             val birth = LocalDate.of(2000, 1, 1)
             coEvery { mockApiService.postSignUp(any()) } returns
@@ -184,5 +205,35 @@ class AuthRepositoryImplTest {
 
             assertThat(result).isEqualTo(BaseResult.Success(Unit))
             verify(exactly = 1) { mockPreferenceManager.saveMemberId("member-b", "cognito-subject") }
+        }
+
+    @Test
+    fun `회원가입 - 요청 중 토큰 subject가 바뀌면 subject를 저장하지 않는다`() =
+        runTest {
+            val birth = LocalDate.of(2000, 1, 1)
+            coEvery { mockApiService.postSignUp(any()) } answers {
+                token = jwt("other-subject")
+                BaseResponse(
+                    succeed = true,
+                    code = "SUCCESS",
+                    message = "",
+                    data =
+                        PostSignUpData(
+                            memberId = "member-b",
+                            memberEmail = "member@example.test",
+                            memberGender = "FEMALE",
+                            memberBday = birth,
+                            memberNickname = "회원",
+                            memberDesc = null,
+                            memberScore = null,
+                            memberCreatedAt = LocalDateTime.of(2026, 10, 30, 0, 0),
+                        ),
+                )
+            }
+
+            val result = repository.signUp("FEMALE", "회원", birth)
+
+            assertThat(result).isEqualTo(BaseResult.Success(Unit))
+            verify(exactly = 1) { mockPreferenceManager.saveMemberId("member-b", null) }
         }
 }

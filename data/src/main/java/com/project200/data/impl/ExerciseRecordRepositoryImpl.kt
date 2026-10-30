@@ -2,6 +2,7 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.common.utils.NetworkMonitor
+import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
@@ -13,6 +14,7 @@ import com.project200.data.dto.ExercisePictureMappingDto
 import com.project200.data.dto.GetExerciseCountByRangeDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
+import com.project200.data.local.PreferenceManager
 import com.project200.data.local.entity.ExerciseSyncError
 import com.project200.data.local.entity.SyncState
 import com.project200.data.mapper.toModel
@@ -20,6 +22,7 @@ import com.project200.data.utils.ExerciseSyncAccount
 import com.project200.data.utils.ExerciseSyncAccountGuard
 import com.project200.data.utils.ExerciseSyncAuthenticationException
 import com.project200.data.utils.apiCallBuilder
+import com.project200.data.utils.idTokenSubject
 import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
@@ -29,6 +32,7 @@ import com.project200.domain.model.ExerciseSyncResult
 import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.LocalExerciseSaveResult
 import com.project200.domain.repository.ExerciseRecordRepository
+import com.project200.undabang.oauth.AuthStateManager
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
@@ -57,6 +61,9 @@ class ExerciseRecordRepositoryImpl
         private val syncLocalDataSource: ExerciseSyncLocalDataSource,
         private val syncAccountGuard: ExerciseSyncAccountGuard,
         private val syncScheduler: ExerciseSyncScheduler,
+        private val apiService: ApiService,
+        private val preferences: PreferenceManager,
+        private val authStateManager: AuthStateManager,
     ) : ExerciseRecordRepository {
         // 네트워크는 상태 락 밖에서 기다리고, 쓰기 시작과 종료가 이전 조회를 무효화합니다
         private val stateMutex = Mutex()
@@ -328,6 +335,7 @@ class ExerciseRecordRepositoryImpl
             withContext(ioDispatcher) {
                 try {
                     syncMutex.withLock sync@{
+                        bindSyncMemberSubject(memberId)
                         val account = syncAccountGuard.capture(memberId) ?: return@sync ExerciseSyncResult.Skipped
                         var retry = false
                         val ids = syncState(account) { syncLocalDataSource.pendingIds(memberId) }
@@ -378,6 +386,27 @@ class ExerciseRecordRepositoryImpl
                     ExerciseSyncResult.Retry
                 }
             }
+
+        private suspend fun bindSyncMemberSubject(memberId: String) {
+            if (preferences.getMemberSubject() != null) return
+            val revision = preferences.exerciseSessionRevision()
+            val subjectBefore = idTokenSubject(authStateManager.getCurrent().idToken)
+            // 기존 로그인도 서버 회원ID를 확인해야 이관된 계정을 subject와 연결할 수 있습니다
+            val response = apiService.getIsRegistered()
+            imageFileStore.withLock {
+                currentCoroutineContext().ensureActive()
+                val subjectAfter = idTokenSubject(authStateManager.getCurrent().idToken)
+                if (
+                    response.succeed && response.data?.isRegistered == true &&
+                    response.data.memberId == memberId && preferences.getMemberId() == memberId &&
+                    preferences.exerciseSessionRevision() == revision &&
+                    preferences.getMemberSubject() == null &&
+                    subjectBefore != null && subjectBefore == subjectAfter
+                ) {
+                    preferences.saveMemberId(memberId, subjectBefore)
+                }
+            }
+        }
 
         private suspend fun <T> syncState(
             account: ExerciseSyncAccount,
