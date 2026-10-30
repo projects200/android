@@ -74,7 +74,8 @@ class MaestroOfflineRecoveryTest {
     private val preferences = PreferenceManager(context)
     private val protocol = MaestroSetupProtocol(context)
     private val local = mockk<TimerLocalDataSource>()
-    private val offline = MaestroOfflineFixtures(api, context, local)
+    private val exercises = mockk<MaestroOfflineExerciseFixture>(relaxed = true)
+    private val offline = MaestroOfflineFixtures(api, context, local, exercises)
 
     // 실제 AuthRepository가 clearAll을 호출하면 pending 증거가 사라지는 경계를 감지합니다.
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
@@ -546,6 +547,80 @@ class MaestroOfflineRecoveryTest {
             coVerify(exactly = 0) { authManager.refreshAccessToken() }
             assertNoFixtureCalls()
         }
+
+    @Test
+    fun `운동의 여섯 로컬 관찰 단계는 서버 인증 없이 같은 회원과 ownership으로만 진입한다`() =
+        runTest {
+            val exerciseFeature = feature.copy(flow = "offline-exercise-create")
+            protocol.completeFeatureRecovery()
+            protocol.markFeatureRecovery(exerciseFeature)
+            val snapshotFile = File(context.filesDir, "maestro-offline-state.json")
+            snapshotFile.writeText(
+                JSONObject(snapshotFile.readText())
+                    .put("flow", exerciseFeature.flow)
+                    .put("baselineExerciseLocalIds", JSONArray())
+                    .toString(),
+            )
+            current = authorizedState()
+            for (stage in MaestroOfflineExerciseFixture.LOCAL_STAGES) {
+                File(context.filesDir, "maestro-request.json").writeText(
+                    JSONObject()
+                        .put("operation", "feature-observe")
+                        .put("feature", exerciseFeature.feature)
+                        .put("flow", exerciseFeature.flow)
+                        .put("runId", exerciseFeature.runId)
+                        .put("memberId", MEMBER)
+                        .put("parameters", JSONObject(exerciseFeature.parameters.toString()).put("stage", stage))
+                        .toString(),
+                )
+
+                coordinator.consumeRequest()
+
+                assertThat(result().getString("status")).isEqualTo("observed")
+                coVerify(exactly = 1) { exercises.observeLocal(MEMBER, run, any(), stage) }
+            }
+            assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+            assertThat(pending).hasSize(3)
+            assertThat(recoveryFile.exists()).isTrue()
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            coVerify(exactly = 0) { dataCleaner.clearAll() }
+        }
+
+    @Test
+    fun `정리 안전성 실패는 서버 삭제와 공통 정리 전에 복구 파일과 pending을 보존한다`() =
+        runTest {
+            coEvery { exercises.requireSafeCleanup(MEMBER, run, any()) } throws
+                MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+            writeCleanup()
+
+            coordinator.consumeRequest()
+
+            assertFailure("offline_exercise_cleanup_unsafe")
+            assertPreserved()
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
+            coVerify(exactly = 0) { commonCleaner.clean(any(), any()) }
+        }
+
+    @Test
+    fun `서버 관찰 단계는 로컬 전용 경로로 사용할 수 없다`() {
+        File(context.filesDir, "maestro-request.json").writeText(
+            JSONObject()
+                .put("operation", "feature-observe")
+                .put("feature", feature.feature)
+                .put("flow", "offline-exercise-create")
+                .put("runId", feature.runId)
+                .put("memberId", MEMBER)
+                .put("parameters", JSONObject(feature.parameters.toString()).put("stage", "exercise-created-synced"))
+                .toString(),
+        )
+
+        val failure = assertThrows(MaestroSetupFailure::class.java) { protocol.consumeRequest() }
+
+        assertThat(failure.reason).isEqualTo("invalid_request")
+        assertPreserved()
+    }
 
     @Test
     fun `일반 인증은 기존 회원 초기화와 등록 저장소의 계정 경계 정리를 유지한다`() =

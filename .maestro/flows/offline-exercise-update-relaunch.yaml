@@ -1,0 +1,16 @@
+appId: com.project200.undabang
+name: 오프라인 수정 후 재실행한 목록 상세 영속성
+---
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE}"
+- runFlow:
+    file: ../offline/assert-exercise-record.yaml
+    env:
+      RECORD_TITLE: "${EDITED_EXERCISE_TITLE}"
+      START_MINUTE: "05"

@@ -2,6 +2,13 @@
   "flows": [
     "offline-exercise-create",
     "offline-exercise-cached",
+    "offline-exercise-create-sync",
+    "offline-exercise-update",
+    "offline-exercise-update-relaunch",
+    "offline-exercise-update-sync",
+    "offline-exercise-delete",
+    "offline-exercise-delete-relaunch",
+    "offline-exercise-delete-sync",
     "offline-exercise-missing",
     "offline-timers-online",
     "offline-timers-mutate",

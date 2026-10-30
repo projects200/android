@@ -118,11 +118,13 @@ class OfflineDriverTests(unittest.TestCase):
         self.output = Path(temporary.name)
         self.events = []
         self.failed_phase = None
+        self.phase_failure = "maestro-flow-failed"
         self.interrupted = False
         self.fail_restore = False
         self.fail_cleanup = False
         self.fail_prepare = False
         self.fail_upload = False
+        self.failed_observation = None
         self.prepared_variables = {"TIMER_STEP_NAME": "fixture-step", "TIMER_INITIAL_TIME": "00:53"}
         self.device = mock.Mock()
         self.device.clear.side_effect = lambda: self.events.append("clear")
@@ -155,6 +157,8 @@ class OfflineDriverTests(unittest.TestCase):
     def bootstrap(self, operation, request, **metadata):
         stage = request.get("stage") or metadata.get("parameters", {}).get("stage")
         self.events.append(operation + (":" + stage if stage else ""))
+        if self.failed_observation is not None and stage == self.failed_observation:
+            raise core.RunnerFailure("offline-suite-requires-real-server-upload")
         if operation == "offline-observe":
             self.assertNotIn("authState", request)
             self.assertEqual(metadata, {})
@@ -168,6 +172,12 @@ class OfflineDriverTests(unittest.TestCase):
                 return {"TIMER_ORIGINAL_LOCAL_ID": "original-id", "TIMER_DELETE_LOCAL_ID": "deleted-id"}
             if stage == "timers-local-created":
                 return {"TIMER_CREATE_LOCAL_ID": "created-id"}
+            if stage in (
+                "exercise-local-created", "exercise-local-created-relaunch",
+                "exercise-local-updated", "exercise-local-updated-relaunch",
+                "exercise-local-deleted", "exercise-local-deleted-relaunch",
+            ):
+                return {}
             raise AssertionError("Unexpected local observation")
         else:
             self.assertEqual(request, CREDENTIALS)
@@ -201,7 +211,7 @@ class OfflineDriverTests(unittest.TestCase):
             self.assertEqual(kwargs["variables"]["TIMER_CREATE_LOCAL_ID"], "created-id")
         if name == self.failed_phase:
             failure = core.RunInterrupted if self.interrupted else core.RunnerFailure
-            raise failure("run-interrupted" if self.interrupted else "maestro-flow-failed")
+            raise failure("run-interrupted" if self.interrupted else self.phase_failure)
 
     def run_driver(self, **inputs):
         args = SimpleNamespace(output=self.output, device="synthetic", configure_emulator=False,
@@ -216,8 +226,16 @@ class OfflineDriverTests(unittest.TestCase):
         result = self.run_driver()
         self.assertTrue(all(not errors for errors in result.values()))
         self.assertEqual(self.events, [
-            "clear", "prepare", "offline-exercise-create", "offline-observe:exercise-online",
-            "disconnect", "offline-exercise-cached", "restore", "cleanup", "clear",
+            "clear", "prepare", "disconnect", "offline-exercise-create", "feature-observe:exercise-local-created",
+            "offline-exercise-cached", "feature-observe:exercise-local-created-relaunch",
+            "restore", "offline-exercise-create-sync", "offline-observe:exercise-created-synced",
+            "disconnect", "offline-exercise-update", "feature-observe:exercise-local-updated",
+            "offline-exercise-update-relaunch", "feature-observe:exercise-local-updated-relaunch",
+            "restore", "offline-exercise-update-sync", "offline-observe:exercise-updated-synced",
+            "disconnect", "offline-exercise-delete", "feature-observe:exercise-local-deleted",
+            "offline-exercise-delete-relaunch", "feature-observe:exercise-local-deleted-relaunch",
+            "restore", "offline-exercise-delete-sync", "offline-observe:exercise-deleted-synced",
+            "restore", "cleanup", "clear",
             "clear", "prepare", "disconnect", "offline-exercise-missing", "restore", "cleanup", "clear",
             "clear", "prepare", "offline-timers-online", "offline-observe:timers-online",
             "feature-observe:timers-local-online", "disconnect", "offline-timers-mutate",
@@ -260,6 +278,40 @@ class OfflineDriverTests(unittest.TestCase):
         self.assertNotIn("offline-timers-reconnect", self.events)
         self.assertEqual(self.events[-3:], ["restore", "cleanup", "clear"])
 
+    def test_each_exercise_observation_failure_keeps_owner_failed_and_later_phases_not_executed(self):
+        observations = (
+            ("exercise-local-created", "offline-exercise-create", "offline-exercise-cached"),
+            ("exercise-local-created-relaunch", "offline-exercise-cached", "offline-exercise-create-sync"),
+            ("exercise-created-synced", "offline-exercise-create-sync", "offline-exercise-update"),
+            ("exercise-local-updated", "offline-exercise-update", "offline-exercise-update-relaunch"),
+            ("exercise-local-updated-relaunch", "offline-exercise-update-relaunch", "offline-exercise-update-sync"),
+            ("exercise-updated-synced", "offline-exercise-update-sync", "offline-exercise-delete"),
+            ("exercise-local-deleted", "offline-exercise-delete", "offline-exercise-delete-relaunch"),
+            ("exercise-local-deleted-relaunch", "offline-exercise-delete-relaunch", "offline-exercise-delete-sync"),
+            ("exercise-deleted-synced", "offline-exercise-delete-sync", None),
+        )
+        for stage, owner, following in observations:
+            with self.subTest(stage=stage):
+                self.events.clear()
+                self.failed_observation = stage
+                result = self.run_driver()
+                self.assertIn("offline-suite-requires-real-server-upload", result[owner])
+                if following is not None:
+                    self.assertIn("offline-phase-not-executed", result[following])
+                    self.assertNotIn(following, self.events)
+                cleanup = self.events.index("cleanup")
+                self.assertEqual(self.events[cleanup - 1], "restore")
+                self.assertEqual(self.events[cleanup + 1], "clear")
+
+    def test_timeout_restores_radios_without_marking_the_failed_phase_as_passed(self):
+        self.failed_phase = "offline-exercise-update-relaunch"
+        self.phase_failure = "tool-timeout"
+        result = self.run_driver()
+        self.assertIn("tool-timeout", result[self.failed_phase])
+        self.assertIn("offline-phase-not-executed", result["offline-exercise-update-sync"])
+        cleanup = self.events.index("cleanup")
+        self.assertEqual(self.events[cleanup - 1], "restore")
+
     def test_prepare_failure_still_cleans_the_same_ownership_without_ui(self):
         self.fail_prepare = True
         result = self.run_driver()
@@ -299,7 +351,8 @@ class OfflineDriverTests(unittest.TestCase):
         result = self.run_driver()
         self.assertIn("maestro-flow-failed", result[self.failed_phase])
         self.assertEqual(result["offline-timers-reconnect"], [])
-        self.assertEqual(self.events[6:9], ["restore", "cleanup", "clear"])
+        cleanup = self.events.index("cleanup")
+        self.assertEqual(self.events[cleanup - 1:cleanup + 2], ["restore", "cleanup", "clear"])
 
     def test_partial_disconnect_failure_still_restores_before_cleanup(self):
         def fail_disconnect():
@@ -332,7 +385,8 @@ class OfflineDriverTests(unittest.TestCase):
     def test_missing_or_symlinked_helper_fails_before_device_setup(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for folder, names in (("flows", (*offline.FLOWS, "offline-timers-mutate-finish")), ("offline", offline.HELPERS)):
+            for folder, names in (("flows", (*offline.FLOWS, "offline-timers-mutate-finish")),
+                                  ("offline", offline.HELPERS), ("subflows", offline.SUBFLOWS)):
                 parent = root / ".maestro" / folder
                 parent.mkdir(parents=True)
                 for name in names:

@@ -1,0 +1,13 @@
+appId: com.project200.undabang
+name: 오프라인 삭제 후 재실행한 전체 목록 부재
+---
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- assertNotVisible:
+    id: exercise_detail_menu
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}"
