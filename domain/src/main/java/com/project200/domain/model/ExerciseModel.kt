@@ -15,9 +15,13 @@ data class ExerciseRecord(
     val canModify: Boolean = true
 )
 
+enum class ExerciseImageSyncStatus { PENDING, SYNCED, FAILED }
+
 data class ExerciseRecordPicture(
-    val id: Long,
-    val url: String
+    val localId: String,
+    val serverId: Long?,
+    val source: String,
+    val syncStatus: ExerciseImageSyncStatus,
 )
 
 data class ExerciseListItem(
@@ -43,6 +47,5 @@ data class LocalExerciseSaveResult(
 data class ExerciseWriteInput(
     val record: ExerciseRecord,
     val addedImageUris: List<String> = emptyList(),
-    // 사진 모델 전환(5/9) 전에는 기존 사진의 양수 서버 ID만 받습니다
-    val removedImageIds: Set<Long> = emptySet(),
+    val removedImageLocalIds: Set<String> = emptySet(),
 )

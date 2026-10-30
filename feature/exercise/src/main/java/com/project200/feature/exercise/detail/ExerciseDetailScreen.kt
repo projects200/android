@@ -150,7 +150,7 @@ private fun DetailContent(
                     modifier = Modifier.fillMaxWidth().height(240.dp),
                 ) { page ->
                     AsyncImage(
-                        model = pictures[page].url,
+                        model = pictures[page].source,
                         contentDescription = null,
                         contentScale = ContentScale.Fit,
                         modifier = Modifier.fillMaxSize(),

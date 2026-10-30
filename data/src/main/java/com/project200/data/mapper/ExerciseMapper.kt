@@ -6,6 +6,7 @@ import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
 import com.project200.domain.model.ExerciseCount
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
@@ -26,7 +27,10 @@ fun GetExerciseRecordData.toModel(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
-        pictures = pictureDataList?.map { ExerciseRecordPicture(it.pictureId, it.pictureUrl) } ?: emptyList(),
+        pictures =
+            pictureDataList?.map {
+                ExerciseRecordPicture("server:${it.pictureId}", it.pictureId, it.pictureUrl, ExerciseImageSyncStatus.SYNCED)
+            } ?: emptyList(),
     )
 }
 

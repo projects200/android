@@ -9,6 +9,7 @@ import com.project200.data.local.entity.CachedPicture
 import com.project200.data.local.entity.ExerciseCacheQueryEntity
 import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseImageEntity
+import com.project200.data.local.entity.ExerciseImageState
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.ExerciseRecoveryState
@@ -46,32 +47,15 @@ class ExerciseRecordLocalDataSource
             memberId: String,
         ): Boolean = serverId in exerciseRecordDao.getAllPendingServerIds(memberId)
 
+        fun invalidateCache(memberId: String) {
+            preferenceManager.setExerciseCacheInvalidated(memberId, true)
+        }
+
         suspend fun isDeleted(
             recordId: String,
             serverId: Long?,
             memberId: String?,
         ): Boolean = isCurrentMember(memberId) && exerciseRecordDao.isDeleted(memberId!!, recordId, serverId)
-
-        suspend fun markOnlineConflict(
-            serverId: Long,
-            memberId: String,
-        ) {
-            database.withTransaction {
-                require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
-                if (database.exerciseSyncDao().markOnlineConflict(memberId, serverId) > 0) return@withTransaction
-                val id = localId(memberId, serverId)
-                val item = exerciseRecordDao.getListItem(memberId, id)
-                val detail = exerciseRecordDao.getDetailByLocalId(memberId, id)
-                val journal = desiredJournal(memberId, id, serverId, item, detail, null, item?.date ?: detail?.startedAt?.toLocalDate())
-                database.exerciseSyncDao().saveDesired(
-                    journal.copy(recoveryState = ExerciseRecoveryState.RECOVERY_REQUIRED, lastError = ExerciseSyncError.CONFLICT),
-                )
-            }
-        }
-
-        fun invalidateCache(memberId: String) {
-            preferenceManager.setExerciseCacheInvalidated(memberId, true)
-        }
 
         /** 전송 가능한 원문을 추정하지 않고 호출자가 준비한 저장 상태만 원자적으로 보존합니다 */
         suspend fun persistPending(
@@ -100,10 +84,12 @@ class ExerciseRecordLocalDataSource
         suspend fun createRecord(
             input: ExerciseWriteInput,
             memberId: String = requireNotNull(currentMemberId()) { "ACCOUNT_MISMATCH" },
+            preparedImages: List<PreparedExerciseImage> = emptyList(),
         ): LocalExerciseSaveResult =
             database.withTransaction {
                 require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
-                require(input.addedImageUris.isEmpty() && input.removedImageIds.isEmpty()) { "ONLINE_IMAGES_REQUIRED" }
+                require(input.removedImageLocalIds.isEmpty()) { "INVALID_IMAGE_IDS" }
+                require(input.addedImageUris.size == preparedImages.size) { "IMAGES_NOT_PREPARED" }
                 val id = newLocalId()
                 val journal =
                     ExerciseSyncEntity(
@@ -120,6 +106,8 @@ class ExerciseRecordLocalDataSource
                         recoveryState = ExerciseRecoveryState.READY,
                     )
                 saveLocalRecord(journal, input.record, null)
+                saveImageChanges(memberId, id, emptySet(), preparedImages)
+                require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
                 LocalExerciseSaveResult(id)
             }
 
@@ -127,10 +115,11 @@ class ExerciseRecordLocalDataSource
             localId: String,
             input: ExerciseWriteInput,
             memberId: String = requireNotNull(currentMemberId()) { "ACCOUNT_MISMATCH" },
+            preparedImages: List<PreparedExerciseImage> = emptyList(),
         ): LocalExerciseSaveResult =
             database.withTransaction {
                 require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
-                require(input.addedImageUris.isEmpty() && input.removedImageIds.isEmpty()) { "ONLINE_IMAGES_REQUIRED" }
+                require(input.addedImageUris.size == preparedImages.size) { "IMAGES_NOT_PREPARED" }
                 val detail = requireNotNull(exerciseRecordDao.getDetailByLocalId(memberId, localId)) { "INCOMPLETE_DETAIL" }
                 require(!exerciseRecordDao.isDeleted(memberId, localId, detail.serverId)) { "RECORD_DELETED" }
                 val item = exerciseRecordDao.getListItem(memberId, localId)
@@ -144,6 +133,8 @@ class ExerciseRecordLocalDataSource
                 val serverId = checkedServerId(item, detail, previous)
                 val journal = desiredJournal(memberId, localId, serverId, item, detail, previous, date)
                 saveLocalRecord(journal, input.record, item, detail.pictures)
+                saveImageChanges(memberId, localId, input.removedImageLocalIds, preparedImages)
+                require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
                 LocalExerciseSaveResult(localId)
             }
 
@@ -168,7 +159,7 @@ class ExerciseRecordLocalDataSource
                         previous.revision != null && !previous.operationId.isNullOrBlank() &&
                         !previous.createRequestId.isNullOrBlank() && !hasInFlight(previous) &&
                         (item == null || item.syncState == SyncState.CREATE_PENDING) &&
-                        (detail == null || detail.syncState == SyncState.CREATE_PENDING) && images.isEmpty()
+                        (detail == null || detail.syncState == SyncState.CREATE_PENDING) && images.all { it.isDefinitelyUnsent() }
                 if (definitelyUnsent) {
                     check(
                         database.exerciseSyncDao().deleteMatching(
@@ -177,6 +168,7 @@ class ExerciseRecordLocalDataSource
                     ) { "JOURNAL_CHANGED" }
                     exerciseRecordDao.deleteUnsentListItem(memberId, localId)
                     exerciseRecordDao.deleteUnsentDetail(memberId, localId)
+                    images.forEach { database.exerciseImageDao().deleteMatching(memberId, localId, it.localId, it.requestId) }
                 } else {
                     val journal = desiredJournal(memberId, localId, serverId, item, detail, previous, date)
                     val unresolvedCreate =
@@ -190,9 +182,50 @@ class ExerciseRecordLocalDataSource
                     )
                     item?.let { exerciseRecordDao.upsertListItems(listOf(it.copy(syncState = SyncState.DELETE_PENDING))) }
                     detail?.let { exerciseRecordDao.upsertDetail(it.copy(syncState = SyncState.DELETE_PENDING)) }
+                    saveImageChanges(memberId, localId, images.map { it.localId }.toSet(), emptyList())
                 }
+                require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
             }
         }
+
+        /** ADD_LOCAL만 미전송을 증명합니다. ADD_PENDING은 요청/응답 불명일 수 있어 바이트와 키를 남깁니다. */
+        private fun ExerciseImageEntity.isDefinitelyUnsent(): Boolean =
+            state == ExerciseImageState.ADD_LOCAL && serverPictureId == null && !requestId.isNullOrBlank()
+
+        private suspend fun saveImageChanges(
+            memberId: String,
+            recordLocalId: String,
+            removedIds: Set<String>,
+            prepared: List<PreparedExerciseImage>,
+        ) {
+            val dao = database.exerciseImageDao()
+            val existing = dao.getByRecord(memberId, recordLocalId)
+            require(removedIds.all { id -> existing.any { it.localId == id } }) { "INVALID_IMAGE_IDS" }
+            existing.filter { it.localId in removedIds }.forEach { image ->
+                if (image.isDefinitelyUnsent()) {
+                    check(dao.deleteMatching(memberId, recordLocalId, image.localId, image.requestId) == 1) { "IMAGE_CHANGED" }
+                } else {
+                    dao.save(image.copy(state = ExerciseImageState.DELETE_PENDING, requestId = image.requestId ?: newLocalId()))
+                }
+            }
+            val offset = (existing.maxOfOrNull { it.sortOrder } ?: -1) + 1
+            prepared.forEachIndexed { index, image ->
+                require(existing.none { it.localId == image.localId }) { "DUPLICATE_IMAGE_ID" }
+                dao.save(
+                    ExerciseImageEntity(
+                        memberId, recordLocalId, image.localId, null, image.path, null,
+                        ExerciseImageState.ADD_LOCAL, image.requestId, offset + index,
+                    ),
+                )
+            }
+        }
+
+        suspend fun imagePaths(recordId: String, memberId: String): List<String> {
+            val localId = resolveExistingLocalId(recordId, memberId) ?: return emptyList()
+            return database.exerciseImageDao().getByRecord(memberId, localId).mapNotNull { it.localFilePath }
+        }
+
+        suspend fun isImagePathReferenced(path: String): Boolean = database.exerciseImageDao().isPathReferenced(path)
 
         private fun checkedServerId(
             item: ExerciseListItemEntity?,
@@ -433,7 +466,17 @@ class ExerciseRecordLocalDataSource
             return database.withTransaction {
                 exerciseRecordDao.getListByDate(memberId!!, date)
                     .filterNot { exerciseRecordDao.isDeleted(memberId, it.localId, it.serverId) }
-                    .map { it.toModel() }
+                    .map { item ->
+                        val images = database.exerciseImageDao().getByRecord(memberId, item.localId)
+                        if (images.isEmpty()) {
+                            item.toModel()
+                        } else {
+                            item.toModel().copy(
+                                imageUrl = images.mapNotNull { it.toModel()?.source },
+                                syncPending = item.syncState != SyncState.SYNCED || images.any { it.state != ExerciseImageState.SYNCED },
+                            )
+                        }
+                    }
             }
         }
 
@@ -532,7 +575,7 @@ class ExerciseRecordLocalDataSource
             if (!isCurrentMember(memberId)) return null
             return database.withTransaction {
                 if (exerciseRecordDao.isDeleted(memberId!!, "", serverId)) return@withTransaction null
-                exerciseRecordDao.getDetailByServerId(memberId, serverId)?.toModel()
+                exerciseRecordDao.getDetailByServerId(memberId, serverId)?.let { projectDetail(it) }
             }
         }
 
@@ -544,8 +587,16 @@ class ExerciseRecordLocalDataSource
             return database.withTransaction {
                 val detail = exerciseRecordDao.getDetailByLocalId(memberId!!, localId) ?: return@withTransaction null
                 if (exerciseRecordDao.isDeleted(memberId, localId, detail.serverId)) return@withTransaction null
-                detail.toModel()
+                projectDetail(detail)
             }
+        }
+
+        private suspend fun projectDetail(detail: ExerciseRecordDetailEntity): ExerciseRecord {
+            val images = database.exerciseImageDao().getByRecord(detail.memberId, detail.localId)
+            return detail.toModel().copy(
+                pictures = images.mapNotNull { it.toModel() },
+                syncPending = detail.syncState != SyncState.SYNCED || images.any { it.state != ExerciseImageState.SYNCED },
+            )
         }
 
         suspend fun saveSyncedDetail(
@@ -572,84 +623,11 @@ class ExerciseRecordLocalDataSource
             }
         }
 
-        /** 쓰기 성공 후 목록·상세·집계를 같은 트랜잭션으로 맞춥니다. 날짜 이동도 이전 날짜에서 뺍니다. */
-        suspend fun reconcileRecord(
-            serverId: Long,
-            record: ExerciseRecord,
-            memberId: String?,
-            bodyChanged: Boolean = false,
-            newRecord: Boolean = false,
-        ): String? {
-            if (!isCurrentMember(memberId)) return null
-            return database.withTransaction {
-                if (!isCurrentMember(memberId)) return@withTransaction null
-                val id = localId(memberId!!, serverId)
-                if (exerciseRecordDao.hasPendingRecord(memberId, id) || serverId in exerciseRecordDao.getAllPendingServerIds(memberId)) {
-                    database.exerciseSyncDao().markOnlineConflict(memberId, serverId)
-                    return@withTransaction id
-                }
-                val oldItem = exerciseRecordDao.getListItem(memberId, id)
-                val oldDetail = exerciseRecordDao.getDetailByServerId(memberId, serverId)
-                val oldDate = oldItem?.date ?: oldDetail?.startedAt?.toLocalDate()
-                val date = record.startedAt.toLocalDate()
-                saveRemoteDetail(memberId, id, serverId, record, bodyChanged)
-                exerciseRecordDao.upsertListItems(
-                    listOf(
-                        ExerciseListItemEntity(
-                            memberId,
-                            id,
-                            serverId,
-                            SyncState.SYNCED,
-                            date,
-                            oldItem?.sortOrder ?: 0,
-                            record.title,
-                            record.personalType,
-                            record.startedAt,
-                            record.endedAt,
-                            record.pictures?.map { it.url },
-                            serverVersion = if (bodyChanged) null else oldItem?.serverVersion ?: oldDetail?.serverVersion,
-                            confirmedDate = if (bodyChanged) null else oldItem?.confirmedDate ?: oldDetail?.confirmedDate,
-                        ),
-                    ),
-                )
-                if (newRecord) {
-                    adjustCount(memberId, date, 1)
-                } else if (bodyChanged && oldDate != null && oldDate != date) {
-                    adjustCount(memberId, oldDate, -1)
-                    adjustCount(memberId, date, 1)
-                }
-                id
-            }
-        }
-
-        /** 업로드 응답에는 URL이 없습니다. 후속 상세 조회가 실패하면 오래된 이미지를 내보내지 않습니다. */
-        suspend fun invalidateImages(
-            serverId: Long,
-            memberId: String?,
-        ) {
-            if (!isCurrentMember(memberId)) return
-            database.withTransaction {
-                if (!isCurrentMember(memberId)) return@withTransaction
-                if (serverId in exerciseRecordDao.getAllPendingServerIds(memberId!!)) return@withTransaction
-                val id =
-                    exerciseRecordDao.findListItemLocalId(memberId, serverId)
-                        ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
-                        ?: return@withTransaction
-                if (exerciseRecordDao.isProtected(memberId, id)) return@withTransaction
-                exerciseRecordDao.deleteDetail(memberId, id)
-                database.exerciseImageDao().refreshSynced(memberId, id, null)
-                exerciseRecordDao.getListItem(memberId, id)?.let {
-                    exerciseRecordDao.upsertListItems(listOf(it.copy(thumbnailUrls = null)))
-                }
-            }
-        }
-
         private suspend fun saveRemoteDetail(
             memberId: String,
             localId: String,
             serverId: Long,
             record: ExerciseRecord,
-            bodyChanged: Boolean = false,
         ) {
             val oldDetail =
                 exerciseRecordDao.getDetailByLocalId(memberId, localId)
@@ -657,28 +635,11 @@ class ExerciseRecordLocalDataSource
             val item = exerciseRecordDao.getListItem(memberId, localId)
             val entity =
                 record.toSyncedEntity(memberId, localId, serverId).copy(
-                    serverVersion = if (bodyChanged) null else oldDetail?.serverVersion ?: item?.serverVersion,
-                    confirmedDate = if (bodyChanged) null else item?.confirmedDate ?: oldDetail?.confirmedDate,
+                    serverVersion = oldDetail?.serverVersion ?: item?.serverVersion,
+                    confirmedDate = item?.confirmedDate ?: oldDetail?.confirmedDate,
                 )
             exerciseRecordDao.upsertDetail(entity)
             database.exerciseImageDao().refreshSynced(memberId, localId, entity.pictures)
-        }
-
-        private suspend fun localId(
-            memberId: String,
-            serverId: Long,
-        ): String =
-            exerciseRecordDao.findListItemLocalId(memberId, serverId)
-                ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
-                ?: newLocalId()
-
-        private suspend fun adjustCount(
-            memberId: String,
-            date: LocalDate,
-            delta: Int,
-        ) {
-            val count = exerciseCountDao.getRange(memberId, date, date).singleOrNull()?.count ?: 0
-            exerciseCountDao.upsertAll(listOf(ExerciseCountEntity(memberId, date, (count + delta).coerceAtLeast(0))))
         }
 
         private fun newLocalId(): String = UUID.randomUUID().toString()

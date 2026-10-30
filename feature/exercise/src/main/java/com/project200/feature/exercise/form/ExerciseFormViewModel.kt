@@ -6,18 +6,17 @@ import androidx.lifecycle.viewModelScope
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseWriteInput
+import com.project200.domain.model.LocalExerciseSaveResult
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
-import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
-import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
+import com.project200.domain.usecase.UpdateExerciseRecordUseCase
 import com.project200.feature.exercise.utils.ScoreGuidanceState
 import com.project200.feature.exercise.utils.TimeSelectionState
 import com.project200.undabang.feature.exercise.R
@@ -43,8 +42,7 @@ class ExerciseFormViewModel
     constructor(
         private val getExerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
         private val createExerciseRecordUseCase: CreateExerciseRecordUseCase,
-        private val uploadExerciseRecordImagesUseCase: UploadExerciseRecordImagesUseCase,
-        private val editExerciseRecordUseCase: EditExerciseRecordUseCase,
+        private val updateExerciseRecordUseCase: UpdateExerciseRecordUseCase,
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
         private val getPreferredExerciseTypesUseCase: GetPreferredExerciseTypesUseCase,
         private val getPreferredExerciseUseCase: GetPreferredExerciseUseCase,
@@ -66,7 +64,7 @@ class ExerciseFormViewModel
         // 수정/생성 모드 관련
         private var initialRecord: ExerciseRecord? = null // 수정 시 초기 데이터 저장
         private var isEditMode = false
-        private val removedPictureIds = mutableListOf<Long>() // 삭제할 기존 이미지 ID 목록
+        private val removedPictureLocalIds = mutableSetOf<String>()
 
         // 운동 종류
         private val _exerciseTypeList = MutableStateFlow<List<String>>(emptyList())
@@ -86,8 +84,8 @@ class ExerciseFormViewModel
         private val _createResult = MutableSharedFlow<SubmissionResult>(replay = 1)
         val createResult: SharedFlow<SubmissionResult> = _createResult.asSharedFlow()
 
-        private val _editResult = MutableSharedFlow<ExerciseEditResult>(replay = 1)
-        val editResult: SharedFlow<ExerciseEditResult> = _editResult.asSharedFlow()
+        private val _editResult = MutableSharedFlow<SubmissionResult>(replay = 1)
+        val editResult: SharedFlow<SubmissionResult> = _editResult.asSharedFlow()
 
         private val _toastMessage = MutableSharedFlow<Int>(replay = 1)
         val toastMessage: SharedFlow<Int> = _toastMessage.asSharedFlow()
@@ -116,6 +114,7 @@ class ExerciseFormViewModel
         fun loadInitialRecord(recordId: String) {
             if (initializedRecordId == recordId) return
             initializedRecordId = recordId
+            removedPictureLocalIds.clear()
             val requestId = ++initialRequestId
             if (recordId.isEmpty()) {
                 // 생성 모드
@@ -160,7 +159,7 @@ class ExerciseFormViewModel
 
             val imageListForEditMode = mutableListOf<ExerciseImageListItem>(ExerciseImageListItem.AddButtonItem)
             record.pictures?.forEach { picture ->
-                imageListForEditMode.add(ExerciseImageListItem.ExistingImageItem(picture.url, picture.id))
+                imageListForEditMode.add(ExerciseImageListItem.ExistingImageItem(picture.source, picture.localId))
             }
 
             _imageItems.value = imageListForEditMode
@@ -294,7 +293,7 @@ class ExerciseFormViewModel
 
             // 기존 이미지였다면, 삭제 목록에 ID 추가
             if (itemToRemove is ExerciseImageListItem.ExistingImageItem) {
-                removedPictureIds.add(itemToRemove.pictureId)
+                removedPictureLocalIds.add(itemToRemove.localId)
             }
             _imageItems.value = currentList
         }
@@ -376,7 +375,7 @@ class ExerciseFormViewModel
 
         /** 이미지 변경 사항이 있는지 확인 */
         private fun hasImageChanges(): Boolean {
-            return removedPictureIds.isNotEmpty() ||
+            return removedPictureLocalIds.isNotEmpty() ||
                 _imageItems.value.any { it is ExerciseImageListItem.NewImageItem }
         }
 
@@ -388,6 +387,7 @@ class ExerciseFormViewModel
             location: String,
             detail: String,
         ) {
+            if (_isLoading.value) return
             // 유효성 검사
             if (title.isBlank() || _startTime.value == null || _endTime.value == null) {
                 viewModelScope.launch { _toastMessage.emit(R.string.exercise_invalid_input) }
@@ -428,73 +428,42 @@ class ExerciseFormViewModel
             }
         }
 
-        /** 기록 생성 */
+        /** 본문과 사진 의도를 한 번에 저장하며 실패하면 폼의 모든 입력을 유지합니다. */
         private fun createExerciseRecord(
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
             viewModelScope.launch {
-                when (val createResult = createExerciseRecordUseCase(ExerciseWriteInput(record, newImageUris))) {
-                    is BaseResult.Success -> {
-                        // 기록 생성 성공 시, 이미지 업로드 로직 호출
-                        handleSuccessfulRecordCreation(
-                            createResult.data.recordId,
-                            newImageUris,
-                            createResult.refreshError,
-                        )
-                    }
-                    is BaseResult.Error -> {
-                        // 기록 생성 실패
-                        _createResult.emit(SubmissionResult.Failure(createResult.message.toString(), createResult.cause))
-                        _toastMessage.emit(R.string.exercise_create_fail)
-                        _isLoading.value = false
-                    }
+                try {
+                    val result = createExerciseRecordUseCase(ExerciseWriteInput(record, newImageUris))
+                    _createResult.emit(result.toSubmissionResult())
+                    if (result is BaseResult.Error) _toastMessage.emit(R.string.exercise_create_fail)
+                } finally {
+                    _isLoading.value = false
                 }
             }
         }
 
-        /** 기록 생성 후 이미지 업로드 처리 */
-        private suspend fun handleSuccessfulRecordCreation(
-            recordId: String,
-            newImageUris: List<String>,
-            refreshError: BaseResult.Error?,
-        ) {
-            if (newImageUris.isNotEmpty()) {
-                when (val uploadResult = uploadExerciseRecordImagesUseCase(recordId, newImageUris)) {
-                    is BaseResult.Success -> {
-                        // 이미지 업로드 성공 -> 최종 성공
-                        _createResult.emit(SubmissionResult.LocalSaved(recordId, refreshError ?: uploadResult.refreshError))
-                    }
-                    is BaseResult.Error -> {
-                        // 이미지 업로드 실패 -> 부분 성공
-                        _createResult.emit(SubmissionResult.PartialSuccess(recordId, R.string.exercise_upload_fail, refreshError))
-                    }
-                }
-            } else {
-                // 업로드할 이미지가 없음 -> 최종 성공
-                _createResult.emit(SubmissionResult.LocalSaved(recordId, refreshError))
-            }
-            _isLoading.value = false // 이미지 업로드까지 완료된 후 로딩 종료
-        }
-
-        /** 기록 수정 */
         private fun editExerciseRecord(
             recordId: String,
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
+            val input = ExerciseWriteInput(record, newImageUris, removedPictureLocalIds.toSet())
             viewModelScope.launch {
-                val result =
-                    editExerciseRecordUseCase(
-                        recordId = recordId,
-                        input = ExerciseWriteInput(record, newImageUris, removedPictureIds.toSet()),
-                        isContentChanges = hasContentChanges(record),
-                    )
-                _editResult.emit(result)
-                // 로딩 종료
-                _isLoading.value = false
+                try {
+                    _editResult.emit(updateExerciseRecordUseCase(recordId, input).toSubmissionResult())
+                } finally {
+                    _isLoading.value = false
+                }
             }
         }
+
+        private fun BaseResult<LocalExerciseSaveResult>.toSubmissionResult(): SubmissionResult =
+            when (this) {
+                is BaseResult.Success -> SubmissionResult.LocalSaved(data.recordId)
+                is BaseResult.Error -> SubmissionResult.Failure(message.orEmpty(), cause)
+            }
 
         /** 예상 획득 점수 정보 조회 및 UI 업데이트 */
         private fun updateScoreGuidance() {

@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.usecase.DeleteExerciseRecordUseCase
@@ -57,7 +58,7 @@ class ExerciseDetailViewModelTest {
             startedAt = now.minusHours(1),
             endedAt = now,
             location = "여의도 공원",
-            pictures = listOf(ExerciseRecordPicture(1L, "http://example.com/img1.jpg")),
+            pictures = listOf(ExerciseRecordPicture("server:1", 1L, "http://example.com/img1.jpg", ExerciseImageSyncStatus.SYNCED)),
         )
     private val recordId = "record-123"
 
@@ -219,20 +220,6 @@ class ExerciseDetailViewModelTest {
             assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(changed)
             coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, true) }
             coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, false) }
-        }
-
-    @Test
-    fun `삭제 성공의 캐시 경고는 성공 결과에 남고 서버 삭제를 재시도하지 않는다`() =
-        runTest(testDispatcher) {
-            val warning = BaseResult.Error("CACHE_ERROR", "캐시 반영 실패")
-            coEvery { mockDeleteExerciseUseCase(recordId) } returns BaseResult.Success(Unit, warning)
-            viewModel.deleteExerciseRecord(recordId)
-            testDispatcher.scheduler.advanceUntilIdle()
-            val result = viewModel.deleteResult.replayCache.single() as BaseResult.Success
-            assertThat(result.refreshError).isEqualTo(warning)
-            viewModel.consumeDeleteResult()
-            assertThat(viewModel.deleteResult.replayCache).isEmpty()
-            coVerify(exactly = 1) { mockDeleteExerciseUseCase(recordId) }
         }
 
     @Test

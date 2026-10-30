@@ -15,7 +15,5 @@ interface ExerciseRecordRepository {
     suspend fun getExerciseRecordList(date: LocalDate, refresh: Boolean = false, localOnly: Boolean = false): BaseResult<List<ExerciseListItem>>
     suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult>
     suspend fun updateExerciseRecord(input: ExerciseWriteInput, recordId: String): BaseResult<LocalExerciseSaveResult>
-    suspend fun uploadExerciseRecordImages(recordId: String, images: List<String>): BaseResult<String>
-    suspend fun deleteExerciseRecordImages(recordId: String, imageIds: List<Long>): BaseResult<Unit>
     suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit>
 }

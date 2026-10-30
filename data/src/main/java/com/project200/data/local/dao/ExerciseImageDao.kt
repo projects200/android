@@ -20,6 +20,9 @@ abstract class ExerciseImageDao {
     @Query("SELECT * FROM exercise_image WHERE memberId = :memberId AND state != 'SYNCED' ORDER BY recordLocalId, sortOrder")
     abstract suspend fun getPending(memberId: String): List<ExerciseImageEntity>
 
+    @Query("SELECT EXISTS(SELECT 1 FROM exercise_image WHERE localFilePath = :path)")
+    abstract suspend fun isPathReferenced(path: String): Boolean
+
     @Query("SELECT DISTINCT memberId FROM exercise_image WHERE state = 'SYNCED' AND localFilePath IS NULL AND requestId IS NULL")
     abstract suspend fun getRemoteCacheMembers(): List<String>
 
@@ -30,6 +33,11 @@ abstract class ExerciseImageDao {
     open suspend fun save(entity: ExerciseImageEntity) {
         require(entity.state == ExerciseImageState.SYNCED || !entity.requestId.isNullOrBlank()) { "IMAGE_REQUEST_REQUIRED" }
         val previous = getByRecord(entity.memberId, entity.recordLocalId).find { it.localId == entity.localId }
+        require(
+            entity.state != ExerciseImageState.ADD_LOCAL ||
+                (entity.serverPictureId == null && !entity.localFilePath.isNullOrBlank() &&
+                    (previous == null || previous.state == ExerciseImageState.ADD_LOCAL)),
+        ) { "IMAGE_NOT_DEFINITELY_UNSENT" }
         require(previous?.requestId == null || previous.requestId == entity.requestId) { "IMAGE_REQUEST_IMMUTABLE" }
         require(previous?.serverPictureId == null || previous.serverPictureId == entity.serverPictureId) { "PICTURE_ID_IMMUTABLE" }
         upsert(entity)
