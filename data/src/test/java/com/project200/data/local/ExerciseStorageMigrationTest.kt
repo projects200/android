@@ -3,13 +3,17 @@ package com.project200.data.local
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.google.common.truth.Truth.assertThat
+import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.di.DatabaseModule
 import com.project200.data.local.entity.ExerciseImageState
 import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.ExerciseSyncError
 import com.project200.data.local.entity.SyncState
+import com.project200.domain.model.ExerciseListItem
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import io.mockk.every
+import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Test
@@ -38,6 +42,138 @@ class ExerciseStorageMigrationTest {
     @Test
     fun `실제 스키마 5는 모든 운동 원문과 타이머 조회 이력을 보존하고 재개방한다`() = runTest { assertMigration(5) }
 
+    @Test
+    fun `스키마 5 생성 성공 직후 목록 조회가 없으면 확정 날짜 없이 원문을 보존하고 재개방한다`() =
+        runTest {
+            var before = emptyMap<String, List<List<String?>>>()
+            createHistoricalDatabase(context, name, 5) { raw ->
+                seedCreatedRecord(raw)
+                before = originals(raw, 5)
+            }
+            repeat(2) {
+                val db = openDatabase()
+                val records = db.exerciseRecordDao()
+                val item = records.getListItem("member-a", "created")!!
+                val detail = records.getDetailByLocalId("member-a", "created")!!
+                assertThat(originals(db.openHelper.writableDatabase, 5)).isEqualTo(before)
+                assertThat(item.date).isEqualTo(date)
+                assertThat(item.startedAt).isEqualTo(date.atTime(10, 0))
+                assertThat(detail.startedAt).isEqualTo(item.startedAt)
+                assertThat(item.syncState).isEqualTo(SyncState.SYNCED)
+                assertThat(detail.syncState).isEqualTo(SyncState.SYNCED)
+                assertThat(item.confirmedDate).isNull()
+                assertThat(detail.confirmedDate).isNull()
+                assertThat(detail.detail).isEqualTo("상세 원문")
+                assertThat(detail.pictures?.map { it.id }).containsExactly(12L, 11L).inOrder()
+                assertThat(records.hasQuery("member-a", "list", date)).isFalse()
+                assertThat(db.exerciseSyncDao().getByMember("member-a")).isEmpty()
+                db.close()
+            }
+        }
+
+    @Test
+    fun `스키마 5 수정 성공으로 이전에 조회한 날짜로 옮겨도 확정 날짜를 추정하지 않는다`() =
+        runTest {
+            val updatedDate = date.plusDays(1)
+            val startedAt = updatedDate.atTime(10, 0)
+            val endedAt = updatedDate.atTime(11, 0)
+            var before = emptyMap<String, List<List<String?>>>()
+            createHistoricalDatabase(context, name, 5) { raw ->
+                seedCreatedRecord(raw)
+                raw.execSQL(
+                    "INSERT INTO exercise_cache_query VALUES (?, ?, ?)",
+                    arrayOf("member-a", "list", updatedDate.toString()),
+                )
+                raw.execSQL(
+                    "UPDATE exercise_list_item SET date = ?, title = ?, startedAt = ?, endedAt = ? " +
+                        "WHERE memberId = ? AND localId = ?",
+                    arrayOf(updatedDate.toString(), "수정 제목", startedAt.toString(), endedAt.toString(), "member-a", "created"),
+                )
+                raw.execSQL(
+                    "UPDATE exercise_record_detail SET title = ?, detail = ?, startedAt = ?, endedAt = ? " +
+                        "WHERE memberId = ? AND localId = ?",
+                    arrayOf("수정 제목", "수정 원문", startedAt.toString(), endedAt.toString(), "member-a", "created"),
+                )
+                raw.execSQL(
+                    "UPDATE exercise_count SET count = ? WHERE memberId = ? AND date = ?",
+                    arrayOf(0, "member-a", date.toString()),
+                )
+                raw.execSQL(
+                    "INSERT INTO exercise_count VALUES (?, ?, ?)",
+                    arrayOf("member-a", updatedDate.toString(), 1),
+                )
+                before = originals(raw, 5)
+            }
+            repeat(2) {
+                val db = openDatabase()
+                val records = db.exerciseRecordDao()
+                val item = records.getListItem("member-a", "created")!!
+                val detail = records.getDetailByLocalId("member-a", "created")!!
+                assertThat(originals(db.openHelper.writableDatabase, 5)).isEqualTo(before)
+                assertThat(item.date).isEqualTo(updatedDate)
+                assertThat(item.startedAt).isEqualTo(startedAt)
+                assertThat(item.endedAt).isEqualTo(endedAt)
+                assertThat(detail.startedAt).isEqualTo(startedAt)
+                assertThat(detail.endedAt).isEqualTo(endedAt)
+                assertThat(item.title).isEqualTo("수정 제목")
+                assertThat(detail.title).isEqualTo("수정 제목")
+                assertThat(detail.detail).isEqualTo("수정 원문")
+                assertThat(item.confirmedDate).isNull()
+                assertThat(detail.confirmedDate).isNull()
+                assertThat(records.hasQuery("member-a", "list", updatedDate)).isTrue()
+                assertThat(db.exerciseSyncDao().getByMember("member-a")).isEmpty()
+                db.close()
+            }
+        }
+
+    @Test
+    fun `업그레이드 뒤 실제 서버 목록 수신만 두 투영의 날짜를 확정하고 재개방해도 보존한다`() =
+        runTest {
+            createHistoricalDatabase(context, name, 5) { raw -> seedCreatedRecord(raw) }
+            var db = openDatabase()
+            val originalItem = db.exerciseRecordDao().getListItem("member-a", "created")!!
+            val originalDetail = db.exerciseRecordDao().getDetailByLocalId("member-a", "created")!!
+            val originalImages = db.exerciseImageDao().getByRecord("member-a", "created")
+            assertThat(originalItem.confirmedDate).isNull()
+            assertThat(originalDetail.confirmedDate).isNull()
+            val queryDate = date.plusDays(1)
+            assertThat(queryDate).isNotEqualTo(originalItem.startedAt.toLocalDate())
+            val preferences = mockk<PreferenceManager>()
+            every { preferences.getMemberId() } returns "member-a"
+            val local = ExerciseRecordLocalDataSource(db, db.exerciseCountDao(), db.exerciseRecordDao(), preferences)
+            local.replaceSyncedListByDate(
+                queryDate,
+                listOf(
+                    ExerciseListItem(
+                        recordId = "7",
+                        title = originalItem.title,
+                        type = originalItem.personalType,
+                        startTime = originalItem.startedAt,
+                        endTime = originalItem.endedAt,
+                        imageUrl = originalItem.thumbnailUrls,
+                    ),
+                ),
+            )
+            val expectedItem = originalItem.copy(date = queryDate, confirmedDate = queryDate)
+            val expectedDetail = originalDetail.copy(confirmedDate = queryDate)
+            assertThat(db.exerciseRecordDao().getListItem("member-a", "created")).isEqualTo(expectedItem)
+            assertThat(db.exerciseRecordDao().getDetailByLocalId("member-a", "created")).isEqualTo(expectedDetail)
+            assertThat(db.exerciseRecordDao().getListByDate("member-a", date)).isEmpty()
+            assertThat(db.exerciseRecordDao().getListByDate("member-a", queryDate)).containsExactly(expectedItem)
+            assertThat(db.exerciseImageDao().getByRecord("member-a", "created")).isEqualTo(originalImages)
+            assertThat(db.exerciseRecordDao().hasQuery("member-a", "list", queryDate)).isTrue()
+            assertThat(db.exerciseSyncDao().getByMember("member-a")).isEmpty()
+            db.close()
+            db = openDatabase()
+            assertThat(db.exerciseRecordDao().getListItem("member-a", "created")).isEqualTo(expectedItem)
+            assertThat(db.exerciseRecordDao().getDetailByLocalId("member-a", "created")).isEqualTo(expectedDetail)
+            assertThat(db.exerciseRecordDao().getListByDate("member-a", date)).isEmpty()
+            assertThat(db.exerciseRecordDao().getListByDate("member-a", queryDate)).containsExactly(expectedItem)
+            assertThat(db.exerciseImageDao().getByRecord("member-a", "created")).isEqualTo(originalImages)
+            assertThat(db.exerciseRecordDao().hasQuery("member-a", "list", queryDate)).isTrue()
+            assertThat(db.exerciseSyncDao().getByMember("member-a")).isEmpty()
+        }
+
     private suspend fun assertMigration(version: Int) {
         var before = emptyMap<String, List<List<String?>>>()
         createHistoricalDatabase(context, name, version) { raw ->
@@ -58,11 +194,12 @@ class ExerciseStorageMigrationTest {
         val records = db.exerciseRecordDao()
         val journal = db.exerciseSyncDao()
         val synced = records.getListItem("member-a", "synced")!!
-        // 운동 시작일과 달라도 실제 목록 조회일을 보존합니다
+        // 기존 목록 날짜와 시작일은 보존하되 개별 행의 조회 출처는 추정하지 않습니다
         assertThat(synced.startedAt.toLocalDate()).isEqualTo(date.minusDays(1))
-        assertThat(synced.confirmedDate).isEqualTo(date)
+        assertThat(synced.date).isEqualTo(date)
+        assertThat(synced.confirmedDate).isNull()
         assertThat(synced.serverVersion).isNull()
-        assertThat(records.getDetailByLocalId("member-a", "synced")?.confirmedDate).isEqualTo(date)
+        assertThat(records.getDetailByLocalId("member-a", "synced")?.confirmedDate).isNull()
         assertThat(journal.get("member-a", "synced")).isNull()
         val incomplete = journal.get("member-a", "missing")!!
         assertThat(incomplete.operation).isEqualTo(SyncState.CREATE_PENDING)
@@ -109,6 +246,32 @@ class ExerciseStorageMigrationTest {
         assertThat(records.getDetailByLocalId("member-a", "null")?.pictures).isNull()
         assertThat(records.getListItem("member-a", "pending")?.confirmedDate).isNull()
         assertThat(journal.get("member-a", "pending")?.lastError).isEqualTo(ExerciseSyncError.LEGACY_PENDING)
+    }
+
+    private fun seedCreatedRecord(raw: SupportSQLiteDatabase) {
+        val startedAt = date.atTime(10, 0).toString()
+        val endedAt = date.atTime(11, 0).toString()
+        raw.execSQL(
+            "INSERT INTO exercise_list_item VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            arrayOf(
+                "member-a",
+                "created",
+                7L,
+                "SYNCED",
+                date.toString(),
+                0,
+                "제목",
+                "WEIGHT",
+                startedAt,
+                endedAt,
+                "[\"https://example.test/twelve\",\"https://example.test/eleven\"]",
+            ),
+        )
+        raw.execSQL(
+            "INSERT INTO exercise_record_detail VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            arrayOf("member-a", "created", 7L, "SYNCED", "제목", "상세 원문", "WEIGHT", startedAt, endedAt, "장소", pictures),
+        )
+        raw.execSQL("INSERT INTO exercise_count VALUES (?, ?, ?)", arrayOf("member-a", date.toString(), 1))
     }
 
     private fun seed(
