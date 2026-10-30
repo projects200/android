@@ -100,7 +100,9 @@ class ExerciseOwnedPhotosTest {
     }
 
     private fun writer(source: ExerciseRecordLocalDataSource) =
-        ExerciseRecordRepositoryImpl(remote, source, network, dispatcher, store)
+        ExerciseRecordRepositoryImpl(
+            remote, source, network, dispatcher, store, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+        )
 
     private fun reopen() {
         database.close()
@@ -376,7 +378,9 @@ class ExerciseOwnedPhotosTest {
             val id = create(selected)
             val photo = picture(id)
             val cleaner = RoomSessionDataCleaner(database, dispatcher, store)
-            val clearSession = ClearSessionUseCase(mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), cleaner)
+            val clearSession = ClearSessionUseCase(
+                mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), cleaner, mockk(relaxed = true),
+            )
             clearSession(SessionExitReason.FORCED)
             val clock = mockk<ClockProvider>()
             every { clock.now() } returns date.plusYears(1)
@@ -388,6 +392,7 @@ class ExerciseOwnedPhotosTest {
                 ClearSessionUseCase(
                     mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
                     RoomSessionDataCleaner(database, dispatcher, store),
+                    mockk(relaxed = true),
                 )
             explicitExit(SessionExitReason.USER_INITIATED)
             assertThat(database.exerciseSyncDao().getByMember(memberId)).isEmpty()

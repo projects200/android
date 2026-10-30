@@ -5,6 +5,7 @@ import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.ExerciseIdDto
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
@@ -445,7 +446,7 @@ class MaestroFixtureCleanerTest {
         runTest(dispatcher) {
             stubCandidate()
             val entered = CompletableDeferred<Unit>()
-            val response = CompletableDeferred<BaseResponse<Unit?>>()
+            val response = CompletableDeferred<BaseResponse<ExerciseIdDto?>>()
             coEvery { api.deleteExerciseRecord(101L) } coAnswers {
                 entered.complete(Unit)
                 response.await()
@@ -484,7 +485,7 @@ class MaestroFixtureCleanerTest {
 
     private fun serverError(): BaseResult<Nothing> = BaseResult.Error(errorCode = "SERVER_ERROR", message = "")
 
-    private fun remoteSuccess(): BaseResponse<Unit?> = BaseResponse(true, "OK", "")
+    private fun remoteSuccess(): BaseResponse<ExerciseIdDto?> = BaseResponse(true, "OK", "")
 
     private fun assertNoServerDeletion() {
         coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }

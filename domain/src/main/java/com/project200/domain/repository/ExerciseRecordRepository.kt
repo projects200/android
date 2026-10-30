@@ -6,6 +6,7 @@ import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.LocalExerciseSaveResult
+import com.project200.domain.model.ExerciseSyncResult
 import java.time.LocalDate
 
 interface ExerciseRecordRepository {
@@ -16,4 +17,5 @@ interface ExerciseRecordRepository {
     suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult>
     suspend fun updateExerciseRecord(input: ExerciseWriteInput, recordId: String): BaseResult<LocalExerciseSaveResult>
     suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit>
+    suspend fun syncPendingExercises(memberId: String): ExerciseSyncResult
 }

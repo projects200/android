@@ -9,6 +9,7 @@ import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerDetailStepDTO
 import com.project200.data.dto.CustomTimerSummaryDTO
 import com.project200.data.dto.DeleteTimerRequestDTO
+import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetCustomTimerDetailDTO
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetExerciseRecordData
@@ -133,7 +134,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getCustomTimerList() } returns timerList(run.createdTimer, other, "personal timer")
             coEvery { api.getExerciseRecordDetail(1) } returns success(exerciseDetail(run.exerciseTitle))
             coEvery { api.getCustomTimer(1) } returns success(timer(1, run.createdTimer, 45))
-            coEvery { api.deleteExerciseRecord(1) } returns success<Unit?>(null)
+            coEvery { api.deleteExerciseRecord(1) } returns success<ExerciseIdDto?>(null)
             coEvery { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) } returns success(TimerMutationResponseDTO())
 
             fixtures.clean(run)
@@ -164,7 +165,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getExerciseRecordDetail(1) } returns success(exerciseDetail(run.exerciseTitle))
             coEvery { api.getCustomTimer(1) } returns success(timer(1, run.createdTimer, 45))
             coEvery { api.getCustomTimer(2) } returns success(timer(2, "personal timer", 45))
-            coEvery { api.deleteExerciseRecord(1) } returns success<Unit?>(null)
+            coEvery { api.deleteExerciseRecord(1) } returns success<ExerciseIdDto?>(null)
             coEvery { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) } returns success(TimerMutationResponseDTO())
 
             fixtures.cleanup(request(run))

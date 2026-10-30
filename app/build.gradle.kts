@@ -155,4 +155,5 @@ dependencies {
     "e2eImplementation"(libs.moshi.kotlin)
 
     "testE2eImplementation"(libs.robolectric)
+    testImplementation(libs.robolectric)
 }

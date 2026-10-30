@@ -2,6 +2,7 @@ package com.project200.undabang.main
 
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
+import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
@@ -50,6 +51,9 @@ class MainViewModelTest {
     private lateinit var mockTimerSyncScheduler: TimerSyncScheduler
 
     @MockK
+    private lateinit var mockExerciseSyncScheduler: ExerciseSyncScheduler
+
+    @MockK
     private lateinit var mockNetworkMonitor: NetworkMonitor
 
     @MockK
@@ -79,6 +83,7 @@ class MainViewModelTest {
         every { mockNetworkMonitor.isCurrentlyConnected() } returns true
         every { mockFcmTokenSyncScheduler.schedule() } just Runs
         every { mockTimerSyncScheduler.schedule() } just Runs
+        every { mockExerciseSyncScheduler.schedule() } just Runs
         every { mockAuthManager.forceLogoutFlow } returns forceLogoutFlow
         coEvery { mockClearSessionUseCase(SessionExitReason.FORCED) } just Runs
     }
@@ -93,6 +98,7 @@ class MainViewModelTest {
             checkForUpdateUseCase = mockCheckForUpdateUseCase,
             fcmTokenSyncScheduler = mockFcmTokenSyncScheduler,
             timerSyncScheduler = mockTimerSyncScheduler,
+            exerciseSyncScheduler = mockExerciseSyncScheduler,
             networkMonitor = mockNetworkMonitor,
             authManager = mockAuthManager,
             authStateManager = mockAuthStateManager,
@@ -138,6 +144,7 @@ class MainViewModelTest {
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
             coVerify(exactly = 1) { mockCheckForUpdateUseCase() }
             verify(exactly = 1) { mockFcmTokenSyncScheduler.schedule() }
+            verify(exactly = 1) { mockExerciseSyncScheduler.schedule() }
         }
 
     @Test
@@ -154,6 +161,7 @@ class MainViewModelTest {
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
             verify(exactly = 0) { mockFcmTokenSyncScheduler.schedule() }
+            verify(exactly = 0) { mockExerciseSyncScheduler.schedule() }
         }
 
     @Test
@@ -170,6 +178,7 @@ class MainViewModelTest {
 
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
+            verify(exactly = 1) { mockExerciseSyncScheduler.schedule() }
         }
 
     @Test
@@ -188,6 +197,7 @@ class MainViewModelTest {
             // Then
             assertThat(viewModel.entryState.value).isEqualTo(EntryState.Login)
             verify(exactly = 0) { mockFcmTokenSyncScheduler.schedule() }
+            verify(exactly = 0) { mockExerciseSyncScheduler.schedule() }
         }
 
     @Test
@@ -496,4 +506,15 @@ class MainViewModelTest {
             // When & Then
             assertThat(viewModel.isOfflineEntry()).isTrue()
         }
+
+    @Test
+    fun `인증 진입의 운동 예약 실패는 로그인 세션을 지우거나 화면 진입을 취소하지 않는다`() = runTest {
+        stubNoUpdate()
+        stubAuthState(isAuthorized = true)
+        every { mockExerciseSyncScheduler.schedule() } throws IllegalStateException("WorkManager")
+        viewModel = createViewModel()
+        testDispatcher.scheduler.advanceUntilIdle()
+        assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
+        coVerify(exactly = 0) { mockClearSessionUseCase(any()) }
+    }
 }

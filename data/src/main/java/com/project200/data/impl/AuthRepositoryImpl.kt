@@ -2,10 +2,12 @@ package com.project200.data.impl
 
 import com.project200.common.di.IoDispatcher
 import com.project200.data.api.ApiService
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.dto.GetIsNicknameDuplicated
 import com.project200.data.dto.PostSignUpRequest
 import com.project200.data.local.PreferenceManager
 import com.project200.data.utils.apiCallBuilder
+import com.project200.data.utils.idTokenSubject
 import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.RegistrationStatus
@@ -25,6 +27,7 @@ class AuthRepositoryImpl
         private val authStateManager: AuthStateManager,
         private val sessionDataCleaner: SessionDataCleaner,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        private val imageFileStore: ExerciseImageFileStore,
     ) : AuthRepository {
         override suspend fun checkIsRegistered(): RegistrationStatus {
             val result =
@@ -69,7 +72,8 @@ class AuthRepositoryImpl
                     Timber.tag(TAG).i("계정 경계 변경 - 로컬 캐시 삭제")
                     sessionDataCleaner.clearAll()
                 }
-                spManager.saveMemberId(memberId)
+                // 이관된 계정은 서버 회원ID와 JWT subject가 다를 수 있어 함께 저장합니다
+                spManager.saveMemberId(memberId, idTokenSubject(authStateManager.getCurrent().idToken))
             }
 
         override suspend fun logout(): BaseResult<Unit> {
@@ -89,10 +93,10 @@ class AuthRepositoryImpl
                 ioDispatcher = ioDispatcher,
                 apiCall = { apiService.postSignUp(PostSignUpRequest(gender, birth, nickname)) },
                 mapper = { responseData ->
-                    // 회원가입 성공 시 memberId를 저장
+                    // 서버가 확정한 회원ID에 현재 인증 subject를 연결합니다
                     responseData?.memberId?.let {
                         Timber.i("회원가입 성공 MemberId: $it")
-                        spManager.saveMemberId(it)
+                        spManager.saveMemberId(it, idTokenSubject(authStateManager.getCurrent().idToken))
                     }
                     Unit
                 },
@@ -115,14 +119,22 @@ class AuthRepositoryImpl
 
         override suspend fun clearSession() {
             withContext(ioDispatcher) {
-                authStateManager.clearAuthState()
-                spManager.clearMemberId()
+                imageFileStore.withLock {
+                    imageFileStore.invalidateSession()
+                    spManager.invalidateExerciseSession()
+                    authStateManager.clearAuthState()
+                    spManager.clearMemberId()
+                }
             }
         }
 
         override suspend fun clearTokens() {
             withContext(ioDispatcher) {
-                authStateManager.clearAuthState()
+                imageFileStore.withLock {
+                    imageFileStore.invalidateSession()
+                    spManager.invalidateExerciseSession()
+                    authStateManager.clearAuthState()
+                }
             }
         }
 

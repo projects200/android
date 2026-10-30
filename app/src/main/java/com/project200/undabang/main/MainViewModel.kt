@@ -3,6 +3,7 @@ package com.project200.undabang.main
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.common.utils.NetworkMonitor
+import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
@@ -32,6 +33,7 @@ class MainViewModel
         private val checkForUpdateUseCase: CheckForUpdateUseCase,
         private val fcmTokenSyncScheduler: FcmTokenSyncScheduler,
         private val timerSyncScheduler: TimerSyncScheduler,
+        private val exerciseSyncScheduler: ExerciseSyncScheduler,
         private val networkMonitor: NetworkMonitor,
         private val authManager: AuthManager,
         private val authStateManager: AuthStateManager,
@@ -120,6 +122,13 @@ class MainViewModel
             // 등록은 워커에 맡김. 재시도와 백오프, 프로세스 종료 후 재개를 WorkManager가 처리
             fcmTokenSyncScheduler.schedule()
             timerSyncScheduler.schedule()
+            try {
+                exerciseSyncScheduler.schedule()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Timber.w(e, "운동 기록 동기화 예약 보류")
+            }
             _entryState.compareAndSet(EntryState.Loading, EntryState.Content)
         }
 

@@ -5,6 +5,7 @@ import android.content.Context
 import android.net.Uri
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.CustomTimerDetailStepDTO
@@ -112,7 +113,7 @@ class MaestroOfflineRecoveryTest {
         protocol.deleteRequest()
         protocol.clearOutputs()
         protocol.completeFeatureRecovery()
-        preferences.saveMemberId(MEMBER)
+        preferences.saveMemberId(MEMBER, null)
         every { config.cognitoRegion } returns "test-region"
         every { config.cognitoUserPoolId } returns "test-pool"
         every { config.cognitoAppClientId } returns CLIENT
@@ -151,8 +152,9 @@ class MaestroOfflineRecoveryTest {
             TokenRefreshResult.Success(refreshed)
         }
         coEvery { dataCleaner.clearAll() } coAnswers { pending.clear() }
-        val repository = AuthRepositoryImpl(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher())
-        val registrationCheck = MaestroRegistrationCheck(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher())
+        val imageFileStore = ExerciseImageFileStore(context)
+        val repository = AuthRepositoryImpl(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher(), imageFileStore)
+        val registrationCheck = MaestroRegistrationCheck(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher(), imageFileStore)
         bootstrap = MaestroSessionBootstrap(config, stateManager, authManager, repository, registrationCheck)
         coordinator = MaestroSetupCoordinator(protocol, bootstrap, commonCleaner, mapOf("offline" to offline), offline)
         coEvery { api.getIsRegistered() } returns success(GetIsRegisteredData(MEMBER, true))
@@ -236,7 +238,7 @@ class MaestroOfflineRecoveryTest {
     @Test
     fun `저장된 로컬 회원이 요청과 다르면 자격 증명을 복원하거나 갱신하지 않는다`() =
         runTest {
-            preferences.saveMemberId("other-local-member")
+            preferences.saveMemberId("other-local-member", null)
             writeCleanup()
 
             coordinator.consumeRequest()

@@ -49,6 +49,7 @@ fun ExerciseListItem.toSyncedEntity(
         startedAt = startTime,
         endedAt = endTime,
         thumbnailUrls = imageUrl,
+        serverVersion = serverVersion,
     )
 }
 
@@ -62,6 +63,7 @@ fun ExerciseListItemEntity.toModel(): ExerciseListItem {
         endTime = endedAt,
         imageUrl = thumbnailUrls,
         syncPending = syncState != SyncState.SYNCED,
+        serverVersion = serverVersion,
     )
 }
 
@@ -82,6 +84,7 @@ fun ExerciseRecord.toSyncedEntity(
         endedAt = endedAt,
         location = location,
         pictures = pictures?.mapNotNull { picture -> picture.serverId?.let { CachedPicture(it, picture.source) } },
+        serverVersion = serverVersion,
     )
 }
 
@@ -96,6 +99,7 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         pictures = pictures?.map { ExerciseRecordPicture("server:${it.id}", it.id, it.url, ExerciseImageSyncStatus.SYNCED) },
         syncPending = syncState != SyncState.SYNCED,
         canModify = syncState != SyncState.DELETE_PENDING,
+        serverVersion = serverVersion,
     )
 }
 

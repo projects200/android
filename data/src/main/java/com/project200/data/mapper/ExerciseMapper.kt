@@ -27,6 +27,7 @@ fun GetExerciseRecordData.toModel(): ExerciseRecord {
         startedAt = exerciseStartedAt,
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
+        serverVersion = version,
         pictures =
             pictureDataList?.map {
                 ExerciseRecordPicture("server:${it.pictureId}", it.pictureId, it.pictureUrl, ExerciseImageSyncStatus.SYNCED)
@@ -66,5 +67,6 @@ fun GetExerciseRecordListDto.toModel(): ExerciseListItem {
         startTime = this.exerciseStartedAt,
         endTime = this.exerciseEndedAt,
         imageUrl = this.pictureUrl,
+        serverVersion = version,
     )
 }

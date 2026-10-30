@@ -12,6 +12,13 @@ import java.time.LocalDateTime
 
 @Dao
 interface ExerciseRecordDao {
+    /** 서버 삭제 확정 뒤 저널·사진 제거와 같은 트랜잭션에서만 호출합니다 */
+    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId")
+    suspend fun deleteConfirmedList(memberId: String, localId: String)
+
+    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId")
+    suspend fun deleteConfirmedDetail(memberId: String, localId: String)
+
     @Query("DELETE FROM exercise_cache_query WHERE memberId = :memberId")
     suspend fun deleteQueries(memberId: String)
 
