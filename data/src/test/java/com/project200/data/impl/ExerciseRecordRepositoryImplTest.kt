@@ -294,7 +294,16 @@ class ExerciseRecordRepositoryImplTest {
             val id = "deleted-local"
             val tombstone =
                 ExerciseSyncEntity(
-                    memberId, id, 7L, SyncState.DELETE_PENDING, 1L, "delete-operation", null, 9L, date, date,
+                    memberId,
+                    id,
+                    7L,
+                    SyncState.DELETE_PENDING,
+                    1L,
+                    "delete-operation",
+                    null,
+                    9L,
+                    date,
+                    date,
                     ExerciseRecoveryState.READY,
                 )
             database.exerciseSyncDao().saveDesired(tombstone)
@@ -826,7 +835,11 @@ class ExerciseRecordRepositoryImplTest {
             coEvery { failingLocal.createRecord(any(), memberId) } throws IOException("Room 저장 실패")
             val writer =
                 ExerciseRecordRepositoryImpl(
-                    remote, failingLocal, network, UnconfinedTestDispatcher(), RuntimeEnvironment.getApplication(),
+                    remote,
+                    failingLocal,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
                 )
             assertThat(writer.createExerciseRecord(ExerciseWriteInput(record()))).isInstanceOf(BaseResult.Error::class.java)
             assertThat(local.getListByDate(date)).isEmpty()
@@ -901,9 +914,10 @@ class ExerciseRecordRepositoryImplTest {
                     entered.complete(Unit)
                     pending.await()
                 }
-                val online = async {
-                    repository.updateExerciseRecord(ExerciseWriteInput(record(nextDate), listOf("photo")), id)
-                }
+                val online =
+                    async {
+                        repository.updateExerciseRecord(ExerciseWriteInput(record(nextDate), listOf("photo")), id)
+                    }
                 entered.await()
                 repository.updateExerciseRecord(ExerciseWriteInput(record().copy(title = "최신 로컬")), id)
                 if (deleteLocal) repository.deleteExerciseRecord(id)

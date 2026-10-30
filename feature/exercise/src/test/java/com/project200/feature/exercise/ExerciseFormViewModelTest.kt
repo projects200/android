@@ -847,7 +847,11 @@ class ExerciseFormViewModelTest {
 
             repeat(2) {
                 viewModel.submitRecord(
-                    recordId, sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail,
+                    recordId,
+                    sampleRecord.title,
+                    sampleRecord.personalType,
+                    sampleRecord.location,
+                    sampleRecord.detail,
                 )
                 testDispatcher.scheduler.advanceUntilIdle()
                 assertThat(viewModel.editResult.replayCache.single()).isInstanceOf(ExerciseEditResult.Failure::class.java)
