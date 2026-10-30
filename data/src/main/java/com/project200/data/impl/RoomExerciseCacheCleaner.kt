@@ -30,6 +30,8 @@ class RoomExerciseCacheCleaner
                 database.withTransaction {
                     exerciseRecordDao.deleteExpiredSyncedDetails(cutoff, cutoffStart)
                     exerciseRecordDao.deleteExpiredSyncedListItems(cutoff, cutoffStart)
+                    val images = database.exerciseImageDao()
+                    images.getRemoteCacheMembers().forEach { images.deleteOrphanedRemoteCache(it) }
                     exerciseRecordDao.deleteExpiredQueryMarkers(cutoff)
                     exerciseCountDao.deleteBefore(cutoff)
                 }

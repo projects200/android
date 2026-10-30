@@ -15,13 +15,13 @@ interface ExerciseRecordDao {
     @Query("DELETE FROM exercise_cache_query WHERE memberId = :memberId")
     suspend fun deleteQueries(memberId: String)
 
-    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND syncState = :synced")
+    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND syncState = :synced " + UNPROTECTED_LIST)
     suspend fun deleteSyncedList(
         memberId: String,
         synced: SyncState = SyncState.SYNCED,
     )
 
-    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND syncState = :synced")
+    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND syncState = :synced " + UNPROTECTED_DETAIL)
     suspend fun deleteSyncedDetails(
         memberId: String,
         synced: SyncState = SyncState.SYNCED,
@@ -66,12 +66,45 @@ interface ExerciseRecordDao {
     @Query(
         "SELECT serverId FROM exercise_list_item WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced " +
             "UNION SELECT serverId FROM exercise_record_detail " +
-            "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced",
+            "WHERE memberId = :memberId AND serverId IS NOT NULL AND syncState != :synced " +
+            "UNION SELECT serverId FROM exercise_sync WHERE memberId = :memberId AND serverId IS NOT NULL",
     )
     suspend fun getAllPendingServerIds(
         memberId: String,
         synced: SyncState = SyncState.SYNCED,
     ): List<Long>
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM exercise_sync WHERE memberId = :memberId AND localId = :localId) " +
+            "OR EXISTS(SELECT 1 FROM exercise_image WHERE memberId = :memberId AND recordLocalId = :localId " +
+            "AND (state != 'SYNCED' OR localFilePath IS NOT NULL OR requestId IS NOT NULL)) " +
+            "OR EXISTS(SELECT 1 FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId AND syncState != 'SYNCED') " +
+            "OR EXISTS(SELECT 1 FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId AND syncState != 'SYNCED')",
+    )
+    suspend fun isProtected(
+        memberId: String,
+        localId: String,
+    ): Boolean
+
+    @Query(
+        "SELECT EXISTS(SELECT 1 FROM exercise_sync WHERE memberId = :memberId AND localId = :localId) " +
+            "OR EXISTS(SELECT 1 FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId AND syncState != 'SYNCED') " +
+            "OR EXISTS(SELECT 1 FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId AND syncState != 'SYNCED')",
+    )
+    suspend fun hasPendingRecord(
+        memberId: String,
+        localId: String,
+    ): Boolean
+
+    @Query(
+        "UPDATE exercise_record_detail SET confirmedDate = :date " +
+            "WHERE memberId = :memberId AND localId = :localId AND syncState = 'SYNCED'",
+    )
+    suspend fun updateConfirmedDate(
+        memberId: String,
+        localId: String,
+        date: LocalDate,
+    )
 
     /** 화면은 진입할 때 한 번 읽습니다. 지속 구독을 두지 않아 그린 뒤 저절로 바뀌지 않습니다 */
     @Query(
@@ -105,14 +138,14 @@ interface ExerciseRecordDao {
      * 날짜를 가리지 않아서 서버에서 기록의 날짜가 바뀌어도 localId를 이어 쓸 수 있습니다
      */
     @Query(
-        "SELECT serverId, localId FROM exercise_list_item " +
+        "SELECT * FROM exercise_list_item " +
             "WHERE memberId = :memberId AND serverId IN (:serverIds) AND syncState = :syncState",
     )
     suspend fun getSyncedByServerIds(
         memberId: String,
         serverIds: List<Long>,
         syncState: SyncState = SyncState.SYNCED,
-    ): List<ServerIdLocalId>
+    ): List<ExerciseListItemEntity>
 
     /** 아직 못 올린 로컬 변경이 걸려 있는 기록입니다. 서버 값으로 덮으면 안 됩니다 */
     @Query(
@@ -135,7 +168,7 @@ interface ExerciseRecordDao {
      */
     @Query(
         "DELETE FROM exercise_list_item " +
-            "WHERE memberId = :memberId AND date = :date AND syncState = :syncState",
+            "WHERE memberId = :memberId AND date = :date AND syncState = :syncState " + UNPROTECTED_LIST,
     )
     suspend fun deleteSyncedListByDate(
         memberId: String,
@@ -177,7 +210,7 @@ interface ExerciseRecordDao {
     @Query(
         "DELETE FROM exercise_list_item " +
             "WHERE memberId = :memberId AND date != :date " +
-            "AND serverId IN (:serverIds) AND syncState = :syncState",
+            "AND serverId IN (:serverIds) AND syncState = :syncState " + UNPROTECTED_LIST,
     )
     suspend fun deleteSyncedOnOtherDates(
         memberId: String,
@@ -187,7 +220,10 @@ interface ExerciseRecordDao {
     )
 
     /** 서버 목록에서 사라진 기록의 상세를 함께 정리합니다 */
-    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId IN (:localIds) AND syncState = :synced")
+    @Query(
+        "DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId IN (:localIds) AND syncState = :synced " +
+            UNPROTECTED_DETAIL,
+    )
     suspend fun deleteDetailsByLocalIds(
         memberId: String,
         localIds: List<String>,
@@ -197,13 +233,13 @@ interface ExerciseRecordDao {
     @Upsert
     suspend fun upsertDetail(detail: ExerciseRecordDetailEntity)
 
-    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId")
+    @Query("DELETE FROM exercise_record_detail WHERE memberId = :memberId AND localId = :localId " + UNPROTECTED_DETAIL)
     suspend fun deleteDetail(
         memberId: String,
         localId: String,
     )
 
-    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId")
+    @Query("DELETE FROM exercise_list_item WHERE memberId = :memberId AND localId = :localId " + UNPROTECTED_LIST)
     suspend fun deleteListItem(
         memberId: String,
         localId: String,
@@ -226,7 +262,8 @@ interface ExerciseRecordDao {
             "SELECT 1 FROM exercise_record_detail AS detail " +
             "WHERE detail.memberId = exercise_list_item.memberId " +
             "AND (detail.localId = exercise_list_item.localId OR detail.serverId = exercise_list_item.serverId) " +
-            "AND (detail.syncState != :synced OR detail.serverId IS NULL OR detail.startedAt >= :cutoffStart))",
+            "AND (detail.syncState != :synced OR detail.serverId IS NULL OR detail.startedAt >= :cutoffStart)) " +
+            UNPROTECTED_LIST,
     )
     suspend fun deleteExpiredSyncedListItems(
         cutoff: LocalDate,
@@ -247,7 +284,8 @@ interface ExerciseRecordDao {
             "SELECT 1 FROM exercise_list_item AS item " +
             "WHERE item.memberId = exercise_record_detail.memberId " +
             "AND (item.localId = exercise_record_detail.localId OR item.serverId = exercise_record_detail.serverId) " +
-            "AND (item.syncState != :synced OR item.serverId IS NULL OR item.date >= :cutoff))",
+            "AND (item.syncState != :synced OR item.serverId IS NULL OR item.date >= :cutoff)) " +
+            UNPROTECTED_DETAIL,
     )
     suspend fun deleteExpiredSyncedDetails(
         cutoff: LocalDate,
@@ -265,3 +303,21 @@ data class ServerIdLocalId(
     val serverId: Long,
     val localId: String,
 )
+
+private const val UNPROTECTED_LIST =
+    "AND NOT EXISTS (SELECT 1 FROM exercise_sync s WHERE s.memberId = exercise_list_item.memberId " +
+        "AND (s.localId = exercise_list_item.localId OR s.serverId = exercise_list_item.serverId)) " +
+        "AND NOT EXISTS (SELECT 1 FROM exercise_image i WHERE i.memberId = exercise_list_item.memberId " +
+        "AND i.recordLocalId = exercise_list_item.localId " +
+        "AND (i.state != 'SYNCED' OR i.localFilePath IS NOT NULL OR i.requestId IS NOT NULL)) " +
+        "AND NOT EXISTS (SELECT 1 FROM exercise_record_detail d WHERE d.memberId = exercise_list_item.memberId " +
+        "AND (d.localId = exercise_list_item.localId OR d.serverId = exercise_list_item.serverId) AND d.syncState != 'SYNCED')"
+
+private const val UNPROTECTED_DETAIL =
+    "AND NOT EXISTS (SELECT 1 FROM exercise_sync s WHERE s.memberId = exercise_record_detail.memberId " +
+        "AND (s.localId = exercise_record_detail.localId OR s.serverId = exercise_record_detail.serverId)) " +
+        "AND NOT EXISTS (SELECT 1 FROM exercise_image i WHERE i.memberId = exercise_record_detail.memberId " +
+        "AND i.recordLocalId = exercise_record_detail.localId " +
+        "AND (i.state != 'SYNCED' OR i.localFilePath IS NOT NULL OR i.requestId IS NOT NULL)) " +
+        "AND NOT EXISTS (SELECT 1 FROM exercise_list_item l WHERE l.memberId = exercise_record_detail.memberId " +
+        "AND (l.localId = exercise_record_detail.localId OR l.serverId = exercise_record_detail.serverId) AND l.syncState != 'SYNCED')"

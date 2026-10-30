@@ -2,6 +2,7 @@ package com.project200.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.Index
+import java.time.LocalDate
 import java.time.LocalDateTime
 
 /**
@@ -30,4 +31,6 @@ data class ExerciseRecordDetailEntity(
     val endedAt: LocalDateTime,
     val location: String,
     val pictures: List<CachedPicture>?,
+    val serverVersion: Long? = null,
+    val confirmedDate: LocalDate? = null,
 )

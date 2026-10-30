@@ -7,7 +7,10 @@ import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.entity.ExerciseCacheQueryEntity
 import com.project200.data.local.entity.ExerciseCountEntity
+import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
+import com.project200.data.local.entity.ExerciseRecordDetailEntity
+import com.project200.data.local.entity.ExerciseSyncEntity
 import com.project200.data.local.entity.SyncState
 import com.project200.data.mapper.toEntity
 import com.project200.data.mapper.toModel
@@ -37,14 +40,40 @@ class ExerciseRecordLocalDataSource
             preferenceManager.setExerciseCacheInvalidated(memberId, true)
         }
 
+        /** 전송 가능한 원문을 추정하지 않고 호출자가 준비한 저장 상태만 원자적으로 보존합니다 */
+        suspend fun persistPending(
+            journal: ExerciseSyncEntity,
+            item: ExerciseListItemEntity,
+            detail: ExerciseRecordDetailEntity,
+            images: List<ExerciseImageEntity> = emptyList(),
+        ) {
+            require(isCurrentMember(journal.memberId)) { "ACCOUNT_MISMATCH" }
+            require(item.memberId == journal.memberId && detail.memberId == journal.memberId) { "ACCOUNT_MISMATCH" }
+            require(item.localId == journal.localId && detail.localId == journal.localId) { "RECORD_MISMATCH" }
+            require(item.serverId == journal.serverId && detail.serverId == journal.serverId) { "SERVER_ID_MISMATCH" }
+            require(item.syncState == journal.operation && detail.syncState == journal.operation) { "STATE_MISMATCH" }
+            require(item.date == journal.currentDate) { "DATE_MISMATCH" }
+            require(images.all { it.memberId == journal.memberId && it.recordLocalId == journal.localId }) { "IMAGE_IDENTITY_MISMATCH" }
+            require(images.map { it.localId }.distinct().size == images.size) { "DUPLICATE_IMAGE_ID" }
+            database.withTransaction {
+                require(isCurrentMember(journal.memberId)) { "ACCOUNT_MISMATCH" }
+                database.exerciseSyncDao().saveDesired(journal)
+                exerciseRecordDao.upsertListItems(listOf(item))
+                exerciseRecordDao.upsertDetail(detail)
+                images.forEach { database.exerciseImageDao().save(it) }
+            }
+        }
+
         /** 무효 표시를 지우기 전에 동기화 완료 캐시와 빈 조회 메타데이터를 함께 버립니다. */
         suspend fun prepareCache(memberId: String?) {
             if (memberId == null || !isCurrentMember(memberId) || !preferenceManager.isExerciseCacheInvalidated(memberId)) return
             database.withTransaction {
+                if (!isCurrentMember(memberId)) return@withTransaction
                 exerciseRecordDao.deleteSyncedList(memberId)
                 exerciseRecordDao.deleteSyncedDetails(memberId)
                 exerciseCountDao.deleteByMember(memberId)
                 exerciseRecordDao.deleteQueries(memberId)
+                database.exerciseImageDao().deleteOrphanedRemoteCache(memberId)
             }
             preferenceManager.setExerciseCacheInvalidated(memberId, false)
         }
@@ -133,11 +162,11 @@ class ExerciseRecordLocalDataSource
                 val pendingServerIds = exerciseRecordDao.getAllPendingServerIds(memberId!!).toSet()
                 val incoming = items.withIndex().filterNot { it.value.recordId.toLong() in pendingServerIds }
                 val incomingServerIds = incoming.map { it.value.recordId.toLong() }
-                val reusableLocalIds =
+                val reusableItems =
                     if (incomingServerIds.isEmpty()) {
                         emptyMap()
                     } else {
-                        exerciseRecordDao.getSyncedByServerIds(memberId, incomingServerIds).associate { it.serverId to it.localId }
+                        exerciseRecordDao.getSyncedByServerIds(memberId, incomingServerIds).associateBy { it.serverId }
                     }
                 val existing = exerciseRecordDao.getSyncedByDate(memberId, date).filterNot { it.serverId in pendingServerIds }
                 val removedLocalIds = existing.filterNot { it.serverId in incomingServerIds }.map { it.localId }
@@ -145,15 +174,25 @@ class ExerciseRecordLocalDataSource
                 if (removedLocalIds.isNotEmpty()) exerciseRecordDao.deleteDetailsByLocalIds(memberId, removedLocalIds)
                 if (incomingServerIds.isNotEmpty()) exerciseRecordDao.deleteSyncedOnOtherDates(memberId, date, incomingServerIds)
                 exerciseRecordDao.upsertListItems(
-                    incoming.map { (sortOrder, item) ->
+                    incoming.mapNotNull { (sortOrder, item) ->
+                        val previous = reusableItems[item.recordId.toLong()]
                         val id =
-                            reusableLocalIds[item.recordId.toLong()]
+                            previous?.localId
                                 ?: exerciseRecordDao.findDetailLocalId(memberId, item.recordId.toLong())
                                 ?: newLocalId()
-                        item.toSyncedEntity(memberId, id, date, sortOrder)
+                        if (exerciseRecordDao.hasPendingRecord(memberId, id)) return@mapNotNull null
+                        val oldDetail =
+                            exerciseRecordDao.getDetailByLocalId(memberId, id)
+                                ?: exerciseRecordDao.getDetailByServerId(memberId, item.recordId.toLong())
+                        exerciseRecordDao.updateConfirmedDate(memberId, id, date)
+                        item.toSyncedEntity(memberId, id, date, sortOrder).copy(
+                            serverVersion = previous?.serverVersion ?: oldDetail?.serverVersion,
+                            confirmedDate = date,
+                        )
                     },
                 )
                 exerciseRecordDao.saveQuery(ExerciseCacheQueryEntity(memberId, "list", date))
+                database.exerciseImageDao().deleteOrphanedRemoteCache(memberId)
             }
         }
 
@@ -205,8 +244,11 @@ class ExerciseRecordLocalDataSource
                         ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
                         ?: previousLocalId
                         ?: newLocalId()
-                if (serverId !in exerciseRecordDao.getAllPendingServerIds(memberId)) {
-                    exerciseRecordDao.upsertDetail(record.toSyncedEntity(memberId, localId, serverId))
+                if (
+                    serverId !in exerciseRecordDao.getAllPendingServerIds(memberId) &&
+                    !exerciseRecordDao.hasPendingRecord(memberId, localId)
+                ) {
+                    saveRemoteDetail(memberId, localId, serverId, record)
                 }
                 localId
             }
@@ -222,12 +264,13 @@ class ExerciseRecordLocalDataSource
             return database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction null
                 val id = localId(memberId!!, serverId)
+                if (exerciseRecordDao.hasPendingRecord(memberId, id)) return@withTransaction id
                 if (serverId in exerciseRecordDao.getAllPendingServerIds(memberId)) return@withTransaction id
                 val oldItem = exerciseRecordDao.getListItem(memberId, id)
                 val oldDetail = exerciseRecordDao.getDetailByServerId(memberId, serverId)
                 val oldDate = oldItem?.date ?: oldDetail?.startedAt?.toLocalDate()
                 val date = record.startedAt.toLocalDate()
-                exerciseRecordDao.upsertDetail(record.toSyncedEntity(memberId, id, serverId))
+                saveRemoteDetail(memberId, id, serverId, record)
                 exerciseRecordDao.upsertListItems(
                     listOf(
                         ExerciseListItemEntity(
@@ -242,6 +285,8 @@ class ExerciseRecordLocalDataSource
                             record.startedAt,
                             record.endedAt,
                             record.pictures?.map { it.url },
+                            serverVersion = oldItem?.serverVersion ?: oldDetail?.serverVersion,
+                            confirmedDate = oldItem?.confirmedDate ?: oldDetail?.confirmedDate,
                         ),
                     ),
                 )
@@ -265,11 +310,13 @@ class ExerciseRecordLocalDataSource
                     exerciseRecordDao.findListItemLocalId(memberId, serverId)
                         ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
                         ?: return@withTransaction
+                if (exerciseRecordDao.isProtected(memberId, id)) return@withTransaction
                 val date =
                     exerciseRecordDao.getListItem(memberId, id)?.date
                         ?: exerciseRecordDao.getDetailByLocalId(memberId, id)?.startedAt?.toLocalDate()
                 exerciseRecordDao.deleteListItem(memberId, id)
                 exerciseRecordDao.deleteDetail(memberId, id)
+                database.exerciseImageDao().deleteOrphanedRemoteCache(memberId)
                 date?.let { adjustCount(memberId, it, -1) }
             }
         }
@@ -287,11 +334,32 @@ class ExerciseRecordLocalDataSource
                     exerciseRecordDao.findListItemLocalId(memberId, serverId)
                         ?: exerciseRecordDao.findDetailLocalId(memberId, serverId)
                         ?: return@withTransaction
+                if (exerciseRecordDao.isProtected(memberId, id)) return@withTransaction
                 exerciseRecordDao.deleteDetail(memberId, id)
+                database.exerciseImageDao().refreshSynced(memberId, id, null)
                 exerciseRecordDao.getListItem(memberId, id)?.let {
                     exerciseRecordDao.upsertListItems(listOf(it.copy(thumbnailUrls = null)))
                 }
             }
+        }
+
+        private suspend fun saveRemoteDetail(
+            memberId: String,
+            localId: String,
+            serverId: Long,
+            record: ExerciseRecord,
+        ) {
+            val oldDetail =
+                exerciseRecordDao.getDetailByLocalId(memberId, localId)
+                    ?: exerciseRecordDao.getDetailByServerId(memberId, serverId)
+            val item = exerciseRecordDao.getListItem(memberId, localId)
+            val entity =
+                record.toSyncedEntity(memberId, localId, serverId).copy(
+                    serverVersion = oldDetail?.serverVersion ?: item?.serverVersion,
+                    confirmedDate = item?.confirmedDate ?: oldDetail?.confirmedDate,
+                )
+            exerciseRecordDao.upsertDetail(entity)
+            database.exerciseImageDao().refreshSynced(memberId, localId, entity.pictures)
         }
 
         private suspend fun localId(

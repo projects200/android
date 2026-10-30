@@ -37,4 +37,6 @@ data class ExerciseListItemEntity(
     val startedAt: LocalDateTime,
     val endedAt: LocalDateTime,
     val thumbnailUrls: List<String>?,
+    val serverVersion: Long? = null,
+    val confirmedDate: LocalDate? = null,
 )
