@@ -12,6 +12,7 @@ import java.io.IOException
 object ExerciseStorageMigration : Migration(5, 6) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL("ALTER TABLE exercise_list_item ADD COLUMN serverVersion INTEGER")
+        // v5에는 행별 조회 출처가 없으므로 실제 서버 목록을 수신할 때까지 확정 날짜는 null로 둡니다
         db.execSQL("ALTER TABLE exercise_list_item ADD COLUMN confirmedDate TEXT")
         db.execSQL("ALTER TABLE exercise_record_detail ADD COLUMN serverVersion INTEGER")
         db.execSQL("ALTER TABLE exercise_record_detail ADD COLUMN confirmedDate TEXT")
@@ -33,17 +34,6 @@ object ExerciseStorageMigration : Migration(5, 6) {
         db.execSQL(
             "CREATE INDEX IF NOT EXISTS index_exercise_image_memberId_recordLocalId_serverPictureId " +
                 "ON exercise_image(memberId, recordLocalId, serverPictureId)",
-        )
-        // 서버에 실제로 질의했던 날짜만 확정 날짜로 옮깁니다
-        db.execSQL(
-            "UPDATE exercise_list_item SET confirmedDate = date WHERE syncState = 'SYNCED' " +
-                "AND NOT EXISTS (SELECT 1 FROM exercise_record_detail d WHERE d.memberId = exercise_list_item.memberId " +
-                "AND d.localId = exercise_list_item.localId AND d.syncState != 'SYNCED')",
-        )
-        db.execSQL(
-            "UPDATE exercise_record_detail SET confirmedDate = (SELECT l.confirmedDate FROM exercise_list_item l " +
-                "WHERE l.memberId = exercise_record_detail.memberId AND l.localId = exercise_record_detail.localId) " +
-                "WHERE syncState = 'SYNCED'",
         )
         db.execSQL(
             "INSERT INTO exercise_sync (memberId, localId, serverId, operation, currentDate, recoveryState, lastError) " +
