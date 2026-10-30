@@ -64,7 +64,7 @@ class ExerciseShareEditViewModel
                 when (result) {
                     is BaseResult.Success -> {
                         _exerciseRecord.value = result.data
-                        _backgroundImageUrl.value = result.data.pictures?.firstOrNull()?.url
+                        _backgroundImageUrl.value = result.data.pictures?.firstOrNull()?.source
                         result.refreshError?.let { notifications.send(it.message ?: "기록을 새로고침하지 못했습니다.") }
                         if (result.isCachedSnapshot) {
                             viewModelScope.launch { getExerciseRecordDetailUseCase(recordId, refresh = true) }

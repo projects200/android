@@ -16,6 +16,12 @@ abstract class ExerciseSyncDao {
         localId: String,
     ): ExerciseSyncEntity?
 
+    @Query("SELECT localId FROM exercise_sync WHERE memberId = :memberId AND serverId = :serverId")
+    abstract suspend fun findLocalId(
+        memberId: String,
+        serverId: Long,
+    ): String?
+
     @Query("SELECT * FROM exercise_sync WHERE memberId = :memberId ORDER BY localId")
     abstract suspend fun getByMember(memberId: String): List<ExerciseSyncEntity>
 
@@ -108,12 +114,14 @@ abstract class ExerciseSyncDao {
 
     @Query(
         "DELETE FROM exercise_sync WHERE memberId = :memberId AND localId = :localId " +
-            "AND operationId = :operationId AND revision = :revision AND inFlightOperationId IS NULL",
+            "AND operationId IS :operationId AND revision IS :revision AND inFlightOperationId IS NULL " +
+            "AND inFlightOperation IS NULL AND inFlightRevision IS NULL AND inFlightBody IS NULL " +
+            "AND inFlightRequestId IS NULL AND inFlightBaseVersion IS NULL",
     )
     abstract suspend fun deleteMatching(
         memberId: String,
         localId: String,
-        operationId: String,
-        revision: Long,
+        operationId: String?,
+        revision: Long?,
     ): Int
 }

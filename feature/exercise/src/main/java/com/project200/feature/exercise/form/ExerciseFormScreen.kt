@@ -650,7 +650,7 @@ private fun ImageCell(
                 val model =
                     when (item) {
                         is ExerciseImageListItem.NewImageItem -> item.uri
-                        is ExerciseImageListItem.ExistingImageItem -> item.url
+                        is ExerciseImageListItem.ExistingImageItem -> item.source
                         else -> null
                     }
                 AsyncImage(

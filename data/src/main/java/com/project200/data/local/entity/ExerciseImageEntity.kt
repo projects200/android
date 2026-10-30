@@ -22,6 +22,9 @@ data class ExerciseImageEntity(
 )
 
 enum class ExerciseImageState {
+    // 이 앱의 로컬 전용 쓰기에서 준비했으며 아직 전송 claim을 하지 않은 사진입니다.
+    ADD_LOCAL,
+    // 기존 값은 요청이 전송됐을 수도 있으므로 nullable 서버 ID만으로 취소하지 않습니다.
     ADD_PENDING,
     DELETE_PENDING,
     SYNCED,

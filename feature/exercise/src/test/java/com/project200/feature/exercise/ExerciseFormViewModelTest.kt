@@ -7,24 +7,22 @@ import com.google.common.truth.Truth.assertThat
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
 import com.project200.common.utils.ClockProvider
 import com.project200.domain.model.BaseResult
-import com.project200.domain.model.ExerciseEditResult
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.model.ExerciseRecordPicture
+import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.ExpectedScoreInfo
+import com.project200.domain.model.LocalExerciseSaveResult
 import com.project200.domain.model.SubmissionResult
 import com.project200.domain.model.ValidWindow
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.domain.usecase.CreateExerciseRecordUseCase
-import com.project200.domain.usecase.DeleteExerciseRecordImagesUseCase
-import com.project200.domain.usecase.EditExerciseRecordUseCase
 import com.project200.domain.usecase.GetExercisePlaceUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetPreferredExerciseTypesUseCase
 import com.project200.domain.usecase.GetPreferredExerciseUseCase
 import com.project200.domain.usecase.UpdateExerciseRecordUseCase
-import com.project200.domain.usecase.UploadExerciseRecordImagesUseCase
 import com.project200.feature.exercise.form.ExerciseFormViewModel
 import com.project200.feature.exercise.form.ExerciseImageListItem
 import com.project200.feature.exercise.utils.ScoreGuidanceState
@@ -63,10 +61,7 @@ class ExerciseFormViewModelTest {
     private lateinit var mockCreateUseCase: CreateExerciseRecordUseCase
 
     @MockK
-    private lateinit var mockUploadUseCase: UploadExerciseRecordImagesUseCase
-
-    @MockK
-    private lateinit var mockEditUseCase: EditExerciseRecordUseCase
+    private lateinit var mockUpdateUseCase: UpdateExerciseRecordUseCase
 
     @MockK
     private lateinit var mockExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase
@@ -132,14 +127,13 @@ class ExerciseFormViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun setupViewModelForCreateMode() {
+    private fun setupViewModelForCreateMode(createUseCase: CreateExerciseRecordUseCase = mockCreateUseCase) {
         savedStateHandle = SavedStateHandle().apply { set("recordId", "") }
         viewModel =
             ExerciseFormViewModel(
                 getExerciseRecordDetailUseCase = mockGetDetailUseCase,
-                createExerciseRecordUseCase = mockCreateUseCase,
-                uploadExerciseRecordImagesUseCase = mockUploadUseCase,
-                editExerciseRecordUseCase = mockEditUseCase,
+                createExerciseRecordUseCase = createUseCase,
+                updateExerciseRecordUseCase = mockUpdateUseCase,
                 getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
                 getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
                 getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
@@ -150,15 +144,14 @@ class ExerciseFormViewModelTest {
 
     private fun setupViewModelForEditMode(
         record: ExerciseRecord = sampleRecord,
-        editUseCase: EditExerciseRecordUseCase = mockEditUseCase,
+        updateUseCase: UpdateExerciseRecordUseCase = mockUpdateUseCase,
     ) {
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
         viewModel =
             ExerciseFormViewModel(
                 getExerciseRecordDetailUseCase = mockGetDetailUseCase,
                 createExerciseRecordUseCase = mockCreateUseCase,
-                uploadExerciseRecordImagesUseCase = mockUploadUseCase,
-                editExerciseRecordUseCase = editUseCase,
+                updateExerciseRecordUseCase = updateUseCase,
                 getExpectedScoreInfoUseCase = mockExpectedScoreInfoUseCase,
                 getExercisePlaceUseCase = mockGetExercisePlaceUseCase,
                 getPreferredExerciseUseCase = mockGetPreferredExerciseUseCase,
@@ -223,7 +216,7 @@ class ExerciseFormViewModelTest {
     }
 
     @Test
-    fun `removeImage - 새로 추가했던 이미지를 삭제하면 removedPictureIds에 추가되지 않는다`() {
+    fun `removeImage - 새로 추가했던 이미지를 삭제하면 기존 사진 삭제 의도는 남기지 않는다`() {
         // Given: 수정 모드에서 새로운 이미지를 추가한 상태
         setupViewModelForEditMode()
         val newImageUri = mockk<Uri>()
@@ -234,18 +227,15 @@ class ExerciseFormViewModelTest {
         // When: 새로 추가했던 이미지를 다시 삭제
         viewModel.removeImage(newImageItem)
 
-        // Then: removedPictureIds는 비어있어야 하고, submit 시에도 빈 리스트로 전달되어야 함
-        coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+        // Then: 제거한 신규 URI와 기존 사진 삭제 의도를 모두 보내지 않습니다.
+        coEvery { mockUpdateUseCase(any(), any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
         viewModel.submitRecord(recordId, "제목 변경", "타입", "장소", "상세") // hasChanges=true 만들기
         runTest { testDispatcher.scheduler.advanceUntilIdle() }
 
         coVerify {
-            mockEditUseCase(
+            mockUpdateUseCase(
                 recordId = recordId,
-                recordToUpdate = any(),
-                isContentChanges = true,
-                imagesToDelete = emptyList(),
-                newImages = emptyList(),
+                input = match { it.removedImageLocalIds.isEmpty() && it.addedImageUris.isEmpty() },
             )
         }
     }
@@ -254,7 +244,7 @@ class ExerciseFormViewModelTest {
     fun `hasContentChanges - 다른 내용은 그대로고 시간만 변경되어도 변경으로 감지한다`() =
         runTest {
             setupViewModelForEditMode()
-            coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+            coEvery { mockUpdateUseCase(any(), any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When: 종료 시간 변경 (06:00 -> 07:00). 현재 시간 10시보다 전이므로 정상 반영됨
             val newEnd = sampleRecord.endedAt.plusHours(1)
@@ -264,7 +254,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: 변경이 감지되어 USE CASE가 호출되어야 함
-            coVerify(exactly = 1) { mockEditUseCase(any(), any(), true, any(), any()) }
+            coVerify(exactly = 1) { mockUpdateUseCase(recordId, match { it.record.endedAt == newEnd }) }
         }
 
     @Test
@@ -272,7 +262,7 @@ class ExerciseFormViewModelTest {
         runTest {
             // Given: 수정 모드
             setupViewModelForEditMode()
-            coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+            coEvery { mockUpdateUseCase(any(), any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When: 내용 변경 없이, 새 이미지만 추가하여 제출
             viewModel.addImage(listOf(mockk()))
@@ -286,7 +276,7 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then: useCase가 호출되어야 함
-            coVerify(exactly = 1) { mockEditUseCase(any(), any(), any(), any(), any()) }
+            coVerify(exactly = 1) { mockUpdateUseCase(any(), match { it.addedImageUris.size == 1 }) }
         }
 
     @Test
@@ -304,68 +294,72 @@ class ExerciseFormViewModelTest {
 
     /** 생성 모드 테스트
      * 이 테스트들은 기록 생성과 관련된 기능을 검증합니다.
-     * 이미지 업로드와 관련된 부분도 포함되어 있습니다.
+     * 본문과 사진의 단일 로컬 저장 결과를 포함합니다.
      */
     @Test
-    fun `submitRecord 호출 시 기록 생성 성공 (이미지 없음)`() =
+    fun `submitRecord 호출 시 점수 없이 로컬 저장 성공을 반환한다`() =
         runTest(testDispatcher) {
             // Given
             setupViewModelForCreateMode()
 
             val testStartTime = now.minusHours(1)
             val testEndTime = now
-            val earnedPoints = 3
             viewModel.setStartTime(testStartTime)
             viewModel.setEndTime(testEndTime)
 
-            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, earnedPoints)) // 3점 획득
+            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When
             viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
-            coVerify(exactly = 1) { mockCreateUseCase(any()) }
-            coVerify(exactly = 0) { mockUploadUseCase(any(), any()) }
+            coVerify(exactly = 1) {
+                mockCreateUseCase(match { it.record.title == "제목" && it.addedImageUris.isEmpty() && it.removedImageLocalIds.isEmpty() })
+            }
             val actual = viewModel.createResult.replayCache.firstOrNull()
-            assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
-            assertThat((actual as SubmissionResult.Success).recordId).isEqualTo(recordId)
-            assertThat(actual.earnedPoints).isEqualTo(earnedPoints)
+            assertThat(actual).isInstanceOf(SubmissionResult.LocalSaved::class.java)
+            assertThat((actual as SubmissionResult.LocalSaved).recordId).isEqualTo(recordId)
             assertThat(viewModel.isLoading.value).isFalse()
         }
 
     @Test
-    fun `submitRecord 호출 시 기록 생성 성공 및 이미지 업로드 성공`() =
+    fun `예상 점수 조회 실패는 로컬 기록 저장 완료를 막지 않는다`() =
         runTest(testDispatcher) {
-            // Given
             setupViewModelForCreateMode()
-            val mockUri = mockk<Uri>()
-            coEvery { mockUri.toString() } returns imageUriString
-
-            val testStartTime = now.minusHours(1)
-            val testEndTime = now
-            val earnedPoints = 3
-            viewModel.setStartTime(testStartTime)
-            viewModel.setEndTime(testEndTime)
-
-            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, earnedPoints))
-            coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Success(recordId)
-
-            // When
-            viewModel.addImage(listOf(mockUri))
-            viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
+            coEvery { mockExpectedScoreInfoUseCase() } returns BaseResult.Error("NETWORK_ERROR", "오프라인")
+            viewModel.setStartTime(now.minusHours(1))
+            viewModel.setEndTime(now)
+            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
+            viewModel.submitRecord("", "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
-
-            // Then
-            coVerify(exactly = 1) { mockCreateUseCase(any()) }
-            coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
-            val actual = viewModel.createResult.replayCache.firstOrNull()
-            assertThat(actual).isInstanceOf(SubmissionResult.Success::class.java)
-            assertThat((actual as SubmissionResult.Success).earnedPoints).isEqualTo(earnedPoints)
+            assertThat((viewModel.createResult.replayCache.single() as SubmissionResult.LocalSaved).recordId).isEqualTo(recordId)
+            assertThat(viewModel.isLoading.value).isFalse()
         }
 
     @Test
-    fun `submitRecord 호출 시 기록 생성 성공 but 이미지 업로드 실패`() =
+    fun `로컬 저장 실패는 입력 시간과 사진을 유지하고 완료 결과를 만들지 않는다`() =
+        runTest(testDispatcher) {
+            setupViewModelForCreateMode()
+            val start = now.minusHours(1)
+            viewModel.setStartTime(start)
+            viewModel.setEndTime(now)
+            val uri = mockk<Uri>()
+            every { uri.toString() } returns imageUriString
+            viewModel.addImage(listOf(uri))
+            val images = viewModel.imageItems.value
+            coEvery { mockCreateUseCase(any()) } returns BaseResult.Error("CACHE_ERROR", "로컬 저장 실패")
+            viewModel.submitRecord("", "제목", "타입", "장소", "상세")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.createResult.replayCache.single()).isInstanceOf(SubmissionResult.Failure::class.java)
+            assertThat(viewModel.startTime.value).isEqualTo(start)
+            assertThat(viewModel.endTime.value).isEqualTo(now)
+            assertThat(viewModel.imageItems.value).isEqualTo(images)
+            assertThat(viewModel.isLoading.value).isFalse()
+        }
+
+    @Test
+    fun `본문과 선택 사진은 단일 로컬 요청으로 저장 완료한다`() =
         runTest(testDispatcher) {
             // Given
             setupViewModelForCreateMode()
@@ -377,20 +371,18 @@ class ExerciseFormViewModelTest {
             viewModel.setStartTime(testStartTime)
             viewModel.setEndTime(testEndTime)
 
-            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, 3))
-            coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Error("UPLOAD_ERROR", "Upload failed")
-
-            viewModel.addImage(listOf(mockUri))
+            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When
+            viewModel.addImage(listOf(mockUri))
             viewModel.submitRecord(recordId, "제목", "타입", "장소", "상세")
             testDispatcher.scheduler.advanceUntilIdle()
 
             // Then
+            coVerify(exactly = 1) { mockCreateUseCase(match { it.addedImageUris == listOf(imageUriString) }) }
             val actual = viewModel.createResult.replayCache.firstOrNull()
-            assertThat(actual).isInstanceOf(SubmissionResult.PartialSuccess::class.java)
-            assertThat((actual as SubmissionResult.PartialSuccess).recordId).isEqualTo(recordId)
-            assertThat(actual.messageId).isEqualTo(R.string.exercise_upload_fail)
+            assertThat(actual).isInstanceOf(SubmissionResult.LocalSaved::class.java)
+            assertThat((actual as SubmissionResult.LocalSaved).recordId).isEqualTo(recordId)
         }
 
     /** 수정 모드 테스트
@@ -420,19 +412,19 @@ class ExerciseFormViewModelTest {
             viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // And: editUseCase가 recordId와 함께 Success를 반환하도록 설정
-            coEvery { mockEditUseCase(recordId, any(), true, emptyList(), emptyList()) } returns ExerciseEditResult.Success(recordId)
+            // And: aggregate 저장이 로컬 ID를 반환합니다.
+            coEvery { mockUpdateUseCase(recordId, any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When: 제목을 변경하여 기록 제출
             val updatedTitle = "Updated Title"
             viewModel.submitRecord(recordId, updatedTitle, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then: editUseCase가 콘텐츠 변경 사항과 함께 올바르게 호출되었는지 검증
-            coVerify(exactly = 1) { mockEditUseCase(recordId, any(), true, emptyList(), emptyList()) }
+            // Then: 수정 본문을 한 번 저장한 뒤 로컬 완료를 표시합니다.
+            coVerify(exactly = 1) { mockUpdateUseCase(recordId, match { it.record.title == updatedTitle }) }
             val result = viewModel.editResult.replayCache.firstOrNull()
-            assertThat(result).isInstanceOf(ExerciseEditResult.Success::class.java)
-            assertThat((result as ExerciseEditResult.Success).recordId).isEqualTo(recordId)
+            assertThat(result).isInstanceOf(SubmissionResult.LocalSaved::class.java)
+            assertThat((result as SubmissionResult.LocalSaved).recordId).isEqualTo(recordId)
             assertThat(viewModel.isLoading.value).isFalse()
         }
 
@@ -447,19 +439,19 @@ class ExerciseFormViewModelTest {
 
             // Then: R.string.exercise_no_change 가 발생해야 함 (기존 테스트 오타 수정)
             assertThat(viewModel.toastMessage.replayCache.firstOrNull()).isEqualTo(R.string.exercise_no_change)
-            coVerify(exactly = 0) { mockEditUseCase(any(), any(), any(), any(), any()) }
+            coVerify(exactly = 0) { mockUpdateUseCase(any(), any()) }
         }
 
     @Test
     fun `removeImage 호출 시 기존 이미지는 삭제 목록에 추가되고 submit 시 반영`() =
         runTest(testDispatcher) {
             // Given: 수정 모드에서 기존 이미지가 있는 기록을 로드
-            val picture = ExerciseRecordPicture(id = 99L, url = "http://exist.com/1.png")
+            val picture = ExerciseRecordPicture("server:99", 99L, "http://exist.com/1.png", ExerciseImageSyncStatus.SYNCED)
             val recordWithPicture = sampleRecord.copy(pictures = listOf(picture))
             setupViewModelForEditMode(recordWithPicture)
 
-            // And: editUseCase가 성공을 반환하도록 설정
-            coEvery { mockEditUseCase(any(), any(), any(), any(), any()) } returns ExerciseEditResult.Success(recordId)
+            // And: aggregate 저장이 로컬 ID를 반환합니다.
+            coEvery { mockUpdateUseCase(any(), any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
 
             // When: 로드된 기존 이미지를 삭제하고, 제목을 변경하여 제출
             val existingImageItem = viewModel.imageItems.value.find { it is ExerciseImageListItem.ExistingImageItem }
@@ -468,8 +460,8 @@ class ExerciseFormViewModelTest {
             viewModel.submitRecord(recordId, "new title", "type", "loc", "detail")
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // Then: editUseCase가 호출될 때, 삭제된 이미지 ID 목록이 올바르게 전달되었는지 검증
-            coVerify { mockEditUseCase(recordId, any(), true, listOf(99L), emptyList()) }
+            // Then: 사진의 안정적인 로컬 ID를 삭제 의도로 전달합니다.
+            coVerify { mockUpdateUseCase(recordId, match { it.removedImageLocalIds == setOf("server:99") }) }
         }
 
     @Test
@@ -481,9 +473,9 @@ class ExerciseFormViewModelTest {
             viewModel.loadInitialRecord(recordId)
             testDispatcher.scheduler.advanceUntilIdle()
 
-            // And: editUseCase가 Failure를 반환하도록 설정
+            // And: 로컬 저장이 실패합니다.
             val failureMessage = "수정 중 에러 발생"
-            coEvery { mockEditUseCase(recordId, any(), true, emptyList(), emptyList()) } returns ExerciseEditResult.Failure(failureMessage)
+            coEvery { mockUpdateUseCase(recordId, any()) } returns BaseResult.Error("CACHE_ERROR", failureMessage)
 
             // When: 제목을 변경하여 기록 제출
             viewModel.submitRecord(recordId, "달라진 제목", "타입", "장소", "상세")
@@ -491,8 +483,8 @@ class ExerciseFormViewModelTest {
 
             // Then: LiveData에 Failure 결과가 반영되었는지 검증
             val result = viewModel.editResult.replayCache.firstOrNull()
-            assertThat(result).isInstanceOf(ExerciseEditResult.Failure::class.java)
-            assertThat((result as ExerciseEditResult.Failure).message).isEqualTo(failureMessage)
+            assertThat(result).isInstanceOf(SubmissionResult.Failure::class.java)
+            assertThat((result as SubmissionResult.Failure).message).isEqualTo(failureMessage)
             assertThat(viewModel.isLoading.value).isFalse()
         }
 
@@ -617,55 +609,6 @@ class ExerciseFormViewModelTest {
         }
 
     @Test
-    fun `실제 수정 유스케이스의 저장 후 경고가 폼 성공 결과에 도달하고 수정은 한 번만 실행된다`() =
-        runTest(testDispatcher) {
-            val repository = mockk<ExerciseRecordRepository>()
-            val warning = BaseResult.Error("CACHE_ERROR", "로컬 반영 실패")
-            coEvery { repository.updateExerciseRecord(any(), recordId) } returns BaseResult.Success(recordId, warning)
-            val edit =
-                EditExerciseRecordUseCase(
-                    UpdateExerciseRecordUseCase(repository),
-                    DeleteExerciseRecordImagesUseCase(repository),
-                    UploadExerciseRecordImagesUseCase(repository),
-                )
-            setupViewModelForEditMode(editUseCase = edit)
-            viewModel.submitRecord(recordId, "수정한 제목", sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
-            testDispatcher.scheduler.advanceUntilIdle()
-            val result = viewModel.editResult.replayCache.single() as ExerciseEditResult.Success
-            assertThat(result.refreshError).isEqualTo(warning)
-            assertThat(viewModel.isLoading.value).isFalse()
-            viewModel.consumeEditResult()
-            assertThat(viewModel.editResult.replayCache).isEmpty()
-            coVerify(exactly = 1) { repository.updateExerciseRecord(any(), recordId) }
-            coVerify(exactly = 0) { repository.deleteExerciseRecordImages(any(), any()) }
-            coVerify(exactly = 0) { repository.uploadExerciseRecordImages(any(), any()) }
-        }
-
-    @Test
-    fun `생성과 이미지 업로드의 캐시 경고를 하나의 생성 성공 결과로 합친다`() =
-        runTest(testDispatcher) {
-            setupViewModelForCreateMode()
-            viewModel.setStartTime(now.minusHours(1))
-            viewModel.setEndTime(now)
-            val image = mockk<Uri>()
-            every { image.toString() } returns imageUriString
-            viewModel.addImage(listOf(image))
-            val warning = BaseResult.Error("CACHE_ERROR", "캐시 반영 실패")
-            coEvery { mockCreateUseCase(any()) } returns BaseResult.Success(ExerciseRecordCreationResult(recordId, 3), warning)
-            coEvery { mockUploadUseCase(recordId, listOf(imageUriString)) } returns BaseResult.Success(recordId, warning)
-            viewModel.submitRecord("", "제목", "타입", "장소", "상세")
-            testDispatcher.scheduler.advanceUntilIdle()
-            val result = viewModel.createResult.replayCache.single() as SubmissionResult.Success
-            assertThat(result.refreshError).isEqualTo(warning)
-            assertThat(result.earnedPoints).isEqualTo(3)
-            assertThat(viewModel.isLoading.value).isFalse()
-            viewModel.consumeCreateResult()
-            assertThat(viewModel.createResult.replayCache).isEmpty()
-            coVerify(exactly = 1) { mockCreateUseCase(any()) }
-            coVerify(exactly = 1) { mockUploadUseCase(recordId, listOf(imageUriString)) }
-        }
-
-    @Test
     fun `캐시로 폼을 한 번만 초기화하고 백그라운드 완료 뒤에도 작성 시간과 이미지를 유지한다`() =
         runTest(testDispatcher) {
             setupViewModelForCreateMode()
@@ -708,5 +651,106 @@ class ExerciseFormViewModelTest {
             testDispatcher.scheduler.runCurrent()
             assertThat(viewModel.initialDataLoaded.value).isEqualTo(selected)
             coVerify(exactly = 0) { mockGetDetailUseCase(any(), true, false) }
+        }
+
+    @Test
+    fun `실제 편집 유스케이스의 로컬 저장 실패 뒤 폼 시간 사진과 삭제 의도를 재제출한다`() =
+        runTest(testDispatcher) {
+            val repository = mockk<ExerciseRecordRepository>()
+            val captured = mutableListOf<ExerciseWriteInput>()
+            coEvery { repository.updateExerciseRecord(capture(captured), recordId) } returns
+                BaseResult.Error("CACHE_ERROR", "로컬 저장 실패")
+            val update = UpdateExerciseRecordUseCase(repository)
+            val picture = ExerciseRecordPicture("server:99", 99, "https://example.test/photo", ExerciseImageSyncStatus.SYNCED)
+            setupViewModelForEditMode(sampleRecord.copy(pictures = listOf(picture)), update)
+            val existing = viewModel.imageItems.value.filterIsInstance<ExerciseImageListItem.ExistingImageItem>().single()
+            viewModel.removeImage(existing)
+            val image = mockk<Uri>()
+            every { image.toString() } returns imageUriString
+            viewModel.addImage(listOf(image))
+            val images = viewModel.imageItems.value
+            val changedStart = sampleRecord.startedAt.minusMinutes(15)
+            viewModel.setStartTime(changedStart)
+            repeat(2) {
+                viewModel.submitRecord(recordId, "작성한 제목", "작성한 타입", "작성한 장소", "작성한 본문")
+                testDispatcher.scheduler.advanceUntilIdle()
+                assertThat(viewModel.editResult.replayCache.single()).isInstanceOf(SubmissionResult.Failure::class.java)
+                assertThat(viewModel.startTime.value).isEqualTo(changedStart)
+                assertThat(viewModel.imageItems.value).isEqualTo(images)
+                assertThat(viewModel.isLoading.value).isFalse()
+                viewModel.consumeEditResult()
+            }
+            assertThat(captured).hasSize(2)
+            assertThat(captured[0]).isEqualTo(captured[1])
+            assertThat(captured[0].record.title).isEqualTo("작성한 제목")
+            assertThat(captured[0].record.detail).isEqualTo("작성한 본문")
+            assertThat(captured[0].record.personalType).isEqualTo("작성한 타입")
+            assertThat(captured[0].record.location).isEqualTo("작성한 장소")
+            assertThat(captured[0].removedImageLocalIds).containsExactly("server:99")
+            assertThat(captured[0].addedImageUris).containsExactly(imageUriString)
+        }
+
+    @Test
+    fun `실제 생성 유스케이스의 저장 실패를 재제출하면 점수 없이 저장 완료한다`() =
+        runTest(testDispatcher) {
+            val repository = mockk<ExerciseRecordRepository>()
+            val submitted = mutableListOf<ExerciseWriteInput>()
+            coEvery { repository.createExerciseRecord(capture(submitted)) } returnsMany
+                listOf(BaseResult.Error("CACHE_ERROR", "저장 실패"), BaseResult.Success(LocalExerciseSaveResult("local-id")))
+            setupViewModelForCreateMode(CreateExerciseRecordUseCase(repository))
+            val start = now.minusHours(1)
+            viewModel.setStartTime(start)
+            viewModel.setEndTime(now)
+            viewModel.submitRecord("", "사용자 제목", "타입", "장소", "사용자 본문")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.createResult.replayCache.single()).isInstanceOf(SubmissionResult.Failure::class.java)
+            assertThat(viewModel.startTime.value).isEqualTo(start)
+            viewModel.consumeCreateResult()
+            viewModel.submitRecord("", "사용자 제목", "타입", "장소", "사용자 본문")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.createResult.replayCache.single()).isEqualTo(SubmissionResult.LocalSaved("local-id"))
+            assertThat(submitted).hasSize(2)
+            assertThat(submitted[0]).isEqualTo(submitted[1])
+            assertThat(submitted[1].record.detail).isEqualTo("사용자 본문")
+            assertThat(viewModel.isLoading.value).isFalse()
+        }
+
+    @Test
+    fun `로컬 사진을 다시 편집하면 전체 저장 응답 전까지 완료하지 않고 파일 실패 후 같은 입력으로 재시도한다`() =
+        runTest(testDispatcher) {
+            val original = ExerciseRecordPicture("owned-photo", null, "file:///private/exercise-images/photo.png", ExerciseImageSyncStatus.PENDING)
+            setupViewModelForEditMode(sampleRecord.copy(pictures = listOf(original), syncPending = true))
+            val existing = viewModel.imageItems.value.filterIsInstance<ExerciseImageListItem.ExistingImageItem>().single()
+            assertThat(existing.key).isEqualTo(original.localId)
+            assertThat(existing.source).isEqualTo(original.source)
+            viewModel.removeImage(existing)
+            val selected = mockk<Uri>()
+            every { selected.toString() } returns imageUriString
+            viewModel.addImage(listOf(selected))
+            val draft = viewModel.imageItems.value
+            val requests = mutableListOf<ExerciseWriteInput>()
+            val pending = CompletableDeferred<BaseResult<LocalExerciseSaveResult>>()
+            coEvery { mockUpdateUseCase(recordId, capture(requests)) } coAnswers { pending.await() }
+            viewModel.submitRecord(recordId, "보존 제목", "보존 타입", "보존 장소", "보존 본문")
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.isLoading.value).isTrue()
+            assertThat(viewModel.editResult.replayCache).isEmpty()
+            val cause = java.io.IOException("파일 저장 실패")
+            pending.complete(BaseResult.Error("CACHE_ERROR", "사진 저장 실패", cause))
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat((viewModel.editResult.replayCache.single() as SubmissionResult.Failure).cause).isSameInstanceAs(cause)
+            assertThat(viewModel.imageItems.value).isEqualTo(draft)
+            assertThat(viewModel.startTime.value).isEqualTo(sampleRecord.startedAt)
+            assertThat(viewModel.endTime.value).isEqualTo(sampleRecord.endedAt)
+            assertThat(viewModel.isLoading.value).isFalse()
+            viewModel.consumeEditResult()
+            coEvery { mockUpdateUseCase(recordId, capture(requests)) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
+            viewModel.submitRecord(recordId, "보존 제목", "보존 타입", "보존 장소", "보존 본문")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(requests).hasSize(2)
+            assertThat(requests[1]).isEqualTo(requests[0])
+            assertThat(requests[0].removedImageLocalIds).containsExactly("owned-photo")
+            assertThat(requests[0].addedImageUris).containsExactly(imageUriString)
+            assertThat(viewModel.editResult.replayCache.single()).isEqualTo(SubmissionResult.LocalSaved(recordId))
         }
 }

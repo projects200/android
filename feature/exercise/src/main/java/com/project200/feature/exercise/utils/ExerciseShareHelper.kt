@@ -50,7 +50,7 @@ object ExerciseShareHelper {
         theme: StickerTheme = StickerTheme.DARK,
         transformInfo: StickerTransformInfo? = null,
     ) {
-        val backgroundImageUrl = record.pictures?.firstOrNull()?.url
+        val backgroundImageUrl = record.pictures?.firstOrNull()?.source
 
         // 배경 이미지와 스티커를 병렬로 준비
         val backgroundBitmap =

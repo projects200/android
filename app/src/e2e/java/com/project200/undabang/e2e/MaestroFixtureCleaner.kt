@@ -1,7 +1,12 @@
 package com.project200.undabang.e2e
 
+import com.project200.common.di.IoDispatcher
+import com.project200.data.datasource.ExerciseRecordLocalDataSource
+import com.project200.data.datasource.ExerciseRecordRemoteDataSource
+import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.ExerciseRecordRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.delay
 import java.time.LocalDate
 import javax.inject.Inject
@@ -10,12 +15,18 @@ internal class MaestroFixtureCleaner
     @Inject
     constructor(
         private val exerciseRecordRepository: ExerciseRecordRepository,
+        private val remoteDataSource: ExerciseRecordRemoteDataSource,
+        private val localDataSource: ExerciseRecordLocalDataSource,
+        @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) {
         suspend fun clean(
             fixtureStartDate: LocalDate,
             today: LocalDate,
         ) {
             // 계정 확인은 호출자가 실제 registration-status 응답으로 완료한 뒤에만 들어옵니다
+            val memberId =
+                localDataSource.currentMemberId()?.takeIf { it.isNotBlank() }
+                    ?: throw MaestroSetupFailure("fixture_read_failed")
             val candidates = linkedSetOf<String>()
             for (range in MaestroFixturePolicy.monthlyRanges(fixtureStartDate, today)) {
                 val counts =
@@ -54,7 +65,7 @@ internal class MaestroFixtureCleaner
                     throw MaestroSetupFailure("fixture_read_failed")
                 }
                 if (!MaestroFixturePolicy.ownsTitle(record.title)) continue
-                if (!deleteWithRetry(recordId)) {
+                if (!deleteWithRetry(recordId, memberId)) {
                     throw MaestroSetupFailure("fixture_delete_failed")
                 }
             }
@@ -86,12 +97,41 @@ internal class MaestroFixtureCleaner
             throw MaestroSetupFailure("fixture_read_failed")
         }
 
-        private suspend fun deleteWithRetry(recordId: String): Boolean {
+        private suspend fun deleteWithRetry(
+            recordId: String,
+            memberId: String,
+        ): Boolean {
             repeat(MAX_TRANSIENT_ATTEMPTS) { attempt ->
-                when (val result = exerciseRecordRepository.deleteExerciseRecord(recordId)) {
-                    is BaseResult.Success -> return true
+                // 앱 저장소의 로컬 삭제 성공은 서버 정리 완료가 아니므로 fixture만 서버에 직접 요청합니다
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher,
+                        {
+                            val serverId =
+                                localDataSource.resolveServerId(recordId, memberId)?.takeIf { it > 0 }
+                                    ?: throw MaestroSetupFailure("fixture_delete_failed")
+                            if (localDataSource.hasPendingServerRecord(serverId, memberId) ||
+                                !localDataSource.isCurrentMember(memberId)
+                            ) {
+                                throw MaestroSetupFailure("fixture_delete_failed")
+                            }
+                            remoteDataSource.deleteExerciseRecord(serverId)
+                        },
+                        { Unit },
+                    )
+                when (result) {
+                    is BaseResult.Success -> {
+                        // 동기화 완료 캐시만 다음 조회에서 버리며 로컬 대기 변경은 보존합니다
+                        localDataSource.invalidateCache(memberId)
+                        return true
+                    }
                     is BaseResult.Error -> {
-                        if (!isTransient(result) || attempt == MAX_TRANSIENT_ATTEMPTS - 1) return false
+                        if (result.cause is MaestroSetupFailure ||
+                            !isTransient(result) ||
+                            attempt == MAX_TRANSIENT_ATTEMPTS - 1
+                        ) {
+                            return false
+                        }
                     }
                 }
                 delay(RETRY_DELAY_MILLIS shl attempt)

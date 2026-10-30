@@ -15,8 +15,8 @@ sealed class ExerciseImageListItem {
         override val key: String = uri.toString()
     }
 
-    // 기존 이미지 (Url + 서버 ID)
-    data class ExistingImageItem(val url: String, val pictureId: Long) : ExerciseImageListItem() {
-        override val key: String = pictureId.toString()
+    // 서버 연결 후에도 로컬 키와 파일/URL 표시 소스는 그대로 사용합니다.
+    data class ExistingImageItem(val source: String, val localId: String) : ExerciseImageListItem() {
+        override val key: String = localId
     }
 }

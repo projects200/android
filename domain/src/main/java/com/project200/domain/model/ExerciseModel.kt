@@ -15,9 +15,13 @@ data class ExerciseRecord(
     val canModify: Boolean = true
 )
 
+enum class ExerciseImageSyncStatus { PENDING, SYNCED, FAILED }
+
 data class ExerciseRecordPicture(
-    val id: Long,
-    val url: String
+    val localId: String,
+    val serverId: Long?,
+    val source: String,
+    val syncStatus: ExerciseImageSyncStatus,
 )
 
 data class ExerciseListItem(
@@ -36,7 +40,12 @@ data class ExerciseCount(
     val syncPending: Boolean = false
 )
 
-data class ExerciseRecordCreationResult(
+data class LocalExerciseSaveResult(
     val recordId: String,
-    val earnedPoints: Int
+)
+
+data class ExerciseWriteInput(
+    val record: ExerciseRecord,
+    val addedImageUris: List<String> = emptyList(),
+    val removedImageLocalIds: Set<String> = emptySet(),
 )
