@@ -2,6 +2,7 @@
   "flows": [
     "offline-exercise-create",
     "offline-exercise-cached",
+    "offline-exercise-delete",
     "offline-exercise-missing",
     "offline-timers-online",
     "offline-timers-mutate",

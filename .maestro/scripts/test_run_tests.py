@@ -417,6 +417,40 @@ class SessionTransportTests(unittest.TestCase):
         self.assertNotIn(CREDENTIALS["memberId"], report)
         self.assert_no_credential_arguments()
 
+    def test_offline_cleanup_exposes_only_reviewed_failed_status_reasons(self):
+        metadata = {"feature": "offline", "flow": "offline-exercise-create", "run_id": "0123456789abcdef",
+                    "parameters": {}}
+        cases = (
+            ("cleanup", metadata, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed-fixture-delete"),
+            ("cleanup", metadata, "failed", "offline_exercise_cleanup_unsafe", "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"),
+            ("cleanup", metadata, "failed", SYNTHETIC_SECRET, "bootstrap-cleanup-failed"),
+            ("cleanup", metadata, "ready", "fixture_delete_failed", "bootstrap-cleanup-failed"),
+            ("cleanup", {**metadata, "feature": "timer"}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed"),
+            ("cleanup", {}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed"),
+            ("export", {}, "failed", "offline_exercise_cleanup_unsafe", "bootstrap-export-failed"),
+        )
+        self.transport.pending_sleeps = 0
+        for operation, arguments, status, reason, expected in cases:
+            with self.subTest(operation=operation, feature=arguments.get("feature"), status=status):
+                payload = json.dumps({"status": status, "reason": reason, "message": SYNTHETIC_SECRET}).encode("utf-8")
+                self.transport.result = payload
+                self.assert_failure(expected, lambda: self.device.bootstrap(operation, CREDENTIALS, **arguments))
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+        self.assert_no_credential_arguments()
+
+    def test_exercise_local_and_absence_diagnostics_are_fixed_codes_not_server_bodies(self):
+        metadata = {"feature": "offline", "flow": "offline-exercise-create", "run_id": "0123456789abcdef",
+                    "parameters": {}}
+        for reason, expected in (
+            ("offline_exercise_local_mismatch", "offline-suite-exercise-local-mismatch"),
+            ("offline_exercise_identity_changed", "offline-suite-exercise-identity-changed"),
+            ("offline_exercise_server_absence_mismatch", "offline-suite-exercise-server-absence-mismatch"),
+            (SYNTHETIC_SECRET, "bootstrap-feature-observe-failed"),
+        ):
+            with self.subTest(expected=expected):
+                self.transport.result = json.dumps({"status": "failed", "reason": reason, "body": SYNTHETIC_SECRET}).encode("utf-8")
+                self.assert_failure(expected, lambda: self.device.bootstrap("feature-observe", CREDENTIALS, **metadata))
+
     def test_registration_failures_cross_private_transport_for_every_operation_and_feature(self):
         self.transport.pending_sleeps = 0
         reasons = (

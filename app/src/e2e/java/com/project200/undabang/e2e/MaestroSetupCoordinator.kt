@@ -82,10 +82,11 @@ internal class MaestroSetupCoordinator
                             }
                             is MaestroSetupRequest.FeatureObservation -> {
                                 protocol.validateFeatureRecovery(request.featureRequest, required = true)
-                                if (request.featureRequest.feature == "offline" &&
-                                    request.stage in setOf("timers-local-online", "timers-local-created")
+                                if (
+                                    request.featureRequest.feature == "offline" &&
+                                    request.stage in MaestroOfflineFixtures.LOCAL_STAGES
                                 ) {
-                                    // 단절 중에는 복구 표식과 현재 회원만 검증하고 Room 식별자만 읽습니다
+                                    // 단절 중에는 복구 표식과 현재 회원만 검증하고 Room 상태만 읽습니다
                                     sessionBootstrap.verifyLocalCurrent(request.memberId)
                                 } else {
                                     sessionBootstrap.verifyCurrent(request.memberId)
