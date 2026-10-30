@@ -95,17 +95,21 @@ internal class MaestroOfflineExerciseFixture
                     }
                     if (
                         item != null &&
-                        ((item.serverId ?: 0) <= 0 || item.syncState != SyncState.SYNCED ||
-                            item.title != run.exerciseTitle || item.date != run.startedAt.toLocalDate() ||
-                            item.startedAt != run.startedAt || item.endedAt != run.endedAt)
+                        (
+                            (item.serverId ?: 0) <= 0 || item.syncState != SyncState.SYNCED ||
+                                item.title != run.exerciseTitle || item.date != run.startedAt.toLocalDate() ||
+                                item.startedAt != run.startedAt || item.endedAt != run.endedAt
+                        )
                     ) {
                         failCleanup()
                     }
                     if (
                         detail != null &&
-                        ((detail.serverId ?: 0) <= 0 || detail.syncState != SyncState.SYNCED ||
-                            detail.title != run.exerciseTitle || detail.startedAt != run.startedAt || detail.endedAt != run.endedAt ||
-                            !detail.pictures.isNullOrEmpty())
+                        (
+                            (detail.serverId ?: 0) <= 0 || detail.syncState != SyncState.SYNCED ||
+                                detail.title != run.exerciseTitle || detail.startedAt != run.startedAt || detail.endedAt != run.endedAt ||
+                                !detail.pictures.isNullOrEmpty()
+                        )
                     ) {
                         failCleanup()
                     }
