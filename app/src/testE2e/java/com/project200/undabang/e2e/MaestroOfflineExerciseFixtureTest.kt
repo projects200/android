@@ -88,8 +88,7 @@ class MaestroOfflineExerciseFixtureTest {
         return local.createRecord(input(), MEMBER).recordId
     }
 
-    private fun input() =
-        ExerciseWriteInput(ExerciseRecord(run.exerciseTitle, "", "OTHER", run.startedAt, run.endedAt, "", null))
+    private fun input() = ExerciseWriteInput(ExerciseRecord(run.exerciseTitle, "", "OTHER", run.startedAt, run.endedAt, "", null))
 
     private suspend fun observe(stage: String) = observer.observeLocal(MEMBER, run, saved, stage)
 
@@ -184,7 +183,10 @@ class MaestroOfflineExerciseFixtureTest {
                 assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(beforeJournal)
                 database.exerciseRecordDao().upsertListItems(listOf(item))
                 database.exerciseRecordDao().upsertDetail(detail)
-                database.openHelper.writableDatabase.execSQL("DELETE FROM exercise_sync WHERE memberId = ? AND localId = ?", arrayOf(MEMBER, id))
+                database.openHelper.writableDatabase.execSQL(
+                    "DELETE FROM exercise_sync WHERE memberId = ? AND localId = ?",
+                    arrayOf(MEMBER, id),
+                )
                 database.exerciseSyncDao().saveDesired(journal)
             }
         }
@@ -197,7 +199,13 @@ class MaestroOfflineExerciseFixtureTest {
             val journal = database.exerciseSyncDao().get(MEMBER, id)!!
             assertThat(
                 database.exerciseSyncDao().claim(
-                    MEMBER, id, journal.revision!!, journal.operationId!!, journal.createRequestId!!, "body", null,
+                    MEMBER,
+                    id,
+                    journal.revision!!,
+                    journal.operationId!!,
+                    journal.createRequestId!!,
+                    "body",
+                    null,
                 ),
             ).isTrue()
             expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-created-relaunch") }
@@ -279,7 +287,12 @@ class MaestroOfflineExerciseFixtureTest {
             val timers = mockk<TimerLocalDataSource>()
             val fixture = MaestroOfflineFixtures(api, context, timers, observer)
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns
-                BaseResponse(true, "OK", "", listOf(GetExerciseRecordListDto(7, run.exerciseTitle, "OTHER", run.startedAt, run.endedAt, null)))
+                BaseResponse(
+                    true,
+                    "OK",
+                    "",
+                    listOf(GetExerciseRecordListDto(7, run.exerciseTitle, "OTHER", run.startedAt, run.endedAt, null)),
+                )
             coEvery { api.getCustomTimerList() } returns BaseResponse(true, "OK", "", GetCustomTimerListDTO(0, emptyList()))
             var id: String? = null
             coEvery { api.getExerciseRecordDetail(7) } coAnswers {
