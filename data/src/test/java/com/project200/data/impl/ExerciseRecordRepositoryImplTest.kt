@@ -741,6 +741,59 @@ class ExerciseRecordRepositoryImplTest {
         }
 
     @Test
+    fun `사진이 있는 생성의 서버 실패는 로컬 기록 없이 저장 실패를 반환한다`() =
+        runTest {
+            val failure = IOException("서버 생성 실패")
+            coEvery { remote.postExerciseRecord(any()) } throws failure
+
+            val result = repository.createExerciseRecord(ExerciseWriteInput(record(), listOf("photo"))) as BaseResult.Error
+
+            assertThat(result.errorCode).isEqualTo("NETWORK_ERROR")
+            assertThat(result.cause).isSameInstanceAs(failure)
+            val dao = database.exerciseRecordDao()
+            assertThat(dao.getListByDate(memberId, date)).isEmpty()
+            assertThat(dao.getDetailByLocalId(memberId, "7")).isNull()
+            assertThat(dao.getDetailByServerId(memberId, 7L)).isNull()
+            assertThat(dao.findListItemLocalId(memberId, 7L)).isNull()
+            assertThat(dao.findDetailLocalId(memberId, 7L)).isNull()
+            assertThat(database.exerciseSyncDao().getByMember(memberId)).isEmpty()
+            coVerify(exactly = 1) { remote.postExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `사진이 있는 생성의 캐시 실패는 서버 생성 재시도 없이 저장 성공과 경고를 반환한다`() =
+        runTest {
+            val failure = IOException("Room 반영 실패")
+            val failingLocal = spyk(local)
+            coEvery { failingLocal.reconcileRecord(7L, any(), memberId, newRecord = true) } throws failure
+            val writer =
+                ExerciseRecordRepositoryImpl(
+                    remote,
+                    failingLocal,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    RuntimeEnvironment.getApplication(),
+                )
+            coEvery { remote.postExerciseRecord(any()) } returns response(PostExerciseResponseDTO(7L, 3))
+
+            val result = writer.createExerciseRecord(ExerciseWriteInput(record(), listOf("photo"))) as BaseResult.Success
+
+            assertThat(result.data.recordId).isEqualTo("7")
+            assertThat(result.refreshError?.errorCode).isEqualTo("CACHE_ERROR")
+            assertThat(result.refreshError?.cause).isSameInstanceAs(failure)
+            assertThat(result.isCachedSnapshot).isFalse()
+            assertThat(invalidatedMembers).containsExactly(memberId)
+            val dao = database.exerciseRecordDao()
+            assertThat(dao.getListByDate(memberId, date)).isEmpty()
+            assertThat(dao.getDetailByLocalId(memberId, "7")).isNull()
+            assertThat(dao.getDetailByServerId(memberId, 7L)).isNull()
+            assertThat(dao.findListItemLocalId(memberId, 7L)).isNull()
+            assertThat(dao.findDetailLocalId(memberId, 7L)).isNull()
+            assertThat(database.exerciseSyncDao().getByMember(memberId)).isEmpty()
+            coVerify(exactly = 1) { remote.postExerciseRecord(any()) }
+        }
+
+    @Test
     fun `사진 온라인 삭제 대기 중 로컬 본문 수정은 즉시 저장하고 늦은 응답은 복구 상태만 남긴다`() =
         runTest {
             val id = local.reconcileRecord(7L, record(), memberId)!!

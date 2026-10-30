@@ -207,13 +207,17 @@ class ExerciseRecordRepositoryImpl
                             dto?.exerciseId ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
                         },
                     )
-                if (result !is BaseResult.Success) return@write result
-                var id = result.data.toString()
-                val error =
-                    cacheAfterWrite(memberId) {
-                        id = localDataSource.reconcileRecord(result.data, input.record, memberId, newRecord = true) ?: id
+                when (result) {
+                    is BaseResult.Error -> result
+                    is BaseResult.Success -> {
+                        var id = result.data.toString()
+                        val error =
+                            cacheAfterWrite(memberId) {
+                                id = localDataSource.reconcileRecord(result.data, input.record, memberId, newRecord = true) ?: id
+                            }
+                        BaseResult.Success(LocalExerciseSaveResult(id), error)
                     }
-                BaseResult.Success(LocalExerciseSaveResult(id), error)
+                }
             }
         }
 
