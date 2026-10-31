@@ -6,6 +6,8 @@ import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.manager.TimerSyncScheduler
 import com.project200.domain.model.SessionExitReason
 import com.project200.domain.repository.AuthRepository
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 class ClearSessionUseCase
@@ -36,12 +38,24 @@ constructor(
                 sessionDataCleaner.clearAll()
             }
         } finally {
-            fcmTokenSyncScheduler.cancel()
-            timerSyncScheduler.cancel()
-            exerciseSyncScheduler.cancel()
-            when (reason) {
-                SessionExitReason.USER_INITIATED -> authRepository.clearSession()
-                SessionExitReason.FORCED -> authRepository.clearTokens()
+            withContext(NonCancellable) {
+                // 먼저 자격 증명을 막습니다. 취소 실패나 호출자 취소로 세션이 살아남으면 안 됩니다.
+                try {
+                    when (reason) {
+                        SessionExitReason.USER_INITIATED -> authRepository.clearSession()
+                        SessionExitReason.FORCED -> authRepository.clearTokens()
+                    }
+                } finally {
+                    try {
+                        fcmTokenSyncScheduler.cancel()
+                    } finally {
+                        try {
+                            timerSyncScheduler.cancel()
+                        } finally {
+                            exerciseSyncScheduler.cancel()
+                        }
+                    }
+                }
             }
         }
     }

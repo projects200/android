@@ -35,7 +35,8 @@ internal class MaestroSessionBootstrap
             val authorizationResponse = state.lastAuthorizationResponse ?: throw MaestroSetupFailure("untrusted_session")
             val restoredTokens = tokensForRestore(state)
 
-            authRepository.clearSession()
+            // 회원 식별자를 지우면 같은 계정의 미전송 데이터도 소유자 미상으로 판정되므로 자격 증명만 교체합니다.
+            authRepository.clearTokens()
             authStateManager.update(authorizationResponse, null)
             authStateManager.update(restoredTokens, null)
 

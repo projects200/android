@@ -3,6 +3,7 @@ package com.project200.undabang.e2e
 import android.app.Application
 import android.content.Context
 import android.net.Uri
+import android.util.Base64
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseImageFileStore
@@ -114,6 +115,7 @@ class MaestroOfflineRecoveryTest {
         protocol.deleteRequest()
         protocol.clearOutputs()
         protocol.completeFeatureRecovery()
+        preferences.completePendingLogin()
         preferences.saveMemberId(MEMBER, null)
         every { config.cognitoRegion } returns "test-region"
         every { config.cognitoUserPoolId } returns "test-pool"
@@ -152,7 +154,17 @@ class MaestroOfflineRecoveryTest {
             current.update(refreshed, null)
             TokenRefreshResult.Success(refreshed)
         }
+        coEvery { dataCleaner.hasStoredData() } coAnswers { pending.isNotEmpty() }
         coEvery { dataCleaner.clearAll() } coAnswers { pending.clear() }
+        coEvery { dataCleaner.clearForAccountAdoption(any(), any(), any()) } coAnswers {
+            assertThat(firstArg<Boolean>()).isFalse()
+            if (!secondArg<() -> Boolean>().invoke() || pending.isNotEmpty()) {
+                false
+            } else {
+                thirdArg<() -> Unit>().invoke()
+                true
+            }
+        }
         val imageFileStore = ExerciseImageFileStore(context)
         val repository = AuthRepositoryImpl(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher(), imageFileStore)
         val registrationCheck = MaestroRegistrationCheck(api, preferences, stateManager, dataCleaner, UnconfinedTestDispatcher(), imageFileStore)
@@ -186,6 +198,7 @@ class MaestroOfflineRecoveryTest {
         protocol.clearOutputs()
         protocol.completeFeatureRecovery()
         preferences.clearMemberId()
+        preferences.completePendingLogin()
         File(context.filesDir, "maestro-offline-state.json").delete()
     }
 
@@ -623,17 +636,42 @@ class MaestroOfflineRecoveryTest {
     }
 
     @Test
-    fun `일반 인증은 기존 회원 초기화와 등록 저장소의 계정 경계 정리를 유지한다`() =
+    fun `일반 인증은 같은 회원의 식별자와 미전송 데이터를 보존한다`() =
         runTest {
             val memberId = bootstrap.authenticate(savedState, MEMBER)
 
             assertThat(memberId).isEqualTo(MEMBER)
             assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
-            assertThat(pending).isEmpty()
-            coVerify(exactly = 1) { dataCleaner.clearAll() }
+            assertThat(preferences.getRetainedMemberId()).isEqualTo(MEMBER)
+            assertThat(preferences.getMemberSubject()).isEqualTo(SUBJECT)
+            assertThat(preferences.getPendingLogin()).isNull()
+            assertThat(pending).containsExactly("pending-create", "pending-update", "pending-delete")
+            coVerify(exactly = 0) { dataCleaner.clearAll() }
+            coVerify(exactly = 0) { dataCleaner.clearForAccountAdoption(any(), any(), any()) }
             coVerify(exactly = 1) { authManager.refreshAccessToken() }
             coVerify(exactly = 1) { api.getIsRegistered() }
         }
+
+    @Test
+    fun `일반 인증은 다른 회원의 계정 교체를 승인하지 않고 미전송 데이터를 보존한다`() {
+        preferences.saveMemberId("other-local-member", null)
+
+        val failure =
+            assertThrows(MaestroSetupFailure::class.java) {
+                runTest { bootstrap.authenticate(savedState, MEMBER) }
+            }
+
+        assertThat(failure.reason).isEqualTo("registration_unknown")
+        assertThat(preferences.getRetainedMemberId()).isEqualTo("other-local-member")
+        assertThat(preferences.getMemberId()).isNull()
+        assertThat(preferences.getPendingLogin()?.targetMemberId).isEqualTo(MEMBER)
+        assertThat(preferences.getPendingLogin()?.confirmationId).isNotNull()
+        assertThat(pending).containsExactly("pending-create", "pending-update", "pending-delete")
+        coVerify(exactly = 0) { dataCleaner.clearAll() }
+        coVerify(exactly = 0) { dataCleaner.clearForAccountAdoption(any(), any(), any()) }
+        coVerify(exactly = 1) { authManager.refreshAccessToken() }
+        coVerify(exactly = 1) { api.getIsRegistered() }
+    }
 
     @Test
     fun `실제 등록 HTTP 실패는 private 결과로 전달되고 fixture 준비나 정리를 시작하지 않는다`() =
@@ -678,9 +716,16 @@ class MaestroOfflineRecoveryTest {
         TokenResponse.Builder(response.createTokenExchangeRequest())
             .setTokenType("Bearer")
             .setAccessToken("test-access-token")
-            .setIdToken("test-id-token")
+            .setIdToken(jwt())
             .setRefreshToken(refreshToken)
             .build()
+
+    private fun jwt(): String {
+        val payload = JSONObject().put("sub", SUBJECT).put("iss", ISSUER).put("aud", CLIENT)
+        return "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9." +
+            Base64.encodeToString(payload.toString().toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE) +
+            ".synthetic-signature"
+    }
 
     private fun writeCleanup(
         owner: MaestroFeatureRequest = feature,
@@ -744,6 +789,7 @@ class MaestroOfflineRecoveryTest {
 
     private companion object {
         const val MEMBER = "dedicated-member"
+        const val SUBJECT = "dedicated-subject"
         const val CLIENT = "test-client"
         const val ISSUER = "https://dev-auth.example.test/pool"
     }

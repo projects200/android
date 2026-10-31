@@ -16,8 +16,13 @@ import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
 import io.mockk.just
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.yield
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -132,5 +137,41 @@ class ClearSessionUseCaseTest {
         // Then: 세션이 없으면 전송할 수 없다
         verify(exactly = 2) { mockFcmTokenSyncScheduler.cancel() }
         verify(exactly = 2) { mockExerciseSyncScheduler.cancel() }
+    }
+
+    @Test
+    fun `예약 취소 실패에도 토큰 종료와 나머지 예약 취소를 수행한다`() = runTest {
+        every { mockFcmTokenSyncScheduler.cancel() } throws IllegalStateException("scheduler")
+
+        val failure = runCatching { useCase(SessionExitReason.FORCED) }.exceptionOrNull()
+
+        assertThat(failure).isInstanceOf(IllegalStateException::class.java)
+        coVerify(exactly = 1) { mockRepository.clearTokens() }
+        verify(exactly = 1) { mockTimerSyncScheduler.cancel() }
+        verify(exactly = 1) { mockExerciseSyncScheduler.cancel() }
+        coVerify(exactly = 0) { mockSessionDataCleaner.clearAll() }
+    }
+
+    @Test
+    fun `호출자 취소에도 중단 가능한 세션 정리를 끝내고 모든 예약을 취소한다`() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        var credentialsCleared = false
+        coEvery { mockSessionDataCleaner.clearAll() } coAnswers {
+            entered.complete(Unit)
+            awaitCancellation()
+        }
+        coEvery { mockRepository.clearSession() } coAnswers {
+            yield()
+            credentialsCleared = true
+        }
+
+        val clearing = launch { useCase(SessionExitReason.USER_INITIATED) }
+        entered.await()
+        clearing.cancelAndJoin()
+
+        assertThat(credentialsCleared).isTrue()
+        verify(exactly = 1) { mockFcmTokenSyncScheduler.cancel() }
+        verify(exactly = 1) { mockTimerSyncScheduler.cancel() }
+        verify(exactly = 1) { mockExerciseSyncScheduler.cancel() }
     }
 }

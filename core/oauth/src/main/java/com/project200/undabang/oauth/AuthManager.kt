@@ -23,7 +23,11 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 interface AuthResultCallback {
-    fun onAuthFlowStarted(authIntent: Intent)
+    /** 취소되거나 다른 로그인으로 대체된 요청은 자격 증명을 저장할 수 없습니다. */
+    fun isActive(): Boolean
+
+    /** 브라우저 실행 전에 발신 state를 활성 로그인 시도에 묶습니다. */
+    fun onAuthFlowStarted(authIntent: Intent, authorizationState: String)
 
     fun onSuccess(tokenResponse: TokenResponse)
 
@@ -104,11 +108,10 @@ class AuthManager
                 }
 
                 val authRequest = authRequestBuilder.build()
-                Timber.tag(TAG).d("Auth Request: ${authRequest.jsonSerializeString()}")
 
                 // Activity에서 authIntent를 받아 실행할 수 있도록 콜백으로 전달 용
                 val authIntent = authService.getAuthorizationRequestIntent(authRequest)
-                callback.onAuthFlowStarted(authIntent)
+                callback.onAuthFlowStarted(authIntent, requireNotNull(authRequest.state))
             } catch (ex: Exception) {
                 if (ex is CancellationException) {
                     throw ex
@@ -123,13 +126,14 @@ class AuthManager
             intent: Intent,
             callback: AuthResultCallback,
         ) {
+            if (!callback.isActive()) return
             val response = AuthorizationResponse.fromIntent(intent)
             val exception = AuthorizationException.fromIntent(intent)
 
             authStateManager.update(response, exception)
 
             if (response != null) {
-                Timber.tag(TAG).i("Authorization successful. Code: ${response.authorizationCode}")
+                Timber.tag(TAG).i("Authorization successful.")
                 exchangeAuthorizationCodeForTokens(authService, response, callback)
             } else {
                 Timber.tag(TAG).e(exception, "Authorization failed: ${exception?.errorDescription}")
@@ -143,10 +147,11 @@ class AuthManager
             callback: AuthResultCallback,
         ) {
             authService.performTokenRequest(response.createTokenExchangeRequest()) { tokenResponse, ex ->
+                if (!callback.isActive()) return@performTokenRequest
                 authStateManager.update(tokenResponse, ex)
 
                 if (tokenResponse != null) {
-                    Timber.tag(TAG).i("Access Token: ${tokenResponse.accessToken}")
+                    Timber.tag(TAG).i("Token exchange succeeded.")
                     callback.onSuccess(tokenResponse)
                 } else {
                     Timber.tag(TAG).e(ex, "Token exchange failed: ${ex?.errorDescription}")
@@ -263,8 +268,12 @@ class AuthManager
                             Timber.tag(
                                 TAG_DEBUG,
                             ).w("Refresh token is invalid (invalid_grant). Clearing local AuthState and forcing logout.")
-                            authStateManager.clearAuthState() // 리프레시 토큰이 무효하므로 로컬 상태 삭제
-                            _forceLogoutFlow.tryEmit(Unit) // 강제 로그아웃 트리거
+                            try {
+                                authStateManager.clearAuthState()
+                            } catch (clearError: Exception) {
+                                Timber.tag(TAG_DEBUG).e(clearError, "토큰 영속 삭제 실패 - 강제 이탈에서 다시 정리합니다.")
+                            }
+                            _forceLogoutFlow.tryEmit(Unit)
                         }
                         // 그 외 다른 에러(예: 네트워크 일시 오류)는 강제 로그아웃 없이 에러 상태만 반환
                         continuation.resume(TokenRefreshResult.Error(ex))

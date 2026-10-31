@@ -113,14 +113,11 @@ class AuthStateManager
 
         fun clearAuthState() {
             currentAuthState = AuthState()
-            try {
-                prefs.edit {
-                    remove(cognitoConfig.authStatePrefKey)
-                }
-                Timber.tag(TAG).i("AuthState cleared from ${cognitoConfig.authPrefsName}.")
-            } catch (e: Exception) {
-                Timber.tag(TAG).e(e, "Failed to clear auth state from ${cognitoConfig.authPrefsName}")
+            // 로그인 게이트는 이 삭제가 디스크에 반영된 뒤에만 해제할 수 있습니다.
+            check(prefs.edit().remove(cognitoConfig.authStatePrefKey).commit()) {
+                "AuthState를 지우지 못했습니다."
             }
+            Timber.tag(TAG).i("AuthState cleared from ${cognitoConfig.authPrefsName}.")
         }
 
         companion object {

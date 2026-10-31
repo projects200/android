@@ -15,6 +15,11 @@
 
     <string name="alert_logout">정말 로그아웃 하시겠어요?</string>
     <string name="logout_error">로그아웃 중 오류가 발생했습니다</string>
+    <string name="logout_in_progress">로그아웃하고 있습니다. 잠시 기다려 주세요.</string>
+    <string name="logout_loss_warning">아직 전송하지 않은 운동·타이머 변경사항과 이 기기에만 저장된 사진이 있다면 로그아웃 시 삭제됩니다. 다시 로그인해도 복구할 수 없습니다.</string>
+    <string name="withdraw_confirmation_title">회원탈퇴 신청 양식을 여시겠어요?</string>
+    <string name="withdraw_loss_warning">탈퇴하면 아직 전송하지 않은 운동·타이머 변경사항과 이 기기에만 저장된 사진을 복구할 수 없게 될 수 있습니다. 아래 버튼은 외부 신청 양식만 열며, 양식을 열거나 돌아오는 것만으로 탈퇴가 완료되거나 이 기기의 데이터가 삭제되지는 않습니다.</string>
+    <string name="withdraw_open_form">신청 양식 열기</string>
 
     <string name="withdraw_url">https://forms.gle/eiZW3iLYnsKjdPVr7</string>
     <string name="customer_service_url">https://forms.gle/8b3kGK34PBfySBxm7</string>

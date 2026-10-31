@@ -5,12 +5,14 @@ import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.lifecycle.lifecycleScope
 import com.project200.domain.model.RegistrationStatus
 import com.project200.presentation.base.BindingActivity
+import com.project200.presentation.compose.components.feedback.SessionConfirmationDialogFragment
 import com.project200.presentation.navigator.ActivityNavigator
 import com.project200.undabang.auth.register.RegisterActivity
 import com.project200.undabang.feature.auth.R
@@ -18,6 +20,7 @@ import com.project200.undabang.feature.auth.databinding.ActivityLoginBinding
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthResultCallback
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
@@ -41,9 +44,10 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
                 result.data?.let { intent: Intent ->
-                    authManager.handleAuthorizationResponse(authService, intent, authCallback)
+                    handleAuthorizationIntent(intent)
                 } ?: Timber.tag(TAG).e(getString(R.string.login_response_empty))
             } else {
+                viewModel.cancelLogin()
                 val ex = result.data?.let { AuthorizationException.fromIntent(it) }
                 if (ex?.code == AuthorizationException.GeneralErrors.USER_CANCELED_AUTH_FLOW.code) {
                     // 사용자가 뒤로가기를 눌러서 직접 취소한 경우
@@ -56,18 +60,24 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             }
         }
 
-    private val authCallback =
+    private fun authCallback(loginGeneration: Long): AuthResultCallback =
         object : AuthResultCallback {
-            override fun onAuthFlowStarted(authIntent: Intent) {
-                authorizationLauncher.launch(authIntent)
+            override fun isActive(): Boolean = viewModel.isLoginActive(loginGeneration)
+
+            override fun onAuthFlowStarted(authIntent: Intent, authorizationState: String) {
+                if (viewModel.bindAuthorizationRequest(loginGeneration, authorizationState)) {
+                    authorizationLauncher.launch(authIntent)
+                }
             }
 
             override fun onSuccess(tokenResponse: TokenResponse) {
-                Timber.tag(TAG).i(getString(R.string.login_success_with_token, tokenResponse.accessToken))
+                if (!isActive()) return
                 viewModel.checkIsRegistered()
             }
 
             override fun onError(exception: AuthorizationException?) {
+                if (!isActive()) return
+                viewModel.cancelLogin()
                 Timber.tag(TAG).e(exception, getString(R.string.login_error_with_description, exception?.errorDescription))
                 when {
                     // 이미 같은 이메일로 다른 소셜에 가입되어 있는 경우, 계정 통합 안내
@@ -83,6 +93,8 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             }
 
             override fun onConfigurationError(exception: Exception) {
+                if (!isActive()) return
+                viewModel.cancelLogin()
                 Timber.tag(TAG).e(exception, getString(R.string.server_address_incorrect))
             }
         }
@@ -97,6 +109,18 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
 
         intent?.let {
             checkIntent(it)
+        }
+        onBackPressedDispatcher.addCallback(this) {
+            if (viewModel.hasLoginToCancel) {
+                viewModel.cancelLogin()
+            } else {
+                isEnabled = false
+                try {
+                    onBackPressedDispatcher.onBackPressed()
+                } finally {
+                    isEnabled = true
+                }
+            }
         }
     }
 
@@ -117,34 +141,77 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
             AuthorizationException.fromIntent(intent) != null
         ) {
             Timber.tag(TAG).d("Handling authorization response from onNewIntent/checkIntent")
-            authManager.handleAuthorizationResponse(authService, intent, authCallback)
+            handleAuthorizationIntent(intent)
             intent.putExtra(USED_INTENT_EXTRA_KEY, true)
         } else {
-            Timber.tag(TAG).w("Intent in checkIntent is not an auth callback: ${intent.data}")
+            Timber.tag(TAG).w("Intent in checkIntent is not an auth callback")
+        }
+    }
+
+    private fun handleAuthorizationIntent(intent: Intent) {
+        val state = AuthorizationResponse.fromIntent(intent)?.state
+        val loginGeneration = viewModel.consumeAuthorizationResponse(state) ?: return
+        authManager.handleAuthorizationResponse(authService, intent, authCallback(loginGeneration))
+    }
+
+    private fun startAuthorization(identityProvider: String) {
+        lifecycleScope.launch {
+            if (!viewModel.beginLogin()) return@launch
+            val loginGeneration = viewModel.loginGeneration()
+            try {
+                authManager.initiateAuthorization(identityProvider, authCallback(loginGeneration))
+            } catch (e: CancellationException) {
+                viewModel.cancelAuthorizationInitiation(loginGeneration)
+                throw e
+            }
         }
     }
 
     override fun setupViews() {
-        binding.googleLoginBtn.setOnClickListener {
-            lifecycleScope.launch {
-                authManager.initiateAuthorization("Google", authCallback)
-            }
-        }
-        binding.kakaoLoginBtn.setOnClickListener {
-            lifecycleScope.launch {
-                authManager.initiateAuthorization("kakao", authCallback)
-            }
-        }
+        binding.googleLoginBtn.setOnClickListener { startAuthorization("Google") }
+        binding.kakaoLoginBtn.setOnClickListener { startAuthorization("kakao") }
     }
 
     override fun setupObservers() {
+        supportFragmentManager.setFragmentResultListener(SessionConfirmationDialogFragment.RESULT_KEY, this) { _, result ->
+            val confirmationId = result.getString(SessionConfirmationDialogFragment.ACTION) ?: return@setFragmentResultListener
+            if (result.getBoolean(SessionConfirmationDialogFragment.CONFIRMED)) {
+                viewModel.confirmAccountAdoption(confirmationId)
+            } else {
+                viewModel.cancelLogin(confirmationId)
+            }
+        }
         viewModel.registrationResult.observe(this) { status ->
+            if (status !is RegistrationStatus.ConfirmationRequired) {
+                (supportFragmentManager.findFragmentByTag("account_adoption") as? SessionConfirmationDialogFragment)?.dismiss()
+            }
             when (status) {
-                RegistrationStatus.Registered -> appNavigator.navigateToMain(this)
-                RegistrationStatus.Unregistered ->
+                RegistrationStatus.Registered -> {
+                    viewModel.consumeResult()
+                    appNavigator.navigateToMain(this)
+                }
+                RegistrationStatus.Unregistered -> {
+                    viewModel.consumeResult()
                     startActivity(Intent(this@LoginActivity, RegisterActivity::class.java))
-                RegistrationStatus.Indeterminate ->
+                }
+                is RegistrationStatus.ConfirmationRequired -> {
+                    val tag = "account_adoption"
+                    val previous = supportFragmentManager.findFragmentByTag(tag)
+                    if (previous?.arguments?.getString(SessionConfirmationDialogFragment.ACTION) != status.confirmationId) {
+                        (previous as? SessionConfirmationDialogFragment)?.dismiss()
+                        SessionConfirmationDialogFragment.newInstance(
+                            action = status.confirmationId,
+                            title = getString(R.string.account_adoption_title),
+                            message = getString(R.string.account_adoption_warning),
+                            confirmText = getString(R.string.account_adoption_confirm),
+                        ).show(supportFragmentManager, tag)
+                    }
+                }
+                RegistrationStatus.Indeterminate -> {
+                    viewModel.consumeResult()
                     Toast.makeText(this, PresentationR.string.network_error, Toast.LENGTH_SHORT).show()
+                }
+                RegistrationStatus.Cancelled, null -> Unit
             }
         }
     }

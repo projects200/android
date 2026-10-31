@@ -2,6 +2,8 @@ package com.project200.undabang.e2e
 
 import android.app.Application
 import android.content.Context
+import android.net.Uri
+import android.util.Base64
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseImageFileStore
@@ -21,10 +23,16 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationRequest
+import net.openid.appauth.AuthorizationResponse
+import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.ResponseTypeValues
+import net.openid.appauth.TokenResponse
 import okhttp3.MediaType
 import okhttp3.ResponseBody
 import okio.Buffer
 import okio.BufferedSource
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertThrows
 import org.junit.Before
@@ -54,14 +62,26 @@ class MaestroRegistrationCheckTest {
 
     @Before
     fun setUp() {
-        preferences.saveMemberId(MEMBER, null)
-        every { stateManager.getCurrent() } returns AuthState()
+        preferences.completePendingLogin()
+        preferences.saveMemberId(MEMBER, SUBJECT)
+        every { stateManager.getCurrent() } returns authorizedState()
+        coEvery { cleaner.hasStoredData() } coAnswers { pending.isNotEmpty() }
         coEvery { cleaner.clearAll() } coAnswers { pending.clear() }
+        coEvery { cleaner.clearForAccountAdoption(any(), any(), any()) } coAnswers {
+            assertThat(firstArg<Boolean>()).isFalse()
+            if (!secondArg<() -> Boolean>().invoke() || pending.isNotEmpty()) {
+                false
+            } else {
+                thirdArg<() -> Unit>().invoke()
+                true
+            }
+        }
     }
 
     @After
     fun tearDown() {
         preferences.clearMemberId()
+        preferences.completePendingLogin()
     }
 
     @Test
@@ -72,22 +92,64 @@ class MaestroRegistrationCheckTest {
             assertThat(check.requireRegistered()).isEqualTo(MEMBER)
 
             assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+            assertThat(preferences.getRetainedMemberId()).isEqualTo(MEMBER)
+            assertThat(preferences.getMemberSubject()).isEqualTo(SUBJECT)
+            assertThat(preferences.getPendingLogin()).isNull()
             assertThat(pending).hasSize(3)
             coVerify(exactly = 0) { cleaner.clearAll() }
+            coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
             coVerify(exactly = 1) { api.getIsRegistered() }
         }
 
     @Test
-    fun `다른 회원의 실제 저장소 등록 확인은 캐시를 지우고 새 회원을 저장한다`() =
+    fun `다른 회원의 등록 확인은 자동 승인하지 않고 기존 회원과 pending을 보존한다`() =
         runTest {
             coEvery { api.getIsRegistered() } returns success("other-member")
 
-            assertThat(check.requireRegistered()).isEqualTo("other-member")
+            assertSafeFailure("registration_unknown") { check.requireRegistered() }
 
-            assertThat(preferences.getMemberId()).isEqualTo("other-member")
-            assertThat(pending).isEmpty()
-            coVerify(exactly = 1) { cleaner.clearAll() }
+            assertBlockedIdentity()
+            assertThat(preferences.getPendingLogin()?.targetMemberId).isEqualTo("other-member")
+            assertThat(preferences.getPendingLogin()?.confirmationId).isNotNull()
+            assertThat(pending).hasSize(3)
+            coVerify(exactly = 0) { cleaner.clearAll() }
+            coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
             coVerify(exactly = 1) { api.getIsRegistered() }
+        }
+
+    @Test
+    fun `소유 회원을 모르는 저장 데이터는 등록 응답만으로 자동 승인하거나 지우지 않는다`() =
+        runTest {
+            preferences.clearMemberId()
+            coEvery { api.getIsRegistered() } returns success(MEMBER)
+
+            assertSafeFailure("registration_unknown") { check.requireRegistered() }
+
+            assertBlockedIdentity(null)
+            assertThat(preferences.getPendingLogin()?.targetMemberId).isEqualTo(MEMBER)
+            assertThat(preferences.getPendingLogin()?.confirmationId).isNotNull()
+            assertThat(pending).hasSize(3)
+            coVerify(exactly = 1) { cleaner.hasStoredData() }
+            coVerify(exactly = 0) { cleaner.clearAll() }
+            coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
+            coVerify(exactly = 1) { api.getIsRegistered() }
+        }
+
+    @Test
+    fun `인증 subject가 없거나 공백이면 등록 요청 없이 기존 데이터를 보존하고 거절한다`() =
+        runTest {
+            for (state in listOf(AuthState(), authorizedState(""), authorizedState(" "))) {
+                every { stateManager.getCurrent() } returns state
+
+                assertSafeFailure("registration_unknown") { check.requireRegistered() }
+
+                assertBlockedIdentity()
+                assertThat(preferences.getPendingLogin()?.subject).isNull()
+                assertThat(pending).hasSize(3)
+            }
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            coVerify(exactly = 0) { cleaner.clearAll() }
+            coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
         }
 
     @Test
@@ -108,7 +170,7 @@ class MaestroRegistrationCheckTest {
                 assertSafeFailure(reason) { check.requireRegistered() }
                 assertSafeFailure(reason) { check.readRegisteredMember() }
 
-                assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+                assertBlockedIdentity()
                 assertThat(pending).hasSize(3)
             }
             coVerify(exactly = 0) { cleaner.clearAll() }
@@ -116,17 +178,21 @@ class MaestroRegistrationCheckTest {
         }
 
     @Test
-    fun `공백 회원도 실제 저장소의 저장 동작 이후 누락 회원으로 보고한다`() =
+    fun `공백 회원 응답은 채택하지 않고 기존 회원과 pending을 보존한다`() =
         runTest {
-            coEvery { api.getIsRegistered() } returns success(" ")
+            for (member in listOf("", " ")) {
+                coEvery { api.getIsRegistered() } returns success(member)
 
-            assertSafeFailure("registration_member_id_missing") { check.requireRegistered() }
+                assertSafeFailure("registration_member_id_missing") { check.requireRegistered() }
+                assertSafeFailure("registration_member_id_missing") { check.readRegisteredMember() }
 
-            // production 저장소는 공백도 Registered로 저장하므로 진단기가 이 동작을 바꾸지 않습니다.
-            assertThat(preferences.getMemberId()).isEqualTo(" ")
-            assertThat(pending).isEmpty()
-            coVerify(exactly = 1) { cleaner.clearAll() }
-            coVerify(exactly = 1) { api.getIsRegistered() }
+                assertBlockedIdentity()
+                assertThat(preferences.getPendingLogin()?.confirmationId).isNull()
+                assertThat(pending).hasSize(3)
+            }
+            coVerify(exactly = 0) { cleaner.clearAll() }
+            coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
+            coVerify(exactly = 4) { api.getIsRegistered() }
         }
 
     @Test
@@ -153,7 +219,7 @@ class MaestroRegistrationCheckTest {
                 assertSafeFailure("registration_http_$status") { check.requireRegistered() }
 
                 assertThat(body.reads).isEqualTo(1)
-                assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+                assertBlockedIdentity()
                 val observationBody = CountingBody(SECRET)
                 coEvery { api.getIsRegistered() } throws HttpException(Response.error<Unit>(status, observationBody))
                 assertSafeFailure("registration_http_$status") { check.readRegisteredMember() }
@@ -180,7 +246,7 @@ class MaestroRegistrationCheckTest {
                 assertSafeFailure(reason) { check.requireRegistered() }
                 assertSafeFailure(reason) { check.readRegisteredMember() }
             }
-            assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+            assertBlockedIdentity()
             assertThat(pending).hasSize(3)
             coVerify(exactly = 0) { cleaner.clearAll() }
             coVerify(exactly = failures.size * 2) { api.getIsRegistered() }
@@ -218,22 +284,33 @@ class MaestroRegistrationCheckTest {
 
         assertThat(normal).isSameInstanceAs(cancellation)
         assertThat(observation).isSameInstanceAs(cancellation)
-        assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+        assertBlockedIdentity()
         coVerify(exactly = 0) { cleaner.clearAll() }
         coVerify(exactly = 2) { api.getIsRegistered() }
     }
 
     @Test
-    fun `서버 성공 후 로컬 캐시 삭제 예외는 등록 HTTP 실패로 바꾸지 않는다`() {
+    fun `서버 성공 후 로컬 저장소 확인 예외는 등록 HTTP 실패로 바꾸지 않는다`() {
         val persistenceFailure = IOException(SECRET)
-        coEvery { api.getIsRegistered() } returns success("other-member")
-        coEvery { cleaner.clearAll() } throws persistenceFailure
+        preferences.clearMemberId()
+        coEvery { api.getIsRegistered() } returns success(MEMBER)
+        coEvery { cleaner.hasStoredData() } throws persistenceFailure
 
         val failure = assertThrows(IOException::class.java) { runTest { check.requireRegistered() } }
 
         assertThat(failure).isSameInstanceAs(persistenceFailure)
-        assertThat(preferences.getMemberId()).isEqualTo(MEMBER)
+        assertBlockedIdentity(null)
+        assertThat(pending).hasSize(3)
+        coVerify(exactly = 0) { cleaner.clearAll() }
+        coVerify(exactly = 0) { cleaner.clearForAccountAdoption(any(), any(), any()) }
         coVerify(exactly = 1) { api.getIsRegistered() }
+    }
+
+    private fun assertBlockedIdentity(member: String? = MEMBER) {
+        assertThat(preferences.getMemberId()).isNull()
+        assertThat(preferences.getRetainedMemberId()).isEqualTo(member)
+        assertThat(preferences.getMemberSubject()).isEqualTo(if (member == null) null else SUBJECT)
+        assertThat(preferences.getPendingLogin()).isNotNull()
     }
 
     private suspend fun assertSafeFailure(
@@ -256,6 +333,37 @@ class MaestroRegistrationCheckTest {
     private fun success(memberId: String): BaseResponse<GetIsRegisteredData> =
         BaseResponse(true, "OK", SECRET, GetIsRegisteredData(memberId, true))
 
+    private fun authorizedState(subject: String = SUBJECT): AuthState {
+        val configuration =
+            AuthorizationServiceConfiguration(
+                Uri.parse("$ISSUER/authorize"),
+                Uri.parse("$ISSUER/token"),
+            )
+        val request =
+            AuthorizationRequest.Builder(configuration, CLIENT, ResponseTypeValues.CODE, Uri.parse("com.project200.undabang://callback"))
+                .setScope("openid")
+                .build()
+        val response = AuthorizationResponse.Builder(request).setAuthorizationCode("test-code").build()
+        val token =
+            TokenResponse.Builder(response.createTokenExchangeRequest())
+                .setTokenType("Bearer")
+                .setAccessToken("test-access-token")
+                .setIdToken(jwt(subject))
+                .setRefreshToken("test-refresh-token")
+                .build()
+        return AuthState().apply {
+            update(response, null)
+            update(token, null)
+        }
+    }
+
+    private fun jwt(subject: String): String {
+        val payload = JSONObject().put("sub", subject).put("iss", ISSUER).put("aud", CLIENT)
+        return "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9." +
+            Base64.encodeToString(payload.toString().toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE) +
+            ".synthetic-signature"
+    }
+
     private class CountingBody(text: String) : ResponseBody() {
         private val buffer = Buffer().writeUtf8(text)
         var reads = 0
@@ -273,6 +381,9 @@ class MaestroRegistrationCheckTest {
 
     private companion object {
         const val MEMBER = "dedicated-member"
+        const val SUBJECT = "dedicated-subject"
+        const val CLIENT = "test-client"
+        const val ISSUER = "https://dev-auth.example.test/pool"
         const val SECRET = "SYNTHETIC_SECRET token/member/body/message/https://private.example.test"
     }
 }
