@@ -71,9 +71,6 @@ class ExerciseDetailFragment : Fragment() {
                         viewModel.consumeDeleteResult()
                         when (result) {
                             is BaseResult.Success -> {
-                                if (result.refreshError != null) {
-                                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
-                                }
                                 parentFragmentManager.setFragmentResult(ExerciseMainFragment.KEY_EXERCISE_WRITTEN, Bundle())
                                 findNavController().popBackStack()
                             }

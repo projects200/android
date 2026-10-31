@@ -5,6 +5,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import com.google.common.truth.Truth.assertThat
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.di.DatabaseModule
 import com.project200.data.impl.RoomSessionDataCleaner
@@ -94,7 +95,7 @@ class TimerSnapshotMigrationTest {
             assertThat(local.getSimpleSnapshot("member-a")).isEmpty()
             assertThat(local.getCustomSnapshot("member-a")).isEmpty()
             assertThat(local.snapshotRevision("member-a", TimerSnapshotEntity.CUSTOM)).isEqualTo(2L)
-            RoomSessionDataCleaner(db, UnconfinedTestDispatcher()).clearAll()
+            RoomSessionDataCleaner(db, UnconfinedTestDispatcher(), ExerciseImageFileStore(context)).clearAll()
             assertThat(local.getSimpleSnapshot("member-a")).isNull()
             assertThat(local.getCustomSnapshot("member-a")).isNull()
             db.close()

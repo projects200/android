@@ -4,6 +4,7 @@ import android.database.sqlite.SQLiteException
 import androidx.room.Room
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.ClockProvider
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.impl.RoomExerciseCacheCleaner
 import com.project200.data.impl.RoomSessionDataCleaner
@@ -16,6 +17,7 @@ import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.ExerciseSyncEntity
 import com.project200.data.local.entity.ExerciseSyncError
 import com.project200.data.local.entity.SyncState
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
@@ -292,7 +294,7 @@ class ExerciseStoragePersistenceTest {
         }
 
     @Test
-    fun `원격 목록 상세 쓰기 반영은 알려진 버전과 실제 조회 날짜와 사진 ID를 보존한다`() =
+    fun `원격 목록과 상세 갱신은 알려진 버전과 실제 조회 날짜와 사진 ID를 보존한다`() =
         runTest {
             val id = local.saveSyncedDetail(7, record())!!
             val original = database.exerciseRecordDao().getDetailByLocalId("member-a", id)!!
@@ -307,7 +309,6 @@ class ExerciseStoragePersistenceTest {
             assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.serverVersion).isEqualTo(42L)
             assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.confirmedDate).isEqualTo(queryDate)
             val images = database.exerciseImageDao().getByRecord("member-a", id)
-            local.reconcileRecord(7, record(), "member-a")
             reopen()
             assertThat(database.exerciseImageDao().getByRecord("member-a", id)).isEqualTo(images)
             assertThat(database.exerciseRecordDao().getListItem("member-a", id)?.confirmedDate).isEqualTo(queryDate)
@@ -317,13 +318,12 @@ class ExerciseStoragePersistenceTest {
     @Test
     fun `저널만 대기인 투영도 원격 갱신 삭제 캐시 무효화와 기간 정리에서 보존한다`() =
         runTest {
-            val id = local.reconcileRecord(7, record(), "member-a")!!
+            local.replaceSyncedListByDate(date, listOf(serverItem()))
+            val id = local.saveSyncedDetail(7, record())!!
             val original = database.exerciseRecordDao().getDetailByLocalId("member-a", id)
             database.exerciseSyncDao().saveDesired(journal().copy(localId = id, serverId = 7, operation = SyncState.UPDATE_PENDING))
             local.replaceSyncedListByDate(date, emptyList())
             local.saveSyncedDetail(7, record().copy(title = "원격"))
-            local.reconcileRecord(7, record().copy(title = "원격"), "member-a")
-            local.invalidateImages(7, "member-a")
             every { preferences.isExerciseCacheInvalidated("member-a") } returns true
             local.prepareCache("member-a")
             cleanExpired()
@@ -336,10 +336,10 @@ class ExerciseStoragePersistenceTest {
     @Test
     fun `사진 소유 행은 상세 갱신해도 남고 캐시 정리는 원격 전용 행만 제거한다`() =
         runTest {
-            val ownedId = local.reconcileRecord(7, record(), "member-a")!!
+            val ownedId = local.saveSyncedDetail(7, record())!!
             val pending = image().copy(recordLocalId = ownedId)
             database.exerciseImageDao().save(pending)
-            val remoteId = local.reconcileRecord(8, record(), "member-a")!!
+            val remoteId = local.saveSyncedDetail(8, record())!!
             local.saveSyncedDetail(7, record().copy(title = "갱신"))
             assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", ownedId)?.title).isEqualTo("갱신")
             every { preferences.isExerciseCacheInvalidated("member-a") } returns true
@@ -350,7 +350,7 @@ class ExerciseStoragePersistenceTest {
             assertThat(database.exerciseImageDao().getByRecord("member-a", ownedId)).contains(pending)
             assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", remoteId)).isNull()
             assertThat(database.exerciseImageDao().getByRecord("member-a", remoteId)).isEmpty()
-            RoomSessionDataCleaner(database, UnconfinedTestDispatcher()).clearAll()
+            RoomSessionDataCleaner(database, UnconfinedTestDispatcher(), ExerciseImageFileStore(context)).clearAll()
             assertThat(database.exerciseImageDao().getByRecord("member-a", ownedId)).isEmpty()
             assertThat(database.exerciseSyncDao().getByMember("member-a")).isEmpty()
         }
@@ -532,7 +532,7 @@ class ExerciseStoragePersistenceTest {
             startedAt = date.atTime(10, 0),
             endedAt = date.atTime(11, 0),
             location = "장소",
-            pictures = listOf(ExerciseRecordPicture(12, "https://example.test/picture")),
+            pictures = listOf(ExerciseRecordPicture("server:12", 12, "https://example.test/picture", ExerciseImageSyncStatus.SYNCED)),
         )
 
     private fun serverItem(): ExerciseListItem =

@@ -2,13 +2,17 @@ package com.project200.data.mapper
 
 import com.project200.data.local.entity.CachedPicture
 import com.project200.data.local.entity.ExerciseCountEntity
+import com.project200.data.local.entity.ExerciseImageEntity
+import com.project200.data.local.entity.ExerciseImageState
 import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.SyncState
 import com.project200.domain.model.ExerciseCount
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
+import java.io.File
 import java.time.LocalDate
 
 fun ExerciseCount.toEntity(memberId: String): ExerciseCountEntity {
@@ -77,7 +81,7 @@ fun ExerciseRecord.toSyncedEntity(
         startedAt = startedAt,
         endedAt = endedAt,
         location = location,
-        pictures = pictures?.map { CachedPicture(it.id, it.url) },
+        pictures = pictures?.mapNotNull { picture -> picture.serverId?.let { CachedPicture(it, picture.source) } },
     )
 }
 
@@ -89,8 +93,19 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         startedAt = startedAt,
         endedAt = endedAt,
         location = location,
-        pictures = pictures?.map { ExerciseRecordPicture(it.id, it.url) },
+        pictures = pictures?.map { ExerciseRecordPicture("server:${it.id}", it.id, it.url, ExerciseImageSyncStatus.SYNCED) },
         syncPending = syncState != SyncState.SYNCED,
         canModify = syncState != SyncState.DELETE_PENDING,
+    )
+}
+
+fun ExerciseImageEntity.toModel(): ExerciseRecordPicture? {
+    if (state == ExerciseImageState.DELETE_PENDING) return null
+    val source = localFilePath?.let { File(it).toURI().toString() } ?: serverUrl ?: return null
+    return ExerciseRecordPicture(
+        localId = localId,
+        serverId = serverPictureId,
+        source = source,
+        syncStatus = if (state == ExerciseImageState.SYNCED) ExerciseImageSyncStatus.SYNCED else ExerciseImageSyncStatus.PENDING,
     )
 }

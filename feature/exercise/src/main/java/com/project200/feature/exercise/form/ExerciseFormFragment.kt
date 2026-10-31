@@ -23,7 +23,6 @@ import androidx.navigation.fragment.findNavController
 import androidx.navigation.fragment.navArgs
 import com.project200.common.constants.RuleConstants.ALLOWED_EXTENSIONS
 import com.project200.common.constants.RuleConstants.MAX_IMAGE
-import com.project200.domain.model.ExerciseEditResult
 import com.project200.domain.model.SubmissionResult
 import com.project200.feature.exercise.detail.ExerciseDetailFragment
 import com.project200.feature.exercise.main.ExerciseMainFragment
@@ -173,21 +172,8 @@ class ExerciseFormFragment : Fragment() {
                         viewModel.consumeCreateResult()
                         when (result) {
                             is SubmissionResult.LocalSaved -> {
-                                if (result.refreshError != null) {
-                                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
-                                }
                                 notifyOwnWrite()
                                 findNavController().popBackStack()
-                            }
-                            is SubmissionResult.PartialSuccess -> {
-                                // 부분 성공 (이미지 업로드 실패)
-                                val message = withCacheWarning(getString(result.messageId), result.refreshError != null)
-                                Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
-                                notifyOwnWrite()
-                                findNavController().navigate(
-                                    ExerciseFormFragmentDirections
-                                        .actionExerciseFormFragmentToExerciseDetailFragment(result.recordId),
-                                )
                             }
                             is SubmissionResult.Failure -> { /* 기록 생성 실패 */ }
                         }
@@ -203,44 +189,21 @@ class ExerciseFormFragment : Fragment() {
         }
     }
 
-    private fun handleEditResult(result: ExerciseEditResult) {
-        if (result is ExerciseEditResult.Success || result is ExerciseEditResult.ImageFailure) notifyOwnWrite()
+    private fun handleEditResult(result: SubmissionResult) {
         when (result) {
-            is ExerciseEditResult.Success -> {
-                // 기록 수정, 이미지 삭제/업로드 성공
-                if (result.refreshError != null) {
-                    Toast.makeText(requireContext(), R.string.exercise_saved_cache_refresh_fail, Toast.LENGTH_LONG).show()
-                }
+            is SubmissionResult.LocalSaved -> {
+                notifyOwnWrite()
                 findNavController().previousBackStackEntry?.savedStateHandle?.set(
                     ExerciseDetailFragment.KEY_RECORD_UPDATED,
                     true,
                 )
                 findNavController().popBackStack()
             }
-            is ExerciseEditResult.ContentFailure -> {
-                // 내용 수정 실패
-                Toast.makeText(requireContext(), withCacheWarning(result.message, result.refreshError != null), Toast.LENGTH_LONG).show()
-            }
-            is ExerciseEditResult.ImageFailure -> {
-                // 이미지 삭제/업로드 실패
-                Toast.makeText(requireContext(), withCacheWarning(result.message, result.refreshError != null), Toast.LENGTH_LONG).show()
-                findNavController().previousBackStackEntry?.savedStateHandle?.set(
-                    ExerciseDetailFragment.KEY_RECORD_UPDATED,
-                    true,
-                )
-                findNavController().popBackStack()
-            }
-            is ExerciseEditResult.Failure -> {
-                // 내용 수정, 이미지 삭제/업로드 실패
+            is SubmissionResult.Failure -> {
                 Toast.makeText(requireContext(), result.message, Toast.LENGTH_SHORT).show()
             }
         }
     }
-
-    private fun withCacheWarning(
-        message: String,
-        hasCacheWarning: Boolean,
-    ): String = if (hasCacheWarning) "$message\n${getString(R.string.exercise_saved_cache_refresh_fail)}" else message
 
     private fun notifyOwnWrite() {
         parentFragmentManager.setFragmentResult(ExerciseMainFragment.KEY_EXERCISE_WRITTEN, Bundle())

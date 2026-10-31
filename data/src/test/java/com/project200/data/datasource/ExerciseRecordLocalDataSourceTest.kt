@@ -343,7 +343,7 @@ class ExerciseRecordLocalDataSourceTest {
         }
 
     @Test
-    fun `상세에만 있는 대기 변경은 목록 삭제 상세 갱신 자신의 쓰기 반영에도 보존된다`() =
+    fun `상세에만 있는 대기 변경은 목록 삭제와 상세 갱신에도 보존된다`() =
         runTest {
             insertRow("protected", 7L, SyncState.SYNCED)
             insertDetail("protected", 7L)
@@ -352,7 +352,6 @@ class ExerciseRecordLocalDataSourceTest {
 
             dataSource.replaceSyncedListByDate(date, emptyList())
             dataSource.saveSyncedDetail(7L, record().copy(title = "서버 값"))
-            dataSource.reconcileRecord(7L, record().copy(title = "쓰기 값"), MEMBER_ID)
             assertThat(dataSource.getListByDate(date).single().recordId).isEqualTo("protected")
             assertThat(dataSource.getDetailByLocalId("protected")?.title).isEqualTo(detail.title)
             assertThat(dataSource.getDetailByLocalId("protected")?.syncPending).isTrue()

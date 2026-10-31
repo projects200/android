@@ -3,6 +3,7 @@ package com.project200.feature.exercise.share
 import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
@@ -46,8 +47,8 @@ class ExerciseShareEditViewModelTest {
             location = "홈짐",
             pictures =
                 listOf(
-                    ExerciseRecordPicture(id = 1L, url = "https://example.com/pic1.jpg"),
-                    ExerciseRecordPicture(id = 2L, url = "https://example.com/pic2.jpg"),
+                    ExerciseRecordPicture("server:1", 1L, "https://example.com/pic1.jpg", ExerciseImageSyncStatus.SYNCED),
+                    ExerciseRecordPicture("server:2", 2L, "https://example.com/pic2.jpg", ExerciseImageSyncStatus.SYNCED),
                 ),
         )
 
@@ -376,7 +377,7 @@ class ExerciseShareEditViewModelTest {
             response.complete(BaseResult.Success(sampleRecordNoPictures))
             testDispatcher.scheduler.runCurrent()
             assertThat(viewModel.exerciseRecord.value).isEqualTo(sampleRecord)
-            assertThat(viewModel.backgroundImageUrl.value).isEqualTo(sampleRecord.pictures!!.first().url)
+            assertThat(viewModel.backgroundImageUrl.value).isEqualTo(sampleRecord.pictures!!.first().source)
             assertThat(viewModel.selectedTheme.value).isEqualTo(StickerTheme.LIGHT)
             assertThat(viewModel.isLoading.value).isFalse()
             coVerify(exactly = 1) { mockGetExerciseRecordDetailUseCase("local", true) }
@@ -399,5 +400,19 @@ class ExerciseShareEditViewModelTest {
             assertThat(viewModel.backgroundImageUrl.value).isNull()
             assertThat(viewModel.isLoading.value).isFalse()
             coVerify(exactly = 0) { mockGetExerciseRecordDetailUseCase(any(), true) }
+        }
+
+    @Test
+    fun `미전송 로컬 사진도 공유 편집의 배경 소스로 그대로 표시한다`() =
+        runTest(testDispatcher) {
+            val picture = ExerciseRecordPicture("owned", null, "file:///private/exercise-images/owned.png", ExerciseImageSyncStatus.PENDING)
+            val record = sampleRecord.copy(pictures = listOf(picture), syncPending = true)
+            coEvery { mockGetExerciseRecordDetailUseCase("local", false) } returns BaseResult.Success(record)
+            viewModel = createViewModel()
+            viewModel.loadExerciseRecord("local")
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.backgroundImageUrl.value).isEqualTo(picture.source)
+            assertThat(viewModel.exerciseRecord.value?.pictures?.single()?.localId).isEqualTo("owned")
+            assertThat(viewModel.isLoading.value).isFalse()
         }
 }
