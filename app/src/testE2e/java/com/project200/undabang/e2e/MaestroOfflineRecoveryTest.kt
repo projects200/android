@@ -73,7 +73,8 @@ class MaestroOfflineRecoveryTest {
     private val preferences = PreferenceManager(context)
     private val protocol = MaestroSetupProtocol(context)
     private val local = mockk<TimerLocalDataSource>()
-    private val offline = MaestroOfflineFixtures(api, context, local)
+    private val exerciseObserver = mockk<MaestroOfflineExerciseFixture>(relaxed = true)
+    private val offline = MaestroOfflineFixtures(api, context, local, exerciseObserver)
 
     // 실제 AuthRepository가 clearAll을 호출하면 pending 증거가 사라지는 경계를 감지합니다.
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
@@ -185,6 +186,20 @@ class MaestroOfflineRecoveryTest {
         preferences.clearMemberId()
         File(context.filesDir, "maestro-offline-state.json").delete()
     }
+
+    @Test
+    fun `운동 대기 보호가 실패하면 원 복구 파일과 회원을 보존하고 모든 서버 삭제를 막는다`() =
+        runTest {
+            coEvery { exerciseObserver.requireSafeCleanup(MEMBER, any(), any()) } throws
+                MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+            writeCleanup()
+            coordinator.consumeRequest()
+            assertFailure("offline_exercise_cleanup_unsafe")
+            assertPreserved()
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
+            coVerify(exactly = 0) { commonCleaner.clean(any(), any()) }
+        }
 
     @Test
     fun `실제 인증 저장소와 서버 삭제 실패를 거쳐도 pending과 회원과 원 ownership이 남는다`() =
@@ -530,6 +545,71 @@ class MaestroOfflineRecoveryTest {
     }
 
     @Test
+    fun `offline feature 관찰은 다섯 로컬 단계만 받고 서버 단계를 로컬 우회로 허용하지 않는다`() {
+        for (stage in MaestroOfflineFixtures.LOCAL_STAGES + setOf("exercise-server-absent", "unknown-stage")) {
+            File(context.filesDir, "maestro-request.json").writeText(
+                JSONObject()
+                    .put("operation", "feature-observe")
+                    .put("feature", "offline")
+                    .put("flow", "offline-exercise-create")
+                    .put("runId", run.id)
+                    .put("memberId", MEMBER)
+                    .put("parameters", JSONObject(feature.parameters.toString()).put("stage", stage))
+                    .toString(),
+            )
+            if (stage in MaestroOfflineFixtures.LOCAL_STAGES) {
+                assertThat(protocol.consumeRequest()).isInstanceOf(MaestroSetupRequest.FeatureObservation::class.java)
+            } else {
+                val failure = assertThrows(MaestroSetupFailure::class.java) { protocol.consumeRequest() }
+                assertThat(failure.reason).isEqualTo("invalid_request")
+            }
+        }
+        assertPreserved()
+    }
+
+    @Test
+    fun `운동 서버 부재 관찰도 실제 인증과 회원 검증이 실패하면 서버 목록을 읽지 않는다`() =
+        runTest {
+            current = authorizedState()
+            val owner = exerciseOwner()
+            coEvery { api.getIsRegistered() } returns success(GetIsRegisteredData("other-member", true))
+            writeObservation(owner, "exercise-server-absent")
+            coordinator.consumeRequest()
+            assertFailure("member_mismatch")
+            assertPreserved()
+            coVerify(exactly = 1) { authManager.refreshAccessToken() }
+            coVerify(exactly = 1) { api.getIsRegistered() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `운동 로컬 관찰 실패는 서버 인증 없이 원 회원과 ownership과 snapshot을 보존한다`() =
+        runTest {
+            current = authorizedState()
+            val owner = exerciseOwner()
+            val snapshot = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            coEvery { exerciseObserver.observeLocal(MEMBER, any(), any(), "exercise-local-created") } throws
+                MaestroSetupFailure("offline_exercise_local_mismatch")
+            File(context.filesDir, "maestro-request.json").writeText(
+                JSONObject()
+                    .put("operation", "feature-observe")
+                    .put("feature", owner.feature)
+                    .put("flow", owner.flow)
+                    .put("runId", owner.runId)
+                    .put("memberId", MEMBER)
+                    .put("parameters", JSONObject(owner.parameters.toString()).put("stage", "exercise-local-created"))
+                    .toString(),
+            )
+            coordinator.consumeRequest()
+            assertFailure("offline_exercise_local_mismatch")
+            assertPreserved()
+            assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(snapshot)
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
     fun `서버 관찰에서 입력을 바꾸면 원래 snapshot을 유지하고 조회 전에 실패한다`() =
         runTest {
             current = authorizedState()
@@ -582,6 +662,16 @@ class MaestroOfflineRecoveryTest {
             assertNoFixtureCalls()
         }
 
+    private fun exerciseOwner(): MaestroFeatureRequest {
+        val owner = feature.copy(flow = "offline-exercise-create")
+        protocol.completeFeatureRecovery()
+        protocol.markFeatureRecovery(owner)
+        recoveryBytes = recoveryFile.readBytes()
+        val file = File(context.filesDir, "maestro-offline-state.json")
+        file.writeText(JSONObject(file.readText()).put("flow", owner.flow).put("baselineExerciseLocalIds", JSONArray()).toString())
+        return owner
+    }
+
     private fun authorizedState(client: String = CLIENT): AuthState {
         val request =
             AuthorizationRequest.Builder(trusted, client, ResponseTypeValues.CODE, Uri.parse(config.redirectUri))
@@ -623,19 +713,22 @@ class MaestroOfflineRecoveryTest {
         )
     }
 
-    private fun writeObservation() {
+    private fun writeObservation(
+        owner: MaestroFeatureRequest = feature,
+        stage: String = "timers-synced",
+    ) {
         File(context.filesDir, "maestro-request.json").writeText(
             JSONObject()
                 .put("operation", "offline-observe")
                 .put("memberId", MEMBER)
                 .put("runId", run.id)
-                .put("flow", feature.flow)
+                .put("flow", owner.flow)
                 .put("startedAt", run.startedAt.toString())
                 .put("endedAt", run.endedAt.toString())
                 .put("initialSeconds", "45")
                 .put("updatedSeconds", "75")
                 .put("stepName", "offline-step")
-                .put("stage", "timers-synced")
+                .put("stage", stage)
                 .toString(),
         )
     }

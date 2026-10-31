@@ -19,6 +19,7 @@ import com.project200.data.local.entity.SyncState
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
+import com.project200.domain.model.ExerciseWriteInput
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import io.mockk.every
@@ -322,7 +323,6 @@ class ExerciseStoragePersistenceTest {
             local.replaceSyncedListByDate(date, emptyList())
             local.saveSyncedDetail(7, record().copy(title = "원격"))
             local.reconcileRecord(7, record().copy(title = "원격"), "member-a")
-            local.reconcileDeletedRecord(7, "member-a")
             local.invalidateImages(7, "member-a")
             every { preferences.isExerciseCacheInvalidated("member-a") } returns true
             local.prepareCache("member-a")
@@ -353,6 +353,120 @@ class ExerciseStoragePersistenceTest {
             RoomSessionDataCleaner(database, UnconfinedTestDispatcher()).clearAll()
             assertThat(database.exerciseImageDao().getByRecord("member-a", ownedId)).isEmpty()
             assertThat(database.exerciseSyncDao().getByMember("member-a")).isEmpty()
+        }
+
+    @Test
+    fun `로컬 생성 전송 중 재편집 삭제와 재개방은 생성 키 원문과 최신 tombstone을 보존한다`() =
+        runTest {
+            val id = local.createRecord(ExerciseWriteInput(record().copy(pictures = null))).recordId
+            val dao = database.exerciseSyncDao()
+            val created = dao.get("member-a", id)!!
+            val request = requireNotNull(created.createRequestId)
+            assertThat(dao.claim("member-a", id, 1, requireNotNull(created.operationId), request, "body-A", null)).isTrue()
+            local.updateRecord(id, ExerciseWriteInput(record().copy(title = "최신 B")))
+            reopen()
+            assertThat(local.getDetailByLocalId(id)?.title).isEqualTo("최신 B")
+            val edited = database.exerciseSyncDao().get("member-a", id)!!
+            local.deleteRecord(id)
+            reopen()
+            val deleted = database.exerciseSyncDao().get("member-a", id)!!
+            assertThat(deleted.operation).isEqualTo(SyncState.DELETE_PENDING)
+            assertThat(deleted.revision).isEqualTo(3L)
+            assertThat(deleted.createRequestId).isEqualTo(request)
+            assertThat(deleted.inFlightBody).isEqualTo("body-A")
+            assertThat(deleted.inFlightOperationId).isEqualTo(created.operationId)
+            assertThat(deleted.inFlightRequestId).isEqualTo(request)
+            assertThat(deleted.inFlightRevision).isEqualTo(1L)
+            assertThat(edited.inFlightBody).isEqualTo(deleted.inFlightBody)
+            assertThat(local.getDetailByLocalId(id)).isNull()
+            assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.title).isEqualTo("최신 B")
+        }
+
+    @Test
+    fun `서버 수정 전송 중 재편집 삭제 후 재개방은 확정 기준과 이전 요청을 유지한다`() =
+        runTest {
+            local.replaceSyncedListByDate(date, listOf(serverItem()))
+            val id = local.saveSyncedDetail(7, record())!!
+            val dao = database.exerciseRecordDao()
+            dao.upsertDetail(dao.getDetailByLocalId("member-a", id)!!.copy(serverVersion = 42))
+            local.updateRecord(id, ExerciseWriteInput(record().copy(title = "수정 A")))
+            val first = database.exerciseSyncDao().get("member-a", id)!!
+            assertThat(database.exerciseSyncDao().claim("member-a", id, 1, requireNotNull(first.operationId), "update", "body-A", 42))
+                .isTrue()
+            local.updateRecord(id, ExerciseWriteInput(record().copy(title = "수정 B")))
+            local.deleteRecord(id)
+            reopen()
+            val latest = database.exerciseSyncDao().get("member-a", id)!!
+            assertThat(latest.operation).isEqualTo(SyncState.DELETE_PENDING)
+            assertThat(latest.revision).isEqualTo(3L)
+            assertThat(latest.confirmedDate).isEqualTo(date)
+            assertThat(latest.serverVersion).isEqualTo(42L)
+            assertThat(latest.inFlightBaseVersion).isEqualTo(42L)
+            assertThat(latest.inFlightBody).isEqualTo("body-A")
+            assertThat(latest.inFlightOperationId).isEqualTo(first.operationId)
+            assertThat(latest.inFlightRevision).isEqualTo(1L)
+            assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)?.title).isEqualTo("수정 B")
+        }
+
+    @Test
+    fun `로컬 생성의 실제 SQLite 조회 표식 실패는 저널 목록 상세와 앞선 표식을 모두 롤백한다`() =
+        runTest {
+            database.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER reject_count_query BEFORE INSERT ON exercise_cache_query WHEN NEW.queryType = 'count' " +
+                    "BEGIN SELECT RAISE(ABORT, 'TEST_LOCAL_CRUD_FAILURE'); END",
+            )
+            assertThat(runCatching { local.createRecord(ExerciseWriteInput(record())) }.exceptionOrNull())
+                .isInstanceOf(SQLiteException::class.java)
+            reopen()
+            assertThat(database.exerciseSyncDao().getByMember("member-a")).isEmpty()
+            assertThat(database.exerciseRecordDao().getListByDate("member-a", date)).isEmpty()
+            assertThat(database.exerciseRecordDao().hasQuery("member-a", "list", date)).isFalse()
+            assertThat(database.exerciseRecordDao().hasQuery("member-a", "count", date)).isFalse()
+            database.openHelper.readableDatabase.query("SELECT COUNT(*) FROM exercise_record_detail").use {
+                assertThat(it.moveToFirst()).isTrue()
+                assertThat(it.getInt(0)).isEqualTo(0)
+            }
+        }
+
+    @Test
+    fun `로컬 수정의 실제 SQLite 실패는 기존 저널 투영과 새 날짜 조회 표식을 되돌린다`() =
+        runTest {
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
+            val original = database.exerciseSyncDao().get("member-a", id)
+            val item = database.exerciseRecordDao().getListItem("member-a", id)
+            val detail = database.exerciseRecordDao().getDetailByLocalId("member-a", id)
+            database.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER reject_count_query BEFORE INSERT ON exercise_cache_query WHEN NEW.queryType = 'count' " +
+                    "BEGIN SELECT RAISE(ABORT, 'TEST_LOCAL_CRUD_FAILURE'); END",
+            )
+            val moved = record().copy(startedAt = date.plusDays(1).atTime(10, 0), endedAt = date.plusDays(1).atTime(11, 0))
+            assertThat(runCatching { local.updateRecord(id, ExerciseWriteInput(moved)) }.exceptionOrNull())
+                .isInstanceOf(SQLiteException::class.java)
+            reopen()
+            assertThat(database.exerciseSyncDao().get("member-a", id)).isEqualTo(original)
+            assertThat(database.exerciseRecordDao().getListItem("member-a", id)).isEqualTo(item)
+            assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)).isEqualTo(detail)
+            assertThat(database.exerciseRecordDao().hasQuery("member-a", "list", date.plusDays(1))).isFalse()
+            assertThat(database.exerciseRecordDao().hasQuery("member-a", "count", date.plusDays(1))).isFalse()
+        }
+
+    @Test
+    fun `미전송 생성 삭제 중 실제 SQLite 실패는 먼저 제거한 저널도 롤백한다`() =
+        runTest {
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
+            val original = database.exerciseSyncDao().get("member-a", id)
+            val item = database.exerciseRecordDao().getListItem("member-a", id)
+            val detail = database.exerciseRecordDao().getDetailByLocalId("member-a", id)
+            database.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER reject_local_delete BEFORE DELETE ON exercise_list_item " +
+                    "BEGIN SELECT RAISE(ABORT, 'TEST_LOCAL_DELETE_FAILURE'); END",
+            )
+            assertThat(runCatching { local.deleteRecord(id) }.exceptionOrNull()).isInstanceOf(SQLiteException::class.java)
+            reopen()
+            assertThat(database.exerciseSyncDao().get("member-a", id)).isEqualTo(original)
+            assertThat(database.exerciseRecordDao().getListItem("member-a", id)).isEqualTo(item)
+            assertThat(database.exerciseRecordDao().getDetailByLocalId("member-a", id)).isEqualTo(detail)
+            assertThat(local.getCountsByRange(date, date).single().count).isEqualTo(1)
         }
 
     private suspend fun cleanExpired() {

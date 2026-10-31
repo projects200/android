@@ -91,6 +91,6 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         location = location,
         pictures = pictures?.map { ExerciseRecordPicture(it.id, it.url) },
         syncPending = syncState != SyncState.SYNCED,
-        canModify = serverId != null && syncState == SyncState.SYNCED,
+        canModify = syncState != SyncState.DELETE_PENDING,
     )
 }

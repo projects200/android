@@ -5,11 +5,9 @@ import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.dto.PatchExerciseRequestDto
 import com.project200.data.dto.PostExerciseRequestDto
-import com.project200.data.dto.PostExerciseResponseDTO
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.ExerciseRecordCreationResult
 import com.project200.domain.model.ExerciseRecordPicture
 import java.time.format.DateTimeFormatter
 
@@ -64,12 +62,5 @@ fun GetExerciseRecordListDto.toModel(): ExerciseListItem {
         startTime = this.exerciseStartedAt,
         endTime = this.exerciseEndedAt,
         imageUrl = this.pictureUrl,
-    )
-}
-
-fun PostExerciseResponseDTO.toModel(): ExerciseRecordCreationResult {
-    return ExerciseRecordCreationResult(
-        recordId = this.exerciseId.toString(),
-        earnedPoints = this.earnedPoints,
     )
 }

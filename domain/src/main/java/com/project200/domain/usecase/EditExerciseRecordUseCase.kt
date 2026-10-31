@@ -2,19 +2,11 @@ package com.project200.domain.usecase
 
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseEditResult
-import com.project200.domain.model.ExerciseRecord
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import com.project200.domain.model.ExerciseWriteInput
 import javax.inject.Inject
 import kotlin.coroutines.cancellation.CancellationException
 
-/**
- * 운동 기록 수정 UseCase
- * 내용 수정과 이미지 작업은 병렬 처리됩니다
- * 이미지 작업은 삭제 완료 후에 업로드를 시작합니다
- * 변경 사항이 있을 시에만 api 호출, 없을 시에는 Success return
- */
+/** 본문만 변경하면 로컬 저장, 사진이 있으면 기존 온라인 경로를 사용합니다 */
 class EditExerciseRecordUseCase @Inject constructor(
     private val updateExerciseRecordUseCase: UpdateExerciseRecordUseCase,
     private val deleteExerciseRecordImagesUseCase: DeleteExerciseRecordImagesUseCase,
@@ -22,85 +14,69 @@ class EditExerciseRecordUseCase @Inject constructor(
 ) {
     suspend operator fun invoke(
         recordId: String,
-        recordToUpdate: ExerciseRecord,
+        input: ExerciseWriteInput,
         isContentChanges: Boolean,
-        imagesToDelete: List<Long>,
-        newImages: List<String>
-    ): ExerciseEditResult = coroutineScope {
-        try {
-            // 내용 수정 작업
-            val contentResultDeferred: Deferred<ExerciseEditResult> = async {
-                // 내용 변경 없을 시 return
-                if (!isContentChanges) return@async ExerciseEditResult.Success(recordId)
-
-                when (val result = updateExerciseRecordUseCase(recordId, recordToUpdate)) {
-                    is BaseResult.Success -> ExerciseEditResult.Success(recordId, result.refreshError)
-                    is BaseResult.Error -> ExerciseEditResult.ContentFailure(
-                        recordId = recordId,
-                        message = result.message ?: EDIT_CONTENT_FAIL,
-                        cause = result.cause
-                    )
-                }
+    ): ExerciseEditResult {
+        var hasSuccessfulOperation = false
+        var refreshError: BaseResult.Error? = null
+        return try {
+            // 잘못된 삭제 의도는 본문이나 사진 요청을 보내기 전에 거절합니다
+            if (input.removedImageIds.any { it <= 0 }) {
+                return ExerciseEditResult.Failure("삭제할 사진의 서버 ID가 올바르지 않습니다")
             }
-
-            // 이미지 수정 작업 (삭제 후 업로드)
-            val imageResultDeferred = async {
-                // 이미지 변경 없을 시 return
-                if (imagesToDelete.isEmpty() && newImages.isEmpty()) {
-                    return@async ExerciseEditResult.Success(recordId)
-                }
-
-                var refreshError: BaseResult.Error? = null
-                // 이미지 삭제
-                if(imagesToDelete.isNotEmpty()) {
-                    val deleteResult = deleteExerciseRecordImagesUseCase(recordId, imagesToDelete)
-                    if (deleteResult is BaseResult.Error) {
-                        return@async ExerciseEditResult.ImageFailure(
+            if (isContentChanges) {
+                when (val result = updateExerciseRecordUseCase(recordId, input)) {
+                    is BaseResult.Error ->
+                        return ExerciseEditResult.ContentFailure(
                             recordId = recordId,
-                            message = deleteResult.message ?: IMAGE_FAIL,
-                            cause = deleteResult.cause
+                            message = result.message ?: EDIT_CONTENT_FAIL,
+                            cause = result.cause,
                         )
+                    is BaseResult.Success -> {
+                        hasSuccessfulOperation = true
+                        refreshError = result.refreshError
                     }
-                    refreshError = (deleteResult as BaseResult.Success).refreshError
                 }
-
-                // 이미지 업로드
-                if (newImages.isNotEmpty()) {
-                    val uploadResult = uploadExerciseRecordImagesUseCase(recordId, newImages)
-                    if (uploadResult is BaseResult.Error) {
-                        return@async ExerciseEditResult.ImageFailure(
-                            recordId = recordId,
-                            message = uploadResult.message ?: IMAGE_FAIL,
-                            cause = uploadResult.cause,
-                            refreshError = refreshError
-                        )
+            }
+            if (input.removedImageIds.isNotEmpty()) {
+                when (val result = deleteExerciseRecordImagesUseCase(recordId, input.removedImageIds.toList())) {
+                    is BaseResult.Error ->
+                        return if (hasSuccessfulOperation) {
+                            ExerciseEditResult.ImageFailure(recordId, result.message ?: IMAGE_FAIL, result.cause, refreshError)
+                        } else {
+                            ExerciseEditResult.Failure(result.message ?: IMAGE_FAIL, result.cause)
+                        }
+                    is BaseResult.Success -> {
+                        hasSuccessfulOperation = true
+                        refreshError = refreshError ?: result.refreshError
                     }
-                    refreshError = refreshError ?: (uploadResult as BaseResult.Success).refreshError
                 }
-                return@async ExerciseEditResult.Success(recordId, refreshError)
             }
-
-            // 내용 수정, 이미지 삭제 및 업로드 작업 결과 수집
-            val contentResult = contentResultDeferred.await()
-            val imageResult = imageResultDeferred.await()
-
-            // 최종 결과 처리
-            return@coroutineScope when {
-                contentResult is ExerciseEditResult.ContentFailure -> contentResult.copy(refreshError = imageResult.refreshError)
-                imageResult is ExerciseEditResult.ImageFailure -> imageResult.copy(refreshError = contentResult.refreshError ?: imageResult.refreshError)
-                contentResult is ExerciseEditResult.Success && imageResult is ExerciseEditResult.Success ->
-                    ExerciseEditResult.Success(recordId, contentResult.refreshError ?: imageResult.refreshError)
-                else -> ExerciseEditResult.Failure(UNEXPECTED_ERROR)
+            if (input.addedImageUris.isNotEmpty()) {
+                when (val result = uploadExerciseRecordImagesUseCase(recordId, input.addedImageUris)) {
+                    is BaseResult.Error ->
+                        return if (hasSuccessfulOperation) {
+                            ExerciseEditResult.ImageFailure(recordId, result.message ?: IMAGE_FAIL, result.cause, refreshError)
+                        } else {
+                            ExerciseEditResult.Failure(result.message ?: IMAGE_FAIL, result.cause)
+                        }
+                    is BaseResult.Success -> refreshError = refreshError ?: result.refreshError
+                }
             }
+            ExerciseEditResult.Success(recordId, refreshError)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            if(e is CancellationException) { throw e }
-            ExerciseEditResult.Failure("기록 수정 중 오류 발생: ${e.message}", e)
+            if (hasSuccessfulOperation) {
+                ExerciseEditResult.ImageFailure(recordId, "기록 수정 중 오류 발생: ${e.message}", e, refreshError)
+            } else {
+                ExerciseEditResult.Failure("기록 수정 중 오류 발생: ${e.message}", e)
+            }
         }
     }
 
     companion object {
         private const val IMAGE_FAIL = "이미지 수정 중 오류 발생"
         private const val EDIT_CONTENT_FAIL = "내용 수정에 실패했습니다"
-        private const val UNEXPECTED_ERROR = "예상치 못한 실패 발생"
     }
 }

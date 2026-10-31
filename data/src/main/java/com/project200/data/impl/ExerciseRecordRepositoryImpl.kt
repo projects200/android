@@ -20,7 +20,8 @@ import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
-import com.project200.domain.model.ExerciseRecordCreationResult
+import com.project200.domain.model.ExerciseWriteInput
+import com.project200.domain.model.LocalExerciseSaveResult
 import com.project200.domain.repository.ExerciseRecordRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
@@ -109,6 +110,7 @@ class ExerciseRecordRepositoryImpl
                 val memberId = localDataSource.currentMemberId()
                 if (!localDataSource.isCurrentMember(memberId)) return@withContext accountChangedError()
                 val serverId = serverId(recordId, memberId)
+                if (localDataSource.isDeleted(recordId, serverId, memberId)) return@withContext recordDeletedError()
                 cachedRead(
                     refresh = refresh && serverId != null,
                     localOnly = localOnly || serverId == null,
@@ -121,6 +123,7 @@ class ExerciseRecordRepositoryImpl
                         localDataSource.saveSyncedDetail(serverId!!, data, owner, recordId.takeIf { it.toLongOrNull() == null })
                     },
                     remote = { owner -> serverId?.let { remoteDetail(it, owner) } ?: localOnlyError() },
+                    missError = { if (serverId == null) localOnlyError() else networkError() },
                 )
             }
 
@@ -131,6 +134,7 @@ class ExerciseRecordRepositoryImpl
             save: suspend (String?, T) -> Unit,
             remote: suspend (String?) -> BaseResult<T>,
             owner: String? = null,
+            missError: () -> BaseResult.Error = { networkError() },
         ): BaseResult<T> {
             val memberId = owner ?: localDataSource.currentMemberId()
             try {
@@ -144,7 +148,7 @@ class ExerciseRecordRepositoryImpl
                             val snapshot = read(memberId)
                             if (!localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
                             if (snapshot != null) return@withLock BaseResult.Success(snapshot, isCachedSnapshot = true)
-                            if (!connected || localOnly) return@withLock networkError()
+                            if (!connected || localOnly) return@withLock missError()
                         }
                         null
                     }
@@ -185,33 +189,54 @@ class ExerciseRecordRepositoryImpl
             }
         }
 
-        override suspend fun createExerciseRecord(record: ExerciseRecord): BaseResult<ExerciseRecordCreationResult> =
-            write { memberId ->
+        // 사진 영속 저장(5/9) 전에는 사진이 있는 요청만 기존 온라인 경로를 사용합니다
+        override suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult> {
+            if (input.removedImageIds.isNotEmpty()) return invalidImagesError()
+            if (input.addedImageUris.isEmpty()) {
+                return localWrite { memberId -> localDataSource.createRecord(input, memberId) }
+            }
+            return write { memberId ->
                 val result =
                     apiCallBuilder(
                         ioDispatcher,
                         {
                             requireCurrentMember(memberId)
-                            remoteDataSource.postExerciseRecord(record.toPostExerciseDTO())
+                            remoteDataSource.postExerciseRecord(input.record.toPostExerciseDTO())
                         },
-                        { dto: PostExerciseResponseDTO? -> dto?.toModel() ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.") },
+                        { dto: PostExerciseResponseDTO? ->
+                            dto?.exerciseId ?: throw NoSuchElementException("운동 기록 생성 응답 데이터가 없습니다.")
+                        },
                     )
-                if (result !is BaseResult.Success) return@write result
-                var id = result.data.recordId
-                val error =
-                    cacheAfterWrite(memberId) {
-                        id = localDataSource.reconcileRecord(id.toLong(), record, memberId) ?: id
+                when (result) {
+                    is BaseResult.Error -> result
+                    is BaseResult.Success -> {
+                        var id = result.data.toString()
+                        val error =
+                            cacheAfterWrite(memberId) {
+                                id = localDataSource.reconcileRecord(result.data, input.record, memberId, newRecord = true) ?: id
+                            }
+                        BaseResult.Success(LocalExerciseSaveResult(id), error)
                     }
-                BaseResult.Success(result.data.copy(recordId = id), error)
+                }
             }
+        }
 
         override suspend fun updateExerciseRecord(
-            record: ExerciseRecord,
+            input: ExerciseWriteInput,
             recordId: String,
-        ): BaseResult<String> =
-            write { memberId ->
-                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+        ): BaseResult<LocalExerciseSaveResult> {
+            if (input.removedImageIds.any { it <= 0 }) return invalidImagesError()
+            if (input.addedImageUris.isEmpty() && input.removedImageIds.isEmpty()) {
+                return localWrite { memberId ->
+                    val id = requireNotNull(localDataSource.resolveExistingLocalId(recordId, memberId)) { "RECORD_NOT_FOUND" }
+                    localDataSource.updateRecord(id, input, memberId)
+                }
+            }
+            return write { memberId ->
+                val id = serverId(recordId, memberId) ?: return@write photoNotReadyError()
+                if (localDataSource.hasPendingServerRecord(id, memberId)) return@write photoNotReadyError()
                 val previous = localDataSource.getDetailByServerId(id, memberId)
+                val record = input.record
                 val result =
                     apiCallBuilder(
                         ioDispatcher,
@@ -225,20 +250,28 @@ class ExerciseRecordRepositoryImpl
                     is BaseResult.Error -> result
                     is BaseResult.Success -> {
                         val error =
-                            cacheAfterWrite(memberId) {
-                                localDataSource.reconcileRecord(id, record.copy(pictures = record.pictures ?: previous?.pictures), memberId)
+                            cacheAfterOnlineWrite(memberId, id) {
+                                // 구경로 응답에는 새 version·확정 날짜가 없으므로 이전 값을 새 ACK로 쓰지 않습니다
+                                localDataSource.reconcileRecord(
+                                    id,
+                                    record.copy(pictures = record.pictures ?: previous?.pictures),
+                                    memberId,
+                                    bodyChanged = true,
+                                )
                             }
-                        BaseResult.Success(recordId, error)
+                        BaseResult.Success(LocalExerciseSaveResult(recordId), error)
                     }
                 }
             }
+        }
 
         override suspend fun uploadExerciseRecordImages(
             recordId: String,
             images: List<String>,
         ): BaseResult<String> =
             write { memberId ->
-                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+                val id = serverId(recordId, memberId) ?: return@write photoNotReadyError()
+                if (localDataSource.hasPendingServerRecord(id, memberId)) return@write photoNotReadyError()
                 val imageUris =
                     images.mapNotNull {
                         try {
@@ -268,7 +301,7 @@ class ExerciseRecordRepositoryImpl
                     is BaseResult.Success -> {
                         val detail = remoteDetail(id, memberId)
                         val error =
-                            cacheAfterWrite(memberId) {
+                            cacheAfterOnlineWrite(memberId, id) {
                                 when (detail) {
                                     is BaseResult.Success -> localDataSource.reconcileRecord(id, detail.data, memberId)
                                     is BaseResult.Error -> {
@@ -287,7 +320,9 @@ class ExerciseRecordRepositoryImpl
             imageIds: List<Long>,
         ): BaseResult<Unit> =
             write { memberId ->
-                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
+                if (imageIds.isEmpty() || imageIds.any { it <= 0 }) return@write invalidImagesError()
+                val id = serverId(recordId, memberId) ?: return@write photoNotReadyError()
+                if (localDataSource.hasPendingServerRecord(id, memberId)) return@write photoNotReadyError()
                 val previous = localDataSource.getDetailByServerId(id, memberId)
                 val result =
                     apiCallBuilder(
@@ -300,7 +335,7 @@ class ExerciseRecordRepositoryImpl
                     )
                 if (result !is BaseResult.Success) return@write result
                 val error =
-                    cacheAfterWrite(memberId) {
+                    cacheAfterOnlineWrite(memberId, id) {
                         if (previous != null) {
                             localDataSource.reconcileRecord(
                                 id,
@@ -315,20 +350,9 @@ class ExerciseRecordRepositoryImpl
             }
 
         override suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit> =
-            write { memberId ->
-                val id = serverId(recordId, memberId) ?: return@write localOnlyError()
-                val result =
-                    apiCallBuilder(
-                        ioDispatcher,
-                        {
-                            requireCurrentMember(memberId)
-                            remoteDataSource.deleteExerciseRecord(id)
-                        },
-                        { Unit },
-                    )
-                if (result !is BaseResult.Success) return@write result
-                val error = cacheAfterWrite(memberId) { localDataSource.reconcileDeletedRecord(id, memberId) }
-                BaseResult.Success(Unit, error)
+            localWrite { memberId ->
+                val id = requireNotNull(localDataSource.resolveExistingLocalId(recordId, memberId)) { "RECORD_NOT_FOUND" }
+                localDataSource.deleteRecord(id, memberId)
             }
 
         private suspend fun remoteDetail(
@@ -394,6 +418,38 @@ class ExerciseRecordRepositoryImpl
                 }
             }
 
+        private suspend fun cacheAfterOnlineWrite(
+            memberId: String,
+            serverId: Long,
+            block: suspend () -> Unit,
+        ): BaseResult.Error? =
+            cacheAfterWrite(memberId) {
+                if (localDataSource.hasPendingServerRecord(serverId, memberId)) {
+                    localDataSource.markOnlineConflict(serverId, memberId)
+                    throw IllegalStateException("ONLINE_WRITE_CONFLICT")
+                }
+                block()
+            }
+
+        private suspend fun <T> localWrite(block: suspend (String) -> T): BaseResult<T> =
+            withContext(ioDispatcher) {
+                val memberId = writeMemberId()
+                stateMutex.withLock {
+                    if (memberId == null || !localDataSource.isCurrentMember(memberId)) return@withLock accountChangedError()
+                    generation++
+                    try {
+                        val result = block(memberId)
+                        if (localDataSource.isCurrentMember(memberId)) BaseResult.Success(result) else accountChangedError()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        cacheError(e)
+                    } finally {
+                        generation++
+                    }
+                }
+            }
+
         private suspend fun <T> write(block: suspend (String) -> BaseResult<T>): BaseResult<T> =
             withContext(ioDispatcher) {
                 writeMutex.withLock writer@{
@@ -420,7 +476,13 @@ class ExerciseRecordRepositoryImpl
 
         private fun networkError() = BaseResult.Error("NETWORK_ERROR", "네트워크 연결 오류가 발생했습니다.")
 
-        private fun localOnlyError() = BaseResult.Error("LOCAL_ONLY_RECORD", "동기화 대기 중인 기록은 서버에서 수정하거나 삭제할 수 없습니다.")
+        private fun localOnlyError() = BaseResult.Error("LOCAL_ONLY_RECORD", "저장된 운동 기록의 상세 정보를 불러올 수 없습니다.")
+
+        private fun recordDeletedError() = BaseResult.Error("RECORD_DELETED", "삭제한 운동 기록입니다.")
+
+        private fun photoNotReadyError() = BaseResult.Error("PHOTO_NOT_READY", "동기화 대기 중인 기록의 사진은 변경할 수 없습니다.")
+
+        private fun invalidImagesError() = BaseResult.Error("INVALID_IMAGE_IDS", "삭제할 사진의 서버 ID가 올바르지 않습니다.")
 
         private fun accountChangedError() = BaseResult.Error("ACCOUNT_CHANGED", "계정이 변경되어 기록을 불러올 수 없습니다.")
 
