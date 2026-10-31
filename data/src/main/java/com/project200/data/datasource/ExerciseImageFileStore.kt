@@ -105,6 +105,14 @@ class ExerciseImageFileStore
             if (file.exists() && !file.delete()) throw IOException("IMAGE_DELETE_FAILED")
         }
 
+        /** 호출자가 사진 저장 잠금을 보유합니다. 외부 원본과 외부를 가리키는 링크는 제외합니다. */
+        fun hasOwnedFiles(): Boolean {
+            val ownedDirectory = directory.canonicalFile
+            val entries = directory.listFiles()
+                ?: return if (!directory.exists()) false else throw IOException("IMAGE_DIRECTORY_UNREADABLE")
+            return entries.any { it.canonicalFile.parentFile == ownedDirectory && it.isFile }
+        }
+
         fun clearOwnedFiles() {
             directory.listFiles()?.forEach { deleteOwned(it.absolutePath) }
         }

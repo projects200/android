@@ -6,6 +6,10 @@ import java.time.LocalDate
 
 interface AuthRepository {
     suspend fun checkIsRegistered(): RegistrationStatus
+    /** 새 자격 증명이 저장되기 전에 일반 계정 조회와 동기화를 차단합니다. */
+    suspend fun beginLogin()
+    suspend fun resumePendingLogin(): RegistrationStatus?
+    suspend fun confirmAccountAdoption(confirmationId: String): RegistrationStatus
     suspend fun logout(): BaseResult<Unit>
     suspend fun signUp(gender: String, nickname: String, birth: LocalDate): BaseResult<Unit>
     suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean>

@@ -32,7 +32,7 @@ internal class MaestroRegistrationCheck
     ) {
         suspend fun requireRegistered(): String {
             val observed = RegistrationObservation(apiService)
-            // 실제 저장소의 회원 저장·계정 변경 시 캐시 삭제 동작을 그대로 사용합니다.
+            // 실제 저장소의 회원 확인·승인 대기 경계를 따르며 계정 교체를 자동 승인하지 않습니다.
             val repository = AuthRepositoryImpl(observed, preferences, authStateManager, sessionDataCleaner, ioDispatcher, imageFileStore)
             if (repository.checkIsRegistered() != RegistrationStatus.Registered) {
                 throw MaestroSetupFailure(observed.failureReason ?: "registration_unknown")
