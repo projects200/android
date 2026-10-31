@@ -1,4 +1,4 @@
-"""Run real offline UI phases with independent server observation and safe recovery."""
+"""Run offline local exercise cancellation and real timer synchronization with safe recovery."""
 
 from pathlib import Path
 import re
@@ -8,7 +8,7 @@ from typing import NamedTuple
 
 
 SCENARIOS = (
-    ("offline-exercise-create", "offline-exercise-cached"),
+    ("offline-exercise-create", "offline-exercise-cached", "offline-exercise-delete"),
     ("offline-exercise-missing",),
     ("offline-timers-online", "offline-timers-mutate", "offline-timers-relaunch",
      "offline-timers-after-reconnect", "offline-timers-reconnect"),
@@ -164,7 +164,6 @@ def run_suite(args, core):
                 started = time.monotonic()
                 try:
                     core.run_maestro(device, flow, output, redactor, args.flow_timeout, variables=variables)
-                    completed.add(flow)
                 finally:
                     durations[flow] += time.monotonic() - started
 
@@ -181,26 +180,40 @@ def run_suite(args, core):
                 )))
 
             if scenario == SCENARIOS[0]:
-                phase("offline-exercise-create")
-                observe("exercise-online")
                 network.disconnect()
+                phase("offline-exercise-create")
+                observe_local("exercise-local-created")
+                completed.add("offline-exercise-create")
                 phase("offline-exercise-cached")
+                observe_local("exercise-local-created-relaunch")
+                completed.add("offline-exercise-cached")
+                phase("offline-exercise-delete")
+                observe_local("exercise-local-deleted")
+                network.restore()
+                observe("exercise-server-absent")
+                completed.add("offline-exercise-delete")
             elif scenario == SCENARIOS[1]:
                 network.disconnect()
                 phase("offline-exercise-missing")
+                completed.add("offline-exercise-missing")
             else:
                 phase("offline-timers-online")
                 observe("timers-online")
                 observe_local("timers-local-online")
+                completed.add("offline-timers-online")
                 network.disconnect()
                 phase("offline-timers-mutate")
                 observe_local("timers-local-created")
                 core.run_maestro(device, "offline-timers-mutate-finish", output, redactor, args.flow_timeout, variables=variables)
+                completed.add("offline-timers-mutate")
                 phase("offline-timers-relaunch")
+                completed.add("offline-timers-relaunch")
                 network.restore()
                 phase("offline-timers-after-reconnect")
                 observe("timers-synced")
+                completed.add("offline-timers-after-reconnect")
                 phase("offline-timers-reconnect")
+                completed.add("offline-timers-reconnect")
         except core.RunInterrupted:
             errors[owner].append("run-interrupted")
             safe_to_continue = False
@@ -224,11 +237,14 @@ def run_suite(args, core):
                 if prepared and restored:
                     try:
                         device.bootstrap("cleanup", credentials, **metadata)
-                    except Exception:
+                    except Exception as failure:
                         cleanup_failed = True
                         safe_to_continue = False
+                        detail = core.safe_offline_cleanup_failure(failure)
                         for flow in scenario:
                             errors[flow].append("fixture-cleanup-failed")
+                            if detail is not None:
+                                errors[flow].append(detail)
                 if prepared and (not restored or cleanup_failed):
                     for flow in scenario:
                         errors[flow].append("private-state-preserved-for-recovery")

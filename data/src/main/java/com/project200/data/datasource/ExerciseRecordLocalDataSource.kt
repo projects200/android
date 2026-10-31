@@ -163,7 +163,10 @@ class ExerciseRecordLocalDataSource
                 if (definitelyUnsent) {
                     check(
                         database.exerciseSyncDao().deleteMatching(
-                            memberId, localId, previous?.operationId, previous?.revision,
+                            memberId,
+                            localId,
+                            previous?.operationId,
+                            previous?.revision,
                         ) == 1,
                     ) { "JOURNAL_CHANGED" }
                     exerciseRecordDao.deleteUnsentListItem(memberId, localId)
@@ -244,10 +247,12 @@ class ExerciseRecordLocalDataSource
 
         private fun hasIncompleteInFlight(journal: ExerciseSyncEntity): Boolean =
             hasInFlight(journal) &&
-                (journal.inFlightOperation == null || journal.inFlightRevision == null ||
-                    journal.inFlightOperationId.isNullOrBlank() || journal.inFlightRequestId.isNullOrBlank() ||
-                    journal.inFlightBody.isNullOrBlank() ||
-                    (journal.inFlightOperation != SyncState.CREATE_PENDING && journal.inFlightBaseVersion == null))
+                (
+                    journal.inFlightOperation == null || journal.inFlightRevision == null ||
+                        journal.inFlightOperationId.isNullOrBlank() || journal.inFlightRequestId.isNullOrBlank() ||
+                        journal.inFlightBody.isNullOrBlank() ||
+                        (journal.inFlightOperation != SyncState.CREATE_PENDING && journal.inFlightBaseVersion == null)
+                )
 
         private fun desiredJournal(
             memberId: String,
@@ -387,11 +392,16 @@ class ExerciseRecordLocalDataSource
                 val pending = exerciseRecordDao.getPendingInRange(memberId, startDate, endDate).groupBy { it.date }
                 val deltas = mutableMapOf<LocalDate, Int>()
                 val pendingDates = mutableSetOf<LocalDate>()
-                fun add(date: LocalDate?, delta: Int) {
+
+                fun add(
+                    date: LocalDate?,
+                    delta: Int,
+                ) {
                     if (date == null) return
                     deltas[date] = (deltas[date] ?: 0) + delta
                     pendingDates.add(date)
                 }
+
                 journals.filter { it.operation != SyncState.SYNCED }.forEach { journal ->
                     when (journal.operation) {
                         SyncState.CREATE_PENDING -> add(journal.currentDate, 1)

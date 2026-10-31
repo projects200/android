@@ -150,9 +150,11 @@ dependencies {
 
     implementation(libs.firebase.crashlytics.ktx)
 
-    // E2E 진단에서 기존 네트워크 예외 타입만 참조하며 일반 빌드 의존성은 바꾸지 않습니다.
+    // E2E 진단에서 네트워크 예외 타입과 읽기 전용 Room 관찰을 사용하며 일반 빌드 의존성은 바꾸지 않습니다.
     "e2eImplementation"(libs.retrofit.core)
     "e2eImplementation"(libs.moshi.kotlin)
+    "e2eImplementation"(libs.androidx.room.runtime)
+    "e2eImplementation"(libs.androidx.room.ktx)
 
     "testE2eImplementation"(libs.robolectric)
 }

@@ -123,6 +123,9 @@ class OfflineDriverTests(unittest.TestCase):
         self.fail_cleanup = False
         self.fail_prepare = False
         self.fail_upload = False
+        self.failed_observation = None
+        self.cleanup_failure = core.RunnerFailure("bootstrap-cleanup-failed")
+        self.connected = True
         self.prepared_variables = {"TIMER_STEP_NAME": "fixture-step", "TIMER_INITIAL_TIME": "00:53"}
         self.device = mock.Mock()
         self.device.clear.side_effect = lambda: self.events.append("clear")
@@ -130,7 +133,7 @@ class OfflineDriverTests(unittest.TestCase):
         self.device.exercise_variables.side_effect = self.variables
         self.index = 0
         self.network = mock.Mock()
-        self.network.disconnect.side_effect = lambda: self.events.append("disconnect")
+        self.network.disconnect.side_effect = self.disconnect
         self.network.restore.side_effect = self.restore
         for patch in (
             mock.patch.object(core, "Device", return_value=self.device),
@@ -155,6 +158,10 @@ class OfflineDriverTests(unittest.TestCase):
     def bootstrap(self, operation, request, **metadata):
         stage = request.get("stage") or metadata.get("parameters", {}).get("stage")
         self.events.append(operation + (":" + stage if stage else ""))
+        if stage is not None and stage == self.failed_observation:
+            if stage == "exercise-server-absent":
+                raise core.RunnerFailure("offline-suite-exercise-server-absence-mismatch")
+            raise core.RunnerFailure("offline-suite-exercise-local-mismatch")
         if operation == "offline-observe":
             self.assertNotIn("authState", request)
             self.assertEqual(metadata, {})
@@ -164,6 +171,9 @@ class OfflineDriverTests(unittest.TestCase):
         elif operation == "feature-observe":
             self.assertEqual(request, {"memberId": CREDENTIALS["memberId"]})
             self.assertEqual(metadata["feature"], "offline")
+            if stage in ("exercise-local-created", "exercise-local-created-relaunch", "exercise-local-deleted"):
+                self.assertFalse(self.connected)
+                return {}
             if stage == "timers-local-online":
                 return {"TIMER_ORIGINAL_LOCAL_ID": "original-id", "TIMER_DELETE_LOCAL_ID": "deleted-id"}
             if stage == "timers-local-created":
@@ -178,21 +188,28 @@ class OfflineDriverTests(unittest.TestCase):
             if operation == "prepare" and self.fail_prepare:
                 raise core.RunnerFailure("offline-suite-requires-enabled-cache-flag")
             if operation == "cleanup" and self.fail_cleanup:
-                raise core.RunnerFailure("bootstrap-cleanup-failed")
+                raise self.cleanup_failure
             if operation == "prepare":
                 return self.prepared_variables
         return {}
+
+    def disconnect(self):
+        self.events.append("disconnect")
+        self.connected = False
 
     def restore(self):
         self.events.append("restore")
         if self.fail_restore:
             raise core.RunnerFailure("device-network-restore-failed")
+        self.connected = True
 
     def phase(self, _device, name, _output, _redactor, _timeout, **kwargs):
         self.events.append(name)
         self.assertNotIn("authState", kwargs["variables"])
         self.assertNotIn("memberId", kwargs["variables"])
         self.assertEqual(kwargs["variables"]["TIMER_STEP_NAME"], "fixture-step")
+        if name in offline.SCENARIOS[0]:
+            self.assertFalse(self.connected)
         if name in ("offline-timers-mutate", "offline-timers-mutate-finish", "offline-timers-relaunch",
                     "offline-timers-after-reconnect", "offline-timers-reconnect"):
             self.assertEqual(kwargs["variables"]["TIMER_ORIGINAL_LOCAL_ID"], "original-id")
@@ -215,16 +232,34 @@ class OfflineDriverTests(unittest.TestCase):
     def test_every_declared_phase_executes_with_cache_miss_isolated_and_cleanup_ordered(self):
         result = self.run_driver()
         self.assertTrue(all(not errors for errors in result.values()))
-        self.assertEqual(self.events, [
-            "clear", "prepare", "offline-exercise-create", "offline-observe:exercise-online",
-            "disconnect", "offline-exercise-cached", "restore", "cleanup", "clear",
-            "clear", "prepare", "disconnect", "offline-exercise-missing", "restore", "cleanup", "clear",
-            "clear", "prepare", "offline-timers-online", "offline-observe:timers-online",
-            "feature-observe:timers-local-online", "disconnect", "offline-timers-mutate",
-            "feature-observe:timers-local-created", "offline-timers-mutate-finish",
-            "offline-timers-relaunch", "restore", "offline-timers-after-reconnect",
-            "offline-observe:timers-synced", "offline-timers-reconnect", "restore", "cleanup", "clear",
-        ])
+        for ordered in (
+            ("offline-exercise-create", "feature-observe:exercise-local-created",
+             "offline-exercise-cached", "feature-observe:exercise-local-created-relaunch",
+             "offline-exercise-delete", "feature-observe:exercise-local-deleted",
+             "offline-observe:exercise-server-absent"),
+            ("offline-timers-online", "offline-observe:timers-online", "feature-observe:timers-local-online",
+             "offline-timers-mutate", "feature-observe:timers-local-created", "offline-timers-mutate-finish",
+             "offline-timers-relaunch", "offline-timers-after-reconnect",
+             "offline-observe:timers-synced", "offline-timers-reconnect"),
+        ):
+            for earlier, later in zip(ordered, ordered[1:]):
+                self.assertLess(self.events.index(earlier), self.events.index(later), (earlier, later))
+        local_deleted = self.events.index("feature-observe:exercise-local-deleted")
+        restored = self.events.index("restore", local_deleted)
+        server_absent = self.events.index("offline-observe:exercise-server-absent")
+        exercise_cleanup = self.events.index("cleanup")
+        self.assertLess(local_deleted, restored)
+        self.assertLess(restored, server_absent)
+        self.assertLess(server_absent, exercise_cleanup)
+        cache_miss = self.events.index("offline-exercise-missing")
+        self.assertLess(exercise_cleanup, cache_miss)
+        self.assertIn("clear", self.events[exercise_cleanup + 1:cache_miss])
+        timers_local = self.events.index("feature-observe:timers-local-online")
+        self.assertLess(self.events.index("disconnect", timers_local), self.events.index("offline-timers-mutate"))
+        timers_relaunch = self.events.index("offline-timers-relaunch")
+        self.assertLess(self.events.index("restore", timers_relaunch), self.events.index("offline-timers-after-reconnect"))
+        timers_online = self.events.index("offline-timers-online")
+        self.assertLess(self.events.index("offline-timers-reconnect"), self.events.index("cleanup", timers_online))
         calls = self.device.bootstrap.call_args_list
         for prepare in (call for call in calls if call.args[0] == "prepare"):
             cleanup = next(call for call in calls if call.args[0] == "cleanup" and call.kwargs == prepare.kwargs)
@@ -257,6 +292,7 @@ class OfflineDriverTests(unittest.TestCase):
         result = self.run_driver()
         self.assertIn("offline-suite-requires-real-server-upload", result["offline-timers-after-reconnect"])
         self.assertIn("offline-phase-not-executed", result["offline-timers-reconnect"])
+        self.assertIn("offline-phase-not-executed", result["offline-timers-after-reconnect"])
         self.assertNotIn("offline-timers-reconnect", self.events)
         self.assertEqual(self.events[-3:], ["restore", "cleanup", "clear"])
 
@@ -299,7 +335,8 @@ class OfflineDriverTests(unittest.TestCase):
         result = self.run_driver()
         self.assertIn("maestro-flow-failed", result[self.failed_phase])
         self.assertEqual(result["offline-timers-reconnect"], [])
-        self.assertEqual(self.events[6:9], ["restore", "cleanup", "clear"])
+        index = self.events.index("offline-exercise-cached")
+        self.assertEqual(self.events[index + 1:index + 4], ["restore", "cleanup", "clear"])
 
     def test_partial_disconnect_failure_still_restores_before_cleanup(self):
         def fail_disconnect():
@@ -328,6 +365,73 @@ class OfflineDriverTests(unittest.TestCase):
         self.assertIn("final-app-data-clear-failed", result["offline-exercise-create"])
         self.assertIn("final-app-data-clear-failed", result["offline-exercise-cached"])
         self.assertNotIn("offline-exercise-missing", self.events)
+
+    def test_server_absence_failure_belongs_to_delete_phase_and_never_completes_it(self):
+        self.failed_observation = "exercise-server-absent"
+        result = self.run_driver()
+        self.assertIn("offline-suite-exercise-server-absence-mismatch", result["offline-exercise-delete"])
+        self.assertIn("offline-phase-not-executed", result["offline-exercise-delete"])
+        self.assertEqual(result["offline-exercise-create"], [])
+        self.assertEqual(result["offline-exercise-cached"], [])
+        index = self.events.index("offline-observe:exercise-server-absent")
+        self.assertEqual(self.events[index + 1:index + 4], ["restore", "cleanup", "clear"])
+
+    def test_local_observation_failure_does_not_complete_its_ui_phase(self):
+        self.failed_observation = "exercise-local-created-relaunch"
+        self.fail_cleanup = True
+        self.cleanup_failure = core.RunnerFailure("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe")
+        result = self.run_driver()
+        self.assertIn("offline-suite-exercise-local-mismatch", result["offline-exercise-cached"])
+        self.assertIn("offline-phase-not-executed", result["offline-exercise-cached"])
+        self.assertNotIn("offline-phase-not-executed", result["offline-exercise-create"])
+        self.assertNotIn("offline-exercise-delete", self.events)
+        self.assertNotIn("offline-exercise-missing", self.events)
+        self.assertEqual(self.events[-2:], ["restore", "cleanup"])
+        self.assertEqual(self.device.clear.call_count, 1)
+
+    def test_failed_ui_cancellation_keeps_original_error_and_owned_pending_recovery(self):
+        self.failed_phase = "offline-exercise-delete"
+        self.fail_cleanup = True
+        self.cleanup_failure = core.RunnerFailure("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe")
+        result = self.run_driver()
+        self.assertIn("maestro-flow-failed", result["offline-exercise-delete"])
+        self.assertIn("offline-phase-not-executed", result["offline-exercise-delete"])
+        self.assertIn("fixture-cleanup-failed", result["offline-exercise-delete"])
+        self.assertIn("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe", result["offline-exercise-delete"])
+        self.assertNotIn("offline-observe:exercise-server-absent", self.events)
+        self.assertEqual(self.events[-2:], ["restore", "cleanup"])
+        self.assertEqual(self.device.clear.call_count, 1)
+        self.assertNotIn("offline-exercise-missing", self.events)
+
+    def test_cleanup_exports_only_reviewed_detail_to_xml_and_never_exception_text(self):
+        cases = (
+            (core.RunnerFailure("bootstrap-cleanup-failed-fixture-delete"), "bootstrap-cleanup-failed-fixture-delete"),
+            (core.RunnerFailure("bootstrap-cleanup-failed-registration-http-502"), "bootstrap-cleanup-failed-registration-http-502"),
+            (core.RunnerFailure("bootstrap-cleanup-failed-fixture-delete\n" + CREDENTIALS["authState"]["accessToken"]), None),
+            (core.RunnerFailure("bootstrap-cleanup-failed-registration-http-502-extra"), None),
+            (core.RunnerFailure("bootstrap-cleanup-failed-registration-http-999"), None),
+            (core.RunnerFailure("bootstrap-cleanup-failed-" + CREDENTIALS["authState"]["accessToken"]), None),
+            (ValueError("bootstrap-cleanup-failed-fixture-delete"), None),
+        )
+        for failure, detail in cases:
+            with self.subTest(failure=type(failure).__name__, detail=detail):
+                self.fail_cleanup = True
+                self.cleanup_failure = failure
+                result = self.run_driver()
+                errors = result["offline-exercise-delete"]
+                self.assertIn("fixture-cleanup-failed", errors)
+                if detail is not None:
+                    self.assertIn(detail, errors)
+                else:
+                    self.assertFalse(any(error.startswith("bootstrap-cleanup-failed-") for error in errors))
+                core.write_report(self.output, [("offline-exercise-delete", 0, errors)])
+                report = (self.output / "report.xml").read_text(encoding="utf-8")
+                self.assertIn("fixture-cleanup-failed", report)
+                if detail is not None:
+                    self.assertIn(detail, report)
+                else:
+                    self.assertNotIn("bootstrap-cleanup-failed-", report)
+                self.assertNotIn(CREDENTIALS["authState"]["accessToken"], report)
 
     def test_missing_or_symlinked_helper_fails_before_device_setup(self):
         with tempfile.TemporaryDirectory() as directory:

@@ -1,5 +1,5 @@
 appId: com.project200.undabang
-name: 오프라인 조회용 실제 운동 기록 생성
+name: 단절 중 로컬 운동 기록 생성
 ---
 - runFlow: ../subflows/launch-logged-in.yaml
 - tapOn:
@@ -28,17 +28,6 @@ name: 오프라인 조회용 실제 운동 기록 생성
       TIME_MINUTE: "00"
 - tapOn:
     id: exercise_complete
-- extendedWaitUntil:
-    visible:
-      id: ".*(confirm_btn|exercise_create_btn)"
-    timeout: 30000
-- runFlow:
-    when:
-      visible:
-        id: confirm_btn
-    commands:
-      - tapOn:
-          id: confirm_btn
 - extendedWaitUntil:
     visible:
       id: exercise_create_btn

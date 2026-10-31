@@ -22,6 +22,7 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.test.runTest
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Before
 import org.junit.Test
@@ -38,7 +39,8 @@ class MaestroOfflineFixturesTest {
     private val api = mockk<ApiService>()
     private val context: Context = RuntimeEnvironment.getApplication()
     private val local = mockk<TimerLocalDataSource>()
-    private val fixtures = MaestroOfflineFixtures(api, context, local)
+    private val exerciseObserver = mockk<MaestroOfflineExerciseFixture>(relaxed = true)
+    private val fixtures = MaestroOfflineFixtures(api, context, local, exerciseObserver)
     private val run =
         MaestroOfflineRun(
             "0123456789abcdef0123456789abcdef",
@@ -52,6 +54,7 @@ class MaestroOfflineFixturesTest {
         File(context.filesDir, "maestro-offline-state.json").delete()
         every { local.currentMemberId() } returns "member"
         coEvery { local.getCustomTimers("member") } returns emptyList()
+        coEvery { exerciseObserver.baseline("member", any()) } returns JSONArray()
     }
 
     @Test
@@ -113,15 +116,31 @@ class MaestroOfflineFixturesTest {
         }
 
     @Test
-    fun `UI로 만든 운동의 목록과 상세를 서버에서 독립 확인한다`() =
+    fun `취소 뒤 서버 부재는 직접 목록으로 확인하고 실행 제목이 남으면 실패한다`() =
         runTest {
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+            fixtures.observe(run, "exercise-server-absent")
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(listOf(exercise(1, run.exerciseTitle)))
-            coEvery { api.getExerciseRecordDetail(1) } returns success(exerciseDetail(run.exerciseTitle))
-
-            fixtures.observe(run, "exercise-online")
-
-            coVerify(exactly = 1) { api.getExerciseRecordDetail(1) }
+            expectFailure("offline_exercise_server_absence_mismatch") { fixtures.observe(run, "exercise-server-absent") }
             coVerify(exactly = 0) { api.postExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `서버 부재는 실패 응답 null 본문 중복 ID와 잘못된 날짜를 빈 목록으로 바꾸지 않는다`() =
+        runTest {
+            val responses =
+                listOf(
+                    BaseResponse<List<GetExerciseRecordListDto>>(false, "ERROR", "private"),
+                    BaseResponse<List<GetExerciseRecordListDto>>(true, "OK", "", null),
+                    success(listOf(exercise(1, "other"), exercise(1, "other"))),
+                    success(listOf(exercise(0, "other"))),
+                    success(listOf(exercise(1, "other").copy(exerciseStartedAt = run.startedAt.minusDays(1)))),
+                )
+            for (response in responses) {
+                coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns response
+                expectFailure("fixture_read_failed") { fixtures.observe(run, "exercise-server-absent") }
+            }
         }
 
     @Test
@@ -136,7 +155,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.deleteExerciseRecord(1) } returns success<Unit?>(null)
             coEvery { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) } returns success(TimerMutationResponseDTO())
 
-            fixtures.clean(run)
+            fixtures.clean("member", run)
 
             coVerify(exactly = 1) { api.deleteExerciseRecord(1) }
             coVerify(exactly = 1) { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) }
@@ -183,7 +202,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(listOf(exercise(1, run.exerciseTitle)))
             coEvery { api.getCustomTimerList() } returns BaseResponse(false, "SERVER_ERROR", "")
 
-            expectFailure("fixture_read_failed") { fixtures.clean(run) }
+            expectFailure("fixture_read_failed") { fixtures.clean("member", run) }
 
             coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
@@ -196,7 +215,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getCustomTimerList() } returns timerList(run.createdTimer)
             coEvery { api.getCustomTimer(1) } returns success(timer(1, "personal timer", 45))
 
-            fixtures.clean(run)
+            fixtures.clean("member", run)
 
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
         }
@@ -219,7 +238,7 @@ class MaestroOfflineFixturesTest {
                 api.deleteCustomTimer(1, DeleteTimerRequestDTO())
             } returns BaseResponse(false, "SERVER_ERROR", "private diagnostic")
 
-            expectFailure("fixture_delete_failed") { fixtures.clean(run) }
+            expectFailure("fixture_delete_failed") { fixtures.clean("member", run) }
         }
 
     @Test

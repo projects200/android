@@ -277,7 +277,16 @@ class ExerciseRecordRepositoryImplTest {
             val id = "deleted-local"
             val tombstone =
                 ExerciseSyncEntity(
-                    memberId, id, 7L, SyncState.DELETE_PENDING, 1L, "delete-operation", null, 9L, date, date,
+                    memberId,
+                    id,
+                    7L,
+                    SyncState.DELETE_PENDING,
+                    1L,
+                    "delete-operation",
+                    null,
+                    9L,
+                    date,
+                    date,
                     ExerciseRecoveryState.READY,
                 )
             database.exerciseSyncDao().saveDesired(tombstone)
@@ -475,7 +484,11 @@ class ExerciseRecordRepositoryImplTest {
             coEvery { failingLocal.createRecord(any(), memberId, any()) } throws IOException("Room 저장 실패")
             val writer =
                 ExerciseRecordRepositoryImpl(
-                    remote, failingLocal, network, UnconfinedTestDispatcher(), ExerciseImageFileStore(RuntimeEnvironment.getApplication()),
+                    remote,
+                    failingLocal,
+                    network,
+                    UnconfinedTestDispatcher(),
+                    ExerciseImageFileStore(RuntimeEnvironment.getApplication()),
                 )
             assertThat(writer.createExerciseRecord(ExerciseWriteInput(record()))).isInstanceOf(BaseResult.Error::class.java)
             assertThat(local.getListByDate(date)).isEmpty()
