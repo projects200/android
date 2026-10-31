@@ -16,6 +16,8 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "heic", "heif")
+
 /** 파일 준비부터 DB 확정·정리까지 명시적 세션 삭제와 같은 락을 사용합니다. */
 @Singleton
 class ExerciseImageFileStore
@@ -48,11 +50,14 @@ class ExerciseImageFileStore
                     currentCoroutineContext().ensureActive()
                     val uri = Uri.parse(source)
                     require(uri.scheme == "content" || uri.scheme == "file") { "INVALID_IMAGE_URI" }
+                    val sourceMime = resolver.getType(uri)
                     val suffix =
-                        resolver.getType(uri)?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
+                        sourceMime?.let { MimeTypeMap.getSingleton().getExtensionFromMimeType(it) }
                             ?: sourceExtension(uri)
-                    val mime = suffix?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
-                    require(mime?.startsWith("image/") == true && suffix != null) { "UNKNOWN_IMAGE_TYPE" }
+                    val mime = sourceMime ?: suffix?.let { MimeTypeMap.getSingleton().getMimeTypeFromExtension(it) }
+                    val isImage =
+                        mime?.startsWith("image/") == true || suffix?.lowercase() in IMAGE_EXTENSIONS
+                    require(isImage && suffix != null) { "UNKNOWN_IMAGE_TYPE" }
                     val id = UUID.randomUUID().toString()
                     val file = File(directory, "$id.$suffix")
                     check(file.createNewFile()) { "IMAGE_FILE_EXISTS" }

@@ -55,6 +55,25 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.time.LocalDate
 
+private class AccountChangingInputStream(
+    file: File,
+    private val onRead: () -> Unit,
+) : InputStream() {
+    private val delegate = FileInputStream(file)
+
+    override fun read(): Int = delegate.read()
+
+    override fun read(buffer: ByteArray): Int {
+        val count = delegate.read(buffer)
+        onRead()
+        return count
+    }
+
+    override fun close() {
+        delegate.close()
+    }
+}
+
 /** 실제 개인 파일과 재개방 가능한 Room으로 사용자에게 보이는 사진의 수명을 검증합니다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -124,8 +143,11 @@ class ExerciseOwnedPhotosTest {
 
     private fun record(title: String = "운동") = ExerciseRecord(title, "본문", "OTHER", date.atTime(9, 0), date.atTime(10, 0), "장소", null)
 
-    private suspend fun create(file: File): String =
-        (repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(file)))) as BaseResult.Success).data.recordId
+    private suspend fun create(file: File): String {
+        val result = repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(file))))
+        check(result is BaseResult.Success) { "create failed: $result" }
+        return result.data.recordId
+    }
 
     private suspend fun picture(id: String): ExerciseRecordPicture =
         (repository.getExerciseDetail(id, localOnly = true) as BaseResult.Success).data.pictures!!.single()
@@ -252,12 +274,8 @@ class ExerciseOwnedPhotosTest {
         runTest {
             val selected = source()
             openSource = { uri ->
-                object : FileInputStream(File(requireNotNull(uri.path))) {
-                    override fun read(buffer: ByteArray): Int {
-                        val count = super.read(buffer)
-                        memberId = "member-b"
-                        return count
-                    }
+                AccountChangingInputStream(File(requireNotNull(uri.path))) {
+                    memberId = "member-b"
                 }
             }
             assertThat(repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(selected)))))
