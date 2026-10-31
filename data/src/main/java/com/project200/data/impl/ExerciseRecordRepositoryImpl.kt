@@ -254,7 +254,10 @@ class ExerciseRecordRepositoryImpl
                 null
             }
 
-        private suspend fun <T> localWrite(recordId: String? = null, block: suspend (String) -> T): BaseResult<T> =
+        private suspend fun <T> localWrite(
+            recordId: String? = null,
+            block: suspend (String) -> T,
+        ): BaseResult<T> =
             withContext(ioDispatcher) {
                 val memberId = writeMemberId()
                 val sessionRevision = imageFileStore.sessionRevision
@@ -263,7 +266,9 @@ class ExerciseRecordRepositoryImpl
                         if (
                             memberId == null || !localDataSource.isCurrentMember(memberId) ||
                             sessionRevision != imageFileStore.sessionRevision
-                        ) return@files accountChangedError()
+                        ) {
+                            return@files accountChangedError()
+                        }
                         generation++
                         var previousPaths = emptyList<String>()
                         try {

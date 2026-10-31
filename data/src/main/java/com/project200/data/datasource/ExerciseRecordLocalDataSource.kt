@@ -7,7 +7,6 @@ import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.entity.CachedPicture
 import com.project200.data.local.entity.ExerciseCacheQueryEntity
-import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseImageState
 import com.project200.data.local.entity.ExerciseListItemEntity
@@ -216,14 +215,24 @@ class ExerciseRecordLocalDataSource
                 require(existing.none { it.localId == image.localId }) { "DUPLICATE_IMAGE_ID" }
                 dao.save(
                     ExerciseImageEntity(
-                        memberId, recordLocalId, image.localId, null, image.path, null,
-                        ExerciseImageState.ADD_LOCAL, image.requestId, offset + index,
+                        memberId,
+                        recordLocalId,
+                        image.localId,
+                        null,
+                        image.path,
+                        null,
+                        ExerciseImageState.ADD_LOCAL,
+                        image.requestId,
+                        offset + index,
                     ),
                 )
             }
         }
 
-        suspend fun imagePaths(recordId: String, memberId: String): List<String> {
+        suspend fun imagePaths(
+            recordId: String,
+            memberId: String,
+        ): List<String> {
             val localId = resolveExistingLocalId(recordId, memberId) ?: return emptyList()
             return database.exerciseImageDao().getByRecord(memberId, localId).mapNotNull { it.localFilePath }
         }

@@ -101,7 +101,12 @@ class ExerciseImageFileStore
         /** DB가 참조하지 않는다고 확인한 파일에만 호출합니다. 원본 URI와 외부 경로는 삭제하지 않습니다. */
         fun deleteOwned(path: String) {
             val file = File(path)
-            if (file.parentFile?.canonicalFile != directory.canonicalFile || file.canonicalFile.parentFile != directory.canonicalFile) return
+            if (
+                file.parentFile?.canonicalFile != directory.canonicalFile ||
+                file.canonicalFile.parentFile != directory.canonicalFile
+            ) {
+                return
+            }
             if (file.exists() && !file.delete()) throw IOException("IMAGE_DELETE_FAILED")
         }
 

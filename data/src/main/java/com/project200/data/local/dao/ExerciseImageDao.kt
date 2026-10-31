@@ -35,8 +35,10 @@ abstract class ExerciseImageDao {
         val previous = getByRecord(entity.memberId, entity.recordLocalId).find { it.localId == entity.localId }
         require(
             entity.state != ExerciseImageState.ADD_LOCAL ||
-                (entity.serverPictureId == null && !entity.localFilePath.isNullOrBlank() &&
-                    (previous == null || previous.state == ExerciseImageState.ADD_LOCAL)),
+                (
+                    entity.serverPictureId == null && !entity.localFilePath.isNullOrBlank() &&
+                        (previous == null || previous.state == ExerciseImageState.ADD_LOCAL)
+                ),
         ) { "IMAGE_NOT_DEFINITELY_UNSENT" }
         require(previous?.requestId == null || previous.requestId == entity.requestId) { "IMAGE_REQUEST_IMMUTABLE" }
         require(previous?.serverPictureId == null || previous.serverPictureId == entity.serverPictureId) { "PICTURE_ID_IMMUTABLE" }
