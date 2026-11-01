@@ -272,8 +272,9 @@ internal class MaestroOfflineExerciseFixture
             ) {
                 return false
             }
+            val revision = journal?.revision
             return journal != null && journal.serverId == serverId && journal.operation == state &&
-                journal.revision != null && journal.revision > 0 && !journal.operationId.isNullOrBlank() &&
+                revision != null && revision > 0 && !journal.operationId.isNullOrBlank() &&
                 (state != SyncState.CREATE_PENDING || !journal.createRequestId.isNullOrBlank()) && journal.currentDate == item.date &&
                 journal.recoveryState == ExerciseRecoveryState.READY && journal.lastError == null &&
                 journal.inFlightOperation == null && journal.inFlightRevision == null &&

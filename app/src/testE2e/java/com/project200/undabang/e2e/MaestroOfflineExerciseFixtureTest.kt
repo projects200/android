@@ -515,6 +515,7 @@ class MaestroOfflineExerciseFixtureTest {
                     "UPDATE exercise_record_detail SET confirmedDate = '2026-01-01' WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_list_item SET serverVersion = 1 WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET revision = 0 WHERE memberId = ? AND localId = ?",
+                    "UPDATE exercise_sync SET revision = NULL WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET operationId = '' WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET createRequestId = NULL WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET recoveryState = 'RECOVERY_REQUIRED' WHERE memberId = ? AND localId = ?",

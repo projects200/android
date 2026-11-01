@@ -288,30 +288,31 @@ class ExerciseRecordRepositoryImpl
             withContext(ioDispatcher) {
                 val memberId = writeMemberId()
                 val sessionRevision = imageFileStore.sessionRevision
-                val committed = stateMutex.withLock {
-                    imageFileStore.withLock files@{
-                        if (
-                            memberId == null || !localDataSource.isCurrentMember(memberId) ||
-                            sessionRevision != imageFileStore.sessionRevision
-                        ) {
-                            return@files accountChangedError()
-                        }
-                        generation++
-                        var previousPaths = emptyList<String>()
-                        try {
-                            previousPaths = recordId?.let { localDataSource.imagePaths(it, memberId) }.orEmpty()
-                            val result = block(memberId)
-                            if (localDataSource.isCurrentMember(memberId)) BaseResult.Success(result) else accountChangedError()
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (e: Exception) {
-                            cacheError(e)
-                        } finally {
-                            withContext(NonCancellable) { removeUnreferencedFiles(previousPaths) }
+                val committed =
+                    stateMutex.withLock {
+                        imageFileStore.withLock files@{
+                            if (
+                                memberId == null || !localDataSource.isCurrentMember(memberId) ||
+                                sessionRevision != imageFileStore.sessionRevision
+                            ) {
+                                return@files accountChangedError()
+                            }
                             generation++
+                            var previousPaths = emptyList<String>()
+                            try {
+                                previousPaths = recordId?.let { localDataSource.imagePaths(it, memberId) }.orEmpty()
+                                val result = block(memberId)
+                                if (localDataSource.isCurrentMember(memberId)) BaseResult.Success(result) else accountChangedError()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                cacheError(e)
+                            } finally {
+                                withContext(NonCancellable) { removeUnreferencedFiles(previousPaths) }
+                                generation++
+                            }
                         }
                     }
-                }
                 // 로컬 commit 뒤 예약 실패를 저장 실패로 돌려주면 사용자가 중복 생성하게 됩니다
                 if (committed is BaseResult.Success) {
                     try {
@@ -343,8 +344,9 @@ class ExerciseRecordRepositoryImpl
                         bindSyncMemberSubject(memberId)
                         val account = syncAccountGuard.capture(memberId) ?: return@sync ExerciseSyncResult.Skipped
                         var retry = false
-                        val ids = syncState(account) { syncLocalDataSource.pendingIds(memberId) }
-                            ?: return@sync ExerciseSyncResult.Skipped
+                        val ids =
+                            syncState(account) { syncLocalDataSource.pendingIds(memberId) }
+                                ?: return@sync ExerciseSyncResult.Skipped
                         for (localId in ids) {
                             while (true) {
                                 currentCoroutineContext().ensureActive()
@@ -354,21 +356,32 @@ class ExerciseRecordRepositoryImpl
                                 if (!syncAccountGuard.isCurrent(account)) return@sync ExerciseSyncResult.Skipped
                                 when (response) {
                                     is BaseResult.Success -> {
-                                        val applied = syncState(account, localId) {
-                                            if (snapshot.kind == ExerciseRequestKind.BODY) {
-                                                syncLocalDataSource.applyBody(snapshot, response.data.serverId, response.data.version, response.data.date)
-                                            } else {
-                                                syncLocalDataSource.applyPhoto(snapshot, response.data.version, response.data.picture)
+                                        val applied =
+                                            syncState(account, localId) {
+                                                if (snapshot.kind == ExerciseRequestKind.BODY) {
+                                                    syncLocalDataSource.applyBody(
+                                                        snapshot,
+                                                        response.data.serverId,
+                                                        response.data.version,
+                                                        response.data.date,
+                                                    )
+                                                } else {
+                                                    syncLocalDataSource.applyPhoto(
+                                                        snapshot,
+                                                        response.data.version,
+                                                        response.data.picture,
+                                                    )
+                                                }
                                             }
-                                        }
                                         if (applied != true) break
                                     }
                                     is BaseResult.Error -> {
                                         val auth = isAuthenticationError(response)
                                         val transient = auth || isRetryable(response)
-                                        val deletionReady = syncState(account) {
-                                            syncLocalDataSource.fail(snapshot, transient, errorClass(response, auth, transient))
-                                        }
+                                        val deletionReady =
+                                            syncState(account) {
+                                                syncLocalDataSource.fail(snapshot, transient, errorClass(response, auth, transient))
+                                            }
                                         if (auth) return@sync ExerciseSyncResult.Skipped
                                         if (deletionReady == true) continue
                                         retry = retry || transient
@@ -417,20 +430,21 @@ class ExerciseRecordRepositoryImpl
             account: ExerciseSyncAccount,
             localId: String? = null,
             block: suspend () -> T,
-        ): T? = stateMutex.withLock {
-            imageFileStore.withLock files@{
-                currentCoroutineContext().ensureActive()
-                if (!syncAccountGuard.isCurrent(account)) return@files null
-                generation++
-                val paths = localId?.let { localDataSource.imagePaths(it, account.memberId) }.orEmpty()
-                try {
-                    block()
-                } finally {
-                    withContext(NonCancellable) { removeUnreferencedFiles(paths) }
+        ): T? =
+            stateMutex.withLock {
+                imageFileStore.withLock files@{
+                    currentCoroutineContext().ensureActive()
+                    if (!syncAccountGuard.isCurrent(account)) return@files null
                     generation++
+                    val paths = localId?.let { localDataSource.imagePaths(it, account.memberId) }.orEmpty()
+                    try {
+                        block()
+                    } finally {
+                        withContext(NonCancellable) { removeUnreferencedFiles(paths) }
+                        generation++
+                    }
                 }
             }
-        }
 
         private data class SyncAcknowledgment(
             val serverId: Long,
@@ -443,64 +457,97 @@ class ExerciseRecordRepositoryImpl
             snapshot: ExerciseSyncSnapshot,
             account: ExerciseSyncAccount,
         ): BaseResult<SyncAcknowledgment> {
-            val mutation = when (snapshot.kind) {
-                ExerciseRequestKind.BODY -> when (snapshot.operation) {
-                    SyncState.CREATE_PENDING -> syncCall(
-                        { remoteDataSource.postExerciseRecord(snapshot.createRequest(), account) },
-                        { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version) } },
-                    )
-                    SyncState.UPDATE_PENDING -> syncCall(
-                        { remoteDataSource.patchExerciseRecord(requireNotNull(snapshot.serverId), snapshot.editRequest(), account) },
-                        { dto ->
-                            val ack = requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) }
-                            val baseVersion = requireNotNull(snapshot.baseVersion)
-                            require(ack.version in baseVersion..baseVersion + 1)
-                            ack
-                        },
-                    )
-                    SyncState.DELETE_PENDING -> syncCall(
-                        { remoteDataSource.deleteExerciseRecord(requireNotNull(snapshot.serverId), snapshot.requestId, account) },
-                        { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) } },
-                    )
-                    SyncState.SYNCED -> error("INVALID_BODY_OPERATION")
+            val mutation =
+                when (snapshot.kind) {
+                    ExerciseRequestKind.BODY ->
+                        when (snapshot.operation) {
+                            SyncState.CREATE_PENDING ->
+                                syncCall(
+                                    { remoteDataSource.postExerciseRecord(snapshot.createRequest(), account) },
+                                    { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version) } },
+                                )
+                            SyncState.UPDATE_PENDING ->
+                                syncCall(
+                                    {
+                                        remoteDataSource.patchExerciseRecord(
+                                            requireNotNull(snapshot.serverId),
+                                            snapshot.editRequest(),
+                                            account,
+                                        )
+                                    },
+                                    { dto ->
+                                        val ack = requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) }
+                                        val baseVersion = requireNotNull(snapshot.baseVersion)
+                                        require(ack.version in baseVersion..baseVersion + 1)
+                                        ack
+                                    },
+                                )
+                            SyncState.DELETE_PENDING ->
+                                syncCall(
+                                    {
+                                        remoteDataSource.deleteExerciseRecord(
+                                            requireNotNull(snapshot.serverId),
+                                            snapshot.requestId,
+                                            account,
+                                        )
+                                    },
+                                    { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) } },
+                                )
+                            SyncState.SYNCED -> error("INVALID_BODY_OPERATION")
+                        }
+                    ExerciseRequestKind.UPLOAD ->
+                        syncCall(
+                            {
+                                val file = File(requireNotNull(snapshot.filePath))
+                                require(
+                                    file.isFile && file.length() == snapshot.byteLength &&
+                                        ExerciseSyncLocalDataSource.hash(file) == snapshot.sha256,
+                                )
+                                val part =
+                                    MultipartBody.Part.createFormData(
+                                        "pictures",
+                                        snapshot.filename,
+                                        file.asRequestBody(requireNotNull(snapshot.mimeType).toMediaType()),
+                                    )
+                                remoteDataSource.postExerciseImages(
+                                    requireNotNull(snapshot.serverId),
+                                    listOf(part),
+                                    snapshot.requestId,
+                                    listOf(requireNotNull(snapshot.imageId)),
+                                    account,
+                                )
+                            },
+                            { dto ->
+                                val data = requireNotNull(dto)
+                                val ack = acknowledgment(data.exerciseId, data.version, snapshot.serverId)
+                                val picture = requireNotNull(data.pictures).single()
+                                require(picture.clientImageId == snapshot.imageId && picture.pictureId > 0)
+                                val uri = java.net.URI(picture.pictureUrl)
+                                require((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank())
+                                ack.copy(picture = picture)
+                            },
+                        )
+                    ExerciseRequestKind.DELETE_PHOTO ->
+                        syncCall(
+                            {
+                                remoteDataSource.deleteExerciseImages(
+                                    requireNotNull(snapshot.serverId),
+                                    listOf(requireNotNull(snapshot.pictureId)),
+                                    snapshot.requestId,
+                                    account,
+                                )
+                            },
+                            { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) } },
+                        )
                 }
-                ExerciseRequestKind.UPLOAD -> syncCall(
-                    {
-                        val file = File(requireNotNull(snapshot.filePath))
-                        require(file.isFile && file.length() == snapshot.byteLength && ExerciseSyncLocalDataSource.hash(file) == snapshot.sha256)
-                        val part = MultipartBody.Part.createFormData(
-                            "pictures", snapshot.filename,
-                            file.asRequestBody(requireNotNull(snapshot.mimeType).toMediaType()),
-                        )
-                        remoteDataSource.postExerciseImages(
-                            requireNotNull(snapshot.serverId), listOf(part), snapshot.requestId,
-                            listOf(requireNotNull(snapshot.imageId)), account,
-                        )
-                    },
-                    { dto ->
-                        val data = requireNotNull(dto)
-                        val ack = acknowledgment(data.exerciseId, data.version, snapshot.serverId)
-                        val picture = requireNotNull(data.pictures).single()
-                        require(picture.clientImageId == snapshot.imageId && picture.pictureId > 0)
-                        val uri = java.net.URI(picture.pictureUrl)
-                        require((uri.scheme == "https" || uri.scheme == "http") && !uri.host.isNullOrBlank())
-                        ack.copy(picture = picture)
-                    },
-                )
-                ExerciseRequestKind.DELETE_PHOTO -> syncCall(
-                    {
-                        remoteDataSource.deleteExerciseImages(
-                            requireNotNull(snapshot.serverId), listOf(requireNotNull(snapshot.pictureId)), snapshot.requestId, account,
-                        )
-                    },
-                    { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) } },
-                )
-            }
             if (mutation is BaseResult.Error) {
                 // 경로 404가 아니라 서버가 이름 붙인 부재/삭제만 원하는 전체 삭제를 확정합니다
-                if (snapshot.kind == ExerciseRequestKind.BODY && snapshot.operation == SyncState.DELETE_PENDING &&
+                if (
+                    snapshot.kind == ExerciseRequestKind.BODY && snapshot.operation == SyncState.DELETE_PENDING &&
                     mutation.errorCode in setOf("EXERCISE_NOT_FOUND", "EXERCISE_DELETED")
-                ) return BaseResult.Success(SyncAcknowledgment(requireNotNull(snapshot.serverId), requireNotNull(snapshot.baseVersion)))
+                ) {
+                    return BaseResult.Success(SyncAcknowledgment(requireNotNull(snapshot.serverId), requireNotNull(snapshot.baseVersion)))
+                }
                 return mutation
             }
             mutation as BaseResult.Success
@@ -513,7 +560,11 @@ class ExerciseRecordRepositoryImpl
             }
         }
 
-        private fun acknowledgment(id: Long, version: Long?, expectedId: Long? = null): SyncAcknowledgment {
+        private fun acknowledgment(
+            id: Long,
+            version: Long?,
+            expectedId: Long? = null,
+        ): SyncAcknowledgment {
             require(id > 0 && (expectedId == null || id == expectedId) && version != null && version >= 0)
             return SyncAcknowledgment(id, version)
         }
@@ -524,18 +575,20 @@ class ExerciseRecordRepositoryImpl
             account: ExerciseSyncAccount,
         ): BaseResult<LocalDate> {
             val hint = LocalDate.parse(requireNotNull(snapshot.submittedDate))
-            suspend fun membership(date: LocalDate): BaseResult<Boolean> = syncCall(
-                { remoteDataSource.getExerciseList(date, account) },
-                { list -> requireNotNull(list).any { it.exerciseId == serverId } },
-            )
+            suspend fun membership(date: LocalDate): BaseResult<Boolean> =
+                syncCall(
+                    { remoteDataSource.getExerciseList(date, account) },
+                    { list -> requireNotNull(list).any { it.exerciseId == serverId } },
+                )
             val first = membership(hint)
             if (first is BaseResult.Error) return first
             if ((first as BaseResult.Success).data) return BaseResult.Success(hint)
             if (!syncAccountGuard.isCurrent(account)) return accountChangedError()
-            val detail = syncCall(
-                { remoteDataSource.getExerciseRecordDetail(serverId, account) },
-                { requireNotNull(it).exerciseStartedAt.toLocalDate() },
-            )
+            val detail =
+                syncCall(
+                    { remoteDataSource.getExerciseRecordDetail(serverId, account) },
+                    { requireNotNull(it).exerciseStartedAt.toLocalDate() },
+                )
             if (detail is BaseResult.Error) return detail
             val nextHint = (detail as BaseResult.Success).data
             if (nextHint != hint) {
@@ -549,61 +602,72 @@ class ExerciseRecordRepositoryImpl
         private suspend fun <DTO, T> syncCall(
             call: suspend () -> com.project200.data.dto.BaseResponse<DTO>,
             map: (DTO?) -> T,
-        ): BaseResult<T> = try {
-            val response = call()
-            if (!response.succeed) {
-                BaseResult.Error(response.code, "운동 기록 요청을 완료하지 못했습니다.")
-            } else {
-                try {
-                    BaseResult.Success(map(response.data))
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
+        ): BaseResult<T> =
+            try {
+                val response = call()
+                if (!response.succeed) {
+                    BaseResult.Error(response.code, "운동 기록 요청을 완료하지 못했습니다.")
+                } else {
+                    try {
+                        BaseResult.Success(map(response.data))
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
+                    }
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: HttpException) {
+                val code =
+                    try {
+                        e.response()?.errorBody()?.string()?.let { org.json.JSONObject(it).optString("code").takeIf(String::isNotBlank) }
+                    } catch (_: Exception) {
+                        null
+                    }
+                BaseResult.Error(code ?: e.code().toString(), "운동 기록 요청을 완료하지 못했습니다.", e)
+            } catch (e: com.squareup.moshi.JsonDataException) {
+                BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
+            } catch (e: com.squareup.moshi.JsonEncodingException) {
+                BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
+            } catch (e: java.io.IOException) {
+                BaseResult.Error("NETWORK_ERROR", "운동 기록 전송을 다시 시도합니다.", e)
+            } catch (e: Exception) {
+                BaseResult.Error("UNKNOWN_ERROR", "운동 기록 요청을 확인하지 못했습니다.", e)
             }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: HttpException) {
-            val code = try {
-                e.response()?.errorBody()?.string()?.let { org.json.JSONObject(it).optString("code").takeIf(String::isNotBlank) }
-            } catch (_: Exception) {
-                null
-            }
-            BaseResult.Error(code ?: e.code().toString(), "운동 기록 요청을 완료하지 못했습니다.", e)
-        } catch (e: com.squareup.moshi.JsonDataException) {
-            BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
-        } catch (e: com.squareup.moshi.JsonEncodingException) {
-            BaseResult.Error("MAPPING_ERROR", "운동 기록 응답 계약이 일치하지 않습니다.", e)
-        } catch (e: java.io.IOException) {
-            BaseResult.Error("NETWORK_ERROR", "운동 기록 전송을 다시 시도합니다.", e)
-        } catch (e: Exception) {
-            BaseResult.Error("UNKNOWN_ERROR", "운동 기록 요청을 확인하지 못했습니다.", e)
-        }
 
         private fun isAuthenticationError(error: BaseResult.Error): Boolean =
             error.errorCode in setOf("AUTHENTICATION_FAILED", "AUTHORIZATION_DENIED", "401", "403", "ACCOUNT_CHANGED") ||
                 error.cause is ExerciseSyncAuthenticationException || (error.cause as? HttpException)?.code() in setOf(401, 403)
 
         private fun isRetryable(error: BaseResult.Error): Boolean {
-            if (error.cause is com.squareup.moshi.JsonDataException ||
+            if (
+                error.cause is com.squareup.moshi.JsonDataException ||
                 error.cause is com.squareup.moshi.JsonEncodingException || error.cause is IllegalArgumentException
-            ) return false
+            ) {
+                return false
+            }
             val status = (error.cause as? HttpException)?.code() ?: error.errorCode?.toIntOrNull()
             if (status == 429 || status != null && status >= 500) return true
             return error.errorCode in setOf("NETWORK_ERROR", "DATE_NOT_CONFIRMED", "UNKNOWN_ERROR")
         }
 
-        private fun errorClass(error: BaseResult.Error, auth: Boolean, transient: Boolean): ExerciseSyncError = when {
-            auth -> ExerciseSyncError.AUTHENTICATION_REQUIRED
-            transient -> ExerciseSyncError.NETWORK_ERROR
-            error.errorCode == "EXERCISE_REQUEST_ID_REUSED" -> ExerciseSyncError.REQUEST_ID_REUSED
-            error.errorCode == "EXERCISE_EDIT_CONFLICT" -> ExerciseSyncError.CONFLICT
-            error.errorCode in setOf("EXERCISE_NOT_FOUND", "EXERCISE_DELETED") -> ExerciseSyncError.REMOTE_DELETED
-            error.errorCode == "MAPPING_ERROR" || error.cause is com.squareup.moshi.JsonDataException ||
-                error.cause is com.squareup.moshi.JsonEncodingException || error.cause is IllegalArgumentException -> ExerciseSyncError.CONTRACT_ERROR
-            else -> ExerciseSyncError.PERMANENT_ERROR
-        }
+        private fun errorClass(
+            error: BaseResult.Error,
+            auth: Boolean,
+            transient: Boolean,
+        ): ExerciseSyncError =
+            when {
+                auth -> ExerciseSyncError.AUTHENTICATION_REQUIRED
+                transient -> ExerciseSyncError.NETWORK_ERROR
+                error.errorCode == "EXERCISE_REQUEST_ID_REUSED" -> ExerciseSyncError.REQUEST_ID_REUSED
+                error.errorCode == "EXERCISE_EDIT_CONFLICT" -> ExerciseSyncError.CONFLICT
+                error.errorCode in setOf("EXERCISE_NOT_FOUND", "EXERCISE_DELETED") -> ExerciseSyncError.REMOTE_DELETED
+                error.errorCode == "MAPPING_ERROR" || error.cause is com.squareup.moshi.JsonDataException ||
+                    error.cause is com.squareup.moshi.JsonEncodingException || error.cause is IllegalArgumentException ->
+                    ExerciseSyncError.CONTRACT_ERROR
+                else -> ExerciseSyncError.PERMANENT_ERROR
+            }
 
         private fun networkError() = BaseResult.Error("NETWORK_ERROR", "네트워크 연결 오류가 발생했습니다.")
 

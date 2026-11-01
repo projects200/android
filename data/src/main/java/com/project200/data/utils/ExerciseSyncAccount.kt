@@ -28,7 +28,10 @@ class ExerciseSyncAccountGuard
 
         fun isCurrent(account: ExerciseSyncAccount): Boolean = accepts(account, authStateManager.getCurrent().idToken)
 
-        fun accepts(account: ExerciseSyncAccount, token: String?): Boolean {
+        fun accepts(
+            account: ExerciseSyncAccount,
+            token: String?,
+        ): Boolean {
             // 계정 전환 뒤의 subject를 이전 세션 검사에 섞지 않도록 먼저 읽습니다
             val expectedSubject = preferences.getMemberSubject() ?: account.memberId
             return preferences.getMemberId() == account.memberId &&
@@ -37,7 +40,10 @@ class ExerciseSyncAccountGuard
                 idTokenSubject(token) == expectedSubject
         }
 
-        fun requireToken(account: ExerciseSyncAccount, token: String?) {
+        fun requireToken(
+            account: ExerciseSyncAccount,
+            token: String?,
+        ) {
             if (!accepts(account, token)) throw ExerciseSyncAuthenticationException()
         }
     }
@@ -46,7 +52,9 @@ class ExerciseSyncAccountGuard
 internal fun idTokenSubject(token: String?): String? =
     try {
         val parts = token?.split('.')
-        if (parts?.size != 3) null else {
+        if (parts?.size != 3) {
+            null
+        } else {
             val payload = String(Base64.decode(parts[1], Base64.URL_SAFE or Base64.NO_WRAP), Charsets.UTF_8)
             JSONObject(payload).optString("sub").takeIf { it.isNotBlank() }
         }
