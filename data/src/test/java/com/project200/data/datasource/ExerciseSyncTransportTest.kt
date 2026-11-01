@@ -147,7 +147,7 @@ class ExerciseSyncTransportTest {
         runTest {
             data =
                 "{\"exerciseId\":42,\"version\":9,\"pictures\":[{\"clientImageId\":\"$imageId\"," +
-                    "\"pictureId\":91,\"pictureUrl\":\"https://example.test/p.png\"}]}"
+                "\"pictureId\":91,\"pictureUrl\":\"https://example.test/p.png\"}]}"
             val part =
                 MultipartBody.Part.createFormData(
                     "pictures",
