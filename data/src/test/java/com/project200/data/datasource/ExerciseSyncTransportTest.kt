@@ -145,7 +145,9 @@ class ExerciseSyncTransportTest {
     @Test
     fun `사진은 pictures multipart와 query 키 및 순서가 일치하는 매핑을 읽는다`() =
         runTest {
-            data = "{\"exerciseId\":42,\"version\":9,\"pictures\":[{\"clientImageId\":\"$imageId\",\"pictureId\":91,\"pictureUrl\":\"https://example.test/p.png\"}]}"
+            data =
+                "{\"exerciseId\":42,\"version\":9,\"pictures\":[{\"clientImageId\":\"$imageId\"," +
+                    "\"pictureId\":91,\"pictureUrl\":\"https://example.test/p.png\"}]}"
             val part =
                 MultipartBody.Part.createFormData(
                     "pictures",

@@ -40,6 +40,7 @@ import com.project200.domain.model.ExerciseWriteInput
 import com.project200.undabang.oauth.AuthStateManager
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import io.mockk.Called
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -296,8 +297,7 @@ class ExerciseSyncRepositoryTest {
     private fun record(
         title: String = "A",
         day: LocalDate = date,
-    ) =
-        ExerciseRecord(title, "본문", "OTHER", day.atTime(9, 0), day.atTime(10, 0), "장소", null)
+    ) = ExerciseRecord(title, "본문", "OTHER", day.atTime(9, 0), day.atTime(10, 0), "장소", null)
 
     private suspend fun create(
         title: String = "A",
@@ -351,15 +351,14 @@ class ExerciseSyncRepositoryTest {
     private fun listDto(
         id: Long,
         body: PostExerciseRequestDto,
-    ) =
-        GetExerciseRecordListDto(
-            id,
-            requireNotNull(body.exerciseTitle),
-            requireNotNull(body.exercisePersonalType),
-            LocalDateTime.parse(body.exerciseStartedAt),
-            LocalDateTime.parse(body.exerciseEndedAt),
-            emptyList(),
-        )
+    ) = GetExerciseRecordListDto(
+        id,
+        requireNotNull(body.exerciseTitle),
+        requireNotNull(body.exercisePersonalType),
+        LocalDateTime.parse(body.exerciseStartedAt),
+        LocalDateTime.parse(body.exerciseEndedAt),
+        emptyList(),
+    )
 
     @Test
     fun `이관된 기존 로그인 회원은 서버가 확인한 subject를 연결한 뒤 동기화한다`() =

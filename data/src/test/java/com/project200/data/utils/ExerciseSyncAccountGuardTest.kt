@@ -47,16 +47,24 @@ class ExerciseSyncAccountGuardTest {
         account = requireNotNull(guard.capture(member))
     }
 
-    private fun jwt(subject: String, signature: String = "new") = "e30." + Base64.encodeToString(
-        "{\"sub\":\"$subject\"}".toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE,
-    ) + ".$signature"
+    private fun jwt(
+        subject: String,
+        signature: String = "new",
+    ) =
+        "e30." +
+            Base64.encodeToString(
+                "{\"sub\":\"$subject\"}".toByteArray(),
+                Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE,
+            ) + ".$signature"
 
-    private fun request(tagged: Boolean = true): Request = Request.Builder().url("https://example.test/api/v1/exercises")
-        .header("Authorization", "Bearer ${jwt(member, "old")}")
-        .apply { if (tagged) tag(ExerciseSyncAccount::class.java, account) }.build()
+    private fun request(tagged: Boolean = true): Request =
+        Request.Builder().url("https://example.test/api/v1/exercises")
+            .header("Authorization", "Bearer ${jwt(member, "old")}")
+            .apply { if (tagged) tag(ExerciseSyncAccount::class.java, account) }.build()
 
-    private fun response(request: Request): Response = Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
-        .code(401).message("Unauthorized").build()
+    private fun response(request: Request): Response =
+        Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+            .code(401).message("Unauthorized").build()
 
     private fun intercept(request: Request) {
         every { chain.request() } returns request

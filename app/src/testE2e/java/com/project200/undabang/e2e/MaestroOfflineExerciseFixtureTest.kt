@@ -96,10 +96,13 @@ class MaestroOfflineExerciseFixtureTest {
     }
 
     private fun openDatabase() {
+        // 실제 Room 작업은 runTest의 가상 타임아웃과 경합하지 않도록 호출 스레드에서 실행합니다.
         database =
             Room.databaseBuilder(context, UndabangDatabase::class.java, name)
                 .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
                 .allowMainThreadQueries()
+                .setQueryExecutor { it.run() }
+                .setTransactionExecutor { it.run() }
                 .build()
         local = ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), database.exerciseRecordDao(), preferences)
         observer = MaestroOfflineExerciseFixture(database, preferences, api)

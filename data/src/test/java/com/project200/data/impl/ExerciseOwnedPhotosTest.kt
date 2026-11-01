@@ -416,9 +416,14 @@ class ExerciseOwnedPhotosTest {
             val id = create(selected)
             val photo = picture(id)
             val cleaner = RoomSessionDataCleaner(database, dispatcher, store)
-            val clearSession = ClearSessionUseCase(
-                mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true), cleaner, mockk(relaxed = true),
-            )
+            val clearSession =
+                ClearSessionUseCase(
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    cleaner,
+                    mockk(relaxed = true),
+                )
             clearSession(SessionExitReason.FORCED)
             val clock = mockk<ClockProvider>()
             every { clock.now() } returns date.plusYears(1)

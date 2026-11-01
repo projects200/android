@@ -41,7 +41,10 @@ abstract class ExerciseSyncDao {
     abstract suspend fun saveSyncState(entity: ExerciseSyncEntity)
 
     @Query("DELETE FROM exercise_sync WHERE memberId = :memberId AND localId = :localId")
-    abstract suspend fun deleteApplied(memberId: String, localId: String)
+    abstract suspend fun deleteApplied(
+        memberId: String,
+        localId: String,
+    )
 
     /** 최신 의도를 저장할 때 기존 전송 원문과 생성 키는 변경하지 않습니다 */
     @Transaction

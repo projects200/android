@@ -54,8 +54,10 @@ class TokenAuthenticator
                 val currentIdToken = authStateManager.getCurrent().idToken
                 val account = response.request.tag(ExerciseSyncAccount::class.java)
                 if (account != null &&
-                    (!exerciseSyncAccountGuard.accepts(account, originalAccessToken) ||
-                        !exerciseSyncAccountGuard.accepts(account, currentIdToken))
+                    (
+                        !exerciseSyncAccountGuard.accepts(account, originalAccessToken) ||
+                            !exerciseSyncAccountGuard.accepts(account, currentIdToken)
+                    )
                 ) {
                     return null
                 }
@@ -79,8 +81,10 @@ class TokenAuthenticator
                 return when (refreshResult) {
                     is TokenRefreshResult.Success -> {
                         if (account != null &&
-                            (!exerciseSyncAccountGuard.isCurrent(account) ||
-                                !exerciseSyncAccountGuard.accepts(account, refreshResult.tokenResponse.idToken))
+                            (
+                                !exerciseSyncAccountGuard.isCurrent(account) ||
+                                    !exerciseSyncAccountGuard.accepts(account, refreshResult.tokenResponse.idToken)
+                            )
                         ) {
                             return null
                         }

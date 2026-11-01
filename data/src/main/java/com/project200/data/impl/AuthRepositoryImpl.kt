@@ -77,15 +77,14 @@ class AuthRepositoryImpl
         private suspend fun replaceMemberId(
             memberId: String,
             subject: String?,
-        ) =
-            withContext(ioDispatcher) {
-                if (spManager.getMemberId() != memberId) {
-                    Timber.tag(TAG).i("계정 경계 변경 - 로컬 캐시 삭제")
-                    sessionDataCleaner.clearAll()
-                }
-                // 이관된 계정은 서버 회원ID와 JWT subject가 다를 수 있어 함께 저장합니다
-                spManager.saveMemberId(memberId, subject)
+        ) = withContext(ioDispatcher) {
+            if (spManager.getMemberId() != memberId) {
+                Timber.tag(TAG).i("계정 경계 변경 - 로컬 캐시 삭제")
+                sessionDataCleaner.clearAll()
             }
+            // 이관된 계정은 서버 회원ID와 JWT subject가 다를 수 있어 함께 저장합니다
+            spManager.saveMemberId(memberId, subject)
+        }
 
         override suspend fun logout(): BaseResult<Unit> {
             return apiCallBuilder(

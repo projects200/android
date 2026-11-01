@@ -470,23 +470,24 @@ class ExerciseRecordLocalDataSource
             database.withTransaction {
                 if (!isCurrentMember(memberId)) return@withTransaction
                 val journals = database.exerciseSyncDao().getByMember(memberId!!)
-                val protectedDates = journals.filter { it.operation != SyncState.SYNCED }.flatMap { journal ->
-                    val dates = mutableListOf(journal.confirmedDate, journal.currentDate)
-                    journal.inFlightBody?.let { json ->
-                        try {
-                            val snapshot = org.json.JSONObject(json)
-                            listOf("submittedDate", "previousDate").forEach { key ->
-                                snapshot.optString(key).takeIf { it.isNotBlank() && it != "null" }?.let {
-                                    dates.add(LocalDate.parse(it))
+                val protectedDates =
+                    journals.filter { it.operation != SyncState.SYNCED }.flatMap { journal ->
+                        val dates = mutableListOf(journal.confirmedDate, journal.currentDate)
+                        journal.inFlightBody?.let { json ->
+                            try {
+                                val snapshot = org.json.JSONObject(json)
+                                listOf("submittedDate", "previousDate").forEach { key ->
+                                    snapshot.optString(key).takeIf { it.isNotBlank() && it != "null" }?.let {
+                                        dates.add(LocalDate.parse(it))
+                                    }
                                 }
+                            } catch (_: Exception) {
+                                // 원문을 해석하지 못하면 영향 날짜도 추정하지 않고 기준 갱신을 보류합니다
+                                return@withTransaction
                             }
-                        } catch (_: Exception) {
-                            // 원문을 해석하지 못하면 영향 날짜도 추정하지 않고 기준 갱신을 보류합니다
-                            return@withTransaction
                         }
-                    }
-                    dates.filterNotNull()
-                }.toSet()
+                        dates.filterNotNull()
+                    }.toSet()
                 var replacementDate = startDate
                 val incoming = counts.associateBy { it.date }
                 while (!replacementDate.isAfter(endDate)) {
@@ -520,7 +521,8 @@ class ExerciseRecordLocalDataSource
                         } else {
                             item.toModel().copy(
                                 imageUrl = images.mapNotNull { it.toModel()?.source },
-                                syncPending = item.syncState != SyncState.SYNCED || pending || images.any { it.state != ExerciseImageState.SYNCED },
+                                syncPending =
+                                    item.syncState != SyncState.SYNCED || pending || images.any { it.state != ExerciseImageState.SYNCED },
                             )
                         }
                     }
@@ -643,16 +645,18 @@ class ExerciseRecordLocalDataSource
             val journal = database.exerciseSyncDao().get(detail.memberId, detail.localId)
             val recovery = journal?.recoveryState == ExerciseRecoveryState.RECOVERY_REQUIRED
             return detail.toModel().copy(
-                pictures = images.mapNotNull { image ->
-                    image.toModel()?.let {
-                        if (recovery && image.state != ExerciseImageState.SYNCED) {
-                            it.copy(syncStatus = com.project200.domain.model.ExerciseImageSyncStatus.FAILED)
-                        } else {
-                            it
+                pictures =
+                    images.mapNotNull { image ->
+                        image.toModel()?.let {
+                            if (recovery && image.state != ExerciseImageState.SYNCED) {
+                                it.copy(syncStatus = com.project200.domain.model.ExerciseImageSyncStatus.FAILED)
+                            } else {
+                                it
+                            }
                         }
-                    }
-                },
-                syncPending = detail.syncState != SyncState.SYNCED || journal != null || images.any { it.state != ExerciseImageState.SYNCED },
+                    },
+                syncPending =
+                    detail.syncState != SyncState.SYNCED || journal != null || images.any { it.state != ExerciseImageState.SYNCED },
             )
         }
 

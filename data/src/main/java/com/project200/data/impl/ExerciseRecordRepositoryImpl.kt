@@ -575,6 +575,7 @@ class ExerciseRecordRepositoryImpl
             account: ExerciseSyncAccount,
         ): BaseResult<LocalDate> {
             val hint = LocalDate.parse(requireNotNull(snapshot.submittedDate))
+
             suspend fun membership(date: LocalDate): BaseResult<Boolean> =
                 syncCall(
                     { remoteDataSource.getExerciseList(date, account) },
