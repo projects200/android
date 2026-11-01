@@ -55,6 +55,25 @@ import java.io.FileInputStream
 import java.io.InputStream
 import java.time.LocalDate
 
+private class AccountChangingInputStream(
+    file: File,
+    private val onRead: () -> Unit,
+) : InputStream() {
+    private val delegate = FileInputStream(file)
+
+    override fun read(): Int = delegate.read()
+
+    override fun read(buffer: ByteArray): Int {
+        val count = delegate.read(buffer)
+        onRead()
+        return count
+    }
+
+    override fun close() {
+        delegate.close()
+    }
+}
+
 /** 실제 개인 파일과 재개방 가능한 Room으로 사용자에게 보이는 사진의 수명을 검증합니다. */
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
@@ -101,8 +120,17 @@ class ExerciseOwnedPhotosTest {
 
     private fun writer(source: ExerciseRecordLocalDataSource) =
         ExerciseRecordRepositoryImpl(
-            remote, source, network, dispatcher, store, mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
-            mockk(relaxed = true), preferences, mockk(relaxed = true),
+            remote,
+            source,
+            network,
+            dispatcher,
+            store,
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            mockk(relaxed = true),
+            preferences,
+            mockk(relaxed = true),
         )
 
     private fun reopen() {
@@ -126,11 +154,13 @@ class ExerciseOwnedPhotosTest {
 
     private fun uri(file: File): String = Uri.fromFile(file).toString()
 
-    private fun record(title: String = "운동") =
-        ExerciseRecord(title, "본문", "OTHER", date.atTime(9, 0), date.atTime(10, 0), "장소", null)
+    private fun record(title: String = "운동") = ExerciseRecord(title, "본문", "OTHER", date.atTime(9, 0), date.atTime(10, 0), "장소", null)
 
-    private suspend fun create(file: File): String =
-        (repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(file)))) as BaseResult.Success).data.recordId
+    private suspend fun create(file: File): String {
+        val result = repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(file))))
+        check(result is BaseResult.Success) { "create failed: $result" }
+        return result.data.recordId
+    }
 
     private suspend fun picture(id: String): ExerciseRecordPicture =
         (repository.getExerciseDetail(id, localOnly = true) as BaseResult.Success).data.pictures!!.single()
@@ -178,9 +208,11 @@ class ExerciseOwnedPhotosTest {
             val id = create(selected)
             val before = picture(id)
             val files = ownedFiles()
-            val result = repository.updateExerciseRecord(
-                ExerciseWriteInput(record("저장 안 됨"), listOf(uri(selected), uri(File(root, "missing.png")))), id,
-            )
+            val result =
+                repository.updateExerciseRecord(
+                    ExerciseWriteInput(record("저장 안 됨"), listOf(uri(selected), uri(File(root, "missing.png")))),
+                    id,
+                )
             assertThat(result).isInstanceOf(BaseResult.Error::class.java)
             assertThat(ownedFiles()).containsExactlyElementsIn(files)
             assertThat(picture(id)).isEqualTo(before)
@@ -255,12 +287,8 @@ class ExerciseOwnedPhotosTest {
         runTest {
             val selected = source()
             openSource = { uri ->
-                object : FileInputStream(File(requireNotNull(uri.path))) {
-                    override fun read(buffer: ByteArray): Int {
-                        val count = super.read(buffer)
-                        memberId = "member-b"
-                        return count
-                    }
+                AccountChangingInputStream(File(requireNotNull(uri.path))) {
+                    memberId = "member-b"
                 }
             }
             assertThat(repository.createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(selected)))))
@@ -285,9 +313,11 @@ class ExerciseOwnedPhotosTest {
             val other = create(selected)
             val otherPhoto = picture(other)
             memberId = "member-a"
-            val invalid = repository.updateExerciseRecord(
-                ExerciseWriteInput(record("잘못된 변경"), removedImageLocalIds = setOf(otherPhoto.localId)), first,
-            )
+            val invalid =
+                repository.updateExerciseRecord(
+                    ExerciseWriteInput(record("잘못된 변경"), removedImageLocalIds = setOf(otherPhoto.localId)),
+                    first,
+                )
             assertThat(invalid).isInstanceOf(BaseResult.Error::class.java)
             assertThat(local.getDetailByLocalId(first)?.title).isEqualTo("운동")
             repository.updateExerciseRecord(ExerciseWriteInput(record(), removedImageLocalIds = setOf(firstPhoto.localId)), first)
@@ -354,11 +384,18 @@ class ExerciseOwnedPhotosTest {
             val id = create(selected)
             val original = database.exerciseSyncDao().get(memberId, id)!!
             database.exerciseSyncDao().claim(
-                memberId, id, original.revision!!, original.operationId!!, original.createRequestId!!, "immutable-body-A", null,
+                memberId,
+                id,
+                original.revision!!,
+                original.operationId!!,
+                original.createRequestId!!,
+                "immutable-body-A",
+                null,
             )
             val oldPicture = picture(id)
             repository.updateExerciseRecord(
-                ExerciseWriteInput(record("새 본문 B"), listOf(uri(selected)), setOf(oldPicture.localId)), id,
+                ExerciseWriteInput(record("새 본문 B"), listOf(uri(selected)), setOf(oldPicture.localId)),
+                id,
             )
             reopen()
             val latest = database.exerciseSyncDao().get(memberId, id)!!
@@ -385,13 +422,21 @@ class ExerciseOwnedPhotosTest {
             clearSession(SessionExitReason.FORCED)
             val clock = mockk<ClockProvider>()
             every { clock.now() } returns date.plusYears(1)
-            RoomExerciseCacheCleaner(database, database.exerciseCountDao(), database.exerciseRecordDao(), clock, dispatcher).cleanExpiredCache()
+            RoomExerciseCacheCleaner(
+                database,
+                database.exerciseCountDao(),
+                database.exerciseRecordDao(),
+                clock,
+                dispatcher,
+            ).cleanExpiredCache()
             reopen()
             assertThat(picture(id)).isEqualTo(photo)
             assertThat(File(requireNotNull(Uri.parse(photo.source).path)).exists()).isTrue()
             val explicitExit =
                 ClearSessionUseCase(
-                    mockk(relaxed = true), mockk(relaxed = true), mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
                     RoomSessionDataCleaner(database, dispatcher, store),
                     mockk(relaxed = true),
                 )
@@ -465,11 +510,13 @@ class ExerciseOwnedPhotosTest {
                 if (opened == 2) throw CancellationException("사진 복사 취소")
                 FileInputStream(File(requireNotNull(sourceUri.path)))
             }
-            val failure = runCatching {
-                repository.updateExerciseRecord(
-                    ExerciseWriteInput(record("미확정"), listOf(uri(selected), uri(selected))), id,
-                )
-            }.exceptionOrNull()
+            val failure =
+                runCatching {
+                    repository.updateExerciseRecord(
+                        ExerciseWriteInput(record("미확정"), listOf(uri(selected), uri(selected))),
+                        id,
+                    )
+                }.exceptionOrNull()
             assertThat(failure).isInstanceOf(CancellationException::class.java)
             assertThat(picture(id)).isEqualTo(original)
             assertThat(local.getDetailByLocalId(id)?.title).isEqualTo("운동")

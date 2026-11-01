@@ -147,6 +147,9 @@ internal class MaestroSetupProtocol
                         val run = MaestroOfflineFixtures.run(feature)
                         val stage = json.get("stage") as? String ?: throw MaestroSetupFailure("invalid_request")
                         if (stage !in MaestroOfflineFixtures.STAGES) throw MaestroSetupFailure("invalid_request")
+                        if (stage in MaestroOfflineExerciseFixture.SERVER_STAGES && feature.flow != "offline-exercise-create") {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
                         MaestroSetupRequest.OfflineObservation(memberId, run, stage, feature)
                     }
                     else -> throw MaestroSetupFailure("invalid_request")

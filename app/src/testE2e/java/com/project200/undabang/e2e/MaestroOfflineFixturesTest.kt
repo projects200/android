@@ -117,6 +117,25 @@ class MaestroOfflineFixturesTest {
         }
 
     @Test
+    fun `서버 정리는 실패 응답 null 본문 중복 ID와 잘못된 날짜를 빈 목록으로 바꾸지 않는다`() =
+        runTest {
+            val responses =
+                listOf(
+                    BaseResponse<List<GetExerciseRecordListDto>>(false, "ERROR", "private"),
+                    BaseResponse<List<GetExerciseRecordListDto>>(true, "OK", "", null),
+                    success(listOf(exercise(1, "other"), exercise(1, "other"))),
+                    success(listOf(exercise(0, "other"))),
+                    success(listOf(exercise(1, "other").copy(exerciseStartedAt = run.startedAt.minusDays(1)))),
+                )
+            for (response in responses) {
+                coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns response
+                expectFailure("fixture_read_failed") { fixtures.clean("member", run) }
+            }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
+        }
+
+    @Test
     fun `정리는 이번 UUID와 정확히 일치하는 운동과 타이머만 삭제한다`() =
         runTest {
             val other = "maestro-offline-ffffffffffffffffffffffffffffffff-create"
@@ -128,7 +147,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.deleteExerciseRecord(1) } returns success<ExerciseIdDto?>(null)
             coEvery { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) } returns success(TimerMutationResponseDTO())
 
-            fixtures.clean(run)
+            fixtures.clean("member", run)
 
             coVerify(exactly = 1) { api.deleteExerciseRecord(1) }
             coVerify(exactly = 1) { api.deleteCustomTimer(1, DeleteTimerRequestDTO()) }
@@ -147,7 +166,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getExerciseRecordDetail(1) } returns success(exerciseDetail(run.editedExerciseTitle))
             coEvery { api.deleteExerciseRecord(1) } returns success<ExerciseIdDto?>(null)
 
-            fixtures.clean(run)
+            fixtures.clean("member", run)
 
             coVerifyOrder {
                 exercises.requireSafeCleanup("member", run, null)
@@ -165,7 +184,7 @@ class MaestroOfflineFixturesTest {
             coEvery { exercises.requireSafeCleanup("member", run, null) } throws
                 MaestroSetupFailure("offline_exercise_cleanup_unsafe")
 
-            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.clean(run) }
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.clean("member", run) }
 
             coVerify(exactly = 0) { api.getExerciseRecordDetail(any()) }
             coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
@@ -209,7 +228,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(listOf(exercise(1, run.exerciseTitle)))
             coEvery { api.getCustomTimerList() } returns BaseResponse(false, "SERVER_ERROR", "")
 
-            expectFailure("fixture_read_failed") { fixtures.clean(run) }
+            expectFailure("fixture_read_failed") { fixtures.clean("member", run) }
 
             coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
@@ -222,7 +241,7 @@ class MaestroOfflineFixturesTest {
             coEvery { api.getCustomTimerList() } returns timerList(run.createdTimer)
             coEvery { api.getCustomTimer(1) } returns success(timer(1, "personal timer", 45))
 
-            fixtures.clean(run)
+            fixtures.clean("member", run)
 
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
         }
@@ -245,7 +264,7 @@ class MaestroOfflineFixturesTest {
                 api.deleteCustomTimer(1, DeleteTimerRequestDTO())
             } returns BaseResponse(false, "SERVER_ERROR", "private diagnostic")
 
-            expectFailure("fixture_delete_failed") { fixtures.clean(run) }
+            expectFailure("fixture_delete_failed") { fixtures.clean("member", run) }
         }
 
     @Test

@@ -6,7 +6,6 @@ import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetExerciseRecordListDto
 import com.project200.data.local.PreferenceManager
 import com.project200.data.local.UndabangDatabase
-import com.project200.data.local.entity.ExerciseListItemEntity
 import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.SyncState
 import kotlinx.coroutines.delay
@@ -29,7 +28,14 @@ internal class MaestroOfflineExerciseFixture
         ): JSONArray =
             database.withTransaction {
                 verifyMember(memberId)
-                JSONArray(rows(memberId, run).map { it.localId })
+                // 날짜 밖·상세만 남은 같은 실행 제목도 기준 ID에 포함합니다.
+                val dao = database.exerciseRecordDao()
+                val date = run.startedAt.toLocalDate()
+                val ids =
+                    (dao.getListByDate(memberId, date) + dao.getPendingInRange(memberId, date, date))
+                        .map { it.localId }.toSet() + ownedLocalIds(memberId, run)
+                verifyMember(memberId)
+                JSONArray(ids.toList())
             }
 
         suspend fun observeLocal(
@@ -45,24 +51,23 @@ internal class MaestroOfflineExerciseFixture
                     "exercise-local-deleted", "exercise-local-deleted-relaunch" -> SyncState.DELETE_PENDING
                     else -> throw MaestroSetupFailure("invalid_request")
                 }
-            database.withTransaction {
-                verifyMember(memberId)
-                val owned = rows(memberId, run).filter { it.title in run.exerciseTitles }
-                val baseline = saved.getJSONArray("baselineExerciseLocalIds")
-                val baselineIds = (0 until baseline.length()).map { baseline.getString(it) }.toSet()
-                val item = owned.singleOrNull() ?: failLocal()
-                if (ownedLocalIds(memberId, run).any { it != item.localId }) failIdentity()
-                if (item.localId in baselineIds) failLocal()
-                if (saved.has(LOCAL_ID)) {
-                    if (saved.getString(LOCAL_ID) != item.localId) failIdentity()
-                } else if (stage != "exercise-local-created") {
-                    failIdentity()
+            val localId =
+                database.withTransaction {
+                    verifyMember(memberId)
+                    val owned = ownedLocalIds(memberId, run)
+                    val captured = saved.optString(LOCAL_ID).takeIf { it.isNotBlank() }
+                    if (captured != null && owned.any { it != captured }) failIdentity()
+                    val id = owned.singleOrNull()?.takeIf { it.isNotBlank() } ?: failLocal()
+                    val baseline = saved.getJSONArray("baselineExerciseLocalIds")
+                    if ((0 until baseline.length()).any { baseline.getString(it) == id }) failLocal()
+                    if (captured != null && captured != id) failIdentity()
+                    if (captured == null && stage != "exercise-local-created") failIdentity()
+                    val serverId = if (state == SyncState.CREATE_PENDING) null else requiredServerId(saved)
+                    if (!localMatches(memberId, run, id, serverId, state)) failLocal()
+                    verifyMember(memberId)
+                    id
                 }
-                val serverId = if (state == SyncState.CREATE_PENDING) null else requiredServerId(saved)
-                if (!localMatches(memberId, run, item.localId, serverId, state)) failLocal()
-                saved.put(LOCAL_ID, item.localId)
-                verifyMember(memberId)
-            }
+            saved.put(LOCAL_ID, localId)
         }
 
         suspend fun observeServer(
@@ -162,21 +167,54 @@ internal class MaestroOfflineExerciseFixture
                     val item = dao.getListItem(memberId, id)
                     val detail = dao.getDetailByLocalId(memberId, id)
                     if (
-                        (item != null && (item.serverId == null || item.date != run.startedAt.toLocalDate())) ||
-                        (detail != null && (detail.serverId == null || detail.startedAt.toLocalDate() != run.startedAt.toLocalDate())) ||
-                        (item != null && detail != null && item.serverId != detail.serverId)
+                        database.exerciseSyncDao().get(memberId, id) != null || dao.isProtected(memberId, id) ||
+                        database.exerciseImageDao().getByRecord(memberId, id).isNotEmpty()
+                    ) {
+                        throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+                    }
+                    if (
+                        item != null &&
+                        (
+                            (item.serverId ?: 0) <= 0 || item.syncState != SyncState.SYNCED ||
+                                item.title !in run.exerciseTitles || item.date != run.startedAt.toLocalDate() ||
+                                item.startedAt != (if (item.title == run.exerciseTitle) run.startedAt else run.editedStartedAt) ||
+                                item.endedAt != run.endedAt || !item.thumbnailUrls.isNullOrEmpty()
+                        )
+                    ) {
+                        throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+                    }
+                    if (
+                        detail != null &&
+                        (
+                            (detail.serverId ?: 0) <= 0 || detail.syncState != SyncState.SYNCED ||
+                                detail.title !in run.exerciseTitles ||
+                                detail.startedAt != (if (detail.title == run.exerciseTitle) run.startedAt else run.editedStartedAt) ||
+                                detail.endedAt != run.endedAt || !detail.pictures.isNullOrEmpty()
+                        )
+                    ) {
+                        throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+                    }
+                    if (
+                        item != null && detail != null &&
+                        (item.serverId != detail.serverId || item.title != detail.title || item.startedAt != detail.startedAt)
                     ) {
                         throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
                     }
                     if (
                         savedServerId != null &&
-                        (item?.serverId?.let { it != savedServerId } == true || detail?.serverId?.let { it != savedServerId } == true)
+                        (
+                            item?.serverId?.let { it != savedServerId } == true ||
+                                detail?.serverId?.let { it != savedServerId } == true
+                        )
                     ) {
                         throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
                     }
                     if (
-                        (item != null && item.title !in run.exerciseTitles) ||
-                        (detail != null && detail.title !in run.exerciseTitles) || dao.isProtected(memberId, id)
+                        serverId != null &&
+                        (
+                            item?.serverId?.let { it != serverId } == true ||
+                                detail?.serverId?.let { it != serverId } == true
+                        )
                     ) {
                         throw MaestroSetupFailure("offline_exercise_cleanup_unsafe")
                     }
@@ -202,7 +240,10 @@ internal class MaestroOfflineExerciseFixture
             val startedAt = if (edited) run.editedStartedAt else run.startedAt
             if (item.serverId != serverId || detail.serverId != serverId) {
                 // 미완료 생성 ACK는 기다리되 이미 확인한 서버 ID 교체는 허용하지 않습니다.
-                if (item.serverId != null && item.serverId != serverId || detail.serverId != null && detail.serverId != serverId) {
+                if (
+                    (item.serverId != null && item.serverId != serverId) ||
+                    (detail.serverId != null && detail.serverId != serverId)
+                ) {
                     failIdentity()
                 }
                 return false
@@ -216,11 +257,20 @@ internal class MaestroOfflineExerciseFixture
                 return false
             }
             val images = database.exerciseImageDao().getByRecord(memberId, localId)
-            if (images.isNotEmpty() || !detail.pictures.isNullOrEmpty()) return false
+            if (images.isNotEmpty() || !item.thumbnailUrls.isNullOrEmpty() || !detail.pictures.isNullOrEmpty()) return false
             if (state == SyncState.SYNCED) {
                 return journal == null && !dao.isProtected(memberId, localId) &&
                     item.serverVersion != null && item.serverVersion == detail.serverVersion &&
                     item.confirmedDate == item.date && detail.confirmedDate == item.date
+            }
+            if (
+                state == SyncState.CREATE_PENDING &&
+                (
+                    item.serverVersion != null || detail.serverVersion != null || journal?.serverVersion != null ||
+                        item.confirmedDate != null || detail.confirmedDate != null || journal?.confirmedDate != null
+                )
+            ) {
+                return false
             }
             return journal != null && journal.serverId == serverId && journal.operation == state &&
                 journal.revision != null && journal.revision > 0 && !journal.operationId.isNullOrBlank() &&
@@ -229,15 +279,6 @@ internal class MaestroOfflineExerciseFixture
                 journal.inFlightOperation == null && journal.inFlightRevision == null &&
                 journal.inFlightOperationId == null && journal.inFlightRequestId == null &&
                 journal.inFlightBody == null && journal.inFlightBaseVersion == null
-        }
-
-        private suspend fun rows(
-            memberId: String,
-            run: MaestroOfflineRun,
-        ): List<ExerciseListItemEntity> {
-            val dao = database.exerciseRecordDao()
-            val date = run.startedAt.toLocalDate()
-            return (dao.getListByDate(memberId, date) + dao.getPendingInRange(memberId, date, date)).distinctBy { it.localId }
         }
 
         /** e2e 전용 읽기입니다. 날짜 밖·상세만 남은 불확실 행도 정리 후보에서 누락하지 않습니다. */
@@ -269,8 +310,7 @@ internal class MaestroOfflineExerciseFixture
             if (preferences.getMemberId() != memberId) throw MaestroSetupFailure("member_mismatch")
         }
 
-        private fun requiredServerId(saved: JSONObject): Long =
-            saved.optLong(SERVER_ID).takeIf { it > 0 } ?: failIdentity()
+        private fun requiredServerId(saved: JSONObject): Long = saved.optLong(SERVER_ID).takeIf { it > 0 } ?: failIdentity()
 
         private fun <T : Any> read(response: BaseResponse<T>): T {
             if (!response.succeed) throw MaestroSetupFailure("fixture_read_failed")

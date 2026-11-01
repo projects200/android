@@ -30,17 +30,6 @@ name: 실제 단절 중 운동 생성과 목록 상세 저장
     id: exercise_complete
 - extendedWaitUntil:
     visible:
-      id: ".*(confirm_btn|exercise_create_btn)"
-    timeout: 30000
-- runFlow:
-    when:
-      visible:
-        id: confirm_btn
-    commands:
-      - tapOn:
-          id: confirm_btn
-- extendedWaitUntil:
-    visible:
       id: exercise_create_btn
     timeout: 30000
 - runFlow:

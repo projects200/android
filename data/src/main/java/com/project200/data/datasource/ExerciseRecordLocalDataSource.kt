@@ -7,7 +7,6 @@ import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.entity.CachedPicture
 import com.project200.data.local.entity.ExerciseCacheQueryEntity
-import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseImageState
 import com.project200.data.local.entity.ExerciseListItemEntity
@@ -163,7 +162,10 @@ class ExerciseRecordLocalDataSource
                 if (definitelyUnsent) {
                     check(
                         database.exerciseSyncDao().deleteMatching(
-                            memberId, localId, previous?.operationId, previous?.revision,
+                            memberId,
+                            localId,
+                            previous?.operationId,
+                            previous?.revision,
                         ) == 1,
                     ) { "JOURNAL_CHANGED" }
                     exerciseRecordDao.deleteUnsentListItem(memberId, localId)
@@ -213,14 +215,24 @@ class ExerciseRecordLocalDataSource
                 require(existing.none { it.localId == image.localId }) { "DUPLICATE_IMAGE_ID" }
                 dao.save(
                     ExerciseImageEntity(
-                        memberId, recordLocalId, image.localId, null, image.path, null,
-                        ExerciseImageState.ADD_LOCAL, image.requestId, offset + index,
+                        memberId,
+                        recordLocalId,
+                        image.localId,
+                        null,
+                        image.path,
+                        null,
+                        ExerciseImageState.ADD_LOCAL,
+                        image.requestId,
+                        offset + index,
                     ),
                 )
             }
         }
 
-        suspend fun imagePaths(recordId: String, memberId: String): List<String> {
+        suspend fun imagePaths(
+            recordId: String,
+            memberId: String,
+        ): List<String> {
             val localId = resolveExistingLocalId(recordId, memberId) ?: return emptyList()
             return database.exerciseImageDao().getByRecord(memberId, localId).mapNotNull { it.localFilePath }
         }
@@ -244,10 +256,12 @@ class ExerciseRecordLocalDataSource
 
         private fun hasIncompleteInFlight(journal: ExerciseSyncEntity): Boolean =
             hasInFlight(journal) &&
-                (journal.inFlightOperation == null || journal.inFlightRevision == null ||
-                    journal.inFlightOperationId.isNullOrBlank() || journal.inFlightRequestId.isNullOrBlank() ||
-                    journal.inFlightBody.isNullOrBlank() ||
-                    (journal.inFlightOperation != SyncState.CREATE_PENDING && journal.inFlightBaseVersion == null))
+                (
+                    journal.inFlightOperation == null || journal.inFlightRevision == null ||
+                        journal.inFlightOperationId.isNullOrBlank() || journal.inFlightRequestId.isNullOrBlank() ||
+                        journal.inFlightBody.isNullOrBlank() ||
+                        (journal.inFlightOperation != SyncState.CREATE_PENDING && journal.inFlightBaseVersion == null)
+                )
 
         private fun desiredJournal(
             memberId: String,
@@ -389,11 +403,16 @@ class ExerciseRecordLocalDataSource
                 val pending = exerciseRecordDao.getPendingInRange(memberId, startDate, endDate).groupBy { it.date }
                 val deltas = mutableMapOf<LocalDate, Int>()
                 val pendingDates = mutableSetOf<LocalDate>()
-                fun add(date: LocalDate?, delta: Int) {
+
+                fun add(
+                    date: LocalDate?,
+                    delta: Int,
+                ) {
                     if (date == null) return
                     deltas[date] = (deltas[date] ?: 0) + delta
                     pendingDates.add(date)
                 }
+
                 journals.filter { it.operation != SyncState.SYNCED }.forEach { journal ->
                     when (journal.operation) {
                         SyncState.CREATE_PENDING -> add(journal.currentDate, 1)
