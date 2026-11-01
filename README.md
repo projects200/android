@@ -217,7 +217,7 @@
   서버 version의 미확인 값은 null로 남깁니다. 과거 `SYNCED` 상태와 날짜별 조회 마커만으로는 개별 기록의 확정 날짜를 증명할 수 없어 업그레이드 시 null로 두고, 이후 실제 서버 목록 수신으로 해당 조회 날짜를 확정합니다.
 - 타이머는 계정·종류별 빈 스냅샷 여부와 revision을 보존하며 마지막 로컬 행 삭제도 빈 조회를 유지합니다. 명시적 로그아웃·계정 전환의 전체 로컬 정리는 운동 저널·사진 메타데이터·앱 소유 파일을 함께 정리하며, 진행 중인 사진 저장과 직렬화합니다. 강제 이탈은 기존 DB·사진 파일 보존 정책을 유지하고 이전 세션의 동기화 응답 반영을 막습니다. 캐시 무효 표시가 있으면 다음 조회에서 재다운로드 가능한 캐시와 조회 마커만 정리하며 저널·사진 대기 작업·앱 소유 파일이 연결된 투영은 보존합니다.
 - 앱 시작 시 IO 코루틴이 `ClockProvider.now().minusMonths(6)`보다 이른 운동 횟수·목록·상세와 빈 응답 조회 마커를 한 트랜잭션으로 정리합니다. 기준일은 포함해 보관하며, 목록 없는 상세는 운동 시작 날짜로 판정합니다. 서버 ID가 있는 `SYNCED` 기록만 삭제하고, 같은 회원의 로컬/서버 ID로 연결된 대기·로컬 전용·보관 기간 안의 기록과 타이머는 보존합니다. 정리는 앱 시작을 기다리게 하지 않으며 실패해도 앱 초기화를 중단하지 않습니다.
-- `dev` CI는 `jacocoLogicCoverageVerification`으로 domain 테스트와 ViewModel·UseCase 집계 LINE 80% 이상을 검사하고 `jacocoLogicReport`를 생성합니다. `android-local-first-evidence` artifact는 KSP가 실제 생성한 Room 스키마 JSON과 테스트·커버리지 결과를 보관합니다. Maestro는 별도 실제 DEV 계정·기기 검증이 필요합니다.
+- `dev` CI는 lint 실패에도 독립적인 단위 테스트 결과를 수집하며, 어느 검사든 실패하면 CI가 실패하고 배포하지 않습니다. `testDebugUnitTest :domain:test --continue`로 domain 단위 테스트를 명시적으로 포함하고, `jacocoLogicCoverageVerification`으로 ViewModel·UseCase 집계 LINE 80% 이상을 검사하며 `jacocoLogicReport`를 생성합니다. `android-local-first-evidence` artifact는 KSP가 실제 생성한 Room 스키마 JSON과 테스트·커버리지·ktlint 보고서를 보관합니다. Maestro는 별도 실제 DEV 계정·기기 검증이 필요합니다.
 - `dev` 워크플로우에는 배포를 push로 제한하는 조건이 없어 PR에도 배포 단계가 있습니다. 배포 구성은 공개 출시 여부나 실제 배포 성공을 뜻하지 않습니다.
 
 ## 실행 방법

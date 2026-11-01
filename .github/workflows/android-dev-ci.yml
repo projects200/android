@@ -47,14 +47,19 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Run Android Lint (Debug)
+        id: lint
         run: ./gradlew lintDebug
 
       - name: Run Ktlint Check
-        run: ./gradlew ktlintCheck
+        if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        run: ./gradlew ktlintCheck --continue
 
       - name: Run Unit Tests
-        run: ./gradlew testDebugUnitTest
+        id: unit
+        if: ${{ !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        run: ./gradlew testDebugUnitTest :domain:test --continue
       - name: Verify JaCoCo line coverage
+        if: ${{ !cancelled() && steps.unit.outcome == 'success' }}
         run: ./gradlew jacocoLogicReport jacocoLogicCoverageVerification
 
       - name: Upload schema and test evidence
@@ -67,6 +72,7 @@ jobs:
             **/build/test-results/**
             **/build/reports/tests/**
             **/build/reports/jacoco/**
+            **/build/reports/ktlint/**
           if-no-files-found: warn
 
       - name: Build Debug APK

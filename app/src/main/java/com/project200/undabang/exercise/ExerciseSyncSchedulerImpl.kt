@@ -26,7 +26,9 @@ class ExerciseSyncSchedulerImpl
         override fun schedule() {
             val memberId = preferences.getMemberId() ?: return
             WorkManager.getInstance(context).enqueueUniqueWork(
-                ExerciseSyncWorker.WORK_NAME, ExistingWorkPolicy.REPLACE, request(memberId),
+                ExerciseSyncWorker.WORK_NAME,
+                ExistingWorkPolicy.REPLACE,
+                request(memberId),
             )
         }
 

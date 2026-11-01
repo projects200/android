@@ -310,7 +310,7 @@ ANR 자료는 기기 과거 이력이며 재부팅으로 지워질 수 있습니
 
 Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat과 dumpsys 원문은 파일로 저장하거나 업로드하지 않습니다.
 
-CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
+CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. 합성 입력만 사용하는 `:app:testE2eUnitTest`의 JUnit XML(`app/build/test-results/testE2eUnitTest/*.xml`)과 HTML 보고서(`app/build/reports/tests/testE2eUnitTest/**`)는 별도 `e2e-unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}` artifact로 7일 보관하며, 계정·세션·설정 파일은 업로드하지 않습니다. 이 단위 테스트 결과는 실제 기기 UI 통과 증거가 아닙니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
 
 ## 검증 상태와 남은 외부 준비
 
