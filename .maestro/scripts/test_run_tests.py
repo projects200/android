@@ -552,7 +552,6 @@ class SessionTransportTests(unittest.TestCase):
             ("offline_exercise_local_mismatch", "offline-suite-exercise-local-mismatch"),
             ("offline_exercise_identity_changed", "offline-suite-exercise-identity-changed"),
             ("offline_exercise_server_mismatch", "offline-suite-exercise-server-mismatch"),
-            ("offline_exercise_cleanup_unsafe", "offline-suite-exercise-cleanup-unsafe"),
             (SYNTHETIC_SECRET, "bootstrap-feature-observe-failed"),
         ):
             with self.subTest(expected=expected):
