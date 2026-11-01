@@ -10,6 +10,7 @@ import com.project200.data.dto.DeletePreferredExerciseDTO
 import com.project200.data.dto.DeleteTimerRequestDTO
 import com.project200.data.dto.EditExercisePlaceDTO
 import com.project200.data.dto.ExerciseIdDto
+import com.project200.data.dto.ExercisePicturesDto
 import com.project200.data.dto.ExpectedScoreInfoDTO
 import com.project200.data.dto.FeedCreateResultDTO
 import com.project200.data.dto.FeedDTO
@@ -60,6 +61,7 @@ import com.project200.data.dto.TimerMutationResponseDTO
 import com.project200.data.dto.UpdateFeedRequestDTO
 import com.project200.data.utils.AccessTokenApi
 import com.project200.data.utils.AccessTokenWithFcmApi
+import com.project200.data.utils.ExerciseSyncAccount
 import com.project200.data.utils.IdTokenApi
 import okhttp3.MultipartBody
 import retrofit2.http.Body
@@ -74,6 +76,7 @@ import retrofit2.http.PUT
 import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
+import retrofit2.http.Tag
 import java.time.LocalDate
 
 interface ApiService {
@@ -233,6 +236,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getExerciseRecordDetail(
         @Path("exerciseId") recordId: Long,
+        @Tag account: ExerciseSyncAccount? = null,
     ): BaseResponse<GetExerciseRecordData>
 
     // 하루 운동 기록 리스트 조회
@@ -240,6 +244,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun getExerciseList(
         @Query("date") date: LocalDate,
+        @Tag account: ExerciseSyncAccount? = null,
     ): BaseResponse<List<GetExerciseRecordListDto>>
 
     // 운동 기록 생성
@@ -247,6 +252,7 @@ interface ApiService {
     @AccessTokenApi
     suspend fun postExerciseRecord(
         @Body recordRequestDto: PostExerciseRequestDto,
+        @Tag account: ExerciseSyncAccount? = null,
     ): BaseResponse<PostExerciseResponseDTO>
 
     // 운동 기록 수정
@@ -255,6 +261,7 @@ interface ApiService {
     suspend fun patchExerciseRecord(
         @Path("exerciseId") exerciseId: Long,
         @Body recordRequestDto: PatchExerciseRequestDto,
+        @Tag account: ExerciseSyncAccount? = null,
     ): BaseResponse<ExerciseIdDto>
 
     // 운동 기록 이미지 업로드
@@ -264,7 +271,10 @@ interface ApiService {
     suspend fun postExerciseImages(
         @Path("exerciseId") exerciseId: Long,
         @Part pictures: List<MultipartBody.Part>,
-    ): BaseResponse<ExerciseIdDto>
+        @Query("uploadRequestId") uploadRequestId: String? = null,
+        @Query("clientImageIds") clientImageIds: List<String>? = null,
+        @Tag account: ExerciseSyncAccount? = null,
+    ): BaseResponse<ExercisePicturesDto>
 
     // 운동 기록 이미지 삭제
     @DELETE("api/v1/exercises/{exerciseId}/pictures")
@@ -272,14 +282,18 @@ interface ApiService {
     suspend fun deleteExerciseImages(
         @Path("exerciseId") exerciseId: Long,
         @Query("pictureIds") pictureIds: List<Long>,
-    ): BaseResponse<Unit?>
+        @Query("editId") editId: String? = null,
+        @Tag account: ExerciseSyncAccount? = null,
+    ): BaseResponse<ExerciseIdDto?>
 
     // 운동 기록 삭제
     @DELETE("api/v1/exercises/{exerciseId}")
     @AccessTokenApi
     suspend fun deleteExerciseRecord(
         @Path("exerciseId") exerciseId: Long,
-    ): BaseResponse<Unit?>
+        @Query("editId") editId: String? = null,
+        @Tag account: ExerciseSyncAccount? = null,
+    ): BaseResponse<ExerciseIdDto?>
 
     // 점수 조회
     @GET("api/v1/members/score")

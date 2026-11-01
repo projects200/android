@@ -26,7 +26,8 @@ internal data class MaestroOfflineRun(
     val timerInput: MaestroOfflineTimerInput,
 ) {
     init {
-        if (!ID_PATTERN.matches(id) || endedAt != startedAt.plusHours(1) ||
+        if (
+            !ID_PATTERN.matches(id) || endedAt != startedAt.plusHours(1) ||
             startedAt.minute != 0 || startedAt.second != 0 || startedAt.nano != 0
         ) {
             throw MaestroSetupFailure("invalid_request")
@@ -34,6 +35,9 @@ internal data class MaestroOfflineRun(
     }
 
     val exerciseTitle: String = "maestro-e2e-$id"
+    val editedExerciseTitle: String = "$exerciseTitle-edited"
+    val exerciseTitles: Set<String> = setOf(exerciseTitle, editedExerciseTitle)
+    val editedStartedAt: LocalDateTime = startedAt.plusMinutes(5)
     val createdTimer: String = "maestro-offline-$id-create"
     val originalTimer: String = "maestro-offline-$id-update"
     val updatedTimer: String = "maestro-offline-$id-updated"
@@ -56,14 +60,14 @@ internal data class MaestroOfflineRun(
     }
 }
 
-/** 운동의 로컬 생성·취소와 타이머의 실제 동기화를 독립 관찰하며, 검증한 실행 소유 서버 행만 정리합니다. */
+/** 운동과 타이머의 실제 동기화를 독립 관찰하며, 검증한 실행 소유 서버 행만 정리합니다. */
 internal class MaestroOfflineFixtures
     @Inject
     constructor(
         private val api: ApiService,
         @ApplicationContext private val context: Context,
         private val localDataSource: TimerLocalDataSource,
-        private val exerciseFixture: MaestroOfflineExerciseFixture,
+        private val exercises: MaestroOfflineExerciseFixture,
     ) : MaestroFeatureFixture {
         override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
             val run = run(request)
@@ -79,7 +83,7 @@ internal class MaestroOfflineFixtures
                     .put("flow", request.flow)
                     .put("parameters", request.parameters)
                     .put("baselineLocalIds", JSONArray(localDataSource.getCustomTimers().map { it.localId }))
-                    .put("baselineExerciseLocalIds", exerciseFixture.baseline(request.memberId, run)),
+                    .put("baselineExerciseLocalIds", exercises.baseline(request.memberId, run)),
             )
             validateDate(run)
             clean(request.memberId, run, validateRequest(request))
@@ -89,7 +93,12 @@ internal class MaestroOfflineFixtures
         override suspend fun cleanup(request: MaestroFeatureRequest) {
             if (request.parameters.has("stage")) throw MaestroSetupFailure("invalid_feature_request")
             val file = snapshot().baseFile
-            val saved = if (file.exists() || File(file.path + ".bak").exists()) validateRequest(request) else null
+            val saved =
+                if (file.exists() || File(file.path + ".bak").exists() || File(file.path + ".new").exists()) {
+                    validateRequest(request)
+                } else {
+                    null
+                }
             val run = run(request)
             validateDate(run)
             clean(request.memberId, run, saved)
@@ -103,7 +112,8 @@ internal class MaestroOfflineFixtures
                 } catch (_: Exception) {
                     throw MaestroSetupFailure("offline_snapshot_missing")
                 }
-            if (saved.getString("memberId") != request.memberId || saved.getString("runId") != request.runId ||
+            if (
+                saved.getString("memberId") != request.memberId || saved.getString("runId") != request.runId ||
                 saved.getString("flow") != request.flow
             ) {
                 throw MaestroSetupFailure("offline_snapshot_identity_invalid")
@@ -128,8 +138,10 @@ internal class MaestroOfflineFixtures
             }
             val saved = validateRequest(request)
             if (stage in MaestroOfflineExerciseFixture.LOCAL_STAGES) {
-                if (request.flow != "offline-exercise-create") throw MaestroSetupFailure("invalid_request")
-                exerciseFixture.observeLocal(request.memberId, run, saved, stage)
+                if (request.flow != "offline-exercise-create" || request.parameters.optString("stage") != stage) {
+                    throw MaestroSetupFailure("invalid_request")
+                }
+                exercises.observeLocal(request.memberId, run, saved, stage)
                 save(saved)
                 return emptyMap()
             }
@@ -158,6 +170,22 @@ internal class MaestroOfflineFixtures
             return variables
         }
 
+        suspend fun observeServer(
+            request: MaestroFeatureRequest,
+            stage: String,
+        ) {
+            val run = run(request)
+            if (stage in MaestroOfflineExerciseFixture.SERVER_STAGES) {
+                if (request.flow != "offline-exercise-create") throw MaestroSetupFailure("invalid_request")
+                val saved = validateRequest(request)
+                exercises.observeServer(request.memberId, run, saved, stage)
+                save(saved)
+            } else {
+                if (request.flow != "offline-timers-online") throw MaestroSetupFailure("invalid_request")
+                observe(run, stage)
+            }
+        }
+
         private fun snapshot() = AtomicFile(File(context.filesDir, "maestro-offline-state.json"))
 
         private fun save(saved: JSONObject) {
@@ -182,10 +210,6 @@ internal class MaestroOfflineFixtures
             run: MaestroOfflineRun,
             stage: String,
         ) {
-            if (stage == "exercise-server-absent") {
-                if (exerciseRecords(run).isNotEmpty()) throw MaestroSetupFailure("offline_exercise_server_absence_mismatch")
-                return
-            }
             val expected =
                 when (stage) {
                     "timers-online" ->
@@ -242,43 +266,50 @@ internal class MaestroOfflineFixtures
             saved: JSONObject? = null,
         ) {
             // 호출자가 DEV 세션과 전용 member ID를 검증한 뒤에만 실행합니다.
-            exerciseFixture.requireSafeCleanup(memberId, run, saved)
-            val exercises = exerciseRecords(run)
+            exercises.requireSafeCleanup(memberId, run, saved)
+            val records = exerciseRecords(run, saved)
             val timers = timerSummaries().filter { it.customTimerName in run.timerNames }
             // 양쪽 목록 GET이 성공한 뒤 UUID와 상세를 재확인한 행만 삭제합니다.
-            for (record in exercises) {
+            for (record in records) {
                 val detail = read(api.getExerciseRecordDetail(record.exerciseId))
-                if (detail.exerciseTitle != run.exerciseTitle) continue
+                if (detail.exerciseTitle !in run.exerciseTitles) continue
                 if (detail.exerciseStartedAt.toLocalDate() != run.startedAt.toLocalDate()) {
                     throw MaestroSetupFailure("fixture_read_failed")
                 }
-                exerciseFixture.requireSafeCleanup(memberId, run, saved)
+                exercises.requireSafeCleanup(memberId, run, saved, record.exerciseId)
                 if (!api.deleteExerciseRecord(record.exerciseId).succeed) throw MaestroSetupFailure("fixture_delete_failed")
             }
             for (timer in timers) {
                 val detail = read(api.getCustomTimer(timer.customTimerId))
                 if (detail.customTimerId != timer.customTimerId) throw MaestroSetupFailure("fixture_read_failed")
                 if (detail.customTimerName !in run.timerNames) continue
-                exerciseFixture.requireSafeCleanup(memberId, run, saved)
+                exercises.requireSafeCleanup(memberId, run, saved)
                 if (!api.deleteCustomTimer(timer.customTimerId, DeleteTimerRequestDTO()).succeed) {
                     throw MaestroSetupFailure("fixture_delete_failed")
                 }
             }
         }
 
-        private suspend fun exerciseRecords(run: MaestroOfflineRun): List<GetExerciseRecordListDto> {
+        private suspend fun exerciseRecords(
+            run: MaestroOfflineRun,
+            saved: JSONObject?,
+        ): List<GetExerciseRecordListDto> {
             val records = read(api.getExerciseList(run.startedAt.toLocalDate()))
-            if (records.any { it.exerciseId <= 0 || it.exerciseStartedAt.toLocalDate() != run.startedAt.toLocalDate() } ||
+            if (
+                records.any { it.exerciseId <= 0 || it.exerciseStartedAt.toLocalDate() != run.startedAt.toLocalDate() } ||
                 records.map { it.exerciseId }.toSet().size != records.size
             ) {
                 throw MaestroSetupFailure("fixture_read_failed")
             }
-            return records.filter { it.exerciseTitle == run.exerciseTitle }
+            val savedServerId =
+                saved?.takeIf { it.has(MaestroOfflineExerciseFixture.SERVER_ID) }?.getLong(MaestroOfflineExerciseFixture.SERVER_ID)
+            return records.filter { it.exerciseTitle in run.exerciseTitles || it.exerciseId == savedServerId }
         }
 
         private suspend fun timerSummaries() =
             read(api.getCustomTimerList()).also { list ->
-                if (list.customTimerCount != list.customTimers.size || list.customTimers.any { it.customTimerId <= 0 } ||
+                if (
+                    list.customTimerCount != list.customTimers.size || list.customTimers.any { it.customTimerId <= 0 } ||
                     list.customTimers.map { it.customTimerId }.toSet().size != list.customTimers.size
                 ) {
                     throw MaestroSetupFailure("fixture_read_failed")
@@ -296,7 +327,8 @@ internal class MaestroOfflineFixtures
 
             fun run(request: MaestroFeatureRequest): MaestroOfflineRun {
                 MaestroFeaturePolicy.validateIdentity(request.feature, request.flow, request.runId)
-                if (request.feature != "offline" || request.flow !in FLOWS ||
+                if (
+                    request.feature != "offline" || request.flow !in FLOWS ||
                     request.parameters.keys().asSequence().toSet() - "stage" != MaestroOfflineTimerInput.PARAMETER_KEYS
                 ) {
                     throw MaestroSetupFailure("invalid_feature_request")
@@ -313,8 +345,8 @@ internal class MaestroOfflineFixtures
                 }
             }
 
-            val LOCAL_STAGES = setOf("timers-local-online", "timers-local-created") + MaestroOfflineExerciseFixture.LOCAL_STAGES
-            val STAGES = setOf("exercise-server-absent", "timers-online", "timers-synced")
+            val LOCAL_STAGES = MaestroOfflineExerciseFixture.LOCAL_STAGES + setOf("timers-local-online", "timers-local-created")
+            val STAGES = MaestroOfflineExerciseFixture.SERVER_STAGES + setOf("timers-online", "timers-synced")
             private const val UPLOAD_TIMEOUT_MS = 120_000L
 
             internal fun matchesTimer(

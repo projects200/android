@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
+import com.project200.data.datasource.ExerciseImageFileStore
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetIsRegisteredData
 import com.project200.data.local.PreferenceManager
@@ -13,11 +14,13 @@ import com.squareup.moshi.JsonDataException
 import com.squareup.moshi.JsonEncodingException
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import net.openid.appauth.AuthState
 import okhttp3.MediaType
 import okhttp3.ResponseBody
 import okio.Buffer
@@ -47,11 +50,12 @@ class MaestroRegistrationCheckTest {
     private val cleaner = mockk<SessionDataCleaner>()
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
     private val check =
-        MaestroRegistrationCheck(api, preferences, stateManager, cleaner, UnconfinedTestDispatcher())
+        MaestroRegistrationCheck(api, preferences, stateManager, cleaner, UnconfinedTestDispatcher(), ExerciseImageFileStore(context))
 
     @Before
     fun setUp() {
-        preferences.saveMemberId(MEMBER)
+        preferences.saveMemberId(MEMBER, null)
+        every { stateManager.getCurrent() } returns AuthState()
         coEvery { cleaner.clearAll() } coAnswers { pending.clear() }
     }
 

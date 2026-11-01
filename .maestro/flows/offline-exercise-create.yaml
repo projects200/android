@@ -1,5 +1,5 @@
 appId: com.project200.undabang
-name: 단절 중 로컬 운동 기록 생성
+name: 실제 단절 중 운동 생성과 목록 상세 저장
 ---
 - runFlow: ../subflows/launch-logged-in.yaml
 - tapOn:
@@ -32,4 +32,8 @@ name: 단절 중 로컬 운동 기록 생성
     visible:
       id: exercise_create_btn
     timeout: 30000
-- runFlow: ../offline/assert-exercise-record.yaml
+- runFlow:
+    file: ../offline/assert-exercise-record.yaml
+    env:
+      RECORD_TITLE: "${EXERCISE_TITLE}"
+      START_MINUTE: "00"

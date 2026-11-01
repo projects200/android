@@ -420,7 +420,7 @@ class ExerciseRecordLocalDataSourceTest {
     }
 
     @Test
-    fun `날짜 이동 재편집 복귀 삭제와 새 서버 집계는 최초 확정 날짜의 변경을 한 번만 반영한다`() =
+    fun `날짜 이동 재편집 복귀 삭제는 확정 전 서버 집계를 동결하고 delta를 한 번만 반영한다`() =
         runTest {
             val id = confirmedRecord()
             dataSource.replaceCountsByRange(date, otherDate, listOf(ExerciseCount(date, 2), ExerciseCount(otherDate, 3)))
@@ -438,17 +438,17 @@ class ExerciseRecordLocalDataSourceTest {
             assertThat(dataSource.getListByDate(otherDate).single().recordId).isEqualTo(id)
             dataSource.replaceCountsByRange(date, otherDate, listOf(ExerciseCount(date, 4), ExerciseCount(otherDate, 5)))
             assertThat(dataSource.getCountsByRange(date, otherDate).associate { it.date to it.count })
-                .containsExactly(date, 3, otherDate, 6)
+                .containsExactly(date, 1, otherDate, 4)
             dataSource.updateRecord(id, ExerciseWriteInput(record()))
             assertThat(dataSource.getCountsByRange(date, otherDate).associate { it.date to it.count })
-                .containsExactly(date, 4, otherDate, 5)
+                .containsExactly(date, 2, otherDate, 3)
             dataSource.updateRecord(id, ExerciseWriteInput(moved))
             dataSource.deleteRecord(id)
             dataSource.deleteRecord(id)
             assertThat(dataSource.getCountsByRange(date, otherDate).associate { it.date to it.count })
-                .containsExactly(date, 3, otherDate, 5)
+                .containsExactly(date, 1, otherDate, 3)
             assertThat(database.exerciseSyncDao().get(MEMBER_ID, id)?.operation).isEqualTo(SyncState.DELETE_PENDING)
-            assertThat(database.exerciseCountDao().getRange(MEMBER_ID, date, date).single().count).isEqualTo(4)
+            assertThat(database.exerciseCountDao().getRange(MEMBER_ID, date, date).single().count).isEqualTo(2)
         }
 
     @Test

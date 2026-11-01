@@ -16,9 +16,24 @@ class PreferenceManager
         private val prefs: SharedPreferences =
             context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-        fun saveMemberId(memberId: String) {
+        @Volatile
+        private var exerciseSessionRevision = 0L
+
+        @Synchronized
+        fun invalidateExerciseSession() {
+            exerciseSessionRevision++
+        }
+
+        fun exerciseSessionRevision(): Long = exerciseSessionRevision
+
+        fun saveMemberId(
+            memberId: String,
+            subject: String?,
+        ) {
+            if (getMemberId() != memberId) invalidateExerciseSession()
             prefs.edit {
                 putString(KEY_MEMBER_ID, memberId)
+                putString(KEY_MEMBER_SUBJECT, subject)
             }
         }
 
@@ -26,9 +41,15 @@ class PreferenceManager
             return prefs.getString(KEY_MEMBER_ID, null)
         }
 
+        fun getMemberSubject(): String? {
+            return prefs.getString(KEY_MEMBER_SUBJECT, null)
+        }
+
         fun clearMemberId() {
+            invalidateExerciseSession()
             prefs.edit {
                 remove(KEY_MEMBER_ID)
+                remove(KEY_MEMBER_SUBJECT)
             }
         }
 
@@ -46,6 +67,7 @@ class PreferenceManager
         companion object {
             private const val PREFS_NAME = "undabangPrefs"
             private const val KEY_MEMBER_ID = "member_id"
+            private const val KEY_MEMBER_SUBJECT = "member_subject"
             private const val KEY_EXERCISE_CACHE_INVALIDATED = "exercise_cache_invalidated_"
         }
     }

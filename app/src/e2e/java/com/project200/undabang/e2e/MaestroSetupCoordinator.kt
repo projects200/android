@@ -77,7 +77,7 @@ internal class MaestroSetupCoordinator
                                 offlineFixtures.validateRequest(request.featureRequest)
                                 offlineFixtures.validateDate(request.run)
                                 sessionBootstrap.verifyCurrent(request.memberId)
-                                offlineFixtures.observe(request.run, request.stage)
+                                offlineFixtures.observeServer(request.featureRequest, request.stage)
                                 protocol.writeStatus("observed")
                             }
                             is MaestroSetupRequest.FeatureObservation -> {

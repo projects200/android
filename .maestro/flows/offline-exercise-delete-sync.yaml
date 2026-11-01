@@ -1,0 +1,5 @@
+appId: com.project200.undabang
+name: 재연결 후 실제 서버 삭제와 Room 저널 제거 관찰
+---
+# 호스트는 캡처한 서버 ID 부재와 원래 localId의 행·저널 제거를 함께 기다립니다.
+- runFlow: offline-exercise-delete-relaunch.yaml

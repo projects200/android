@@ -3,6 +3,7 @@ package com.project200.undabang.e2e
 import com.project200.common.di.IoDispatcher
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.ExerciseRecordRemoteDataSource
+import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.utils.apiCallBuilder
 import com.project200.domain.model.BaseResult
 import com.project200.domain.repository.ExerciseRecordRepository
@@ -18,6 +19,7 @@ internal class MaestroFixtureCleaner
         private val remoteDataSource: ExerciseRecordRemoteDataSource,
         private val localDataSource: ExerciseRecordLocalDataSource,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
+        private val recordDao: ExerciseRecordDao,
     ) {
         suspend fun clean(
             fixtureStartDate: LocalDate,
@@ -48,12 +50,13 @@ internal class MaestroFixtureCleaner
                             exerciseRecordRepository.getExerciseRecordList(count.date, refresh = true)
                         }
                     for (record in records) {
-                        if (record.recordId.isBlank() || record.syncPending || record.startTime.toLocalDate() != count.date) {
+                        val owned = MaestroFixturePolicy.ownsTitle(record.title)
+                        if (record.recordId.isBlank() || record.startTime.toLocalDate() != count.date) {
                             throw MaestroSetupFailure("fixture_read_failed")
                         }
-                        if (MaestroFixturePolicy.ownsTitle(record.title)) {
-                            candidates.add(record.recordId)
-                        }
+                        if (!owned) continue
+                        if (record.syncPending) throw MaestroSetupFailure("fixture_read_failed")
+                        candidates.add(record.recordId)
                     }
                 }
             }
@@ -61,10 +64,12 @@ internal class MaestroFixtureCleaner
             // 모든 월의 조회가 성공한 뒤 삭제하며, 조회 후 일반 제목으로 바뀐 기록은 보존합니다
             for (recordId in candidates) {
                 val record = readFresh { exerciseRecordRepository.getExerciseDetail(recordId, refresh = true) }
-                if (record.syncPending || !record.canModify || record.startedAt.toLocalDate() !in fixtureStartDate..today) {
+                val owned = MaestroFixturePolicy.ownsTitle(record.title)
+                if (record.startedAt.toLocalDate() !in fixtureStartDate..today) {
                     throw MaestroSetupFailure("fixture_read_failed")
                 }
-                if (!MaestroFixturePolicy.ownsTitle(record.title)) continue
+                if (!owned) continue
+                if (record.syncPending || !record.canModify) throw MaestroSetupFailure("fixture_read_failed")
                 if (!deleteWithRetry(recordId, memberId)) {
                     throw MaestroSetupFailure("fixture_delete_failed")
                 }
@@ -111,6 +116,7 @@ internal class MaestroFixtureCleaner
                                 localDataSource.resolveServerId(recordId, memberId)?.takeIf { it > 0 }
                                     ?: throw MaestroSetupFailure("fixture_delete_failed")
                             if (localDataSource.hasPendingServerRecord(serverId, memberId) ||
+                                recordDao.isProtected(memberId, recordId) ||
                                 !localDataSource.isCurrentMember(memberId)
                             ) {
                                 throw MaestroSetupFailure("fixture_delete_failed")

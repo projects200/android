@@ -1,12 +1,15 @@
 package com.project200.undabang.e2e
 
 import android.app.Application
+import android.util.AtomicFile
 import androidx.room.Room
+import androidx.room.withTransaction
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.api.ApiService
 import com.project200.data.datasource.ExerciseRecordLocalDataSource
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
+import com.project200.data.dto.ExerciseIdDto
 import com.project200.data.dto.GetCustomTimerListDTO
 import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.dto.GetExerciseRecordListDto
@@ -15,6 +18,10 @@ import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseImageState
+import com.project200.data.local.entity.ExerciseListItemEntity
+import com.project200.data.local.entity.ExerciseRecordDetailEntity
+import com.project200.data.local.entity.ExerciseRecoveryState
+import com.project200.data.local.entity.SyncState
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseWriteInput
 import com.squareup.moshi.Moshi
@@ -39,8 +46,11 @@ import java.time.LocalDateTime
 @Config(sdk = [33], manifest = Config.NONE, application = Application::class)
 class MaestroOfflineExerciseFixtureTest {
     private val context = RuntimeEnvironment.getApplication()
-    private val name = "maestro-offline-exercise.db"
+    private val api = mockk<ApiService>()
     private val preferences = mockk<PreferenceManager>()
+    private val timers = mockk<TimerLocalDataSource>()
+    private val name = "maestro-offline-exercise.db"
+    private val memberId = "member"
     private val run =
         MaestroOfflineRun(
             "0123456789abcdef0123456789abcdef",
@@ -48,16 +58,33 @@ class MaestroOfflineExerciseFixtureTest {
             LocalDateTime.of(2026, 1, 1, 10, 0),
             MaestroOfflineTimerInput(45, 75, "offline-step"),
         )
+    private val request =
+        MaestroFeatureRequest(
+            "offline",
+            "offline-exercise-create",
+            run.id,
+            memberId,
+            JSONObject()
+                .put("startedAt", run.startedAt.toString())
+                .put("endedAt", run.endedAt.toString())
+                .put("initialSeconds", "45")
+                .put("updatedSeconds", "75")
+                .put("stepName", "offline-step"),
+        )
     private lateinit var database: UndabangDatabase
     private lateinit var local: ExerciseRecordLocalDataSource
     private lateinit var observer: MaestroOfflineExerciseFixture
-    private lateinit var saved: JSONObject
+    private lateinit var fixtures: MaestroOfflineFixtures
 
     @Before
     fun setUp() {
         context.deleteDatabase(name)
-        every { preferences.getMemberId() } returns MEMBER
-        File(context.filesDir, "maestro-offline-state.json").delete()
+        AtomicFile(File(context.filesDir, "maestro-offline-state.json")).delete()
+        every { preferences.getMemberId() } returns memberId
+        every { timers.currentMemberId() } returns memberId
+        coEvery { timers.getCustomTimers(memberId) } returns emptyList()
+        coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+        coEvery { api.getCustomTimerList() } returns success(GetCustomTimerListDTO(0, emptyList()))
         openDatabase()
     }
 
@@ -65,17 +92,21 @@ class MaestroOfflineExerciseFixtureTest {
     fun tearDown() {
         database.close()
         context.deleteDatabase(name)
-        File(context.filesDir, "maestro-offline-state.json").delete()
+        AtomicFile(File(context.filesDir, "maestro-offline-state.json")).delete()
     }
 
     private fun openDatabase() {
+        // 실제 Room 작업은 runTest의 가상 타임아웃과 경합하지 않도록 호출 스레드에서 실행합니다.
         database =
             Room.databaseBuilder(context, UndabangDatabase::class.java, name)
                 .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
                 .allowMainThreadQueries()
+                .setQueryExecutor { it.run() }
+                .setTransactionExecutor { it.run() }
                 .build()
         local = ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), database.exerciseRecordDao(), preferences)
-        observer = MaestroOfflineExerciseFixture(database, preferences)
+        observer = MaestroOfflineExerciseFixture(database, preferences, api)
+        fixtures = MaestroOfflineFixtures(api, context, timers, observer)
     }
 
     private fun reopen() {
@@ -83,78 +114,401 @@ class MaestroOfflineExerciseFixtureTest {
         openDatabase()
     }
 
-    private suspend fun create(): String {
-        saved = JSONObject().put("baselineExerciseLocalIds", observer.baseline(MEMBER, run))
-        return local.createRecord(input(), MEMBER).recordId
-    }
-
-    private fun input() = ExerciseWriteInput(ExerciseRecord(run.exerciseTitle, "", "OTHER", run.startedAt, run.endedAt, "", null))
-
-    private suspend fun observe(stage: String) = observer.observeLocal(MEMBER, run, saved, stage)
-
     @Test
-    fun `실제 로컬 생성은 null 서버 ID 대기로 저장하고 재개방 후 같은 ID를 유지하며 실제 삭제 후 완전히 사라진다`() =
+    fun `실제 Room 생성 수정 삭제 저널과 소유 식별자는 매 재개방 뒤에도 유지된다`() =
         runTest {
-            val id = create()
-            val journal = database.exerciseSyncDao().get(MEMBER, id)
-            observe("exercise-local-created")
-            assertThat(saved.getString("exerciseLocalId")).isEqualTo(id)
-            assertThat(journal?.serverId).isNull()
-            assertThat(database.exerciseRecordDao().getListItem(MEMBER, id)?.serverId).isNull()
+            fixtures.prepare(request)
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
+            observeLocal("exercise-local-created")
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
             reopen()
-            observe("exercise-local-created-relaunch")
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(journal)
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            local.deleteRecord(id, MEMBER)
+            observeLocal("exercise-local-created-relaunch")
+            coVerify(exactly = 1) { api.getExerciseList(any()) }
+
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            assertThat(snapshot().getLong(MaestroOfflineExerciseFixture.SERVER_ID)).isEqualTo(101L)
+
+            local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+            observeLocal("exercise-local-updated")
             reopen()
-            observe("exercise-local-deleted")
-            observer.requireSafeCleanup(MEMBER, run, saved)
-            assertThat(database.exerciseRecordDao().getListItem(MEMBER, id)).isNull()
-            assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)).isNull()
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isNull()
-            assertThat(database.exerciseImageDao().getByRecord(MEMBER, id)).isEmpty()
+            observeLocal("exercise-local-updated-relaunch")
+            assertThat(database.exerciseSyncDao().get(memberId, id)?.operation).isEqualTo(SyncState.UPDATE_PENDING)
+            settle(id, edited = true)
+            remote(edited = true)
+            fixtures.observeServer(request, "exercise-updated-synced")
+
+            local.deleteRecord(id)
+            observeLocal("exercise-local-deleted")
+            reopen()
+            observeLocal("exercise-local-deleted-relaunch")
+            assertThat(database.exerciseRecordDao().getListByDate(memberId, run.startedAt.toLocalDate())).isEmpty()
+            assertThat(database.exerciseSyncDao().get(memberId, id)?.serverId).isEqualTo(101L)
+            removeAcknowledged(id)
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+            fixtures.observeServer(request, "exercise-deleted-synced")
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
+            assertThat(snapshot().getLong(MaestroOfflineExerciseFixture.SERVER_ID)).isEqualTo(101L)
+            coVerify(exactly = 0) { api.postExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
         }
 
     @Test
-    fun `재실행 전에 원 ID를 다른 정상 생성으로 교체해도 같은 제목으로 통과하지 않는다`() =
+    fun `미전송 생성은 재개방 뒤 취소해도 다시 재개방한 Room에 남지 않는다`() =
         runTest {
-            val id = create()
-            observe("exercise-local-created")
-            local.deleteRecord(id, MEMBER)
-            val replacement = local.createRecord(input(), MEMBER).recordId
+            val id = prepareCreated()
+            val item = checkNotNull(database.exerciseRecordDao().getListItem(memberId, id))
+            val detail = checkNotNull(database.exerciseRecordDao().getDetailByLocalId(memberId, id))
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
+            assertThat(item.serverId).isNull()
+            assertThat(detail.serverId).isNull()
+            assertThat(journal.serverId).isNull()
+            assertThat(item.syncState).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(detail.syncState).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(journal.operation).isEqualTo(SyncState.CREATE_PENDING)
+
             reopen()
-            expectFailure("offline_exercise_identity_changed") { observe("exercise-local-created-relaunch") }
-            assertThat(saved.getString("exerciseLocalId")).isEqualTo(id)
-            assertThat(database.exerciseSyncDao().get(MEMBER, replacement)).isNotNull()
+            observeLocal("exercise-local-created-relaunch")
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
+            assertThat(database.exerciseRecordDao().getListItem(memberId, id)).isEqualTo(item)
+            assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, id)).isEqualTo(detail)
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isEqualTo(journal)
+
+            local.deleteRecord(id)
+            reopen()
+
+            assertThat(database.exerciseRecordDao().getListItem(memberId, id)).isNull()
+            assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, id)).isNull()
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isNull()
+            assertThat(database.exerciseImageDao().getByRecord(memberId, id)).isEmpty()
+            coVerify(exactly = 0) { api.postExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
         }
 
     @Test
-    fun `기준 행과 중복 제목과 날짜 밖 상세만 남은 행을 새 생성으로 인정하지 않는다`() =
+    fun `빈 응답과 이전 값 뒤 정확한 서버 값도 Room ACK 전에는 통과하지 않는다`() =
         runTest {
-            val id = create()
-            val baseline = JSONObject().put("baselineExerciseLocalIds", observer.baseline(MEMBER, run))
-            expectFailure("offline_exercise_local_mismatch") {
-                observer.observeLocal(MEMBER, run, baseline, "exercise-local-created")
+            val id = prepareCreated()
+            var reads = 0
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } coAnswers {
+                reads += 1
+                when (reads) {
+                    1 -> success(emptyList())
+                    2 -> success(listOf(summary().copy(exerciseTitle = run.editedExerciseTitle)))
+                    else -> success(listOf(summary()))
+                }
             }
-            val duplicate = local.createRecord(input(), MEMBER).recordId
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-created") }
-            local.deleteRecord(duplicate, MEMBER)
+            coEvery { api.getExerciseRecordDetail(101) } coAnswers {
+                if (reads >= 4) settle(id, edited = false)
+                success(detail())
+            }
+
+            fixtures.observeServer(request, "exercise-created-synced")
+
+            assertThat(reads).isAtLeast(4)
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isNull()
+            assertThat(snapshot().getLong(MaestroOfflineExerciseFixture.SERVER_ID)).isEqualTo(101L)
+        }
+
+    @Test
+    fun `정확한 서버 값만 있고 로컬 ACK가 없으면 제한 시간에 실패한다`() =
+        runTest {
+            val id = prepareCreated()
+            remote(edited = false)
+
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-created-synced") }
+
+            assertThat(database.exerciseSyncDao().get(memberId, id)?.operation).isEqualTo(SyncState.CREATE_PENDING)
+            assertThat(snapshot().has(MaestroOfflineExerciseFixture.SERVER_ID)).isFalse()
+            coVerify(atLeast = 2) { api.getExerciseList(any()) }
+        }
+
+    @Test
+    fun `로컬 ACK만 있고 서버 응답이 없거나 시간이 틀리면 성공하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-created-synced") }
+            remote(edited = false)
+            coEvery { api.getExerciseRecordDetail(101) } returns success(detail().copy(exerciseStartedAt = run.editedStartedAt))
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-created-synced") }
+            assertThat(snapshot().has(MaestroOfflineExerciseFixture.SERVER_ID)).isFalse()
+        }
+
+    @Test
+    fun `서버 ACK 관찰은 실패 응답과 null 본문을 빈 목록이나 삭제 완료로 바꾸지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            val responses =
+                listOf(
+                    BaseResponse<List<GetExerciseRecordListDto>>(false, "ERROR", "private"),
+                    BaseResponse<List<GetExerciseRecordListDto>>(true, "OK", "", null),
+                )
+            for (response in responses) {
+                coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns response
+                expectFailure("fixture_read_failed") { fixtures.observeServer(request, "exercise-created-synced") }
+            }
+            assertThat(snapshot().has(MaestroOfflineExerciseFixture.SERVER_ID)).isFalse()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            removeAcknowledged(id)
+            for (response in responses) {
+                coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns response
+                expectFailure("fixture_read_failed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+            }
+            coVerify(exactly = 0) { api.postExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `중복 제목이나 중복 서버 ID와 잘못된 날짜는 성공이 아니다`() =
+        runTest {
+            prepareCreated()
+            val responses =
+                listOf(
+                    listOf(summary(), summary().copy(exerciseId = 102)),
+                    listOf(summary(), summary()),
+                    listOf(summary().copy(exerciseStartedAt = run.startedAt.minusDays(1))),
+                )
+            for (rows in responses) {
+                coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(rows)
+                expectFailure("offline_exercise_server_mismatch") { fixtures.observeServer(request, "exercise-created-synced") }
+            }
+        }
+
+    @Test
+    fun `재개방 뒤 localId 교체나 다른 계정은 관찰과 삭제를 허가하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            removeAcknowledged(id)
+            local.createRecord(ExerciseWriteInput(record()))
+            reopen()
+            expectFailure("offline_exercise_identity_changed") { observeLocal("exercise-local-created-relaunch") }
+            every { preferences.getMemberId() } returns "other-member"
+            expectFailure("member_mismatch") { observeLocal("exercise-local-created-relaunch") }
+            expectFailure("member_mismatch") { fixtures.cleanup(request) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `수정과 삭제 관찰은 캡처한 서버 ID 없이는 부재를 성공으로 보지 않는다`() =
+        runTest {
+            prepareCreated()
+            expectFailure("offline_exercise_identity_changed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+            expectFailure("offline_exercise_identity_changed") { fixtures.observeServer(request, "exercise-updated-synced") }
+        }
+
+    @Test
+    fun `저장한 localId가 없으면 서버 부재와 로컬 부재를 삭제 완료 증거로 쓰지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            removeAcknowledged(id)
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+            val saved = snapshot().apply { remove(MaestroOfflineExerciseFixture.LOCAL_ID) }
+            File(context.filesDir, "maestro-offline-state.json").writeText(saved.toString())
+
+            expectFailure("offline_exercise_identity_changed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+        }
+
+    @Test
+    fun `수정은 같은 제목의 다른 서버 ID를 받아들이지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+            observeLocal("exercise-local-updated")
+            settle(id, edited = true)
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns
+                success(listOf(summary(edited = true).copy(exerciseId = 102)))
+
+            expectFailure("offline_exercise_identity_changed") { fixtures.observeServer(request, "exercise-updated-synced") }
+        }
+
+    @Test
+    fun `서버 삭제만으로는 삭제 저널이 남은 로컬 상태를 완료하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+            settle(id, edited = true)
+            local.deleteRecord(id)
+            observeLocal("exercise-local-deleted")
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
+
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+
+            assertThat(database.exerciseSyncDao().get(memberId, id)?.operation).isEqualTo(SyncState.DELETE_PENDING)
+        }
+
+    @Test
+    fun `정리는 수정된 소유 pending과 in-flight 사진을 보존하고 서버 삭제를 하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+            observeLocal("exercise-local-updated")
+            remote(edited = true)
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
+            database.exerciseSyncDao().saveSyncState(journal.copy(inFlightOperationId = "uncertain"))
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            settle(id, edited = true)
+            database.exerciseImageDao().save(
+                ExerciseImageEntity(
+                    memberId,
+                    id,
+                    "photo",
+                    null,
+                    "/private/photo.jpg",
+                    null,
+                    ExerciseImageState.ADD_LOCAL,
+                    "photo-key",
+                    0,
+                ),
+            )
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            val image = database.exerciseImageDao().getByRecord(memberId, id).single()
+            database.exerciseImageDao().save(image.copy(state = ExerciseImageState.SYNCED, serverPictureId = 17))
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `불확실한 미전송 생성도 직접 정리하지 않고 private 증거를 남긴다`() =
+        runTest {
+            val id = prepareCreated()
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
+            database.exerciseSyncDao().saveSyncState(journal.copy(recoveryState = ExerciseRecoveryState.RECOVERY_REQUIRED))
+
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isNotNull()
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `일반 pending은 안전한 수정 소유 기록의 기존 서버 정리를 막지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = true)
+            local.createRecord(ExerciseWriteInput(record().copy(title = "personal")))
+            remote(edited = true)
+            coEvery { api.deleteExerciseRecord(101) } returns success<ExerciseIdDto?>(null)
+
+            fixtures.cleanup(request)
+
+            coVerify(exactly = 1) { api.deleteExerciseRecord(101) }
+            assertThat(database.exerciseSyncDao().getByMember(memberId)).hasSize(1)
+            assertThat(database.exerciseSyncDao().getByMember(memberId).single().localId).isNotEqualTo(id)
+        }
+
+    @Test
+    fun `목록과 상세의 값이 갈리면 같은 localId와 저널만으로 성공하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            val detail = checkNotNull(database.exerciseRecordDao().getDetailByLocalId(memberId, id))
+            database.exerciseRecordDao().upsertDetail(detail.copy(startedAt = run.editedStartedAt))
+
+            expectFailure("offline_exercise_local_mismatch") { observeLocal("exercise-local-created-relaunch") }
+
+            assertThat(snapshot().getString(MaestroOfflineExerciseFixture.LOCAL_ID)).isEqualTo(id)
+            coVerify(exactly = 1) { api.getExerciseList(any()) }
+        }
+
+    @Test
+    fun `서버에 행이 남으면 로컬 제거만으로 삭제 동기화를 통과하지 않는다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            removeAcknowledged(id)
+
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `관찰 전 상세만 남은 불확실 생성도 정리에서 누락하지 않는다`() =
+        runTest {
+            fixtures.prepare(request)
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
+            database.exerciseRecordDao().deleteConfirmedList(memberId, id)
+
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+
+            assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, id)).isNotNull()
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isNotNull()
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `서버 상세 조회 중 pending으로 바뀌면 삭제 직전 재검사에서 보존한다`() =
+        runTest {
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            coEvery { api.getExerciseRecordDetail(101) } coAnswers {
+                local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+                success(detail())
+            }
+
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+
+            assertThat(database.exerciseSyncDao().get(memberId, id)?.operation).isEqualTo(SyncState.UPDATE_PENDING)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `기준 행과 중복 제목과 날짜 밖 상세 orphan은 새 생성으로 인정하지 않는다`() =
+        runTest {
+            val saved = JSONObject().put("baselineExerciseLocalIds", observer.baseline(memberId, run))
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
+            val baseline = JSONObject().put("baselineExerciseLocalIds", observer.baseline(memberId, run))
+            expectFailure("offline_exercise_local_mismatch") {
+                observer.observeLocal(memberId, run, baseline, "exercise-local-created")
+            }
+            val duplicate = local.createRecord(ExerciseWriteInput(record())).recordId
+            expectFailure("offline_exercise_local_mismatch") {
+                observer.observeLocal(memberId, run, saved, "exercise-local-created")
+            }
+            local.deleteRecord(duplicate)
             val orphan =
-                database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)!!.copy(
+                checkNotNull(database.exerciseRecordDao().getDetailByLocalId(memberId, id)).copy(
                     localId = "orphan",
                     startedAt = run.startedAt.minusDays(1),
                 )
             database.exerciseRecordDao().upsertDetail(orphan)
             reopen()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-created") }
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER, "orphan")).isEqualTo(orphan)
+            val ids = observer.baseline(memberId, run)
+            assertThat((0 until ids.length()).map { ids.getString(it) }).containsAtLeast(id, "orphan")
+            expectFailure("offline_exercise_local_mismatch") {
+                observer.observeLocal(memberId, run, saved, "exercise-local-created")
+            }
+            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(memberId, run, saved) }
+            assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, "orphan")).isEqualTo(orphan)
+            assertThat(saved.has(MaestroOfflineExerciseFixture.LOCAL_ID)).isFalse()
         }
 
     @Test
-    fun `제목 날짜 시간 서버 ID 확인 날짜와 저널의 잘못된 값은 캡처 전에 거절하며 관찰은 변경하지 않는다`() =
+    fun `잘못된 로컬 값과 저널은 캡처 전에 거절하고 관찰은 원 행을 변경하지 않는다`() =
         runTest {
-            val id = create()
+            val saved = JSONObject().put("baselineExerciseLocalIds", observer.baseline(memberId, run))
+            val id = local.createRecord(ExerciseWriteInput(record())).recordId
             val corruptions =
                 listOf(
                     "UPDATE exercise_list_item SET title = 'wrong' WHERE memberId = ? AND localId = ?",
@@ -162,201 +516,250 @@ class MaestroOfflineExerciseFixtureTest {
                     "UPDATE exercise_record_detail SET endedAt = '2026-01-01T11:00' WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_list_item SET serverId = 7 WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_record_detail SET confirmedDate = '2026-01-01' WHERE memberId = ? AND localId = ?",
+                    "UPDATE exercise_list_item SET serverVersion = 1 WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET revision = 0 WHERE memberId = ? AND localId = ?",
+                    "UPDATE exercise_sync SET revision = NULL WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET operationId = '' WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET createRequestId = NULL WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET recoveryState = 'RECOVERY_REQUIRED' WHERE memberId = ? AND localId = ?",
                     "UPDATE exercise_sync SET inFlightBody = 'uncertain' WHERE memberId = ? AND localId = ?",
                 )
-            val item = database.exerciseRecordDao().getListItem(MEMBER, id)!!
-            val detail = database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)!!
-            val journal = database.exerciseSyncDao().get(MEMBER, id)!!
+            val dao = database.exerciseRecordDao()
+            val item = checkNotNull(dao.getListItem(memberId, id))
+            val detail = checkNotNull(dao.getDetailByLocalId(memberId, id))
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
             for (sql in corruptions) {
-                database.openHelper.writableDatabase.execSQL(sql, arrayOf(MEMBER, id))
-                val beforeItem = database.exerciseRecordDao().getListItem(MEMBER, id)
-                val beforeDetail = database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)
-                val beforeJournal = database.exerciseSyncDao().get(MEMBER, id)
-                expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-created") }
-                assertThat(saved.has("exerciseLocalId")).isFalse()
-                assertThat(database.exerciseRecordDao().getListItem(MEMBER, id)).isEqualTo(beforeItem)
-                assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)).isEqualTo(beforeDetail)
-                assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(beforeJournal)
-                database.exerciseRecordDao().upsertListItems(listOf(item))
-                database.exerciseRecordDao().upsertDetail(detail)
-                database.openHelper.writableDatabase.execSQL(
-                    "DELETE FROM exercise_sync WHERE memberId = ? AND localId = ?",
-                    arrayOf(MEMBER, id),
-                )
+                database.openHelper.writableDatabase.execSQL(sql, arrayOf(memberId, id))
+                val beforeItem = dao.getListItem(memberId, id)
+                val beforeDetail = dao.getDetailByLocalId(memberId, id)
+                val beforeJournal = database.exerciseSyncDao().get(memberId, id)
+                val reason =
+                    if (sql.contains("SET serverId")) "offline_exercise_identity_changed" else "offline_exercise_local_mismatch"
+                expectFailure(reason) { observer.observeLocal(memberId, run, saved, "exercise-local-created") }
+                assertThat(saved.has(MaestroOfflineExerciseFixture.LOCAL_ID)).isFalse()
+                assertThat(dao.getListItem(memberId, id)).isEqualTo(beforeItem)
+                assertThat(dao.getDetailByLocalId(memberId, id)).isEqualTo(beforeDetail)
+                assertThat(database.exerciseSyncDao().get(memberId, id)).isEqualTo(beforeJournal)
+                dao.upsertListItems(listOf(item))
+                dao.upsertDetail(detail)
+                database.exerciseSyncDao().deleteApplied(memberId, id)
                 database.exerciseSyncDao().saveDesired(journal)
             }
+            coVerify(exactly = 0) { api.getExerciseList(any()) }
         }
 
     @Test
-    fun `알 수 없는 전송 중 생성은 실제 삭제의 tombstone도 부재나 안전 정리로 인정하지 않는다`() =
+    fun `전송 중 생성의 tombstone은 서버 연결 삭제나 안전 정리로 인정하지 않는다`() =
         runTest {
-            val id = create()
-            observe("exercise-local-created")
-            val journal = database.exerciseSyncDao().get(MEMBER, id)!!
+            val id = prepareCreated()
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
             assertThat(
                 database.exerciseSyncDao().claim(
-                    MEMBER,
+                    memberId,
                     id,
-                    journal.revision!!,
-                    journal.operationId!!,
-                    journal.createRequestId!!,
+                    checkNotNull(journal.revision),
+                    checkNotNull(journal.operationId),
+                    checkNotNull(journal.createRequestId),
                     "body",
                     null,
                 ),
             ).isTrue()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-created-relaunch") }
-            local.deleteRecord(id, MEMBER)
+            expectFailure("offline_exercise_local_mismatch") { observeLocal("exercise-local-created-relaunch") }
+            local.deleteRecord(id)
             reopen()
-            val tombstone = database.exerciseSyncDao().get(MEMBER, id)
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-deleted") }
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(tombstone)
+            val tombstone = database.exerciseSyncDao().get(memberId, id)
+            expectFailure("offline_exercise_identity_changed") { observeLocal("exercise-local-deleted") }
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isEqualTo(tombstone)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
         }
 
     @Test
-    fun `삭제 뒤 저널이나 사진이나 상세만 남아도 재개방 후 부재를 인정하지 않는다`() =
+    fun `서버 삭제 뒤 저널 사진과 날짜 밖 상세 orphan은 Room ACK로 인정하지 않는다`() =
         runTest {
-            val id = create()
-            observe("exercise-local-created")
-            val journal = database.exerciseSyncDao().get(MEMBER, id)!!
-            val detail = database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)!!
-            local.deleteRecord(id, MEMBER)
+            val id = prepareCreated()
+            settle(id, edited = false)
+            remote(edited = false)
+            fixtures.observeServer(request, "exercise-created-synced")
+            local.updateRecord(id, ExerciseWriteInput(record(edited = true)))
+            settle(id, edited = true)
+            local.deleteRecord(id)
+            observeLocal("exercise-local-deleted")
+            val journal = checkNotNull(database.exerciseSyncDao().get(memberId, id))
+            val detail = checkNotNull(database.exerciseRecordDao().getDetailByLocalId(memberId, id))
+            removeAcknowledged(id)
+            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
             database.exerciseSyncDao().saveDesired(journal)
             reopen()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-deleted") }
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(journal)
-            database.exerciseSyncDao().deleteMatching(MEMBER, id, journal.operationId, journal.revision)
-            val image = ExerciseImageEntity(MEMBER, id, "photo", null, "/private/photo", null, ExerciseImageState.ADD_PENDING, "request", 0)
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isEqualTo(journal)
+            database.exerciseSyncDao().deleteApplied(memberId, id)
+            val image =
+                ExerciseImageEntity(
+                    memberId,
+                    id,
+                    "photo",
+                    null,
+                    "/private/photo",
+                    null,
+                    ExerciseImageState.ADD_PENDING,
+                    "request",
+                    0,
+                )
             database.exerciseImageDao().save(image)
             reopen()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-deleted") }
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseImageDao().getByRecord(MEMBER, id)).containsExactly(image)
-            database.exerciseRecordDao().upsertDetail(detail.copy(localId = "orphan"))
-            reopen()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-deleted") }
-        }
-
-    @Test
-    fun `다른 회원과 미캡처 삭제는 거절하고 원 회원의 대기 행을 보존한다`() =
-        runTest {
-            val id = create()
-            expectFailure("offline_exercise_identity_changed") { observe("exercise-local-deleted") }
-            every { preferences.getMemberId() } returns "other"
-            expectFailure("member_mismatch") { observe("exercise-local-created") }
-            expectFailure("member_mismatch") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isNotNull()
-        }
-
-    @Test
-    fun `삭제 뒤 원 ID가 없어도 날짜 밖 같은 제목의 상세는 부재로 통과하지 않는다`() =
-        runTest {
-            val id = create()
-            observe("exercise-local-created")
-            val detail = database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)!!
-            local.deleteRecord(id, MEMBER)
-            val orphan = detail.copy(localId = "orphan", startedAt = run.startedAt.minusDays(1))
+            expectFailure("offline_upload_not_observed") { fixtures.observeServer(request, "exercise-deleted-synced") }
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            assertThat(database.exerciseImageDao().getByRecord(memberId, id)).containsExactly(image)
+            database.exerciseImageDao().deleteMatching(memberId, id, image.localId, image.requestId)
+            val orphan = detail.copy(localId = "orphan", startedAt = run.editedStartedAt.minusDays(1))
             database.exerciseRecordDao().upsertDetail(orphan)
             reopen()
-            expectFailure("offline_exercise_local_mismatch") { observe("exercise-local-deleted") }
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, saved) }
-            assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER, "orphan")).isEqualTo(orphan)
-            assertThat(database.exerciseRecordDao().getDetailByLocalId(MEMBER, id)).isNull()
-        }
-
-    @Test
-    fun `캡처 전 불확실 운동도 빈 기준 상태와 달리 안전 정리를 거절한다`() =
-        runTest {
-            observer.requireSafeCleanup(MEMBER, run, null)
-            val id = create()
-            val journal = database.exerciseSyncDao().get(MEMBER, id)
-            reopen()
-            expectFailure("offline_exercise_cleanup_unsafe") { observer.requireSafeCleanup(MEMBER, run, null) }
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isEqualTo(journal)
-        }
-
-    @Test
-    fun `목록 조회 뒤 새 대기가 생기면 원격 DELETE 직전 재검사로 삭제를 막는다`() =
-        runTest {
-            val api = mockk<ApiService>()
-            val timers = mockk<TimerLocalDataSource>()
-            val fixture = MaestroOfflineFixtures(api, context, timers, observer)
-            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns
-                BaseResponse(
-                    true,
-                    "OK",
-                    "",
-                    listOf(GetExerciseRecordListDto(7, run.exerciseTitle, "OTHER", run.startedAt, run.endedAt, null)),
-                )
-            coEvery { api.getCustomTimerList() } returns BaseResponse(true, "OK", "", GetCustomTimerListDTO(0, emptyList()))
-            var id: String? = null
-            coEvery { api.getExerciseRecordDetail(7) } coAnswers {
-                id = local.createRecord(input(), MEMBER).recordId
-                BaseResponse(true, "OK", "", GetExerciseRecordData(run.exerciseTitle, "", "OTHER", run.startedAt, run.endedAt, "", null))
-            }
-            expectFailure("offline_exercise_cleanup_unsafe") { fixture.clean(MEMBER, run) }
-            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
-            coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
-            reopen()
-            assertThat(database.exerciseSyncDao().get(MEMBER, checkNotNull(id))).isNotNull()
-        }
-
-    @Test
-    fun `실제 fixture 정리는 대기 운동이 있으면 서버 삭제 전에 중단하고 UI 취소 뒤에만 허용한다`() =
-        runTest {
-            val api = mockk<ApiService>()
-            val timers = mockk<TimerLocalDataSource>()
-            every { timers.currentMemberId() } returns MEMBER
-            coEvery { timers.getCustomTimers(MEMBER) } returns emptyList()
-            coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns BaseResponse(true, "OK", "", emptyList())
-            coEvery { api.getCustomTimerList() } returns BaseResponse(true, "OK", "", GetCustomTimerListDTO(0, emptyList()))
-            val fixtures = MaestroOfflineFixtures(api, context, timers, observer)
-            val request =
-                MaestroFeatureRequest(
-                    "offline",
-                    "offline-exercise-create",
-                    run.id,
-                    MEMBER,
-                    JSONObject()
-                        .put("startedAt", run.startedAt.toString())
-                        .put("endedAt", run.endedAt.toString())
-                        .put("initialSeconds", "45")
-                        .put("updatedSeconds", "75")
-                        .put("stepName", "offline-step"),
-                )
-            fixtures.prepare(request)
-            val id = local.createRecord(input(), MEMBER).recordId
+            expectFailure("offline_exercise_identity_changed") { fixtures.observeServer(request, "exercise-deleted-synced") }
             expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
-            fixtures.observe(request, "exercise-local-created")
-            val snapshot = File(context.filesDir, "maestro-offline-state.json").readText()
-            reopen()
-            val reopenedFixtures = MaestroOfflineFixtures(api, context, timers, observer)
-            reopenedFixtures.observe(request, "exercise-local-created-relaunch")
-            expectFailure("offline_exercise_cleanup_unsafe") { reopenedFixtures.cleanup(request) }
-            assertThat(File(context.filesDir, "maestro-offline-state.json").readText()).isEqualTo(snapshot)
+            assertThat(database.exerciseRecordDao().getDetailByLocalId(memberId, "orphan")).isEqualTo(orphan)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `서버 상세 조회 중 새 소유 대기가 생겨도 DELETE 직전 검사가 보존한다`() =
+        runTest {
+            fixtures.prepare(request)
+            remote(edited = false)
+            var id: String? = null
+            coEvery { api.getExerciseRecordDetail(101) } coAnswers {
+                id = local.createRecord(ExerciseWriteInput(record())).recordId
+                success(detail())
+            }
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
             coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
-            local.deleteRecord(id, MEMBER)
             reopen()
-            MaestroOfflineFixtures(api, context, timers, observer).cleanup(request)
-            assertThat(database.exerciseSyncDao().get(MEMBER, id)).isNull()
+            assertThat(database.exerciseSyncDao().get(memberId, checkNotNull(id))).isNotNull()
         }
+
+    @Test
+    fun `실패한 pending 정리는 재개방 후에도 snapshot과 원 저널을 보존한다`() =
+        runTest {
+            val id = prepareCreated()
+            val bytes = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            val journal = database.exerciseSyncDao().get(memberId, id)
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            reopen()
+            observeLocal("exercise-local-created-relaunch")
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(request) }
+            assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(bytes)
+            assertThat(database.exerciseSyncDao().get(memberId, id)).isEqualTo(journal)
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+            coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
+        }
+
+    private suspend fun prepareCreated(): String {
+        fixtures.prepare(request)
+        val id = local.createRecord(ExerciseWriteInput(record())).recordId
+        observeLocal("exercise-local-created")
+        return id
+    }
+
+    private suspend fun observeLocal(stage: String) {
+        fixtures.observe(request.copy(parameters = JSONObject(request.parameters.toString()).put("stage", stage)), stage)
+    }
+
+    private fun snapshot() = JSONObject(File(context.filesDir, "maestro-offline-state.json").readText())
+
+    private fun record(edited: Boolean = false) =
+        ExerciseRecord(
+            if (edited) run.editedExerciseTitle else run.exerciseTitle,
+            "",
+            "OTHER",
+            if (edited) run.editedStartedAt else run.startedAt,
+            run.endedAt,
+            "",
+            null,
+        )
+
+    // 테스트만 ACK 투영을 구성합니다. 실제 E2E observer에는 이 쓰기 경로가 없습니다.
+    private suspend fun settle(
+        id: String,
+        edited: Boolean,
+    ) {
+        val record = record(edited)
+        database.withTransaction {
+            database.exerciseRecordDao().upsertListItems(
+                listOf(
+                    ExerciseListItemEntity(
+                        memberId = memberId,
+                        localId = id,
+                        serverId = 101,
+                        syncState = SyncState.SYNCED,
+                        date = run.startedAt.toLocalDate(),
+                        sortOrder = 0,
+                        title = record.title,
+                        personalType = "OTHER",
+                        startedAt = record.startedAt,
+                        endedAt = record.endedAt,
+                        thumbnailUrls = null,
+                        serverVersion = 1,
+                        confirmedDate = run.startedAt.toLocalDate(),
+                    ),
+                ),
+            )
+            database.exerciseRecordDao().upsertDetail(
+                ExerciseRecordDetailEntity(
+                    memberId = memberId,
+                    localId = id,
+                    serverId = 101,
+                    syncState = SyncState.SYNCED,
+                    title = record.title,
+                    detail = "",
+                    personalType = "OTHER",
+                    startedAt = record.startedAt,
+                    endedAt = record.endedAt,
+                    location = "",
+                    pictures = null,
+                    serverVersion = 1,
+                    confirmedDate = run.startedAt.toLocalDate(),
+                ),
+            )
+            database.exerciseSyncDao().deleteApplied(memberId, id)
+        }
+    }
+
+    private suspend fun removeAcknowledged(id: String) {
+        database.withTransaction {
+            database.exerciseRecordDao().deleteConfirmedList(memberId, id)
+            database.exerciseRecordDao().deleteConfirmedDetail(memberId, id)
+            database.exerciseSyncDao().deleteApplied(memberId, id)
+        }
+    }
+
+    private fun remote(edited: Boolean) {
+        coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(listOf(summary(edited)))
+        coEvery { api.getExerciseRecordDetail(101) } returns success(detail(edited))
+    }
+
+    private fun summary(edited: Boolean = false): GetExerciseRecordListDto {
+        val record = record(edited)
+        return GetExerciseRecordListDto(101, record.title, "OTHER", record.startedAt, record.endedAt, null)
+    }
+
+    private fun detail(edited: Boolean = false): GetExerciseRecordData {
+        val record = record(edited)
+        return GetExerciseRecordData(record.title, "", "OTHER", record.startedAt, record.endedAt, "", null)
+    }
+
+    private fun <T> success(data: T): BaseResponse<T> = BaseResponse(true, "OK", "", data)
 
     private suspend fun expectFailure(
         reason: String,
         operation: suspend () -> Unit,
     ) {
-        val failure = runCatching { operation() }.exceptionOrNull()
-        assertThat(failure).isInstanceOf(MaestroSetupFailure::class.java)
-        assertThat((failure as MaestroSetupFailure).reason).isEqualTo(reason)
-    }
-
-    companion object {
-        private const val MEMBER = "member"
+        try {
+            operation()
+            throw AssertionError("관찰 또는 안전 정리가 실패해야 합니다")
+        } catch (failure: MaestroSetupFailure) {
+            assertThat(failure.reason).isEqualTo(reason)
+        }
     }
 }

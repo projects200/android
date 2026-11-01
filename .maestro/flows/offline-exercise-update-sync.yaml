@@ -1,0 +1,5 @@
+appId: com.project200.undabang
+name: 재연결 후 같은 서버 ID의 실제 운동 수정 동기화
+---
+# 호스트는 이 UI 확인 뒤 정확한 수정값과 Room ACK를 bounded polling합니다.
+- runFlow: offline-exercise-update-relaunch.yaml

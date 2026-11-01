@@ -1,12 +1,11 @@
 appId: com.project200.undabang
-name: 단절 중 미전송 운동 취소와 재실행 후 부재
+name: 서버 연결 기록의 오프라인 삭제와 전체 목록 부재
 ---
-# 호스트는 같은 localId의 CREATE_PENDING을 확인했고 네트워크는 계속 단절 상태입니다.
-- stopApp
-- runFlow: ../subflows/launch-logged-in.yaml
-- tapOn:
-    id: exercise_nav_graph
-- runFlow: ../offline/assert-exercise-record.yaml
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EDITED_EXERCISE_TITLE}"
+      START_MINUTE: "05"
 - tapOn:
     id: exercise_detail_menu
 - tapOn: "삭제하기"
@@ -16,16 +15,9 @@ name: 단절 중 미전송 운동 취소와 재실행 후 부재
     visible:
       id: exercise_create_btn
     timeout: 30000
+- assertNotVisible:
+    id: exercise_detail_menu
 - runFlow:
     file: ../subflows/assert-exercise-records-absent.yaml
     env:
-      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE}"
-# 실제 production 삭제가 만든 부재를 새 프로세스의 전체 목록에서도 확인합니다.
-- stopApp
-- runFlow: ../subflows/launch-logged-in.yaml
-- tapOn:
-    id: exercise_nav_graph
-- runFlow:
-    file: ../subflows/assert-exercise-records-absent.yaml
-    env:
-      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE}"
+      ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}"

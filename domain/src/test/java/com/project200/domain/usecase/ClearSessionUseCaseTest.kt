@@ -1,6 +1,7 @@
 package com.project200.domain.usecase
 
 import com.google.common.truth.Truth.assertThat
+import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.manager.FcmTokenSyncScheduler
 import com.project200.domain.manager.SessionDataCleaner
 import com.project200.domain.manager.TimerSyncScheduler
@@ -37,17 +38,23 @@ class ClearSessionUseCaseTest {
     private lateinit var mockTimerSyncScheduler: TimerSyncScheduler
 
     @MockK
+    private lateinit var mockExerciseSyncScheduler: ExerciseSyncScheduler
+
+    @MockK
     private lateinit var mockSessionDataCleaner: SessionDataCleaner
 
     private lateinit var useCase: ClearSessionUseCase
 
     @Before
     fun setUp() {
-        useCase = ClearSessionUseCase(mockRepository, mockFcmTokenSyncScheduler, mockTimerSyncScheduler, mockSessionDataCleaner)
+        useCase = ClearSessionUseCase(
+            mockRepository, mockFcmTokenSyncScheduler, mockTimerSyncScheduler, mockSessionDataCleaner, mockExerciseSyncScheduler,
+        )
         coEvery { mockRepository.clearSession() } just Runs
         coEvery { mockRepository.clearTokens() } just Runs
         every { mockFcmTokenSyncScheduler.cancel() } just Runs
         every { mockTimerSyncScheduler.cancel() } just Runs
+        every { mockExerciseSyncScheduler.cancel() } just Runs
         coEvery { mockSessionDataCleaner.clearAll() } just Runs
     }
 
@@ -93,6 +100,7 @@ class ClearSessionUseCaseTest {
         // Then
         assertThat(thrown).isInstanceOf(IllegalStateException::class.java)
         verify(exactly = 1) { mockFcmTokenSyncScheduler.cancel() }
+        verify(exactly = 1) { mockExerciseSyncScheduler.cancel() }
         coVerify(exactly = 1) { mockRepository.clearSession() }
     }
 
@@ -123,5 +131,6 @@ class ClearSessionUseCaseTest {
 
         // Then: 세션이 없으면 전송할 수 없다
         verify(exactly = 2) { mockFcmTokenSyncScheduler.cancel() }
+        verify(exactly = 2) { mockExerciseSyncScheduler.cancel() }
     }
 }

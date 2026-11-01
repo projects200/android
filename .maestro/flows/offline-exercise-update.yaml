@@ -1,0 +1,38 @@
+appId: com.project200.undabang
+name: 서버 연결 기록의 오프라인 제목 시간 수정
+---
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EXERCISE_TITLE}"
+      START_MINUTE: "00"
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: "수정하기"
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+      text: "${EXERCISE_TITLE}"
+    timeout: 30000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: exercise_title_input
+- inputText: "${EDITED_EXERCISE_TITLE}"
+- hideKeyboard
+- assertVisible:
+    id: exercise_title_input
+    text: "${EDITED_EXERCISE_TITLE}"
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: "${EXERCISE_START_HOUR}"
+      TIME_MINUTE: "05"
+- tapOn:
+    id: exercise_complete
+- runFlow:
+    file: ../subflows/assert-exercise-detail.yaml
+    env:
+      RECORD_TITLE: "${EDITED_EXERCISE_TITLE}"
+      START_MINUTE: "05"

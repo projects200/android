@@ -72,6 +72,12 @@ class ExerciseRecordRepositoryImplTest {
                 network,
                 UnconfinedTestDispatcher(),
                 ExerciseImageFileStore(RuntimeEnvironment.getApplication()),
+                mockk(relaxed = true),
+                mockk(relaxed = true),
+                mockk(relaxed = true),
+                mockk(relaxed = true),
+                preferences,
+                mockk(relaxed = true),
             )
     }
 
@@ -362,6 +368,12 @@ class ExerciseRecordRepositoryImplTest {
                     network,
                     UnconfinedTestDispatcher(),
                     ExerciseImageFileStore(RuntimeEnvironment.getApplication()),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    preferences,
+                    mockk(relaxed = true),
                 )
             every { network.isCurrentlyConnected() } returns false
             assertThat(reader.getExerciseRecordList(date, refresh = false)).isInstanceOf(BaseResult.Error::class.java)
@@ -489,6 +501,12 @@ class ExerciseRecordRepositoryImplTest {
                     network,
                     UnconfinedTestDispatcher(),
                     ExerciseImageFileStore(RuntimeEnvironment.getApplication()),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    mockk(relaxed = true),
+                    preferences,
+                    mockk(relaxed = true),
                 )
             assertThat(writer.createExerciseRecord(ExerciseWriteInput(record()))).isInstanceOf(BaseResult.Error::class.java)
             assertThat(local.getListByDate(date)).isEmpty()

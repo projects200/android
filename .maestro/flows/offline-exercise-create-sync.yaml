@@ -1,0 +1,5 @@
+appId: com.project200.undabang
+name: 재연결 후 실제 운동 생성 동기화 관찰
+---
+# 호스트가 망 복구를 확인했습니다. 관찰자는 UI 확인 뒤 서버와 Room ACK를 함께 기다립니다.
+- runFlow: offline-exercise-cached.yaml

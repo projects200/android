@@ -881,10 +881,9 @@ class Device:
                         failure = {
                             "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
                             "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
-                            "offline_exercise_server_absence_mismatch": "offline-suite-exercise-server-absence-mismatch",
+                            "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
                             "offline_exercise_local_mismatch": "offline-suite-exercise-local-mismatch",
                             "offline_exercise_identity_changed": "offline-suite-exercise-identity-changed",
-                            "offline_exercise_cleanup_unsafe": "offline-suite-exercise-cleanup-unsafe",
                             "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
                         }.get(reason, failure)
                     elif feature == "timer":

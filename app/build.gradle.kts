@@ -157,4 +157,5 @@ dependencies {
     "e2eImplementation"(libs.androidx.room.ktx)
 
     "testE2eImplementation"(libs.robolectric)
+    testImplementation(libs.robolectric)
 }
