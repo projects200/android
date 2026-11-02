@@ -38,7 +38,10 @@ class ExerciseSyncWorkerTest {
     private val member = mockk<GetMemberIdUseCase>()
     private val sync = mockk<SyncExercisesUseCase>()
 
-    private fun worker(attempt: Int = 0, requested: String? = "member"): ExerciseSyncWorker {
+    private fun worker(
+        attempt: Int = 0,
+        requested: String? = "member",
+    ): ExerciseSyncWorker {
         val parameters = mockk<WorkerParameters>(relaxed = true)
         every { parameters.inputData } returns Data.Builder().putString(ExerciseSyncWorker.KEY_MEMBER_ID, requested).build()
         every { parameters.runAttemptCount } returns attempt
@@ -46,49 +49,53 @@ class ExerciseSyncWorkerTest {
     }
 
     @Test
-    fun `실제 Worker는 성공과 인증 보류를 success로 반환한다`() = runTest {
-        coEvery { member() } returns "member"
-        for (outcome in listOf(ExerciseSyncResult.Success, ExerciseSyncResult.Skipped)) {
-            coEvery { sync("member") } returns outcome
+    fun `실제 Worker는 성공과 인증 보류를 success로 반환한다`() =
+        runTest {
+            coEvery { member() } returns "member"
+            for (outcome in listOf(ExerciseSyncResult.Success, ExerciseSyncResult.Skipped)) {
+                coEvery { sync("member") } returns outcome
+                assertThat(worker().doWork()).isEqualTo(ListenableWorker.Result.success())
+            }
+        }
+
+    @Test
+    fun `실제 Worker는 영구 실패를 실패로 재시도 오류를 상한 전까지 retry로 반환한다`() =
+        runTest {
+            coEvery { member() } returns "member"
+            coEvery { sync("member") } returns ExerciseSyncResult.Failure
+            assertThat(worker().doWork()).isEqualTo(ListenableWorker.Result.failure())
+            coEvery { sync("member") } returns ExerciseSyncResult.Retry
+            for (attempt in 0 until ExerciseSyncWorker.MAX_ATTEMPTS - 1) {
+                assertThat(worker(attempt).doWork()).isEqualTo(ListenableWorker.Result.retry())
+            }
+            for (attempt in listOf(ExerciseSyncWorker.MAX_ATTEMPTS - 1, ExerciseSyncWorker.MAX_ATTEMPTS)) {
+                assertThat(worker(attempt).doWork()).isEqualTo(ListenableWorker.Result.failure())
+            }
+            // 상한은 Worker 결과만 바꿉니다. Repository에 삭제/초기화 API를 호출하지 않습니다
+            coVerify(exactly = ExerciseSyncWorker.MAX_ATTEMPTS + 2) { sync("member") }
+        }
+
+    @Test
+    fun `요청 회원이 없거나 현재 회원과 다르면 Repository를 호출하지 않는다`() =
+        runTest {
+            coEvery { member() } returns "different"
+            assertThat(worker(requested = null).doWork()).isEqualTo(ListenableWorker.Result.success())
             assertThat(worker().doWork()).isEqualTo(ListenableWorker.Result.success())
+            coVerify(exactly = 0) { sync(any()) }
         }
-    }
 
     @Test
-    fun `실제 Worker는 영구 실패를 실패로 재시도 오류를 상한 전까지 retry로 반환한다`() = runTest {
-        coEvery { member() } returns "member"
-        coEvery { sync("member") } returns ExerciseSyncResult.Failure
-        assertThat(worker().doWork()).isEqualTo(ListenableWorker.Result.failure())
-        coEvery { sync("member") } returns ExerciseSyncResult.Retry
-        for (attempt in 0 until ExerciseSyncWorker.MAX_ATTEMPTS - 1) {
-            assertThat(worker(attempt).doWork()).isEqualTo(ListenableWorker.Result.retry())
+    fun `실제 Worker는 코루틴 취소를 success나 retry로 삼키지 않는다`() =
+        runTest {
+            coEvery { member() } returns "member"
+            coEvery { sync("member") } throws CancellationException("중단")
+            try {
+                worker().doWork()
+                throw AssertionError("취소가 전파되지 않았습니다")
+            } catch (expected: CancellationException) {
+                assertThat(expected.message).isEqualTo("중단")
+            }
         }
-        for (attempt in listOf(ExerciseSyncWorker.MAX_ATTEMPTS - 1, ExerciseSyncWorker.MAX_ATTEMPTS)) {
-            assertThat(worker(attempt).doWork()).isEqualTo(ListenableWorker.Result.failure())
-        }
-        // 상한은 Worker 결과만 바꿉니다. Repository에 삭제/초기화 API를 호출하지 않습니다
-        coVerify(exactly = ExerciseSyncWorker.MAX_ATTEMPTS + 2) { sync("member") }
-    }
-
-    @Test
-    fun `요청 회원이 없거나 현재 회원과 다르면 Repository를 호출하지 않는다`() = runTest {
-        coEvery { member() } returns "different"
-        assertThat(worker(requested = null).doWork()).isEqualTo(ListenableWorker.Result.success())
-        assertThat(worker().doWork()).isEqualTo(ListenableWorker.Result.success())
-        coVerify(exactly = 0) { sync(any()) }
-    }
-
-    @Test
-    fun `실제 Worker는 코루틴 취소를 success나 retry로 삼키지 않는다`() = runTest {
-        coEvery { member() } returns "member"
-        coEvery { sync("member") } throws CancellationException("중단")
-        try {
-            worker().doWork()
-            throw AssertionError("취소가 전파되지 않았습니다")
-        } catch (expected: CancellationException) {
-            assertThat(expected.message).isEqualTo("중단")
-        }
-    }
 
     @Test
     fun `실제 작업 요청은 연결 제약과 지수 backoff 및 회원 입력을 가진다`() {

@@ -63,18 +63,20 @@ jobs:
             :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
 
       - name: Run Android Lint (Debug)
-        if: github.event_name != 'workflow_dispatch'
+        id: lint
+        if: ${{ github.event_name != 'workflow_dispatch' }}
         run: ./gradlew lintDebug
 
       - name: Run Ktlint Check
-        if: github.event_name != 'workflow_dispatch'
-        run: ./gradlew ktlintCheck
+        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        run: ./gradlew ktlintCheck --continue
 
       - name: Run Unit Tests
-        if: github.event_name != 'workflow_dispatch'
-        run: ./gradlew testDebugUnitTest
+        id: unit
+        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        run: ./gradlew testDebugUnitTest :domain:test --continue
       - name: Verify JaCoCo line coverage
-        if: github.event_name != 'workflow_dispatch'
+        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && steps.unit.outcome == 'success' }}
         run: ./gradlew jacocoLogicReport jacocoLogicCoverageVerification
 
       - name: Build Debug APK

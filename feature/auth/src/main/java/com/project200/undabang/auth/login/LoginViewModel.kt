@@ -31,15 +31,18 @@ class LoginViewModel
         private var authorizationLaunched = false
 
         val hasLoginToCancel: Boolean
-            get() = preparingLogin || awaitingCredentials || cancellingLogin || actionJob?.isActive == true ||
-                _registrationResult.value is RegistrationStatus.ConfirmationRequired
+            get() =
+                preparingLogin || awaitingCredentials || cancellingLogin || actionJob?.isActive == true ||
+                    _registrationResult.value is RegistrationStatus.ConfirmationRequired
 
-        fun isLoginActive(loginGeneration: Long): Boolean =
-            generation == loginGeneration && awaitingCredentials
+        fun isLoginActive(loginGeneration: Long): Boolean = generation == loginGeneration && awaitingCredentials
 
         fun loginGeneration(): Long = generation
 
-        fun bindAuthorizationRequest(loginGeneration: Long, authorizationState: String): Boolean {
+        fun bindAuthorizationRequest(
+            loginGeneration: Long,
+            authorizationState: String,
+        ): Boolean {
             if (!isLoginActive(loginGeneration) || authorizationLaunched || authorizationState.isBlank()) return false
             outgoingAuthorizationState = authorizationState
             authorizationLaunched = true
@@ -49,7 +52,9 @@ class LoginViewModel
         fun consumeAuthorizationResponse(authorizationState: String?): Long? {
             if (preparingLogin || cancellingLogin || !awaitingCredentials ||
                 authorizationState.isNullOrBlank() || outgoingAuthorizationState != authorizationState
-            ) return null
+            ) {
+                return null
+            }
             // 수신 응답은 발신 시도의 권한을 한 번만 소비하며 새 로그인 시도를 만들지 않습니다.
             outgoingAuthorizationState = null
             return generation
@@ -103,7 +108,9 @@ class LoginViewModel
             if (cancellingLogin) return
             if (confirmationId != null &&
                 (_registrationResult.value as? RegistrationStatus.ConfirmationRequired)?.confirmationId != confirmationId
-            ) return
+            ) {
+                return
+            }
             generation++
             actionJob?.cancel()
             awaitingCredentials = false
@@ -111,18 +118,19 @@ class LoginViewModel
             authorizationLaunched = false
             _registrationResult.value = null
             cancellingLogin = true
-            actionJob = viewModelScope.launch {
-                try {
-                    loginSessionUseCase.cancelLogin()
-                    _registrationResult.value = RegistrationStatus.Cancelled
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    _registrationResult.value = RegistrationStatus.Indeterminate
-                } finally {
-                    cancellingLogin = false
+            actionJob =
+                viewModelScope.launch {
+                    try {
+                        loginSessionUseCase.cancelLogin()
+                        _registrationResult.value = RegistrationStatus.Cancelled
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        _registrationResult.value = RegistrationStatus.Indeterminate
+                    } finally {
+                        cancellingLogin = false
+                    }
                 }
-            }
         }
 
         fun consumeResult() {
@@ -133,15 +141,17 @@ class LoginViewModel
             if (actionJob?.isActive == true || preparingLogin) return
             val currentGeneration = generation
             _registrationResult.value = null
-            actionJob = viewModelScope.launch {
-                val result = try {
-                    action()
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (_: Exception) {
-                    RegistrationStatus.Indeterminate
+            actionJob =
+                viewModelScope.launch {
+                    val result =
+                        try {
+                            action()
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            RegistrationStatus.Indeterminate
+                        }
+                    if (generation == currentGeneration) _registrationResult.value = result
                 }
-                if (generation == currentGeneration) _registrationResult.value = result
-            }
         }
     }

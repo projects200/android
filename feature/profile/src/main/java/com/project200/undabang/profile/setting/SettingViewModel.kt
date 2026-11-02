@@ -26,9 +26,11 @@ class SettingViewModel
     ) : ViewModel() {
         private var logoutStarted = false
         private val _logoutBlocking = MutableStateFlow(false)
+
         /** 완료를 화면이 처리할 때까지 Settings의 모든 이탈을 차단합니다. */
         val logoutBlocking = _logoutBlocking.asStateFlow()
         private val _logoutCompleted = MutableLiveData<Boolean?>()
+
         /** 값은 원격/로컬 정리 오류 여부입니다. 오류가 있어도 세션 종료 뒤 Login으로 이동합니다. */
         val logoutCompleted: LiveData<Boolean?> = _logoutCompleted
 

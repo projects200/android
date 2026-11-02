@@ -27,23 +27,24 @@ class RoomSessionDataCleaner
                 }
             }
 
-        override suspend fun hasStoredData(): Boolean = withContext(ioDispatcher) {
-            // Room 메타데이터가 아닌 실제 사용자 테이블만 확인하며 회원 소유자를 추정하지 않습니다.
-            database.openHelper.readableDatabase.query(
-                "SELECT EXISTS(SELECT 1 FROM exercise_count) " +
-                    "OR EXISTS(SELECT 1 FROM exercise_list_item) " +
-                    "OR EXISTS(SELECT 1 FROM exercise_record_detail) " +
-                    "OR EXISTS(SELECT 1 FROM exercise_cache_query) " +
-                    "OR EXISTS(SELECT 1 FROM exercise_sync) " +
-                    "OR EXISTS(SELECT 1 FROM exercise_image) " +
-                    "OR EXISTS(SELECT 1 FROM simple_timer) " +
-                    "OR EXISTS(SELECT 1 FROM custom_timer) " +
-                    "OR EXISTS(SELECT 1 FROM timer_snapshot)",
-            ).use { cursor ->
-                check(cursor.moveToFirst())
-                cursor.getInt(0) != 0
-            } || imageFileStore.hasOwnedFiles()
-        }
+        override suspend fun hasStoredData(): Boolean =
+            withContext(ioDispatcher) {
+                // Room 메타데이터가 아닌 실제 사용자 테이블만 확인하며 회원 소유자를 추정하지 않습니다.
+                database.openHelper.readableDatabase.query(
+                    "SELECT EXISTS(SELECT 1 FROM exercise_count) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_list_item) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_record_detail) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_cache_query) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_sync) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_image) " +
+                        "OR EXISTS(SELECT 1 FROM simple_timer) " +
+                        "OR EXISTS(SELECT 1 FROM custom_timer) " +
+                        "OR EXISTS(SELECT 1 FROM timer_snapshot)",
+                ).use { cursor ->
+                    check(cursor.moveToFirst())
+                    cursor.getInt(0) != 0
+                } || imageFileStore.hasOwnedFiles()
+            }
 
         override suspend fun clearForAccountAdoption(
             discardApproved: Boolean,

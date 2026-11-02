@@ -43,6 +43,7 @@ class PreferenceManager
         fun getPendingLogin(): PendingLogin? {
             val value = prefs.getString(KEY_PENDING_LOGIN, null) ?: return null
             val json = JSONObject(value)
+
             fun optional(key: String): String? = if (json.isNull(key)) null else json.getString(key)
             return PendingLogin(
                 attemptId = json.getString("attempt"),
@@ -58,17 +59,18 @@ class PreferenceManager
         }
 
         fun savePendingLogin(pending: PendingLogin) {
-            val value = JSONObject().apply {
-                put("attempt", pending.attemptId)
-                put("member", pending.retainedMemberId ?: JSONObject.NULL)
-                put("retainedSubject", pending.retainedSubject ?: JSONObject.NULL)
-                put("revision", pending.sessionRevision)
-                put("fileRevision", pending.fileSessionRevision)
-                put("subject", pending.subject ?: JSONObject.NULL)
-                put("target", pending.targetMemberId ?: JSONObject.NULL)
-                put("confirmation", pending.confirmationId ?: JSONObject.NULL)
-                put("signup", pending.signupAllowed)
-            }
+            val value =
+                JSONObject().apply {
+                    put("attempt", pending.attemptId)
+                    put("member", pending.retainedMemberId ?: JSONObject.NULL)
+                    put("retainedSubject", pending.retainedSubject ?: JSONObject.NULL)
+                    put("revision", pending.sessionRevision)
+                    put("fileRevision", pending.fileSessionRevision)
+                    put("subject", pending.subject ?: JSONObject.NULL)
+                    put("target", pending.targetMemberId ?: JSONObject.NULL)
+                    put("confirmation", pending.confirmationId ?: JSONObject.NULL)
+                    put("signup", pending.signupAllowed)
+                }
             check(prefs.edit().putString(KEY_PENDING_LOGIN, value.toString()).commit()) {
                 "로그인 대기 상태를 저장하지 못했습니다."
             }

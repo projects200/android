@@ -227,3 +227,14 @@ jobs:
             build/maestro/**/*.log
             build/maestro/**/*.json
             build/maestro/**/*.png
+
+      - name: Upload E2E unit test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: ignore
+          path: |
+            app/build/test-results/testE2eUnitTest/*.xml
+            app/build/reports/tests/testE2eUnitTest/**

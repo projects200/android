@@ -30,12 +30,13 @@ class AuthRepositoryImpl
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
         private val imageFileStore: ExerciseImageFileStore,
     ) : AuthRepository {
-        override suspend fun beginLogin() = withContext(ioDispatcher) {
-            imageFileStore.withLock {
-                startPendingLogin()
-                Unit
+        override suspend fun beginLogin() =
+            withContext(ioDispatcher) {
+                imageFileStore.withLock {
+                    startPendingLogin()
+                    Unit
+                }
             }
-        }
 
         private fun startPendingLogin(): PendingLogin {
             imageFileStore.invalidateSession()
@@ -84,45 +85,49 @@ class AuthRepositoryImpl
                 }
             }
 
-        override suspend fun checkIsRegistered(): RegistrationStatus = withContext(ioDispatcher) check@{
-            val pending = imageFileStore.withLock {
-                val previous = spManager.getPendingLogin()
-                    ?.takeIf {
-                        it.sessionRevision == spManager.exerciseSessionRevision() &&
-                            it.fileSessionRevision == imageFileStore.sessionRevision
+        override suspend fun checkIsRegistered(): RegistrationStatus =
+            withContext(ioDispatcher) check@{
+                val pending =
+                    imageFileStore.withLock {
+                        val previous =
+                            spManager.getPendingLogin()
+                                ?.takeIf {
+                                    it.sessionRevision == spManager.exerciseSessionRevision() &&
+                                        it.fileSessionRevision == imageFileStore.sessionRevision
+                                }
+                                ?: startPendingLogin()
+                        // 재시도는 이전 다이얼로그의 승인을 무효화합니다.
+                        previous.copy(subject = currentSubject(), confirmationId = null, signupAllowed = false)
+                            .also(spManager::savePendingLogin)
                     }
-                    ?: startPendingLogin()
-                // 재시도는 이전 다이얼로그의 승인을 무효화합니다.
-                previous.copy(subject = currentSubject(), confirmationId = null, signupAllowed = false)
-                    .also(spManager::savePendingLogin)
+                if (pending.subject == null) return@check RegistrationStatus.Indeterminate
+                val result = lookupRegistration()
+                if (result !is BaseResult.Success) return@check RegistrationStatus.Indeterminate
+                val target = pending.copy(targetMemberId = result.data)
+                imageFileStore.withLock {
+                    if (!isCurrent(pending)) return@withLock RegistrationStatus.Indeterminate
+                    spManager.savePendingLogin(target)
+                    when {
+                        (target.retainedMemberId != null && target.retainedMemberId != target.targetMemberId) ||
+                            (target.retainedMemberId == null && sessionDataCleaner.hasStoredData()) -> {
+                            val confirmation = target.copy(confirmationId = UUID.randomUUID().toString())
+                            spManager.savePendingLogin(confirmation)
+                            RegistrationStatus.ConfirmationRequired(requireNotNull(confirmation.confirmationId))
+                        }
+                        target.retainedMemberId != null -> {
+                            adoptRegistered(target)
+                            RegistrationStatus.Registered
+                        }
+                        else -> null // 빈 최초 로그인도 정리 잠금 안에서 저장소를 다시 확인합니다.
+                    }
+                } ?: discardAndAdopt(target, discardApproved = false)
             }
-            if (pending.subject == null) return@check RegistrationStatus.Indeterminate
-            val result = lookupRegistration()
-            if (result !is BaseResult.Success) return@check RegistrationStatus.Indeterminate
-            val target = pending.copy(targetMemberId = result.data)
-            imageFileStore.withLock {
-                if (!isCurrent(pending)) return@withLock RegistrationStatus.Indeterminate
-                spManager.savePendingLogin(target)
-                when {
-                    (target.retainedMemberId != null && target.retainedMemberId != target.targetMemberId) ||
-                        (target.retainedMemberId == null && sessionDataCleaner.hasStoredData()) -> {
-                        val confirmation = target.copy(confirmationId = UUID.randomUUID().toString())
-                        spManager.savePendingLogin(confirmation)
-                        RegistrationStatus.ConfirmationRequired(requireNotNull(confirmation.confirmationId))
-                    }
-                    target.retainedMemberId != null -> {
-                        adoptRegistered(target)
-                        RegistrationStatus.Registered
-                    }
-                    else -> null // 빈 최초 로그인도 정리 잠금 안에서 저장소를 다시 확인합니다.
-                }
-            } ?: discardAndAdopt(target, discardApproved = false)
-        }
 
         override suspend fun confirmAccountAdoption(confirmationId: String): RegistrationStatus {
-            val pending = imageFileStore.withLock {
-                spManager.getPendingLogin()?.takeIf { it.confirmationId == confirmationId && isCurrent(it) }
-            } ?: return RegistrationStatus.Indeterminate
+            val pending =
+                imageFileStore.withLock {
+                    spManager.getPendingLogin()?.takeIf { it.confirmationId == confirmationId && isCurrent(it) }
+                } ?: return RegistrationStatus.Indeterminate
             val result = lookupRegistration()
             if (result !is BaseResult.Success || result.data != pending.targetMemberId) {
                 return RegistrationStatus.Indeterminate
@@ -134,28 +139,29 @@ class AuthRepositoryImpl
             pending: PendingLogin,
             discardApproved: Boolean,
         ): RegistrationStatus {
-            val cleared = sessionDataCleaner.clearForAccountAdoption(
-                discardApproved = discardApproved,
-                isCurrent = { isCurrent(pending) },
-                onCleared = {
-                    if (pending.targetMemberId != null) {
-                        adoptRegistered(pending)
-                    } else {
-                        spManager.clearMemberId()
-                        // 회원가입도 이 승인된 subject와 빈 계정 경계에만 묶습니다.
-                        spManager.savePendingLogin(
-                            pending.copy(
-                                retainedMemberId = null,
-                                retainedSubject = null,
-                                sessionRevision = spManager.exerciseSessionRevision(),
-                                fileSessionRevision = imageFileStore.sessionRevision,
-                                confirmationId = null,
-                                signupAllowed = true,
-                            ),
-                        )
-                    }
-                },
-            )
+            val cleared =
+                sessionDataCleaner.clearForAccountAdoption(
+                    discardApproved = discardApproved,
+                    isCurrent = { isCurrent(pending) },
+                    onCleared = {
+                        if (pending.targetMemberId != null) {
+                            adoptRegistered(pending)
+                        } else {
+                            spManager.clearMemberId()
+                            // 회원가입도 이 승인된 subject와 빈 계정 경계에만 묶습니다.
+                            spManager.savePendingLogin(
+                                pending.copy(
+                                    retainedMemberId = null,
+                                    retainedSubject = null,
+                                    sessionRevision = spManager.exerciseSessionRevision(),
+                                    fileSessionRevision = imageFileStore.sessionRevision,
+                                    confirmationId = null,
+                                    signupAllowed = true,
+                                ),
+                            )
+                        }
+                    },
+                )
             return when {
                 !cleared -> RegistrationStatus.Indeterminate
                 pending.targetMemberId == null -> RegistrationStatus.Unregistered
@@ -168,39 +174,43 @@ class AuthRepositoryImpl
             spManager.completePendingLogin()
         }
 
-        override suspend fun logout(): BaseResult<Unit> =
-            apiCallBuilder(ioDispatcher, { apiService.postLogout() }, { Unit })
+        override suspend fun logout(): BaseResult<Unit> = apiCallBuilder(ioDispatcher, { apiService.postLogout() }, { Unit })
 
         override suspend fun signUp(
             gender: String,
             nickname: String,
             birth: LocalDate,
-        ): BaseResult<Unit> = withContext(ioDispatcher) signup@{
-            val pending = imageFileStore.withLock {
-                spManager.getPendingLogin()?.takeIf {
-                    it.signupAllowed && it.retainedMemberId == null && isCurrent(it)
-                }
-            } ?: return@signup sessionChanged()
-            val result = apiCallBuilder(
-                ioDispatcher = ioDispatcher,
-                apiCall = { apiService.postSignUp(PostSignUpRequest(gender, birth, nickname)) },
-                mapper = { requireNotNull(it?.memberId).also { id -> require(id.isNotBlank()) } },
-            )
-            when (result) {
-                is BaseResult.Error -> result
-                is BaseResult.Success -> imageFileStore.withLock {
-                    if (!isCurrent(pending)) return@withLock sessionChanged()
-                    spManager.saveMemberId(result.data, pending.subject)
-                    spManager.completePendingLogin()
-                    BaseResult.Success(Unit)
+        ): BaseResult<Unit> =
+            withContext(ioDispatcher) signup@{
+                val pending =
+                    imageFileStore.withLock {
+                        spManager.getPendingLogin()?.takeIf {
+                            it.signupAllowed && it.retainedMemberId == null && isCurrent(it)
+                        }
+                    } ?: return@signup sessionChanged()
+                val result =
+                    apiCallBuilder(
+                        ioDispatcher = ioDispatcher,
+                        apiCall = { apiService.postSignUp(PostSignUpRequest(gender, birth, nickname)) },
+                        mapper = { requireNotNull(it?.memberId).also { id -> require(id.isNotBlank()) } },
+                    )
+                when (result) {
+                    is BaseResult.Error -> result
+                    is BaseResult.Success ->
+                        imageFileStore.withLock {
+                            if (!isCurrent(pending)) return@withLock sessionChanged()
+                            spManager.saveMemberId(result.data, pending.subject)
+                            spManager.completePendingLogin()
+                            BaseResult.Success(Unit)
+                        }
                 }
             }
-        }
 
-        private fun sessionChanged() = BaseResult.Error(
-            errorCode = "LOGIN_SESSION_CHANGED",
-            message = "로그인 상태를 다시 확인해주세요.",
-        )
+        private fun sessionChanged() =
+            BaseResult.Error(
+                errorCode = "LOGIN_SESSION_CHANGED",
+                message = "로그인 상태를 다시 확인해주세요.",
+            )
 
         override suspend fun checkNicknameDuplicated(nickname: String): BaseResult<Boolean> =
             apiCallBuilder(
@@ -211,20 +221,22 @@ class AuthRepositoryImpl
 
         override suspend fun getMemberId(): String? = spManager.getMemberId()
 
-        override suspend fun clearSession() = withContext(ioDispatcher) {
-            imageFileStore.withLock {
-                invalidateCredentials()
-                spManager.clearMemberId()
-                spManager.completePendingLogin()
+        override suspend fun clearSession() =
+            withContext(ioDispatcher) {
+                imageFileStore.withLock {
+                    invalidateCredentials()
+                    spManager.clearMemberId()
+                    spManager.completePendingLogin()
+                }
             }
-        }
 
-        override suspend fun clearTokens() = withContext(ioDispatcher) {
-            imageFileStore.withLock {
-                invalidateCredentials()
-                spManager.completePendingLogin()
+        override suspend fun clearTokens() =
+            withContext(ioDispatcher) {
+                imageFileStore.withLock {
+                    invalidateCredentials()
+                    spManager.completePendingLogin()
+                }
             }
-        }
 
         private fun invalidateCredentials() {
             imageFileStore.invalidateSession()

@@ -1,5 +1,6 @@
 package com.project200.data.utils
 
+import android.net.Uri
 import android.util.Base64
 import com.google.common.truth.Truth.assertThat
 import com.project200.data.datasource.ExerciseImageFileStore
@@ -13,6 +14,8 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationServiceConfiguration
+import net.openid.appauth.TokenRequest
 import net.openid.appauth.TokenResponse
 import okhttp3.Interceptor
 import okhttp3.Protocol
@@ -47,16 +50,43 @@ class ExerciseSyncAccountGuardTest {
         account = requireNotNull(guard.capture(member))
     }
 
-    private fun jwt(subject: String, signature: String = "new") = "e30." + Base64.encodeToString(
-        "{\"sub\":\"$subject\"}".toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE,
-    ) + ".$signature"
+    private fun jwt(
+        subject: String,
+        signature: String = "new",
+    ): String {
+        val payload =
+            Base64.encodeToString(
+                "{\"sub\":\"$subject\"}".toByteArray(),
+                Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE,
+            )
+        return "e30.$payload.$signature"
+    }
 
-    private fun request(tagged: Boolean = true): Request = Request.Builder().url("https://example.test/api/v1/exercises")
-        .header("Authorization", "Bearer ${jwt(member, "old")}")
-        .apply { if (tagged) tag(ExerciseSyncAccount::class.java, account) }.build()
+    private fun tokenResponse(idToken: String): TokenResponse {
+        val config =
+            AuthorizationServiceConfiguration(
+                Uri.parse("https://example.test/authorize"),
+                Uri.parse("https://example.test/token"),
+            )
+        val request =
+            TokenRequest.Builder(config, "test-client")
+                .setRefreshToken("test-refresh-token")
+                .build()
+        return TokenResponse.Builder(request)
+            .setTokenType("Bearer")
+            .setAccessToken("test-access-token")
+            .setIdToken(idToken)
+            .build()
+    }
 
-    private fun response(request: Request): Response = Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
-        .code(401).message("Unauthorized").build()
+    private fun request(tagged: Boolean = true): Request =
+        Request.Builder().url("https://example.test/api/v1/exercises")
+            .header("Authorization", "Bearer ${jwt(member, "old")}")
+            .apply { if (tagged) tag(ExerciseSyncAccount::class.java, account) }.build()
+
+    private fun response(request: Request): Response =
+        Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+            .code(401).message("Unauthorized").build()
 
     private fun intercept(request: Request) {
         every { chain.request() } returns request
@@ -186,8 +216,7 @@ class ExerciseSyncAccountGuardTest {
 
     @Test
     fun `refresh 결과가 다른 계정이면 preference가 그대로여도 재전송하지 않는다`() {
-        val refreshed = mockk<TokenResponse>()
-        every { refreshed.idToken } returns jwt("other")
+        val refreshed = tokenResponse(jwt("other"))
         coEvery { authManager.refreshAccessToken() } coAnswers {
             token = jwt("other")
             TokenRefreshResult.Success(refreshed)
@@ -197,8 +226,7 @@ class ExerciseSyncAccountGuardTest {
 
     @Test
     fun `refresh 도중 세션 revision이 바뀌면 같은 계정 토큰도 재시도하지 않는다`() {
-        val refreshed = mockk<TokenResponse>()
-        every { refreshed.idToken } returns jwt(member, "refreshed")
+        val refreshed = tokenResponse(jwt(member, "refreshed"))
         coEvery { authManager.refreshAccessToken() } coAnswers {
             preferences.invalidateExerciseSession()
             token = refreshed.idToken
@@ -209,8 +237,7 @@ class ExerciseSyncAccountGuardTest {
 
     @Test
     fun `같은 계정의 정상 refresh는 검사한 새 ID 토큰으로 재시도한다`() {
-        val refreshed = mockk<TokenResponse>()
-        every { refreshed.idToken } returns jwt(member, "refreshed")
+        val refreshed = tokenResponse(jwt(member, "refreshed"))
         coEvery { authManager.refreshAccessToken() } coAnswers {
             token = refreshed.idToken
             TokenRefreshResult.Success(refreshed)
@@ -222,8 +249,7 @@ class ExerciseSyncAccountGuardTest {
 
     @Test
     fun `refresh 반환 토큰만 다른 계정이어도 현재 저장 토큰을 믿고 재전송하지 않는다`() {
-        val refreshed = mockk<TokenResponse>()
-        every { refreshed.idToken } returns jwt("other")
+        val refreshed = tokenResponse(jwt("other"))
         coEvery { authManager.refreshAccessToken() } returns TokenRefreshResult.Success(refreshed)
         assertThat(TokenAuthenticator(auth, authManager, guard).authenticate(null, response(request()))).isNull()
     }

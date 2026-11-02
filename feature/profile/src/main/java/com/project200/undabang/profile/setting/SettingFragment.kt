@@ -90,13 +90,18 @@ class SettingFragment : Fragment() {
                     },
                     onLogoutClick = {
                         showSessionConfirmation(
-                            LOGOUT, getString(R.string.alert_logout), getString(R.string.logout_loss_warning), getString(R.string.logout),
+                            LOGOUT,
+                            getString(R.string.alert_logout),
+                            getString(R.string.logout_loss_warning),
+                            getString(R.string.logout),
                         )
                     },
                     onWithdrawClick = {
                         showSessionConfirmation(
-                            WITHDRAW, getString(R.string.withdraw_confirmation_title),
-                            getString(R.string.withdraw_loss_warning), getString(R.string.withdraw_open_form),
+                            WITHDRAW,
+                            getString(R.string.withdraw_confirmation_title),
+                            getString(R.string.withdraw_loss_warning),
+                            getString(R.string.withdraw_open_form),
                         )
                     },
                     onBlockMembersClick = {
@@ -129,7 +134,10 @@ class SettingFragment : Fragment() {
         }
     }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?,
+    ) {
         super.onViewCreated(view, savedInstanceState)
         viewModel.logoutCompleted.observe(viewLifecycleOwner) { failed ->
             if (failed != null) {
@@ -140,7 +148,12 @@ class SettingFragment : Fragment() {
         }
     }
 
-    private fun showSessionConfirmation(action: String, title: String, message: String, confirmText: String) {
+    private fun showSessionConfirmation(
+        action: String,
+        title: String,
+        message: String,
+        confirmText: String,
+    ) {
         if (viewModel.logoutBlocking.value) return
         if (parentFragmentManager.isStateSaved) return
         if (parentFragmentManager.findFragmentByTag(SESSION_DIALOG) != null) return

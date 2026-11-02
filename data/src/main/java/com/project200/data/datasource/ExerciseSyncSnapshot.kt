@@ -79,12 +79,23 @@ data class ExerciseSyncSnapshot(
 
     fun createRequest(): PostExerciseRequestDto = requireNotNull(body).copy(createRequestId = requestId)
 
-    fun editRequest(): PatchExerciseRequestDto = requireNotNull(body).let {
-        PatchExerciseRequestDto(
-            it.exerciseTitle, it.exercisePersonalType, it.exerciseLocation, it.exerciseDetail,
-            it.exerciseStartedAt, it.exerciseEndedAt, requestId, requireNotNull(baseVersion),
-        )
-    }
+    fun editRequest(): PatchExerciseRequestDto =
+        requireNotNull(body).let {
+            PatchExerciseRequestDto(
+                it.exerciseTitle,
+                it.exercisePersonalType,
+                it.exerciseLocation,
+                it.exerciseDetail,
+                it.exerciseStartedAt,
+                it.exerciseEndedAt,
+                requestId,
+                requireNotNull(baseVersion),
+            )
+        }
 }
 
-enum class ExerciseRequestKind { BODY, UPLOAD, DELETE_PHOTO }
+enum class ExerciseRequestKind {
+    BODY,
+    UPLOAD,
+    DELETE_PHOTO,
+}

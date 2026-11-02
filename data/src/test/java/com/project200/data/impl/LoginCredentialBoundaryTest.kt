@@ -64,37 +64,45 @@ class LoginCredentialBoundaryTest {
     }
 
     @Test
-    fun `영속 토큰 삭제 실패도 강제 이탈 이벤트와 갱신 실패 결과를 전달한다`() = runTest {
-        val service = mockk<AuthorizationService>()
-        val state = mockk<AuthStateManager>(relaxed = true)
-        val current = mockk<AuthState>()
-        every { state.getCurrent() } returns current
-        every { current.refreshToken } returns "test-refresh"
-        every { current.lastAuthorizationResponse } returns authorizationResponse()
-        every { current.createTokenRefreshRequest() } returns mockk()
-        every { state.clearAuthState() } throws IllegalStateException("credential-storage")
-        every { service.performTokenRequest(any(), any<AuthorizationService.TokenResponseCallback>()) } answers {
-            secondArg<AuthorizationService.TokenResponseCallback>().onTokenRequestCompleted(
-                null, AuthorizationException.TokenRequestErrors.INVALID_GRANT,
-            )
+    fun `영속 토큰 삭제 실패도 강제 이탈 이벤트와 갱신 실패 결과를 전달한다`() =
+        runTest {
+            val service = mockk<AuthorizationService>()
+            val state = mockk<AuthStateManager>(relaxed = true)
+            val current = mockk<AuthState>()
+            every { state.getCurrent() } returns current
+            every { current.refreshToken } returns "test-refresh"
+            every { current.lastAuthorizationResponse } returns authorizationResponse()
+            every { current.createTokenRefreshRequest() } returns mockk()
+            every { state.clearAuthState() } throws IllegalStateException("credential-storage")
+            every { service.performTokenRequest(any(), any<AuthorizationService.TokenResponseCallback>()) } answers {
+                secondArg<AuthorizationService.TokenResponseCallback>().onTokenRequestCompleted(
+                    null,
+                    AuthorizationException.TokenRequestErrors.INVALID_GRANT,
+                )
+            }
+            val manager = AuthManager(service, state, mockk())
+            val forced = async(start = CoroutineStart.UNDISPATCHED) { manager.forceLogoutFlow.first() }
+
+            val result = manager.refreshAccessToken()
+            forced.await()
+
+            assertThat(result).isInstanceOf(TokenRefreshResult.Error::class.java)
+            verify(exactly = 1) { state.clearAuthState() }
         }
-        val manager = AuthManager(service, state, mockk())
-        val forced = async(start = CoroutineStart.UNDISPATCHED) { manager.forceLogoutFlow.first() }
-
-        val result = manager.refreshAccessToken()
-        forced.await()
-
-        assertThat(result).isInstanceOf(TokenRefreshResult.Error::class.java)
-        verify(exactly = 1) { state.clearAuthState() }
-    }
 
     private fun authorizationResponse(): AuthorizationResponse {
-        val configuration = AuthorizationServiceConfiguration(
-            Uri.parse("https://issuer.example/authorize"), Uri.parse("https://issuer.example/token"),
-        )
-        val request = AuthorizationRequest.Builder(
-            configuration, "client", ResponseTypeValues.CODE, Uri.parse("com.project200.undabang://callback"),
-        ).build()
+        val configuration =
+            AuthorizationServiceConfiguration(
+                Uri.parse("https://issuer.example/authorize"),
+                Uri.parse("https://issuer.example/token"),
+            )
+        val request =
+            AuthorizationRequest.Builder(
+                configuration,
+                "client",
+                ResponseTypeValues.CODE,
+                Uri.parse("com.project200.undabang://callback"),
+            ).build()
         return AuthorizationResponse.Builder(request).setAuthorizationCode("test-code").build()
     }
 }

@@ -27,7 +27,10 @@ interface AuthResultCallback {
     fun isActive(): Boolean
 
     /** 브라우저 실행 전에 발신 state를 활성 로그인 시도에 묶습니다. */
-    fun onAuthFlowStarted(authIntent: Intent, authorizationState: String)
+    fun onAuthFlowStarted(
+        authIntent: Intent,
+        authorizationState: String,
+    )
 
     fun onSuccess(tokenResponse: TokenResponse)
 

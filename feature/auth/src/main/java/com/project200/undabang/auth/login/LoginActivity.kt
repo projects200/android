@@ -64,7 +64,10 @@ class LoginActivity : BindingActivity<ActivityLoginBinding>() {
         object : AuthResultCallback {
             override fun isActive(): Boolean = viewModel.isLoginActive(loginGeneration)
 
-            override fun onAuthFlowStarted(authIntent: Intent, authorizationState: String) {
+            override fun onAuthFlowStarted(
+                authIntent: Intent,
+                authorizationState: String,
+            ) {
                 if (viewModel.bindAuthorizationRequest(loginGeneration, authorizationState)) {
                     authorizationLauncher.launch(authIntent)
                 }

@@ -170,9 +170,10 @@ python3 .maestro/scripts/run-tests.py \
 
 운동 시나리오는 온라인 준비 → 실제 망 단절 → UI 생성 → 오프라인 재실행 → 복구와 실제 생성 동기화 → 재단절과 UI 수정 → 오프라인 재실행 → 실제 수정 동기화 → 재단절과 UI 삭제 → 오프라인 재실행 → 실제 삭제 동기화 순서입니다. 각 생성·수정·삭제, 재실행, 동기화는 descriptor의 별도 플로우/JUnit 결과입니다. cache-missing 시나리오와 타이머 시나리오는 별도 ownership으로 유지합니다.
 원제목과 `-edited` 제목, 시작 분 `00`→`05`, 종료 시각은 UI 동작 전 run 입력에서 정합니다. `exercise-local-created`/`updated`/`deleted`와 각 `-relaunch` 단계는 하나의 Room 트랜잭션으로 목록·상세·저널을 읽고 동일 localId·정확한 값·대기 상태를 확인합니다. 로컬 관찰은 recovery ownership과 현재 로컬 인증/회원을 검증하며 서버 인증·Repository refresh·Worker/동기화 use case 호출을 하지 않습니다.
+생성 대기는 null serverId·서버 버전/확인 날짜 부재와 READY 저널을 요구합니다. 로컬 삭제는 이미 서버에 연결된 같은 ID의 `DELETE_PENDING`이며, 미전송 생성의 물리 취소나 서버 삭제 ACK로 대신하지 않습니다. 기준 ID와 orphan 검색은 날짜 밖·상세만 남은 원제목/수정제목 행도 포함합니다.
 `exercise-created-synced`, `exercise-updated-synced`, `exercise-deleted-synced`는 실제 DEV 인증 후 독립 GET과 Room ACK를 최대 120초, 2초 간격으로 함께 관찰합니다. 생성에서 얻은 서버 ID는 private snapshot에 저장하고 수정·삭제에서도 같은 ID를 요구합니다. 생성/수정은 정확한 서버 목록·상세와 같은 localId의 SYNCED·저널/사진 대기 없음이 모두 필요합니다. 삭제는 캡처한 서버 ID의 부재와 원 localId의 목록·상세·저널·사진 제거가 모두 필요합니다. 빈 응답·이전 값·중복·식별자 교체·ACK 누락은 성공으로 대체하지 않습니다.
 실패/중단/타임아웃 뒤에도 원래 라디오를 먼저 복구합니다. 정리는 원제목·수정제목과 저장한 local/server ID를 함께 확인하고, 소유한 pending·in-flight·사진·불확실 상태는 직접 서버 DELETE나 앱 데이터 제거로 숨기지 않습니다. 현재 경로는 pending 로컬 생성도 자동 취소하지 않고 private snapshot/recovery를 보존한 채 실패합니다. 안전하게 정착한 소유 행만 기존 서버 정리를 허용합니다. 관찰 실패는 정리 성공으로 통과하지 않으며 뒤의 미실행 단계는 `offline-phase-not-executed`입니다.
-정리 실패는 `report.xml`의 각 해당 시나리오 플로우에 `fixture-cleanup-failed`와 검토된 고정 진단 코드(운동 정리 안전성·스냅샷/복구 소유권·fixture 읽기/삭제·인증/전송 범주 등)를 함께 남깁니다. 알 수 없는 reason이나 예외 본문은 공개하지 않고 일반 실패 표시만 남기며, 원본 private 결과 파일은 업로드하지 않습니다. 정리 실패 시 원래 단계 오류와 복구 증거를 보존하고 앱 데이터를 초기화하지 않으며 다음 시나리오를 중단합니다. 이 진단은 과거 서버 불일치나 정리 실패의 원인을 확정하지 않습니다.
+정리 실패는 `report.xml`의 각 해당 시나리오 플로우에 `fixture-cleanup-failed`와 검토된 고정 진단 코드(운동 정리 안전성·스냅샷/복구 소유권·fixture 읽기/삭제·인증/전송 범주 등)를 함께 남깁니다. 정리 전용 진단 매핑은 `status=failed`, `operation=cleanup`, `feature=offline`인 결과에만 적용합니다. `offline_exercise_cleanup_unsafe`는 prepare·offline-observe·feature-observe에서 해당 작업의 일반 실패로 남깁니다. 알 수 없는 reason이나 예외 본문은 공개하지 않고 일반 실패 표시만 남기며, 원본 private 결과 파일은 업로드하지 않습니다. 정리 실패 시 원래 단계 오류와 복구 증거를 보존하고 앱 데이터를 초기화하지 않으며 다음 시나리오를 중단합니다. 이 진단은 과거 서버 불일치나 정리 실패의 원인을 확정하지 않습니다.
 
 타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
 호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.
@@ -180,13 +181,14 @@ python3 .maestro/scripts/run-tests.py \
 prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSeconds`, `updatedSeconds`, `stepName`입니다. prepare가 run-owned `TIMER_CREATE_TITLE`, `TIMER_ORIGINAL_TITLE`, `TIMER_UPDATED_TITLE`, `TIMER_DELETE_TITLE`, `TIMER_DRAFT_TITLE`, `TIMER_STEP_NAME`, `TIMER_INITIAL_*`/`TIMER_UPDATED_*`(`SECONDS` 총초, `MINUTES_PART`, `SECONDS_PART`, `TIME`)를 반환하며 driver는 반환값을 버리지 않고 UI에 전달합니다. 알 수 없는 키·JSON 숫자·선행 0·범위 밖 입력은 실패합니다.
 
 `offline-observe`는 위 다섯 문자열 입력과 `memberId`, `runId`, `flow`, `stage`를 받고 실제 DEV 인증과 서버 GET을 유지합니다. `timers-online`은 기존/삭제 대상의 initial 시간, `timers-synced`는 생성 initial·수정 updated 시간과 정확한 단계명·개수 1·순서 0을 확인합니다. post-action 앱 값을 기대값으로 만들지 않습니다. private `maestro-offline-state.json`은 사전 입력·회원/flow/run 소유권·기준 localId와 확인한 생성 ID를 보존합니다. 관찰·정리에서 입력이나 소유권이 바뀌면 실패하고 최종 성공한 앱 데이터 제거 전까지 저널을 지우지 않습니다.
-준비가 스냅샷 저장 전에 실패했다면 정리는 coordinator의 동일 ownership 확인을 유지하고 실행 이름과 서버 상세를 재확인한 행만 삭제합니다. 스냅샷이 있으면 기존 입력·소유권 검증을 생략하지 않습니다.
+준비가 스냅샷 저장 전에 실패했다면 정리는 coordinator의 동일 ownership 확인을 유지하고 실행 이름과 서버 상세를 재확인한 행만 삭제합니다. 스냅샷이 있으면 기존 입력·소유권 검증을 생략하지 않습니다. 서버 변경 전과 각 DELETE 직전에 운동의 실행 제목·캡처 ID에 대한 읽기 전용 보호 검사를 수행합니다. pending·저널·사진·불확실 잔존은 직접 취소/삭제하지 않으며 정리를 실패시켜 원 private snapshot·복구 표식·앱 데이터를 남깁니다. 실패를 통과시키기 위한 사용자 데이터 제거는 하지 않습니다. 공개 보고서에는 `fixture-cleanup-failed`와 검토된 고정 진단 코드만 남기고 임의 예외·서버 본문·결과 파일은 내보내지 않습니다.
 
 타이머 Room ID 관찰은 `feature-observe`의 `timers-local-online`(기존/삭제)·`timers-local-created`(오프라인 생성) 단계입니다. `TIMER_ORIGINAL_LOCAL_ID`, `TIMER_DELETE_LOCAL_ID`, `TIMER_CREATE_LOCAL_ID`를 실제 새 소유 행에서만 얻습니다. 운동 로컬 단계와 함께 정확한 allowlist만 네트워크 인증 없이 Room을 읽습니다. 서버 검증 단계의 실제 인증을 대체하지 않습니다. 타이머 카드 선택은 `custom_timer_<localId>`이며 제목과 시간은 별도로 단언합니다.
+각 플로우의 완료 표시는 필수 UI와 독립 관찰을 모두 마친 뒤에만 기록합니다. 타이머의 생성 ID 관찰과 후속 draft UI가 실패한 경우에도 해당 플로우는 완료되지 않습니다.
 
 목록 부재 검사는 `timer_list_scroll`과 운동의 실제 `scroll_view`를 swipe 시작점으로 삼습니다. 겹치는 중간 구간마다 부재를 확인하고 실제 끝 경계까지 필수 검사하며, bounded 반복 한도 소진은 성공이 아닙니다. 타이머는 호출자가 UP 검색을 시작할 수 있는 목록 끝, 운동은 캘린더 위치로 복귀합니다. 날짜 선택은 정확한 ISO 날짜와 선택적인 ` 동기화 대기` 상태만 허용합니다. Maestro 2.11.0이 날짜 표현식을 보간하도록 정규식 끝 앵커 `$`는 `${...}` 밖에 둡니다. 인접 월의 같은 일 숫자는 선택하지 않으며 기존의 현재/직전 월 이동 범위를 넓히지 않습니다. pending 상태 설명은 그대로 노출됩니다.
 
-이번 변경에서는 실행하지 않았습니다. 운영자는 Python offline/timer/feed driver tests와 `:app:testE2eUnitTest`, 타이머 UI instrumentation을 실행하고, 로컬·CI에서 비기본 입력·재실행·실제 서버 재연결·긴 목록의 처음/중간/끝 삭제 잔존·빈 상태/로딩 구분을 확인해야 합니다. E2E는 실제 DEV API·Room·UI를 사용하며 단위 테스트 fake나 관찰한 ID를 성공값의 대체물로 사용하지 않습니다. 로컬과 CI는 서로 다른 전용 계정 또는 겹치지 않는 실행 시간을 사용해야 합니다.
+이번 병합에서는 코드·빌드·테스트·린트·포매터·에뮬레이터를 실행하지 않았습니다. file-backed Room 회귀 테스트는 생성·수정·삭제 대기와 DB close/reopen 뒤 동일 ID, 서버 GET과 Room ACK의 동시 충족, 삭제 ACK 뒤 완전 부재를 검사합니다. 별도 Room 회귀는 미전송 `CREATE_PENDING` 생성을 재개방 후 취소하고 다시 재개방해 완전 부재를 검사하며, 실제 Worker 동기화 E2E를 대신하지 않습니다. 잘못된 값·중복/orphan·교체 ID·다른 회원·in-flight/저널/사진 잔존과 DELETE 직전 새 대기도 거절합니다. Python 회귀 테스트는 관찰·후속 UI 실패의 미완료 처리, 라디오 복구/증거 보존, 공개 XML 진단의 비밀 차단을 다룹니다. 운영 검증 대상은 Python driver tests, `:app:testE2eUnitTest`, data 단위 테스트, 타이머 UI instrumentation 및 실제 DEV E2E입니다. 단위 테스트 fake나 관찰 ID를 E2E 성공값으로 대신하지 않으며 로컬과 CI는 서로 다른 전용 계정 또는 겹치지 않는 실행 시간을 사용해야 합니다.
 
 descriptor 스키마(모든 필드 필수):
 
@@ -308,7 +310,7 @@ ANR 자료는 기기 과거 이력이며 재부팅으로 지워질 수 있습니
 
 Maestro의 HOME/Java user.home은 실행별 임시 디렉터리로 격리하며 analytics, 업데이트 확인, AI 알림을 끕니다. 원본 CLI 임시 출력은 finally에서 제거하고 업로드하지 않습니다. authState는 호스트 메모리/앱 private stdin 경로에만 전달됩니다. 앱은 e2e에서 자격 증명을 포함할 수 있는 Timber 로깅을 사용하지 않습니다. raw logcat과 dumpsys 원문은 파일로 저장하거나 업로드하지 않습니다.
 
-CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
+CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 7일 보관합니다. 합성 입력만 사용하는 `:app:testE2eUnitTest`의 JUnit XML(`app/build/test-results/testE2eUnitTest/*.xml`)과 HTML 보고서(`app/build/reports/tests/testE2eUnitTest/**`)는 별도 `e2e-unit-test-results-${{ github.run_id }}-${{ github.run_attempt }}` artifact로 7일 보관하며, 계정·세션·설정 파일은 업로드하지 않습니다. 이 단위 테스트 결과는 실제 기기 UI 통과 증거가 아닙니다. `workflow-status.log`만 있으면 빌드/설정/에뮬레이터 단계에서 UI 실행 전 실패한 상태일 수 있습니다. 이 파일은 테스트 통과 증거가 아닙니다. stdout의 고정 실패 코드와 JUnit을 먼저 보고 안전한 hierarchy/스크린샷을 함께 확인하세요.
 
 ## 검증 상태와 남은 외부 준비
 

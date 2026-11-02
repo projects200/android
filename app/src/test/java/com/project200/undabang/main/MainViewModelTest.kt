@@ -508,13 +508,14 @@ class MainViewModelTest {
         }
 
     @Test
-    fun `인증 진입의 운동 예약 실패는 로그인 세션을 지우거나 화면 진입을 취소하지 않는다`() = runTest {
-        stubNoUpdate()
-        stubAuthState(isAuthorized = true)
-        every { mockExerciseSyncScheduler.schedule() } throws IllegalStateException("WorkManager")
-        viewModel = createViewModel()
-        testDispatcher.scheduler.advanceUntilIdle()
-        assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
-        coVerify(exactly = 0) { mockClearSessionUseCase(any()) }
-    }
+    fun `인증 진입의 운동 예약 실패는 로그인 세션을 지우거나 화면 진입을 취소하지 않는다`() =
+        runTest {
+            stubNoUpdate()
+            stubAuthState(isAuthorized = true)
+            every { mockExerciseSyncScheduler.schedule() } throws IllegalStateException("WorkManager")
+            viewModel = createViewModel()
+            testDispatcher.scheduler.advanceUntilIdle()
+            assertThat(viewModel.entryState.value).isEqualTo(EntryState.Content)
+            coVerify(exactly = 0) { mockClearSessionUseCase(any()) }
+        }
 }

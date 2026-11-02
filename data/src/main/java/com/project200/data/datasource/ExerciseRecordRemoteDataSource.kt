@@ -53,8 +53,7 @@ class ExerciseRecordRemoteDataSource
             uploadRequestId: String? = null,
             clientImageIds: List<String>? = null,
             account: ExerciseSyncAccount? = null,
-        ): BaseResponse<ExercisePicturesDto> =
-            apiService.postExerciseImages(recordId, pictures, uploadRequestId, clientImageIds, account)
+        ): BaseResponse<ExercisePicturesDto> = apiService.postExerciseImages(recordId, pictures, uploadRequestId, clientImageIds, account)
 
         suspend fun deleteExerciseImages(
             recordId: Long,

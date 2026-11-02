@@ -15,7 +15,11 @@ import com.project200.presentation.compose.applyAppTheme
 
 /** 세션 삭제 승인은 인스턴스 콜백 대신 복원 가능한 action과 Fragment Result로 전달합니다. */
 class SessionConfirmationDialogFragment : DialogFragment() {
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View =
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?,
+    ): View =
         ComposeView(requireContext()).apply {
             applyAppTheme {
                 UndabangAlertDialogContent(
@@ -62,9 +66,13 @@ class SessionConfirmationDialogFragment : DialogFragment() {
         private const val MESSAGE = "message"
         private const val CONFIRM_TEXT = "confirm_text"
 
-        fun newInstance(action: String, title: String, message: String, confirmText: String) =
-            SessionConfirmationDialogFragment().apply {
-                arguments = bundleOf(ACTION to action, TITLE to title, MESSAGE to message, CONFIRM_TEXT to confirmText)
-            }
+        fun newInstance(
+            action: String,
+            title: String,
+            message: String,
+            confirmText: String,
+        ) = SessionConfirmationDialogFragment().apply {
+            arguments = bundleOf(ACTION to action, TITLE to title, MESSAGE to message, CONFIRM_TEXT to confirmText)
+        }
     }
 }

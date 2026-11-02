@@ -718,7 +718,13 @@ class ExerciseFormViewModelTest {
     @Test
     fun `로컬 사진을 다시 편집하면 전체 저장 응답 전까지 완료하지 않고 파일 실패 후 같은 입력으로 재시도한다`() =
         runTest(testDispatcher) {
-            val original = ExerciseRecordPicture("owned-photo", null, "file:///private/exercise-images/photo.png", ExerciseImageSyncStatus.PENDING)
+            val original =
+                ExerciseRecordPicture(
+                    "owned-photo",
+                    null,
+                    "file:///private/exercise-images/photo.png",
+                    ExerciseImageSyncStatus.PENDING,
+                )
             setupViewModelForEditMode(sampleRecord.copy(pictures = listOf(original), syncPending = true))
             val existing = viewModel.imageItems.value.filterIsInstance<ExerciseImageListItem.ExistingImageItem>().single()
             assertThat(existing.key).isEqualTo(original.localId)

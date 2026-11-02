@@ -672,8 +672,18 @@ class ExerciseRecordLocalDataSourceTest {
             val id = confirmedRecord()
             database.exerciseSyncDao().saveDesired(
                 ExerciseSyncEntity(
-                    MEMBER_ID, id, 7, SyncState.UPDATE_PENDING, null, null, null, null, null, date,
-                    ExerciseRecoveryState.RECOVERY_REQUIRED, ExerciseSyncError.LEGACY_PENDING,
+                    MEMBER_ID,
+                    id,
+                    7,
+                    SyncState.UPDATE_PENDING,
+                    null,
+                    null,
+                    null,
+                    null,
+                    null,
+                    date,
+                    ExerciseRecoveryState.RECOVERY_REQUIRED,
+                    ExerciseSyncError.LEGACY_PENDING,
                 ),
             )
             dataSource.updateRecord(id, ExerciseWriteInput(record().copy(title = "원문 유지")))

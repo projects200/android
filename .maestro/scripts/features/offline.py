@@ -1,4 +1,4 @@
-"""Run real offline UI phases with independent server observation and safe recovery."""
+"""Run real offline exercise and timer synchronization with safe recovery."""
 
 from pathlib import Path
 import re
@@ -214,17 +214,21 @@ def run_suite(args, core):
                 network.disconnect()
                 phase("offline-exercise-missing")
             else:
-                phase("offline-timers-online")
-                observe("timers-online")
-                observe_local("timers-local-online")
+                def observe_online_timers():
+                    observe("timers-online")
+                    observe_local("timers-local-online")
+
+                def finish_timer_mutation():
+                    observe_local("timers-local-created")
+                    core.run_maestro(device, "offline-timers-mutate-finish", output, redactor, args.flow_timeout, variables=variables)
+
+                phase("offline-timers-online", observe_online_timers)
                 network.disconnect()
-                phase("offline-timers-mutate")
-                observe_local("timers-local-created")
-                core.run_maestro(device, "offline-timers-mutate-finish", output, redactor, args.flow_timeout, variables=variables)
+                phase("offline-timers-mutate", finish_timer_mutation)
                 phase("offline-timers-relaunch")
+                owner = "offline-timers-after-reconnect"
                 network.restore()
-                phase("offline-timers-after-reconnect")
-                observe("timers-synced")
+                phase("offline-timers-after-reconnect", lambda: observe("timers-synced"))
                 phase("offline-timers-reconnect")
         except core.RunInterrupted:
             errors[owner].append("run-interrupted")
