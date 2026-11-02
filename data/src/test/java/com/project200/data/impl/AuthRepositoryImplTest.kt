@@ -352,7 +352,7 @@ class AuthRepositoryImplTest {
         runTest {
             val id = seedPending()
             val before = database.exerciseSyncDao().get("member-a", id)
-            coEvery { api.getIsRegistered() } throws registrationFailure("AUTHENTICATION_FAILED")
+            coEvery { api.getIsRegistered() } coAnswers { throw registrationFailure("AUTHENTICATION_FAILED") }
             val approval = confirmation()
             assertThat(database.exerciseSyncDao().get("member-a", id)).isEqualTo(before)
             assertThat(File(root, "exercise-images/owned.png").exists()).isTrue()
