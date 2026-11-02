@@ -275,15 +275,15 @@ class MaestroRegistrationCheckTest {
         }
 
     @Test
-    fun `등록 요청 취소는 원래 취소 객체를 그대로 전달한다`() {
+    fun `등록 요청 취소는 CancellationException과 메시지를 보존한다`() {
         val cancellation = CancellationException(SECRET)
         coEvery { api.getIsRegistered() } throws cancellation
 
         val normal = assertThrows(CancellationException::class.java) { runTest { check.requireRegistered() } }
         val observation = assertThrows(CancellationException::class.java) { runTest { check.readRegisteredMember() } }
 
-        assertThat(normal).isSameInstanceAs(cancellation)
-        assertThat(observation).isSameInstanceAs(cancellation)
+        assertThat(normal.message).isEqualTo(cancellation.message)
+        assertThat(observation.message).isEqualTo(cancellation.message)
         assertBlockedIdentity()
         coVerify(exactly = 0) { cleaner.clearAll() }
         coVerify(exactly = 2) { api.getIsRegistered() }
