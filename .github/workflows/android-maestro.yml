@@ -78,6 +78,17 @@ jobs:
         run: |
           mkdir -p build/maestro
           printf '%s\n' 'Workflow started; no runtime result is implied.' > build/maestro/workflow-status.log
+
+      - name: Free disk space for Android build and emulator
+        shell: bash
+        run: |
+          # 이 Android job에서 쓰지 않는 러너 사전 설치 툴체인만 제거하고 Android/JDK/Gradle 상태는 유지합니다.
+          echo 'Disk space before cleanup:'
+          df -h "$GITHUB_WORKSPACE" "$HOME"
+          sudo rm -rf -- /usr/share/dotnet /usr/local/.ghcup /usr/share/swift
+          echo 'Disk space after cleanup:'
+          df -h "$GITHUB_WORKSPACE" "$HOME"
+
       - name: Run shared and installed feature behavior tests without accounts or devices
         run: |
           python3 -m unittest discover -s .maestro/scripts -p 'test_*.py'
@@ -202,6 +213,7 @@ jobs:
           ram-size: 4096M
           heap-size: 512M
           disable-animations: true
+          pre-emulator-launch-script: df -h "$ANDROID_AVD_HOME"
           emulator-options: -no-window -read-only -gpu swiftshader -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul
           # 선택 API에서도 설치 전 실제 abilist/APK 교집합 검사로 ARM translation을 확인합니다.
           script: python3 .maestro/scripts/run-tests.py --suite "$MAESTRO_SUITE" --device emulator-5554 --configure-emulator --apk app/build/outputs/apk/e2e/app-e2e.apk

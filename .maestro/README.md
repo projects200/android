@@ -266,6 +266,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 소스 빌드 뒤 선택된 descriptor의 필수 입력이 없으면 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
 - CI 에뮬레이터는 호스트 기본 시간대에 의존하지 않도록 `-timezone Asia/Seoul`로 시작합니다. `--configure-emulator`의 재부팅 후 한국어·서울 시간대 검증은 유지합니다.
 - SDK 설정은 `packages: 'platform-tools'`를 명시해 액션 기본 목록의 구형 `tools` 설치를 제외합니다. `sdkmanager`는 액션이 별도로 설치하는 `cmdline-tools`를 사용합니다.
+- 빌드·캐시 복원 전 러너의 미사용 사전 설치 툴체인 `/usr/share/dotnet`, `/usr/local/.ghcup`, `/usr/share/swift`만 제거하며 Android SDK/NDK·JDK·Python·Gradle 캐시와 저장소·테스트 아티팩트는 유지합니다. 정리 전후 워크스페이스·홈과 SDK/시스템 이미지 설치 후 에뮬레이터 시작 직전의 실제 `ANDROID_AVD_HOME` 파일시스템을 `df -h`로 기록합니다. userdata 공간 부족은 앱·Maestro 실행 전 실패입니다.
 - KVM 설정은 러너 계정을 기록하고, udev 이벤트 처리가 끝날 때까지 최대 30초 기다린 뒤 `/dev/kvm` 권한을 확인합니다. `Enable KVM` 단계에만 명령 추적을 켜므로 실패한 명령을 로그에서 구분할 수 있으며, 장치가 없거나 읽기·쓰기 권한이 없으면 계속 실패 처리합니다.
 
 `maestro-dev` 환경에 등록할 비밀:
