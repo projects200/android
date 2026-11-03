@@ -284,8 +284,9 @@ def run_suite(args, core):
             reason = str(failure)
             if not re.fullmatch(r"[a-z][a-z0-9-]*", reason):
                 reason = "chat-preflight-failed"
+            details = core.failure_codes(failure) if isinstance(failure, core.BootstrapFailure) else [reason]
             for flow in FLOWS:
-                errors[flow].append(reason)
+                errors[flow].extend(details)
     except Exception:
         for flow in FLOWS:
             if flow not in completed:
@@ -312,9 +313,11 @@ def run_suite(args, core):
                 device = actors[actor]["device"]
                 try:
                     device.bootstrap("cleanup", actors[actor]["credentials"], **request)
-                except Exception:
+                except Exception as failure:
+                    details = core.safe_cleanup_failure_codes(failure, "chatting")
                     for flow in FLOWS:
                         errors[flow].append("chat-" + actor + "-fixture-cleanup-failed")
+                        errors[flow].extend(details)
                     if actor == "b":
                         keep_peer = True
                     # Keep private recovery state. Never clear after failed cleanup.

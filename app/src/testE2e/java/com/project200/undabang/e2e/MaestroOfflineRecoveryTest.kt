@@ -776,7 +776,8 @@ class MaestroOfflineRecoveryTest {
             assertFailure("registration_http_502")
             assertThat(resultFile.readText()).doesNotContain(secret)
             assertThat(resultFile.readText()).doesNotContain(MEMBER)
-            assertThat(result().keys().asSequence().toSet()).containsExactly("status", "reason")
+            assertThat(result().keys().asSequence().toSet()).containsExactly("status", "reason", "cleanupFailures")
+            assertThat(result().getJSONArray("cleanupFailures").length()).isEqualTo(0)
             coVerify(exactly = 1) { api.getIsRegistered() }
             coVerify(exactly = 0) { fixture.prepare(any()) }
             coVerify(exactly = 0) { fixture.cleanup(any()) }

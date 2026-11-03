@@ -16,12 +16,11 @@ SPEC.loader.exec_module(timer)
 
 
 class FakeCore:
-    class RunnerFailure(Exception):
-        pass
-
-    class RunInterrupted(Exception):
-        pass
+    RunnerFailure = runner.RunnerFailure
+    RunInterrupted = runner.RunInterrupted
     safe_variables = staticmethod(runner.safe_variables)
+    failure_codes = staticmethod(runner.failure_codes)
+    safe_cleanup_failure_codes = staticmethod(runner.safe_cleanup_failure_codes)
 
     @staticmethod
     def run_maestro(device, flow, output, redactor, timeout, variables=None):
@@ -33,12 +32,17 @@ class FakeDevice:
         self.events = []
         self.prepared_variables = {"TIMER_INITIAL_TIME": "00:41", "TIMER_UPDATED_TIME": "00:42"}
         self.fail_stage = None
+        self.prepare_failure = None
+        self.cleanup_failure = None
 
     def clear(self):
         self.events.append(("clear",))
 
     def bootstrap(self, operation, credentials, feature=None, flow=None, run_id=None, parameters=None):
         self.events.append((operation, flow, dict(parameters or {})))
+        failure = self.prepare_failure if operation == "prepare" else self.cleanup_failure if operation == "cleanup" else None
+        if failure is not None:
+            raise failure
         if operation == "prepare":
             return self.prepared_variables
         if operation == "feature-observe" and parameters["stage"] == self.fail_stage:
@@ -125,6 +129,61 @@ class TimerDriverTest(unittest.TestCase):
         self.assertNotIn("timer-simple-preset-crud-continue", [event[1] for event in device.events if event[0] == "flow"])
         self.assertEqual(device.events[1][2], {"initialSeconds": "53", "updatedSeconds": "97"})
         self.assertEqual(device.events[-2], ("cleanup", "timer-simple-preset-crud", device.events[1][2]))
+
+    def test_prepare_primary_and_both_cleanup_layers_reach_report_without_final_clear(self):
+        device = FakeDevice()
+        device.prepare_failure = runner.BootstrapFailure("prepare", "timer", {
+            "status": "failed", "reason": "untrusted_session", "cleanupFailures": ["private_file_failed"],
+        })
+        device.cleanup_failure = runner.BootstrapFailure("cleanup", "timer", {
+            "status": "failed", "reason": "timer_server_cleanup_failed",
+            "cleanupFailures": ["private_file_failed", "local_session_clear_failed", "private-secret"],
+        })
+        result, safe = timer._run_timer(
+            FakeCore(), SimpleNamespace(flow_timeout=10), device, "timer-simple-run",
+            self.output, object(), {"memberId": "private-member"}, "abcdef0123456789",
+        )
+        self.assertFalse(safe)
+        self.assertEqual([event[0] for event in device.events], ["clear", "prepare", "cleanup"])
+        expected = [
+            "bootstrap-prepare-failed-untrusted-session", "bootstrap-prepare-secondary-private-file",
+            "fixture-cleanup-failed", "bootstrap-cleanup-failed-timer-server-cleanup-failed",
+            "bootstrap-cleanup-secondary-private-file", "bootstrap-cleanup-secondary-local-session-clear",
+            "private-state-preserved-for-recovery",
+        ]
+        self.assertEqual(result[2], expected)
+        runner.write_report(self.output, [result])
+        report = (self.output / "report.xml").read_text()
+        for code in expected:
+            self.assertIn(code, report)
+        self.assertNotIn("private-secret", report)
+        self.assertNotIn("private-member", report)
+
+    def test_unknown_cleanup_detail_cannot_replace_original_timer_failure(self):
+        for failure in (
+            RuntimeError("private-secret"),
+            runner.RunnerFailure("bootstrap-cleanup-failed-private-file-private-secret"),
+            runner.RunnerFailure("bootstrap-cleanup-failed-private-file\n"),
+            runner.RunnerFailure("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"),
+            runner.RunnerFailure("bootstrap-cleanup-failed-matching-place-cleanup-failed"),
+            runner.BootstrapFailure("prepare", "timer", {
+                "status": "failed", "reason": "timer_server_cleanup_failed",
+            }),
+        ):
+            device = FakeDevice()
+            device.fail_stage = "simple-created"
+            device.cleanup_failure = failure
+            result, safe = timer._run_timer(
+                FakeCore(), SimpleNamespace(flow_timeout=10), device, "timer-simple-run",
+                self.output, object(), {"memberId": "member"}, "abcdef0123456789",
+            )
+            self.assertFalse(safe)
+            self.assertEqual(result[2], [
+                "identity-not-observed", "fixture-cleanup-failed", "private-state-preserved-for-recovery",
+            ])
+            self.assertEqual(sum(event[0] == "clear" for event in device.events), 1)
+            runner.write_report(self.output, [result])
+            self.assertNotIn("private-secret", (self.output / "report.xml").read_text())
 
 
 if __name__ == "__main__":

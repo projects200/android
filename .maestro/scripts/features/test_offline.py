@@ -124,6 +124,7 @@ class OfflineDriverTests(unittest.TestCase):
         self.fail_cleanup = False
         self.cleanup_failure = None
         self.fail_prepare = False
+        self.prepare_failure = None
         self.fail_upload = False
         self.failed_observation = None
         self.connected = True
@@ -190,6 +191,8 @@ class OfflineDriverTests(unittest.TestCase):
             self.assertIn(metadata["flow"], tuple(scenario[0] for scenario in offline.SCENARIOS))
             self.assertRegex(metadata["run_id"], r"\A[a-f0-9]{32}\Z")
             self.assertEqual(set(metadata["parameters"]), {"startedAt", "endedAt", "initialSeconds", "updatedSeconds", "stepName"})
+            if operation == "prepare" and self.prepare_failure is not None:
+                raise self.prepare_failure
             if operation == "prepare" and self.fail_prepare:
                 raise core.RunnerFailure("offline-suite-requires-enabled-cache-flag")
             if operation == "cleanup":
@@ -382,6 +385,33 @@ class OfflineDriverTests(unittest.TestCase):
         self.assertIn("fixture-cleanup-failed", result["offline-exercise-create"])
         self.assertIn("private-state-preserved-for-recovery", result["offline-exercise-cached"])
         self.assertNotIn("offline-exercise-missing", self.events)
+
+    def test_prepare_and_cleanup_secondary_failures_survive_radio_restore_and_report(self):
+        self.prepare_failure = core.BootstrapFailure("prepare", "offline", {
+            "status": "failed", "reason": "refresh_failed",
+            "cleanupFailures": ["local_session_clear_failed"],
+        })
+        self.cleanup_failure = core.BootstrapFailure("cleanup", "offline", {
+            "status": "failed", "reason": "offline_exercise_cleanup_unsafe",
+            "cleanupFailures": ["private_file_failed", "local_session_clear_failed", "private-secret"],
+        })
+        result = self.run_driver()
+        self.assertEqual(self.events, ["clear", "prepare", "restore", "cleanup"])
+        self.assertEqual(self.device.clear.call_count, 1)
+        self.assertIn("bootstrap-prepare-failed-refresh", result["offline-exercise-create"])
+        self.assertIn("bootstrap-prepare-secondary-local-session-clear", result["offline-exercise-create"])
+        for flow in offline.SCENARIOS[0]:
+            for code in (
+                "fixture-cleanup-failed", "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe",
+                "bootstrap-cleanup-secondary-private-file", "bootstrap-cleanup-secondary-local-session-clear",
+                "private-state-preserved-for-recovery",
+            ):
+                self.assertIn(code, result[flow])
+        core.write_report(self.output, self.results)
+        report = (self.output / "report.xml").read_text()
+        for code in result["offline-exercise-create"]:
+            self.assertIn(code, report)
+        self.assertNotIn("private-secret", report)
 
     def test_reviewed_cleanup_failures_reach_report_and_keep_original_phase_failure(self):
         codes = (
