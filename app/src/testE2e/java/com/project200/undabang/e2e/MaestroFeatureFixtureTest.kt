@@ -30,7 +30,7 @@ class MaestroFeatureFixtureTest {
             MaestroSetupCoordinator(protocol, session, cleaner, emptyMap(), offlineFixtures).consumeRequest()
             coVerify(exactly = 1) { session.authenticate(any(), "member") }
             coVerify(exactly = 0) { cleaner.clean(any(), any()) }
-            verify { protocol.writeFailure("feature_fixture_missing") }
+            verify { protocol.writeFailure("feature_fixture_missing", emptyList()) }
         }
 
     @Test
@@ -58,7 +58,7 @@ class MaestroFeatureFixtureTest {
             coVerify(exactly = 1) { session.clearTokens() }
             coVerify(exactly = 0) { session.clearSession() }
             verify(exactly = 1) { protocol.markFeatureRecovery(offlineFeature) }
-            verify { protocol.writeFailure("offline_cache_flag_disabled") }
+            verify { protocol.writeFailure("offline_cache_flag_disabled", emptyList()) }
         }
 
     @Test
@@ -84,7 +84,7 @@ class MaestroFeatureFixtureTest {
             MaestroSetupCoordinator(protocol, session, cleaner, mapOf("profile" to fixture), offlineFixtures).consumeRequest()
             coVerify(exactly = 0) { cleaner.clean(any(), any()) }
             verify(exactly = 0) { protocol.completeFeatureRecovery() }
-            verify { protocol.writeFailure("profile_restore_failed") }
+            verify { protocol.writeFailure("profile_restore_failed", emptyList()) }
         }
 
     @Test
@@ -102,7 +102,7 @@ class MaestroFeatureFixtureTest {
             coVerify(exactly = 1) { fixture.cleanup(feature) }
             verify(exactly = 0) { protocol.completeFeatureRecovery() }
             verify(exactly = 0) { protocol.writeStatus("cleaned", any()) }
-            verify { protocol.writeFailure("fixture_read_failed") }
+            verify { protocol.writeFailure("fixture_read_failed", emptyList()) }
 
             coordinator.consumeRequest()
 
@@ -114,7 +114,7 @@ class MaestroFeatureFixtureTest {
             coVerifyOrder {
                 fixture.cleanup(feature)
                 cleaner.clean(any(), any())
-                protocol.writeFailure("fixture_read_failed")
+                protocol.writeFailure("fixture_read_failed", emptyList())
                 session.authenticate(any(), "member")
                 protocol.validateFeatureRecovery(feature)
                 fixture.cleanup(feature)
@@ -140,7 +140,7 @@ class MaestroFeatureFixtureTest {
             coVerify(exactly = 1) { fixture.cleanup(feature) }
             verify(exactly = 0) { protocol.completeFeatureRecovery() }
             verify(exactly = 0) { protocol.writeStatus("cleaned", any()) }
-            verify { protocol.writeFailure("local_session_clear_failed") }
+            verify { protocol.writeFailure("local_session_clear_failed", emptyList()) }
 
             coordinator.consumeRequest()
 
@@ -155,7 +155,7 @@ class MaestroFeatureFixtureTest {
                 cleaner.clean(any(), any())
                 session.clearSession()
                 session.clearSession()
-                protocol.writeFailure("local_session_clear_failed")
+                protocol.writeFailure("local_session_clear_failed", emptyList())
                 session.authenticate(any(), "member")
                 protocol.validateFeatureRecovery(feature)
                 fixture.cleanup(feature)

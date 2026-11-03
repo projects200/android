@@ -111,11 +111,11 @@ internal class MaestroSetupCoordinator
             reason: String,
             preserveLocalDataOnFailure: Boolean,
         ) {
-            var failureReason = reason
+            val cleanupFailures = mutableListOf<String>()
             try {
                 protocol.deleteRequest()
             } catch (_: Exception) {
-                failureReason = "private_file_failed"
+                cleanupFailures += "private_file_failed"
             }
             try {
                 if (preserveLocalDataOnFailure) {
@@ -124,11 +124,17 @@ internal class MaestroSetupCoordinator
                     sessionBootstrap.clearSession()
                 }
             } catch (_: Exception) {
-                failureReason = "local_session_clear_failed"
+                cleanupFailures += "local_session_clear_failed"
             }
             try {
                 protocol.deleteSession()
-                protocol.writeFailure(failureReason)
+            } catch (_: Exception) {
+                if ("private_file_failed" !in cleanupFailures) {
+                    cleanupFailures += "private_file_failed"
+                }
+            }
+            try {
+                protocol.writeFailure(reason, cleanupFailures)
             } catch (_: Exception) {
                 // 결과를 쓸 수 없으면 이전 성공 파일도 지워 호스트가 성공으로 해석하지 못하게 합니다
                 try {

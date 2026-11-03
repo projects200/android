@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+import tempfile
 from unittest import mock
 
 
@@ -14,12 +15,11 @@ chatting = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(chatting)
 
 
-class RunnerFailure(Exception):
-    pass
-
-
-class RunInterrupted(RunnerFailure):
-    pass
+SPEC = importlib.util.spec_from_file_location("chat_test_core", Path(__file__).parents[1] / "run-tests.py")
+runner = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(runner)
+RunnerFailure = runner.RunnerFailure
+RunInterrupted = runner.RunInterrupted
 
 
 class ChatDriverTests(unittest.TestCase):
@@ -28,6 +28,8 @@ class ChatDriverTests(unittest.TestCase):
         self.failure_stage = None
         self.cleanup_failure = None
         self.prepare_failure = None
+        self.cleanup_exception = None
+        self.prepare_exception = None
         self.interruption_stage = None
         self.diagnostics_unavailable = False
         self.sampler_failure = None
@@ -61,9 +63,9 @@ class ChatDriverTests(unittest.TestCase):
             def bootstrap(self, operation, credentials, **request):
                 owner.events.append((operation, self.serial, credentials["memberId"], request))
                 if operation == "cleanup" and owner.cleanup_failure == self.serial:
-                    raise RunnerFailure("unit-cleanup-failed")
+                    raise owner.cleanup_exception or RunnerFailure("unit-cleanup-failed")
                 if operation == "prepare" and owner.prepare_failure == self.serial:
-                    raise RunnerFailure("bootstrap-prepare-failed-setup")
+                    raise owner.prepare_exception or RunnerFailure("bootstrap-prepare-failed-setup")
                 return {
                     "CHAT_ROOM_ID": "200",
                     "PEER_MEMBER_ID": request["parameters"]["MAESTRO_PEER_MEMBER_ID"],
@@ -101,6 +103,8 @@ class ChatDriverTests(unittest.TestCase):
 
         self.core = SimpleNamespace(
             RunnerFailure=RunnerFailure, RunInterrupted=RunInterrupted,
+            BootstrapFailure=runner.BootstrapFailure, failure_codes=runner.failure_codes,
+            safe_cleanup_failure_codes=runner.safe_cleanup_failure_codes,
             Device=Device, Redactor=lambda values: values,
             read_credentials=lambda prefix="MAESTRO_": self.credentials[prefix],
             run_maestro=run_maestro,
@@ -238,6 +242,59 @@ class ChatDriverTests(unittest.TestCase):
         self.assertTrue(all("chat-b-fixture-cleanup-failed" in errors for _, _, errors in results))
         self.assertEqual(self.events.count(("clear", "device-b")), 1)
         self.assertEqual(self.events.count(("clear", "device-a")), 2)
+
+    def test_prepare_and_cleanup_details_both_reach_report_and_preserve_failed_actor(self):
+        self.prepare_failure = "device-a"
+        self.cleanup_failure = "device-a"
+        self.prepare_exception = runner.BootstrapFailure("prepare", "chatting", {
+            "status": "failed", "reason": "discovery_failed",
+            "cleanupFailures": ["private_file_failed"],
+        })
+        self.cleanup_exception = runner.BootstrapFailure("cleanup", "chatting", {
+            "status": "failed", "reason": "chat_fixture_peer_mismatch",
+            "cleanupFailures": ["local_session_clear_failed", "private-secret"],
+        })
+        results = chatting.run_suite(self.args, self.core)
+        expected = [
+            "bootstrap-prepare-failed-discovery", "bootstrap-prepare-secondary-private-file",
+            "chat-a-fixture-cleanup-failed", "bootstrap-cleanup-failed-chat-fixture-peer-mismatch",
+            "bootstrap-cleanup-secondary-local-session-clear",
+        ]
+        for _, _, errors in results:
+            for code in expected:
+                self.assertIn(code, errors)
+        self.assertEqual(self.events.count(("clear", "device-a")), 1)
+        self.assertFalse(any(event[:2] == ("prepare", "device-b") for event in self.events))
+        with tempfile.TemporaryDirectory(prefix="maestro-chat-report-") as temporary:
+            output = Path(temporary)
+            runner.write_report(output, results)
+            report = (output / "report.xml").read_text()
+            for code in expected:
+                self.assertIn(code, report)
+            self.assertNotIn("private-secret", report)
+
+    def test_unknown_cleanup_detail_does_not_hide_flow_error_or_clear_peer(self):
+        self.failure_stage = "a-to-b-live-receive"
+        self.cleanup_failure = "device-b"
+        for failure in (
+            RuntimeError("private-secret"), RunnerFailure("private-secret"),
+            RunnerFailure("bootstrap-cleanup-failed-private-file\nprivate-secret"),
+            RunnerFailure("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"),
+            RunnerFailure("bootstrap-cleanup-failed-timer-server-cleanup-failed"),
+            runner.BootstrapFailure("prepare", "chatting", {
+                "status": "failed", "reason": "chat_fixture_peer_mismatch",
+            }),
+        ):
+            self.events.clear()
+            self.cleanup_exception = failure
+            results = chatting.run_suite(self.args, self.core)
+            received = next(errors for flow, _, errors in results if flow == "chatting-receive")
+            self.assertIn("chat-a-to-b-live-receive-failed", received)
+            self.assertTrue(all("chat-b-fixture-cleanup-failed" in errors for _, _, errors in results))
+            self.assertNotIn("private-secret", str(results))
+            self.assertNotIn("offline-exercise-cleanup-unsafe", str(results))
+            self.assertEqual(self.events.count(("clear", "device-b")), 1)
+            self.assertEqual(self.events.count(("clear", "device-a")), 2)
 
     def test_checkpoints_bound_preparation_and_launch_without_extending_sampler_lifetime(self):
         self.args.configure_emulator = True

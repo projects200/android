@@ -88,7 +88,7 @@ def _run_timer(core, args, device, flow, output, redactor, credentials, run_id):
         errors.append("run-interrupted")
         safe_to_continue = False
     except core.RunnerFailure as failure:
-        errors.append(str(failure))
+        errors.extend(core.failure_codes(failure))
     except Exception:
         errors.append("timer-driver-operation-failed")
     finally:
@@ -98,8 +98,9 @@ def _run_timer(core, args, device, flow, output, redactor, credentials, run_id):
             if prepared:
                 try:
                     device.bootstrap("cleanup", credentials, feature="timer", flow=flow, run_id=run_id, parameters=parameters)
-                except Exception:
+                except Exception as failure:
                     errors.append("fixture-cleanup-failed")
+                    errors.extend(core.safe_cleanup_failure_codes(failure, "timer"))
                     cleanup_failed = True
                     safe_to_continue = False
             if cleanup_failed:
@@ -131,7 +132,7 @@ def run_suite(args, core):
     except core.RunInterrupted:
         return [(flow, 0, ["run-interrupted"]) for flow in FLOWS]
     except core.RunnerFailure as failure:
-        return [(flow, 0, [str(failure)]) for flow in FLOWS]
+        return [(flow, 0, core.failure_codes(failure)) for flow in FLOWS]
     except Exception:
         return [(flow, 0, ["timer-driver-setup-failed"]) for flow in FLOWS]
 

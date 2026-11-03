@@ -288,6 +288,53 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_timer_feature_observe_maps_missing_local_id_without_leaking_result(self):
+        self.transport.pending_sleeps = 0
+        self.transport.result = json.dumps({
+            "status": "failed", "reason": "timer_local_id_missing", "private": SYNTHETIC_SECRET,
+        }).encode("utf-8")
+        self.assert_failure(
+            "timer-local-id-not-observed",
+            lambda: self.device.bootstrap(
+                "feature-observe", {"memberId": CREDENTIALS["memberId"]},
+                feature="timer", flow="timer-simple-preset-crud",
+                run_id="0123456789abcdef", parameters={"stage": "simple-created"},
+            ),
+        )
+        self.assert_no_credential_arguments()
+
+    def test_offline_observe_uses_operation_only_failure_mapping(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("offline_upload_not_observed", "offline-suite-requires-real-server-upload"),
+            ("timer_local_id_missing", "bootstrap-offline-observe-failed"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "offline-observe", {"memberId": CREDENTIALS["memberId"]},
+                    ),
+                )
+        self.assert_no_credential_arguments()
+
+    def test_offline_observe_rejects_feature_metadata_before_transport(self):
+        # Device 생성자의 get-state 이후 bootstrap의 전송만 확인합니다.
+        self.transport.calls.clear()
+        self.assert_failure(
+            "invalid-feature-metadata",
+            lambda: self.device.bootstrap(
+                "offline-observe", {"memberId": CREDENTIALS["memberId"]},
+                feature="timer", flow="timer-simple-preset-crud",
+                run_id="0123456789abcdef", parameters={"stage": "simple-created"},
+            ),
+        )
+        self.assertEqual(self.transport.calls, [])
+
     def test_offline_cleanup_maps_reviewed_reasons_and_preserves_private_evidence(self):
         self.transport.pending_sleeps = 0
         recovery = json.dumps({"private": SYNTHETIC_SECRET}).encode("utf-8")
@@ -363,7 +410,7 @@ class SessionTransportTests(unittest.TestCase):
                 "profile", "matching", "timer", "feed", "chatting",
             )),
         )
-        for reason in ("offline_exercise_cleanup_unsafe", "fixture_read_failed"):
+        for reason in ("offline_exercise_cleanup_unsafe", "offline_snapshot_identity_invalid"):
             for operation, feature, status in cases:
                 with self.subTest(reason=reason, operation=operation, feature=feature, status=status):
                     payload = json.dumps({
@@ -385,6 +432,7 @@ class SessionTransportTests(unittest.TestCase):
     def test_successful_offline_cleanup_still_removes_private_result(self):
         self.transport.result = json.dumps({
             "status": "cleaned", "reason": "offline_exercise_cleanup_unsafe",
+            "cleanupFailures": ["private_file_failed", "local_session_clear_failed"],
             "private": SYNTHETIC_SECRET,
         }).encode("utf-8")
         result = self.device.bootstrap(
@@ -481,6 +529,149 @@ class SessionTransportTests(unittest.TestCase):
                     self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_common_failures_and_secondary_cleanup_survive_every_bootstrap_scope(self):
+        self.transport.pending_sleeps = 0
+        common = {
+            "discovery_failed": "discovery", "refresh_failed": "refresh",
+            "fixture_read_failed": "fixture-read", "fixture_delete_failed": "fixture-delete",
+            "member_mismatch": "member-mismatch", "untrusted_session": "untrusted-session",
+            "dev_configuration_missing": "dev-configuration-missing", "private_file_failed": "private-file",
+            "local_session_clear_failed": "local-session-clear", "setup_failed": "setup",
+        }
+        for operation in ("prepare", "cleanup", "export", "offline-observe", "feature-observe"):
+            for feature in (None, "timer", "offline", "chatting", "profile", "matching", "feed"):
+                if feature and operation in ("export", "offline-observe"):
+                    continue
+                metadata = {} if feature is None else {
+                    "feature": feature, "flow": feature + "-flow",
+                    "run_id": "0123456789abcdef", "parameters": {},
+                }
+                for reason, suffix in common.items():
+                    with self.subTest(operation=operation, feature=feature, reason=reason):
+                        self.transport.result = json.dumps({
+                            "status": "failed", "reason": reason,
+                            "cleanupFailures": ["private_file_failed", "local_session_clear_failed"],
+                            "message": SYNTHETIC_SECRET,
+                        }).encode("utf-8")
+                        with self.assertRaises(runner.BootstrapFailure) as caught:
+                            self.device.bootstrap(operation, CREDENTIALS, **metadata)
+                        self.assertEqual(runner.failure_codes(caught.exception), [
+                            "bootstrap-" + operation + "-failed-" + suffix,
+                            "bootstrap-" + operation + "-secondary-private-file",
+                            "bootstrap-" + operation + "-secondary-local-session-clear",
+                        ])
+                        self.assertNotIn(SYNTHETIC_SECRET, str(caught.exception.__dict__))
+        self.assert_no_credential_arguments()
+
+    def test_secondary_cleanup_rejects_unknown_malformed_and_nonfailed_detail(self):
+        self.transport.pending_sleeps = 0
+        for status in ("failed", "ready", None):
+            for cleanup in (
+                None, "private_file_failed", {"private_file_failed": SYNTHETIC_SECRET}, 7,
+                ["private_file_failed\n", "local_session_clear_failed-" + SYNTHETIC_SECRET],
+                [None, True, {"reason": "private_file_failed"}, SYNTHETIC_SECRET],
+                ["private_file_failed", SYNTHETIC_SECRET, "private_file_failed"],
+            ):
+                self.transport.result = json.dumps({
+                    "status": status, "reason": "refresh_failed\n" + SYNTHETIC_SECRET,
+                    "cleanupFailures": cleanup,
+                }).encode("utf-8")
+                with self.assertRaises(runner.BootstrapFailure) as caught:
+                    self.device.bootstrap("cleanup", CREDENTIALS)
+                expected = ["bootstrap-cleanup-failed"]
+                if status == "failed" and isinstance(cleanup, list) and "private_file_failed" in cleanup:
+                    expected.append("bootstrap-cleanup-secondary-private-file")
+                self.assertEqual(runner.failure_codes(caught.exception), expected)
+                runner.write_report(self.host, [("smoke-tabs", 0, runner.failure_codes(caught.exception))])
+                report = (self.host / "report.xml").read_text()
+                self.assertNotIn(SYNTHETIC_SECRET, report)
+                self.assertNotIn("refresh-failed", report)
+
+    def test_prepare_and_cleanup_failures_independently_reach_ordinary_report(self):
+        self.transport.pending_sleeps = 0
+        self.device.clear = mock.Mock()
+
+        def publish():
+            operation = json.loads(self.transport.request_bytes)["operation"]
+            self.transport.result = json.dumps({
+                "status": "failed", "reason": "refresh_failed" if operation == "prepare" else "member_mismatch",
+                "cleanupFailures": ["private_file_failed", "local_session_clear_failed"],
+                "message": SYNTHETIC_SECRET,
+            }).encode("utf-8")
+            self.transport.publish()
+
+        self.transport.on_publish = publish
+        result, safe = runner.run_ordinary_flow(
+            SimpleNamespace(flow_timeout=10), self.device, {"name": None, "fixture": False},
+            "smoke-tabs", self.host, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+        )
+        self.assertFalse(safe)
+        self.assertEqual(self.device.clear.call_count, 1)
+        expected = [
+            "bootstrap-prepare-failed-refresh", "bootstrap-prepare-secondary-private-file",
+            "bootstrap-prepare-secondary-local-session-clear", "fixture-cleanup-failed",
+            "bootstrap-cleanup-failed-member-mismatch", "bootstrap-cleanup-secondary-private-file",
+            "bootstrap-cleanup-secondary-local-session-clear", "private-state-preserved-for-recovery",
+        ]
+        self.assertEqual(result[2], expected)
+        runner.write_report(self.host, [result])
+        failure = runner.ET.parse(self.host / "report.xml").find("testcase/failure")
+        for code in expected:
+            self.assertIn(code, failure.text)
+            self.assertIn(code, failure.get("message"))
+        self.assertNotIn(SYNTHETIC_SECRET, (self.host / "report.xml").read_text())
+
+    def test_feature_cleanup_details_reach_report_with_initial_failure_and_private_evidence(self):
+        self.transport.pending_sleeps = 0
+        self.device.clear = mock.Mock()
+        for feature, flow, reason in (
+            ("timer", "timer-simple-run", "timer_server_cleanup_failed"),
+            ("matching", "matching-place-crud", "matching_place_cleanup_failed"),
+        ):
+            with self.subTest(feature=feature):
+                recovery = json.dumps({"feature": feature, "private": SYNTHETIC_SECRET}).encode()
+                snapshot = "files/maestro-" + feature + "-state.json"
+                publish_file(self.transport.root, runner.RECOVERY, recovery)
+                publish_file(self.transport.root, snapshot, recovery)
+                self.device.clear.reset_mock()
+
+                def publish():
+                    operation = json.loads(self.transport.request_bytes)["operation"]
+                    self.transport.result = json.dumps(
+                        {"status": "ready", "variables": {}} if operation == "prepare" else {
+                            "status": "failed", "reason": reason, "message": SYNTHETIC_SECRET,
+                            "cleanupFailures": ["private_file_failed", "local_session_clear_failed"],
+                        },
+                    ).encode()
+                    self.transport.publish()
+
+                self.transport.on_publish = publish
+                with mock.patch.object(runner, "run_maestro", side_effect=runner.RunnerFailure("maestro-flow-failed")):
+                    result, safe = runner.run_ordinary_flow(
+                        SimpleNamespace(flow_timeout=10), self.device, {"name": feature, "fixture": True},
+                        flow, self.host, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+                    )
+                expected = [
+                    "maestro-flow-failed", "fixture-cleanup-failed",
+                    "bootstrap-cleanup-failed-" + reason.replace("_", "-"),
+                    "bootstrap-cleanup-secondary-private-file", "bootstrap-cleanup-secondary-local-session-clear",
+                    "private-state-preserved-for-recovery",
+                ]
+                self.assertFalse(safe)
+                self.device.clear.assert_called_once_with()
+                self.assertEqual(result[2], expected)
+                self.assertEqual((self.transport.root / runner.RECOVERY).read_bytes(), recovery)
+                self.assertEqual((self.transport.root / snapshot).read_bytes(), recovery)
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), self.transport.result)
+                runner.write_report(self.host, [result])
+                report = (self.host / "report.xml").read_text()
+                failure = runner.ET.fromstring(report).find("testcase/failure")
+                self.assertEqual(failure.text, "; ".join(expected))
+                self.assertEqual(failure.get("message"), "; ".join(expected))
+                self.assertNotIn(SYNTHETIC_SECRET, report)
+                self.assertNotIn(CREDENTIALS["memberId"], report)
+        self.assert_no_credential_arguments()
+
     def test_common_prepare_failure_reasons_use_fixed_codes(self):
         self.transport.pending_sleeps = 0
         cases = (
@@ -532,8 +723,8 @@ class SessionTransportTests(unittest.TestCase):
             ("cleanup", metadata, "failed", "offline_exercise_cleanup_unsafe", "bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe"),
             ("cleanup", metadata, "failed", SYNTHETIC_SECRET, "bootstrap-cleanup-failed"),
             ("cleanup", metadata, "ready", "fixture_delete_failed", "bootstrap-cleanup-failed"),
-            ("cleanup", {**metadata, "feature": "timer"}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed"),
-            ("cleanup", {}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed"),
+            ("cleanup", {**metadata, "feature": "timer"}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed-fixture-delete"),
+            ("cleanup", {}, "failed", "fixture_delete_failed", "bootstrap-cleanup-failed-fixture-delete"),
             ("export", {}, "failed", "offline_exercise_cleanup_unsafe", "bootstrap-export-failed"),
         )
         self.transport.pending_sleeps = 0
@@ -719,7 +910,7 @@ class SessionTransportTests(unittest.TestCase):
         known = "matching_peer_unavailable"
         reasons = (
             "matching_unknown_failure",
-            "setup_failed",
+            "matching_setup_failed",
             known + SYNTHETIC_SECRET,
             SYNTHETIC_SECRET + known,
             SYNTHETIC_SECRET,
@@ -1479,6 +1670,328 @@ class MaestroFailureArtifactTests(unittest.TestCase):
                     "Maestro UI assertion failed: [REDACTED]",
                 )
                 self.assertFalse((self.destination / "anr-events-summary.json").exists())
+
+
+class FeatureCleanupFailureTests(unittest.TestCase):
+    def test_reviewed_cleanup_categories_reach_report_without_replacing_initial_error(self):
+        # Cleanup and its reached helpers emit these fixed reasons; prepare-only
+        # failures and reasons swallowed by profile restoreArea are not included.
+        temporary = tempfile.TemporaryDirectory(prefix="maestro-feature-cleanup-report-")
+        self.addCleanup(temporary.cleanup)
+        output = Path(temporary.name)
+        cases = {
+            "timer": (
+                "invalid_feature_request", "timer_snapshot_missing", "timer_snapshot_identity_invalid",
+                "timer_snapshot_input_mismatch", "timer_server_ownership_changed", "timer_server_cleanup_failed",
+                "timer_server_baseline_changed", "timer_fixture_read_failed", "timer_private_file_failed",
+            ),
+            "matching": (
+                "matching_request_invalid", "matching_snapshot_missing", "matching_snapshot_identity_invalid",
+                "matching_place_ownership_changed", "matching_place_cleanup_failed", "matching_place_baseline_changed",
+                "matching_room_ownership_changed", "matching_room_cleanup_failed", "matching_room_baseline_changed",
+                "matching_evidence_missing", "matching_evidence_identity_invalid", "matching_api_read_failed",
+            ),
+            "profile": (
+                "profile_request_invalid", "profile_recovery_identity_failed", "profile_recovery_notification_invalid",
+                "profile_fcm_identity_changed", "profile_notifications_invalid", "profile_baseline_nickname_unsupported",
+                "profile_baseline_gender_unsupported", "profile_baseline_bio_too_long",
+                "profile_baseline_bio_control_characters", "profile_restore_failed",
+            ),
+            "feed": (
+                "feed_fixture_identity_invalid", "feed_fixture_snapshot_invalid", "feed_fixture_snapshot_mismatch",
+                "feed_validation_unexpected_posts", "feed_fixture_read_failed", "feed_fixture_delete_failed",
+                "feed_fixture_changed", "feed_fixture_foreign_comments", "feed_fixture_cleanup_incomplete",
+                "feed_fixture_media_cleanup_failed",
+            ),
+            "chatting": (
+                "chat_fixture_invalid", "chat_fixture_room_missing", "chat_fixture_peer_mismatch", "chat_fixture_read_failed",
+            ),
+        }
+        for feature, reasons in cases.items():
+            for reason in reasons:
+                with self.subTest(feature=feature, reason=reason):
+                    failure = runner.BootstrapFailure("cleanup", feature, {
+                        "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                    })
+                    expected = "bootstrap-cleanup-failed-" + reason.replace("_", "-")
+                    device = SimpleNamespace(clear=mock.Mock(), bootstrap=mock.Mock(side_effect=[{}, failure]))
+                    with mock.patch.object(runner, "run_maestro", side_effect=runner.RunnerFailure("maestro-flow-failed")):
+                        result, safe = runner.run_ordinary_flow(
+                            SimpleNamespace(flow_timeout=10), device, {"name": feature, "fixture": True},
+                            feature + "-cleanup", output, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+                        )
+                    self.assertFalse(safe)
+                    device.clear.assert_called_once_with()
+                    self.assertEqual(result[2], [
+                        "maestro-flow-failed", "fixture-cleanup-failed", expected, "private-state-preserved-for-recovery",
+                    ])
+                    runner.write_report(output, [result])
+                    report = (output / "report.xml").read_text()
+                    recorded = runner.ET.fromstring(report).find("testcase/failure")
+                    self.assertEqual(recorded.text, "; ".join(result[2]))
+                    self.assertEqual(recorded.get("message"), "; ".join(result[2]))
+                    self.assertNotIn(SYNTHETIC_SECRET, report)
+                    for other in (None, "offline", *cases):
+                        if other != feature:
+                            self.assertEqual(runner.safe_cleanup_failure_codes(failure, other), [])
+                            wrong_scope = runner.BootstrapFailure("cleanup", other, {
+                                "status": "failed", "reason": reason,
+                            })
+                            self.assertEqual(str(wrong_scope), "bootstrap-cleanup-failed")
+                    for operation in ("prepare", "feature-observe", "offline-observe", "export"):
+                        other_operation = runner.BootstrapFailure(operation, feature, {
+                            "status": "failed", "reason": reason,
+                        })
+                        self.assertEqual(runner.safe_cleanup_failure_codes(other_operation, feature), [])
+
+    def test_feature_cleanup_rejects_unreviewed_malformed_and_nonfailed_detail(self):
+        for feature, known in (
+            ("timer", "timer_server_cleanup_failed"), ("matching", "matching_place_cleanup_failed"),
+            ("profile", "profile_restore_failed"), ("feed", "feed_fixture_media_cleanup_failed"),
+            ("chatting", "chat_fixture_room_missing"),
+        ):
+            for reason in (
+                feature + "_unknown_cleanup_failed", known + "-private-secret", known + "\n",
+                " " + known, SYNTHETIC_SECRET, {"reason": known}, [known], None, 7, True,
+            ):
+                with self.subTest(feature=feature, reason=reason):
+                    failure = runner.BootstrapFailure("cleanup", feature, {"status": "failed", "reason": reason})
+                    self.assertEqual(str(failure), "bootstrap-cleanup-failed")
+                    self.assertEqual(runner.safe_cleanup_failure_codes(failure, feature), ["bootstrap-cleanup-failed"])
+            code = "bootstrap-cleanup-failed-" + known.replace("_", "-")
+            for exception in (
+                RuntimeError(code), RuntimeError(SYNTHETIC_SECRET),
+                runner.RunnerFailure(code + "\n"), runner.RunnerFailure(code + "-private-secret"),
+            ):
+                self.assertEqual(runner.safe_cleanup_failure_codes(exception, feature), [])
+            for status in ("ready", "cleaned", "unknown", None):
+                failure = runner.BootstrapFailure("cleanup", feature, {"status": status, "reason": known})
+                self.assertEqual(str(failure), "bootstrap-cleanup-failed")
+
+
+class DriverConnectivityTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="maestro-connectivity-test-")
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name)
+        self.device = object.__new__(runner.Device)
+        self.device.serial = "selected-private-serial"
+        self.device.adb = ["test-adb", "-s", self.device.serial]
+        self.device.env = {}
+
+    def summary(self):
+        return json.loads((self.output / "driver-connectivity-summary.json").read_text())
+
+    def test_selected_device_read_only_queries_publish_only_fixed_names_and_numeric_ports(self):
+        responses = {
+            ("get-state",): b"device\n",
+            ("shell", "ps", "-A", "-o", "NAME"): (
+                b"NAME\ndev.mobile.maestro\ndev.mobile.maestro.test\nprivate-process\n"
+            ),
+            ("forward", "--list"): (
+                b"other-private-serial tcp:1234 tcp:4321\n"
+                b"selected-private-serial tcp:7001 tcp:7002\n"
+                b"selected-private-serial tcp:7001 tcp:7002\n"
+                b"selected-private-serial localabstract:private-socket localabstract:private-socket\n"
+            ),
+        }
+        calls = []
+
+        def command(argv, env, timeout=60, payload=None):
+            self.assertEqual(argv[:3], self.device.adb)
+            self.assertEqual(env, {})
+            self.assertGreater(timeout, 0)
+            self.assertLessEqual(timeout, 5)
+            self.assertIsNone(payload)
+            arguments = tuple(argv[3:])
+            calls.append(arguments)
+            return 0, responses[arguments], SYNTHETIC_SECRET.encode()
+
+        with mock.patch.object(runner, "command", side_effect=command):
+            runner.save_driver_connectivity(self.device, self.output)
+        self.assertEqual(calls, list(responses))
+        self.assertEqual(self.summary(), {
+            "adb": {"status": "captured", "state": "device"},
+            "processes": {"status": "captured", "app_present": True, "test_present": True},
+            "forwards": {"status": "captured", "tcp_ports": [{"local": 7001, "remote": 7002}]},
+        })
+        content = (self.output / "driver-connectivity-summary.json").read_text()
+        for private in (SYNTHETIC_SECRET, "private-serial", "private-process", "private-socket", "1234", "4321"):
+            self.assertNotIn(private, content)
+
+    def test_absent_processes_and_forwards_are_not_unavailable_or_prefix_matches(self):
+        self.device.call = mock.Mock(side_effect=[
+            (0, b"offline\n", b""),
+            (0, b"NAME\ndev.mobile.maestro:private\ndev.mobile.maestro.test.private\n", b""),
+            (0, b"other-private-serial tcp:7001 tcp:7002\n", b""),
+        ])
+        runner.save_driver_connectivity(self.device, self.output)
+        self.assertEqual(self.summary(), {
+            "adb": {"status": "captured", "state": "offline"},
+            "processes": {"status": "captured", "app_present": False, "test_present": False},
+            "forwards": {"status": "captured", "tcp_ports": []},
+        })
+
+    def test_connectivity_queries_share_one_shrinking_monotonic_budget(self):
+        for second in ((0, b"NAME\n", b""), runner.RunnerFailure("tool-timeout")):
+            with self.subTest(second=type(second).__name__):
+                self.device.call = mock.Mock(side_effect=[(0, b"device\n", b""), second])
+                with mock.patch.object(runner.time, "monotonic", side_effect=[100.0, 100.25, 102.5, 105.0]):
+                    runner.save_driver_connectivity(self.device, self.output)
+                self.assertEqual(self.device.call.call_args_list, [
+                    mock.call("get-state", timeout=4.75),
+                    mock.call("shell", "ps", "-A", "-o", "NAME", timeout=2.5),
+                ])
+                self.assertEqual(self.summary(), {
+                    "adb": {"status": "captured", "state": "device"},
+                    "processes": (
+                        {"status": "captured", "app_present": False, "test_present": False}
+                        if isinstance(second, tuple) else {"status": "unavailable"}
+                    ),
+                    "forwards": {"status": "unavailable"},
+                })
+
+    def test_exhausted_connectivity_budget_never_starts_queries(self):
+        self.device.call = mock.Mock()
+        with mock.patch.object(runner.time, "monotonic", side_effect=[100.0, 105.0, 106.0, 107.0]):
+            runner.save_driver_connectivity(self.device, self.output)
+        self.device.call.assert_not_called()
+        self.assertEqual(self.summary(), {
+            name: {"status": "unavailable"} for name in ("adb", "processes", "forwards")
+        })
+
+    def test_cli_exit_timeout_and_junit_failures_all_collect_without_changing_original_code(self):
+        self.device.exercise_variables = mock.Mock(return_value={})
+        responses = {
+            ("get-state",): b"device\n",
+            ("shell", "ps", "-A", "-o", "NAME"): b"NAME\n",
+            ("forward", "--list"): b"",
+        }
+        self.device.call = mock.Mock(side_effect=lambda *args, **kwargs: (
+            (0, responses[args], b"") if args in responses else (1, b"", b"")
+        ))
+        for mode, expected in (
+            ("exit", "maestro-flow-failed"), ("timeout", "tool-timeout"),
+            ("missing", "missing-or-invalid-maestro-junit"), ("assertion", "maestro-assertion-failed"),
+        ):
+            def command(argv, env, timeout=60, payload=None):
+                if argv[1:] == ["--version"]:
+                    return 0, runner.MAESTRO_VERSION.encode(), b""
+                if mode == "timeout":
+                    raise runner.RunnerFailure("tool-timeout")
+                if mode == "assertion":
+                    Path(argv[argv.index("--output") + 1]).write_text(
+                        '<testsuite><testcase><failure/></testcase></testsuite>',
+                    )
+                return (1 if mode == "exit" else 0), b"", b""
+
+            with self.subTest(mode=mode), mock.patch.object(runner, "command", side_effect=command):
+                with mock.patch.object(runner.shutil, "which", return_value="test-maestro"):
+                    with self.assertRaises(runner.RunnerFailure) as caught:
+                        runner.run_maestro(self.device, "smoke-tabs", self.output / mode, runner.Redactor(CREDENTIALS), 10)
+            self.assertEqual(str(caught.exception), expected)
+            summary = json.loads((self.output / mode / "smoke-tabs" / "driver-connectivity-summary.json").read_text())
+            self.assertEqual(summary["adb"], {"status": "captured", "state": "device"})
+            self.assertEqual(summary["processes"], {
+                "status": "captured", "app_present": False, "test_present": False,
+            })
+            self.assertEqual(summary["forwards"], {"status": "captured", "tcp_ports": []})
+
+    def test_unavailable_malformed_and_oversized_data_never_publish_original_bytes(self):
+        for response, status in (
+            ((1, SYNTHETIC_SECRET.encode(), SYNTHETIC_SECRET.encode()), "unavailable"),
+            (RuntimeError(SYNTHETIC_SECRET), "unavailable"),
+            ((0, b"private-malformed-output", b""), "unrecognized"),
+            ((0, b"\xff", b""), "unrecognized"),
+            ((0, b"x" * 65537, b""), "unrecognized"),
+        ):
+            with self.subTest(status=status):
+                self.device.call = mock.Mock(side_effect=[response, response, response])
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    runner.save_driver_connectivity(self.device, self.output)
+                self.assertEqual(self.summary(), {
+                    name: {"status": status} for name in ("adb", "processes", "forwards")
+                })
+                self.assertEqual(published.getvalue(), "")
+                self.assertNotIn(SYNTHETIC_SECRET, (self.output / "driver-connectivity-summary.json").read_text())
+
+    def test_forward_parser_rejects_malformed_selected_ports_without_claiming_absence(self):
+        for row in (
+            "selected-private-serial tcp:7001",
+            "selected-private-serial tcp:0 tcp:7001",
+            "selected-private-serial tcp:65536 tcp:7001",
+            "selected-private-serial tcp:７００１ tcp:7001",
+            "selected-private-serial tcp:7001-private-secret tcp:7002",
+            "selected-private-serial tcp:7001 tcp:7002 private-secret",
+            "private-secret",
+            "\n".join("selected-private-serial tcp:" + str(port) + " tcp:7001" for port in range(1, 34)),
+        ):
+            self.assertEqual(runner.parse_driver_forwards(row, self.device.serial), {"status": "unrecognized"})
+        self.assertEqual(runner.parse_driver_forwards("", self.device.serial), {"status": "captured", "tcp_ports": []})
+        self.assertEqual(runner.parse_driver_processes(""), {"status": "unrecognized"})
+        self.assertEqual(runner.parse_driver_processes("NAME\nprivate process\n"), {"status": "unrecognized"})
+        self.assertEqual(runner.parse_driver_processes("NAME\n" + "private\n" * 2048), {"status": "unrecognized"})
+
+    def test_unavailable_or_unwritable_collection_keeps_original_flow_failure_and_cleanup(self):
+        original = runner.RunnerFailure("maestro-flow-failed")
+        for stage in ("read", "write", "unexpected"):
+            with self.subTest(stage=stage), contextlib.ExitStack() as patches:
+                self.device.clear = mock.Mock()
+                self.device.bootstrap = mock.Mock(return_value={})
+                self.device.call = mock.Mock(side_effect=RuntimeError(SYNTHETIC_SECRET))
+                patches.enter_context(mock.patch.object(runner, "_run_maestro", side_effect=original))
+                if stage == "write":
+                    write_text = Path.write_text
+
+                    def write(path, *args, **kwargs):
+                        if path.name == "driver-connectivity-summary.json":
+                            raise OSError(SYNTHETIC_SECRET)
+                        return write_text(path, *args, **kwargs)
+
+                    patches.enter_context(mock.patch.object(Path, "write_text", new=write))
+                elif stage == "unexpected":
+                    patches.enter_context(mock.patch.object(
+                        runner, "save_driver_connectivity", side_effect=RuntimeError(SYNTHETIC_SECRET),
+                    ))
+                result, safe = runner.run_ordinary_flow(
+                    SimpleNamespace(flow_timeout=10), self.device, {"name": None, "fixture": False},
+                    "smoke-tabs", self.output, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+                )
+                self.assertEqual(result[2], ["maestro-flow-failed"])
+                self.assertTrue(safe)
+                self.assertEqual(self.device.clear.call_count, 2)
+                self.assertEqual([call.args[0] for call in self.device.bootstrap.call_args_list], ["prepare", "cleanup"])
+                runner.write_report(self.output, [result])
+                self.assertNotIn(SYNTHETIC_SECRET, (self.output / "report.xml").read_text())
+
+    def test_write_interruption_propagates_after_read_only_collection(self):
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call = mock.Mock(return_value=(1, b"", b""))
+        with mock.patch.object(runner, "_run_maestro", side_effect=runner.RunnerFailure("maestro-flow-failed")):
+            with mock.patch.object(Path, "write_text", side_effect=interruption):
+                with self.assertRaises(runner.RunInterrupted) as caught:
+                    runner.run_maestro(self.device, "smoke-tabs", self.output, runner.Redactor(CREDENTIALS), 10)
+        self.assertIs(caught.exception, interruption)
+        self.assertEqual(self.device.call.call_count, 3)
+        self.assertFalse((self.output / "smoke-tabs" / "driver-connectivity-summary.json").exists())
+
+    def test_interrupts_are_never_swallowed_or_followed_by_more_diagnostic_queries(self):
+        original = runner.RunnerFailure("maestro-flow-failed")
+        for interruption in (runner.RunInterrupted("run-interrupted"), KeyboardInterrupt()):
+            self.device.call = mock.Mock(side_effect=interruption)
+            with mock.patch.object(runner, "_run_maestro", side_effect=original):
+                with self.assertRaises(type(interruption)) as caught:
+                    runner.run_maestro(self.device, "smoke-tabs", self.output, runner.Redactor(CREDENTIALS), 10)
+            self.assertIs(caught.exception, interruption)
+            self.assertEqual(self.device.call.call_count, 1)
+        interruption = runner.RunInterrupted("run-interrupted")
+        self.device.call.reset_mock()
+        with mock.patch.object(runner, "_run_maestro", side_effect=interruption):
+            with self.assertRaises(runner.RunInterrupted) as caught:
+                runner.run_maestro(self.device, "smoke-tabs", self.output, runner.Redactor(CREDENTIALS), 10)
+        self.assertIs(caught.exception, interruption)
+        self.device.call.assert_not_called()
 
 
 class AnrCheckpointTests(unittest.TestCase):

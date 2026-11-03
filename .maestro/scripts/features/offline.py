@@ -137,7 +137,7 @@ def run_suite(args, core):
     except core.RunInterrupted:
         return [(flow, 0, ["run-interrupted"]) for flow in FLOWS]
     except core.RunnerFailure as failure:
-        return [(flow, 0, [str(failure)]) for flow in FLOWS]
+        return [(flow, 0, core.failure_codes(failure)) for flow in FLOWS]
     except Exception:
         return [(flow, 0, ["offline-driver-setup-failed"]) for flow in FLOWS]
 
@@ -234,7 +234,7 @@ def run_suite(args, core):
             errors[owner].append("run-interrupted")
             safe_to_continue = False
         except core.RunnerFailure as failure:
-            errors[owner].append(str(failure))
+            errors[owner].extend(core.failure_codes(failure))
         except Exception:
             errors[owner].append("offline-driver-operation-failed")
         finally:
@@ -256,11 +256,10 @@ def run_suite(args, core):
                     except Exception as failure:
                         cleanup_failed = True
                         safe_to_continue = False
-                        detail = core.safe_offline_cleanup_failure(failure)
+                        details = core.safe_cleanup_failure_codes(failure, "offline")
                         for flow in scenario:
                             errors[flow].append("fixture-cleanup-failed")
-                            if detail is not None:
-                                errors[flow].append(detail)
+                            errors[flow].extend(details)
                 if prepared and (not restored or cleanup_failed):
                     for flow in scenario:
                         errors[flow].append("private-state-preserved-for-recovery")

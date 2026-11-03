@@ -73,6 +73,11 @@ class RegisterFragment : Fragment() {
                             appNavigator.navigateToMain(requireContext())
                         }
                         is BaseResult.Error -> {
+                            if (result.errorCode == LOGIN_SESSION_CHANGED) {
+                                Toast.makeText(requireContext(), getString(R.string.login_session_changed), Toast.LENGTH_LONG).show()
+                                appNavigator.navigateToLogin(requireContext())
+                                return@collect
+                            }
                             val messageResId =
                                 when (result.errorCode) {
                                     NICKNAME_DUPLICATE_ERROR -> R.string.error_nickname_duplicated
@@ -105,5 +110,6 @@ class RegisterFragment : Fragment() {
         const val HIDDEN = "U"
         const val ERROR_CODE_INVALID_NICKNAME = "INVALID_NICKNAME"
         const val FORM_INCOMPLETE = "FORM_INCOMPLETE"
+        private const val LOGIN_SESSION_CHANGED = "LOGIN_SESSION_CHANGED"
     }
 }

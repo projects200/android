@@ -5,6 +5,7 @@ import android.system.Os
 import android.util.AtomicFile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import net.openid.appauth.AuthState
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.time.LocalDate
@@ -237,8 +238,17 @@ internal class MaestroSetupProtocol
             deletePrivateFile(RECOVERY_FILE)
         }
 
-        fun writeFailure(reason: String) {
-            writePrivateJson(RESULT_FILE, JSONObject().put("status", "failed").put("reason", reason))
+        fun writeFailure(
+            reason: String,
+            cleanupFailures: List<String>,
+        ) {
+            writePrivateJson(
+                RESULT_FILE,
+                JSONObject()
+                    .put("status", "failed")
+                    .put("reason", reason)
+                    .put("cleanupFailures", JSONArray(cleanupFailures)),
+            )
         }
 
         fun writeSession(

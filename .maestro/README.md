@@ -72,7 +72,21 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 결과 파일이 아직 없을 때만 고정 probe가 종료 코드 `3`을 반환해 기존 0.5초 간격으로 기다립니다. 파일이 있으면 `cat`의 실패 상태를 그대로 전달합니다. `run-as`·쓰기·읽기·삭제의 다른 nonzero는 즉시 실패합니다. 종료 코드 `0`이라도 빈 본문/잘못된 JSON은 `invalid-bootstrap-result`로 즉시 실패하며, 요청 작업에 맞는 `ready`/`cleaned`/`exported`가 아니면 성공하지 않습니다.
 
-등록 조회 진단은 기존 private 결과의 고정 `reason`만 console/JUnit의 `bootstrap-<operation>-failed-registration-<분류>`로 전달합니다. 분류는 `unregistered`, `response-missing`, `member-id-missing`, `authentication-failed`, `user-id-header-missing`, `business-error`, `network-error`, `network-timeout`, `parse-error`, `unknown`, `http-100`–`http-599`이며, 예를 들어 HTTP 401/502는 `bootstrap-prepare-failed-registration-http-401`/`...-http-502`로 구분합니다. 앱 reason은 각각 `registration_` 접두사와 밑줄을 쓰며 HTTP만 `registration_http_<숫자>`입니다. 호스트는 정확한 allowlist와 전체 일치하는 100–599 숫자만 공개하고 임의 코드·추가 문자열·개행은 기존 일반 실패로 처리합니다. 기능 종류와 무관하게 prepare/cleanup/export/관찰에 적용하며 기존 기능별 실패·정리 정책은 유지합니다. 원래 요청 한 번만 관찰하고 재시도하지 않으며 토큰·회원 ID·본문·예외 메시지·URL은 진단에 포함하지 않습니다.
+실패 결과는 `{"status":"failed","reason":"<최초 고정 코드>","cleanupFailures":["private_file_failed","local_session_clear_failed"]}` 형식입니다. `reason`은 최초 실패를 유지하며 요청/세션 파일 삭제 실패와 로컬 세션 정리 실패는 `cleanupFailures`에 각각 중복 없이 기록합니다(실패가 없으면 빈 배열). 세션 파일 삭제가 실패해도 실패 결과 쓰기를 시도하고, 결과 쓰기도 실패하면 이전 성공 결과를 제거합니다. 예외 본문·서버 응답·인증 상태·ID·URL은 이 진단에 넣지 않습니다.
+
+호스트는 `status=failed`일 때만 `reason`과 `cleanupFailures`를 해석합니다. 공통 `discovery_failed`, `refresh_failed`, `fixture_read_failed`, `fixture_delete_failed`, `member_mismatch`, `untrusted_session`, `dev_configuration_missing`, `private_file_failed`, `local_session_clear_failed`, `setup_failed`는 작업/기능과 무관하게 `bootstrap-<operation>-failed-<분류>`로 전달합니다. 등록 분류는 기존 `registration`, `registration-unregistered`, `registration-response-missing`, `registration-member-id-missing`, `registration-authentication-failed`, `registration-user-id-header-missing`, `registration-business-error`, `registration-network-error`, `registration-network-timeout`, `registration-parse-error`, `registration-unknown`, `registration-http-100`–`registration-http-599`를 유지합니다. secondary는 `bootstrap-<operation>-secondary-private-file`/`bootstrap-<operation>-secondary-local-session-clear`이며 최초 실패와 별개로 JUnit/console에 남깁니다. 배열 밖 값·알 수 없는 코드·접미사/개행이 붙은 문자열은 공개하지 않습니다. 알 수 없는 최초 reason은 `bootstrap-<operation>-failed`로 남기며 기능 전용 reason의 기존 작업/기능 제한은 유지합니다. HTTP·네트워크 분류만으로 실제 인증 실패의 근본 원인을 확정하지 않습니다.
+
+기능 cleanup의 추가 진단은 **`operation=cleanup`과 해당 `feature`가 모두 일치할 때만** `bootstrap-cleanup-failed-<분류>`로 전달합니다. bootstrap 변환과 정리 보고서 필터는 같은 exact allowlist를 사용합니다. 현재 앱 cleanup과 도달 가능한 helper에서 외부로 전달하는 범위만 지원합니다.
+
+| feature | 지원하는 고정 정리 분류 |
+| --- | --- |
+| `timer` | 요청 유효성(`invalid_feature_request`), snapshot 존재·소유권·입력 일치, 서버 소유권·삭제/잔존(`timer_server_cleanup_failed`)·baseline 보존, fixture 읽기, private 상태 파일 |
+| `matching` | 요청·snapshot 존재/소유권, 장소·방 소유권/삭제(`matching_place_cleanup_failed`, `matching_room_cleanup_failed`)/baseline 보존, evidence 존재/소유권, API 읽기 |
+| `profile` | 요청·복구 소유권/알림 snapshot, FCM 소유권·알림 형식, baseline 닉네임/성별/소개 길이·제어문자 검증, `profile_restore_failed` |
+| `feed` | fixture 소유권·snapshot 형식/일치, validation 글 목록 보존, fixture 읽기/삭제/변경·타인 댓글 보호·정리 잔존, 소유 미디어 정리 |
+| `chatting` | 전용 방 요청 유효성·방 존재·상대 일치·목록 읽기 |
+
+offline 전용 범위는 아래 기존 규칙을 유지합니다. 다른 기능의 코드, 알 수 없는 값, 접미사·개행이 붙은 문자열과 임의 예외 본문은 정리 상세로 공개하지 않습니다. prepare/observe의 기존 매핑은 바꾸지 않습니다. feature 메타데이터는 `prepare`/`cleanup`/`feature-observe`에서만 허용하며 `offline-observe`에는 허용하지 않습니다. 작업 단위 `offline-observe`는 timer 전용 오류 매핑을 선택하지 않습니다. profile의 영역별 복구가 내부에서 포착하는 세부 오류는 앱이 실제 반환하는 `profile_restore_failed`로만 전달합니다.
 
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 
@@ -173,7 +187,7 @@ python3 .maestro/scripts/run-tests.py \
 생성 대기는 null serverId·서버 버전/확인 날짜 부재와 READY 저널을 요구합니다. 로컬 삭제는 이미 서버에 연결된 같은 ID의 `DELETE_PENDING`이며, 미전송 생성의 물리 취소나 서버 삭제 ACK로 대신하지 않습니다. 기준 ID와 orphan 검색은 날짜 밖·상세만 남은 원제목/수정제목 행도 포함합니다.
 `exercise-created-synced`, `exercise-updated-synced`, `exercise-deleted-synced`는 실제 DEV 인증 후 독립 GET과 Room ACK를 최대 120초, 2초 간격으로 함께 관찰합니다. 생성에서 얻은 서버 ID는 private snapshot에 저장하고 수정·삭제에서도 같은 ID를 요구합니다. 생성/수정은 정확한 서버 목록·상세와 같은 localId의 SYNCED·저널/사진 대기 없음이 모두 필요합니다. 삭제는 캡처한 서버 ID의 부재와 원 localId의 목록·상세·저널·사진 제거가 모두 필요합니다. 빈 응답·이전 값·중복·식별자 교체·ACK 누락은 성공으로 대체하지 않습니다.
 실패/중단/타임아웃 뒤에도 원래 라디오를 먼저 복구합니다. 정리는 원제목·수정제목과 저장한 local/server ID를 함께 확인하고, 소유한 pending·in-flight·사진·불확실 상태는 직접 서버 DELETE나 앱 데이터 제거로 숨기지 않습니다. 현재 경로는 pending 로컬 생성도 자동 취소하지 않고 private snapshot/recovery를 보존한 채 실패합니다. 안전하게 정착한 소유 행만 기존 서버 정리를 허용합니다. 관찰 실패는 정리 성공으로 통과하지 않으며 뒤의 미실행 단계는 `offline-phase-not-executed`입니다.
-정리 실패는 `report.xml`의 각 해당 시나리오 플로우에 `fixture-cleanup-failed`와 검토된 고정 진단 코드(운동 정리 안전성·스냅샷/복구 소유권·fixture 읽기/삭제·인증/전송 범주 등)를 함께 남깁니다. 정리 전용 진단 매핑은 `status=failed`, `operation=cleanup`, `feature=offline`인 결과에만 적용합니다. `offline_exercise_cleanup_unsafe`는 prepare·offline-observe·feature-observe에서 해당 작업의 일반 실패로 남깁니다. 알 수 없는 reason이나 예외 본문은 공개하지 않고 일반 실패 표시만 남기며, 원본 private 결과 파일은 업로드하지 않습니다. 정리 실패 시 원래 단계 오류와 복구 증거를 보존하고 앱 데이터를 초기화하지 않으며 다음 시나리오를 중단합니다. 이 진단은 과거 서버 불일치나 정리 실패의 원인을 확정하지 않습니다.
+정리 실패는 `report.xml`의 각 해당 시나리오 플로우에 `fixture-cleanup-failed`와 검토된 고정 진단 코드(운동 정리 안전성·스냅샷/복구 소유권·fixture 읽기/삭제·인증/전송 범주 등)를 함께 남깁니다. offline 전용 정리 코드는 `status=failed`, `operation=cleanup`, `feature=offline`인 결과에만 적용합니다. 공통 인증/private 파일/로컬 세션·fixture 코드는 다른 기능과 작업에서도 전달합니다. `offline_exercise_cleanup_unsafe`는 prepare·offline-observe·feature-observe에서 해당 작업의 일반 실패로 남깁니다. ordinary/timer/offline/chatting은 공통 `safe_cleanup_failure_codes` 계약으로 정리 진단만 선별하고 최초 prepare/UI 실패와 secondary를 각각 보존합니다. 임의 예외·미검토 문자열·알 수 없는 앱 reason은 공개하지 않습니다. 정리 실패 뒤 snapshot/recovery/앱 데이터를 보존하고 후속 시나리오를 중단하는 정책은 바뀌지 않습니다.
 
 타이머 시나리오는 `features/offline.py`의 immutable `OfflineTimerInput`에서 UI 변경 전에 `initialSeconds=45`, `updatedSeconds=75`, `stepName=offline-step`을 한 번 선택합니다. 예를 들어 `--offline-initial-seconds 53 --offline-updated-seconds 97 --offline-step-name set-639`을 위 명령에 붙이면 실제 UI 입력과 독립 서버 GET의 시간·단계명 기대값이 함께 바뀝니다. 초는 5~3599, 단계명은 영숫자로 시작하는 1~40자의 ASCII 영숫자·공백·`_`·`-`만 허용합니다. 미저장 draft의 `02:00`은 별도의 폼 보존 기대값입니다.
 호스트는 장치 준비 전에 잘못된 단계명과 같은 생성·수정 시간을 인자 오류로 거절합니다. 초 하나만 지정해도 생략한 값의 기본값 45·75초를 적용한 뒤 서로 달라야 합니다.
@@ -252,6 +266,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 소스 빌드 뒤 선택된 descriptor의 필수 입력이 없으면 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
 - CI 에뮬레이터는 호스트 기본 시간대에 의존하지 않도록 `-timezone Asia/Seoul`로 시작합니다. `--configure-emulator`의 재부팅 후 한국어·서울 시간대 검증은 유지합니다.
 - SDK 설정은 `packages: 'platform-tools'`를 명시해 액션 기본 목록의 구형 `tools` 설치를 제외합니다. `sdkmanager`는 액션이 별도로 설치하는 `cmdline-tools`를 사용합니다.
+- 빌드·캐시 복원 전 러너의 미사용 사전 설치 툴체인 `/usr/share/dotnet`, `/usr/local/.ghcup`, `/usr/share/swift`만 제거하며 Android SDK/NDK·JDK·Python·Gradle 캐시와 저장소·테스트 아티팩트는 유지합니다. 정리 전후 워크스페이스·홈과 SDK/시스템 이미지 설치 후 에뮬레이터 시작 직전의 실제 `ANDROID_AVD_HOME` 파일시스템을 `df -h`로 기록합니다. userdata 공간 부족은 앱·Maestro 실행 전 실패입니다.
 - KVM 설정은 러너 계정을 기록하고, udev 이벤트 처리가 끝날 때까지 최대 30초 기다린 뒤 `/dev/kvm` 권한을 확인합니다. `Enable KVM` 단계에만 명령 추적을 켜므로 실패한 명령을 로그에서 구분할 수 있으며, 장치가 없거나 읽기·쓰기 권한이 없으면 계속 실패 처리합니다.
 
 `maestro-dev` 환경에 등록할 비밀:
@@ -301,10 +316,13 @@ peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다
 - `<flow>/device-log.log`: Maestro 비정상 종료 시 logcat 최근 500줄 중 `[MEASURE]`/`WebSocket`/`Connectivity`/`AndroidRuntime`/`FATAL EXCEPTION`/`OkHttp`가 있는 줄만 선별하고 인증 값/JWT/인증 관련 줄 제거 규칙을 적용한 로그입니다.
 - `<flow>/last-anr-summary.json`: 이어서 조회한 마지막 ANR의 고정 process/reason 분류와 load average/전체 CPU 수치만 보관합니다. Android 14의 들여쓴 `Reason:`도 허용하며 process·load·CPU 정보가 없으면 `unknown`/`null`로 남깁니다. 마지막 기록은 이전 사건일 수 있습니다.
 - `<flow>/anr-events-summary.json`: events 버퍼의 `am_anr` 태그를 한 번 조회해 기기 시각 `timestamp_epoch`(Unix 초)와 고정 process/reason 분류를 시각 기준 최신 8건까지 보관합니다. 모든 상태에 `scope: device-history`를 명시하며 현재 플로우의 사건으로 분류하지 않습니다.
+- `<flow>/driver-connectivity-summary.json`: `run_maestro` 실패 뒤 선택한 기기를 읽기 전용으로 조회한 연결 요약입니다. `adb: {status, state?}`의 state는 `device`/`offline`/`unauthorized`/`bootloader`/`recovery`/`sideload`/`rescue`만 허용합니다. `processes: {status, app_present?, test_present?}`는 정확한 `dev.mobile.maestro`와 `dev.mobile.maestro.test` 이름의 존재만 boolean으로 기록합니다. 이름은 고정 버전의 [applicationId](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-android/build.gradle.kts#L37-L47)와 [instrumentation 대상](https://github.com/mobile-dev-inc/Maestro/blob/c8c361be1cc89b2e742f185466a302a22778be6b/maestro-client/src/main/java/maestro/drivers/AndroidDriver.kt#L125-L135)에서 확인했습니다. `forwards: {status, tcp_ports?: [{local, remote}]}`는 선택 serial에 정확히 일치하는 TCP→TCP 쌍만 정렬/중복 제거하여 최대 32개 기록합니다. 다른 기기·다른 socket 종류·serial·PID·process 목록·stdout/stderr·환경·예외 본문은 저장하지 않습니다.
 - `chatting/diagnostics/<phase>/{checkpoint,last-anr-summary,anr-events-summary}.json`: A의 `peer-ready-before-primary-prepare`(B 사용 가능 직후·A 설정 전), `primary-fixture-ready`(A prepare·identity 확인 후·B 설정 전), `receiver-ready-before-primary-launch`(B 준비 barrier 후·A 최초 open 직전), `failure`(A가 존재하는 실패·중단 시 정리 전) 기록입니다. 각 조회는 5초로 제한하며 metadata는 고정 phase, 호스트 캡처 시작/끝 epoch·monotonic과 얻을 수 있는 기기 wall epoch·uptime만 기록합니다.
 - `chatting/diagnostics/host-resources.log`: B 생성/부팅 또는 명시적 peer 처리 전부터 A 최초 open 결과까지 Linux 호스트를 1초 간격으로 수집하는 JSONL입니다. 이전 단계 실패·중단 시에도 fixture 정리 전에 중단합니다. CPU capacity·구간 busy/iowait, memory/swap, load, 지원되는 PSI의 허용 숫자와 source 상태만 보관하며 첫 CPU 구간·counter reset은 미측정으로 남깁니다. 최대 5400 samples와 출력 크기 제한을 적용하고 수집 종료·잘림·coverage gap을 고정 상태로 기록합니다. 파일/종료 기록 부재는 수집 완료나 정상 부하의 증거가 아닙니다.
 
 이벤트 요약의 `status`는 `captured`(파싱한 이벤트), `partial`(인식 불가 행도 있어 불완전한 이벤트), `empty`(빈 버퍼/헤더만), `unrecognized`(파싱할 수 없는 내용), `unavailable`(조회 실패)로 구분합니다. checkpoint의 마지막 ANR도 같은 상태 이름으로 빈 보고서·일부 정보·조회 불가를 구분하고 기기 clock은 `captured`/`partial`/`unrecognized`/`unavailable`을 기록합니다. 개별 `unknown` 분류나 빈 결과·파일 부재는 ANR이 없었다는 증거가 아닙니다. 두 ANR 요약은 원문·사용자 데이터·패키지·PID·창 제목·Intent·URL·토큰·예외 본문을 공개하지 않습니다. 읽기·파싱·쓰기 실패는 원래 UI 실패나 fixture 정리를 대체하지 않습니다.
+
+연결 요약의 각 source `status`는 `captured`(관측 성공), `unrecognized`(잘못된 형식/크기 제한 초과), `unavailable`(조회 실패 또는 전체 예산 소진으로 생략)입니다. `captured`의 false/빈 TCP 배열은 관측한 부재이고, 나머지 상태에서는 boolean/port를 생략하여 미측정을 부재로 해석하지 않습니다. 세 ADB 조회 전체에 하나의 monotonic 5초 예산을 적용하고, 각 명령에는 양수인 남은 시간만 전달합니다. 예산이 소진되면 후속 조회는 하지 않습니다. 파싱 입력은 64 KiB/2048행으로 제한합니다. 재연결·forward 생성/삭제·driver 재시작·재시도·기존 timeout 증가는 하지 않습니다. 수집/쓰기 실패는 원래 실패를 대체하거나 fixture 정리를 막지 않으며 중단 신호는 계속 전파합니다. Maestro 종료 후 관측이므로 정상 teardown으로 driver/forward가 이미 제거됐을 수 있고, 이 요약만으로 실패 당시 연결 상태나 원인을 확정할 수 없습니다.
 
 ANR 자료는 기기 과거 이력이며 재부팅으로 지워질 수 있습니다. 이벤트 시각과 실패 hierarchy/로그 시점을 대조하되 호스트·기기 wall clock의 차이/변경과 수집 창을 고려해야 합니다. 캡처 시각은 ANR 발생 시각이 아니며 fixture-ready는 UI 건강 확인이 아닙니다. 호스트 주기 수집은 연속 측정이 아니고 checkpoint의 adb 조회도 실행 부하·순서를 조금 바꿀 수 있습니다. 깨끗한 snapshot이나 sample 사이 간격만으로 순간 contention 또는 측정하지 않은 기기 하위 시스템의 문제를 배제하지 않습니다. 이 변경은 ANR 수정이나 근본 원인 확정이 아닙니다.
 
@@ -316,6 +334,7 @@ CI는 실패해도 `always()`로 상태 파일과 안전한 XML/log/JSON/PNG만 
 
 사용자 보고 run `39007766770`에서는 고정 keystore 복원과 APK 빌드가 성공했고 smoke·피드·타이머·로그인은 통과했습니다. matching 세 플로우는 모두 `matching_map_ready` 대기에서 실패했으며 SDK callback의 종류·코드는 아직 수집되지 않았습니다. 이번 SDK 진단 변경은 정적 확인만 했고 로컬 빌드·테스트·기기 실행은 수행하지 않았습니다. 고정 서명 이후에도 실패 원인은 미확정입니다.
 이번 ANR checkpoint·호스트 주기 진단은 정적으로만 검토했으며 로컬 Python 테스트·빌드·lint·formatter·adb·Maestro는 실행하지 않았습니다. 게시 후 승인된 CI의 unittest·APK 빌드·실제 인증 Maestro 결과를 별도로 확인해야 하며 진단 추가 후에도 기존 ANR로 실패할 수 있습니다.
+이번 최초/secondary 실패 보존과 driver 연결 진단도 정적 확인만 수행했습니다. Python unittest(공통/기능), `:app:testE2eUnitTest`, `:app:lintE2e`, 실제 DEV Maestro 검증은 실행하지 않았습니다. 기존 deviceInfo 전송 실패의 런타임 원인은 미확정이며 인증 동작·retry·기존 timeout을 수정하거나 CI 실패 해결을 주장하는 변경이 아닙니다.
 
 이번 기본 `ci` 선택 변경에서는 로컬 코드 실행·빌드·테스트·lint·formatter·기기 검증을 수행하지 않았습니다. 승인된 원격 CI에서 Python 회귀 테스트·APK 빌드와 채팅을 제외한 19개 플로우의 실제 결과를 확인해야 합니다. 기본 `ci` 성공과 명시적 `chatting`/`all`의 채팅 검증 결과는 별개입니다.
 

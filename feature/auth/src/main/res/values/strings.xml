@@ -4,6 +4,10 @@
     <string name="google_login">구글 로그인</string>
     <string name="naver_login">네이버 로그인</string>
     <string name="kakao_login">카카오 로그인</string>
+    <string name="account_adoption_title">다른 계정으로 계속하시겠어요?</string>
+    <string name="account_adoption_warning">이전에 사용한 계정의 아직 전송하지 않은 운동·타이머 변경사항과 이 기기에만 저장된 사진이 있다면 삭제됩니다. 이전 계정으로 다시 로그인해도 복구할 수 없습니다. 취소하면 기존 데이터를 보존하고 로그인 화면에 머무릅니다.</string>
+    <string name="account_adoption_confirm">기기 데이터 삭제 후 계속</string>
+    <string name="login_session_changed">로그인 상태가 바뀌었습니다. 다시 로그인해주세요.</string>
 
     <!-- 권한 -->
     <string name="permission_title">원활한 운다방 사용을 위한\n접근 권한 안내</string>
@@ -41,7 +45,6 @@
     <string name="login_response_empty">로그인 응답이 없습니다.</string>
     <string name="login_user_canceled">로그인 사용자 취소</string>
     <string name="login_failed_with_error">authorizationLauncher 로그인에 실패했습니다.: %s</string>
-    <string name="login_success_with_token">로그인 성공: %s</string>
     <string name="login_error_with_description">onError 로그인 실패: %s</string>
     <string name="server_address_incorrect">서버 주소가 틀렸거나, 통신이 불가능합니다.</string>
     <string name="fcm_token_send_success">fcm 토큰 저장 성공</string>

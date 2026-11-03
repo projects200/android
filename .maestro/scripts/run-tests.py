@@ -52,13 +52,21 @@ REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_MATCHING_SEARCH_QUERY", "MAESTRO_MATCHING_CATALOG_PLACE_NAME",
     "MAESTRO_MATCHING_ROOM_ID",
 })
-COMMON_PREPARE_FAILURES = {
-    "discovery_failed": "bootstrap-prepare-failed-discovery",
-    "refresh_failed": "bootstrap-prepare-failed-refresh",
-    "registration_failed": "bootstrap-prepare-failed-registration",
-    "fixture_read_failed": "bootstrap-prepare-failed-fixture-read",
-    "fixture_delete_failed": "bootstrap-prepare-failed-fixture-delete",
-    "setup_failed": "bootstrap-prepare-failed-setup",
+COMMON_FAILURES = {
+    "discovery_failed": "discovery",
+    "refresh_failed": "refresh",
+    "fixture_read_failed": "fixture-read",
+    "fixture_delete_failed": "fixture-delete",
+    "member_mismatch": "member-mismatch",
+    "untrusted_session": "untrusted-session",
+    "dev_configuration_missing": "dev-configuration-missing",
+    "private_file_failed": "private-file",
+    "local_session_clear_failed": "local-session-clear",
+    "setup_failed": "setup",
+}
+SECONDARY_CLEANUP_FAILURES = {
+    "private_file_failed": "private-file",
+    "local_session_clear_failed": "local-session-clear",
 }
 
 OFFLINE_CLEANUP_FAILURES = {
@@ -70,16 +78,64 @@ OFFLINE_CLEANUP_FAILURES = {
     "feature_recovery_pending": "bootstrap-cleanup-failed-feature-recovery-pending",
     "feature_recovery_owner_mismatch": "bootstrap-cleanup-failed-feature-recovery-owner-mismatch",
     "feature_recovery_invalid": "bootstrap-cleanup-failed-feature-recovery-invalid",
-    "fixture_read_failed": "bootstrap-cleanup-failed-fixture-read",
-    "fixture_delete_failed": "bootstrap-cleanup-failed-fixture-delete",
-    "member_mismatch": "bootstrap-cleanup-failed-member-mismatch",
-    "discovery_failed": "bootstrap-cleanup-failed-discovery",
-    "refresh_failed": "bootstrap-cleanup-failed-refresh",
-    "untrusted_session": "bootstrap-cleanup-failed-untrusted-session",
-    "dev_configuration_missing": "bootstrap-cleanup-failed-dev-configuration-missing",
-    "private_file_failed": "bootstrap-cleanup-failed-private-file",
-    "local_session_clear_failed": "bootstrap-cleanup-failed-local-session-clear",
-    "setup_failed": "bootstrap-cleanup-failed-setup",
+}
+FEATURE_CLEANUP_FAILURES = {
+    "offline": OFFLINE_CLEANUP_FAILURES,
+    "timer": {
+        "invalid_feature_request": "bootstrap-cleanup-failed-invalid-feature-request",
+        "timer_snapshot_missing": "bootstrap-cleanup-failed-timer-snapshot-missing",
+        "timer_snapshot_identity_invalid": "bootstrap-cleanup-failed-timer-snapshot-identity-invalid",
+        "timer_snapshot_input_mismatch": "bootstrap-cleanup-failed-timer-snapshot-input-mismatch",
+        "timer_server_ownership_changed": "bootstrap-cleanup-failed-timer-server-ownership-changed",
+        "timer_server_cleanup_failed": "bootstrap-cleanup-failed-timer-server-cleanup-failed",
+        "timer_server_baseline_changed": "bootstrap-cleanup-failed-timer-server-baseline-changed",
+        "timer_fixture_read_failed": "bootstrap-cleanup-failed-timer-fixture-read-failed",
+        "timer_private_file_failed": "bootstrap-cleanup-failed-timer-private-file-failed",
+    },
+    "matching": {
+        "matching_request_invalid": "bootstrap-cleanup-failed-matching-request-invalid",
+        "matching_snapshot_missing": "bootstrap-cleanup-failed-matching-snapshot-missing",
+        "matching_snapshot_identity_invalid": "bootstrap-cleanup-failed-matching-snapshot-identity-invalid",
+        "matching_place_ownership_changed": "bootstrap-cleanup-failed-matching-place-ownership-changed",
+        "matching_place_cleanup_failed": "bootstrap-cleanup-failed-matching-place-cleanup-failed",
+        "matching_place_baseline_changed": "bootstrap-cleanup-failed-matching-place-baseline-changed",
+        "matching_room_ownership_changed": "bootstrap-cleanup-failed-matching-room-ownership-changed",
+        "matching_room_cleanup_failed": "bootstrap-cleanup-failed-matching-room-cleanup-failed",
+        "matching_room_baseline_changed": "bootstrap-cleanup-failed-matching-room-baseline-changed",
+        "matching_evidence_missing": "bootstrap-cleanup-failed-matching-evidence-missing",
+        "matching_evidence_identity_invalid": "bootstrap-cleanup-failed-matching-evidence-identity-invalid",
+        "matching_api_read_failed": "bootstrap-cleanup-failed-matching-api-read-failed",
+    },
+    "profile": {
+        "profile_request_invalid": "bootstrap-cleanup-failed-profile-request-invalid",
+        "profile_recovery_identity_failed": "bootstrap-cleanup-failed-profile-recovery-identity-failed",
+        "profile_recovery_notification_invalid": "bootstrap-cleanup-failed-profile-recovery-notification-invalid",
+        "profile_fcm_identity_changed": "bootstrap-cleanup-failed-profile-fcm-identity-changed",
+        "profile_notifications_invalid": "bootstrap-cleanup-failed-profile-notifications-invalid",
+        "profile_baseline_nickname_unsupported": "bootstrap-cleanup-failed-profile-baseline-nickname-unsupported",
+        "profile_baseline_gender_unsupported": "bootstrap-cleanup-failed-profile-baseline-gender-unsupported",
+        "profile_baseline_bio_too_long": "bootstrap-cleanup-failed-profile-baseline-bio-too-long",
+        "profile_baseline_bio_control_characters": "bootstrap-cleanup-failed-profile-baseline-bio-control-characters",
+        "profile_restore_failed": "bootstrap-cleanup-failed-profile-restore-failed",
+    },
+    "feed": {
+        "feed_fixture_identity_invalid": "bootstrap-cleanup-failed-feed-fixture-identity-invalid",
+        "feed_fixture_snapshot_invalid": "bootstrap-cleanup-failed-feed-fixture-snapshot-invalid",
+        "feed_fixture_snapshot_mismatch": "bootstrap-cleanup-failed-feed-fixture-snapshot-mismatch",
+        "feed_validation_unexpected_posts": "bootstrap-cleanup-failed-feed-validation-unexpected-posts",
+        "feed_fixture_read_failed": "bootstrap-cleanup-failed-feed-fixture-read-failed",
+        "feed_fixture_delete_failed": "bootstrap-cleanup-failed-feed-fixture-delete-failed",
+        "feed_fixture_changed": "bootstrap-cleanup-failed-feed-fixture-changed",
+        "feed_fixture_foreign_comments": "bootstrap-cleanup-failed-feed-fixture-foreign-comments",
+        "feed_fixture_cleanup_incomplete": "bootstrap-cleanup-failed-feed-fixture-cleanup-incomplete",
+        "feed_fixture_media_cleanup_failed": "bootstrap-cleanup-failed-feed-fixture-media-cleanup-failed",
+    },
+    "chatting": {
+        "chat_fixture_invalid": "bootstrap-cleanup-failed-chat-fixture-invalid",
+        "chat_fixture_room_missing": "bootstrap-cleanup-failed-chat-fixture-room-missing",
+        "chat_fixture_peer_mismatch": "bootstrap-cleanup-failed-chat-fixture-peer-mismatch",
+        "chat_fixture_read_failed": "bootstrap-cleanup-failed-chat-fixture-read-failed",
+    },
 }
 
 REGISTRATION_FAILURES = {
@@ -96,9 +152,7 @@ REGISTRATION_FAILURES = {
     "registration_unknown": "registration-unknown",
 }
 REGISTRATION_HTTP_FAILURE = re.compile(r"registration_http_([1-5][0-9]{2})")
-OFFLINE_CLEANUP_PUBLIC_FAILURES = frozenset({
-    *OFFLINE_CLEANUP_FAILURES.values(),
-    *("bootstrap-cleanup-failed-" + suffix for suffix in REGISTRATION_FAILURES.values()),
+CLEANUP_TRANSPORT_FAILURES = frozenset({
     "bootstrap-cleanup-failed", "bootstrap-cleanup-timeout", "adb-operation-failed",
     "invalid-bootstrap-result", "tool-timeout", "tool-unavailable", "run-interrupted",
 })
@@ -169,16 +223,77 @@ class RunInterrupted(RunnerFailure):
     pass
 
 
-def safe_offline_cleanup_failure(exception):
-    if not isinstance(exception, RunnerFailure):
-        return None
-    failure = str(exception)
-    if (
-        failure in OFFLINE_CLEANUP_PUBLIC_FAILURES or
-        re.fullmatch(r"bootstrap-cleanup-failed-registration-http-[1-5][0-9]{2}", failure)
-    ):
+def bootstrap_failure_code(operation, feature, reason):
+    failure = "bootstrap-" + operation + "-failed"
+    if not isinstance(reason, str):
         return failure
-    return None
+    registration = REGISTRATION_FAILURES.get(reason)
+    http = REGISTRATION_HTTP_FAILURE.fullmatch(reason)
+    common = COMMON_FAILURES.get(reason)
+    if registration is not None:
+        return failure + "-" + registration
+    if http is not None:
+        return failure + "-registration-http-" + http.group(1)
+    if common is not None:
+        return failure + "-" + common
+    if operation == "cleanup":
+        return FEATURE_CLEANUP_FAILURES.get(feature, {}).get(reason, failure)
+    if operation not in ("prepare", "offline-observe", "feature-observe"):
+        return failure
+    if operation == "offline-observe" or feature == "offline":
+        return {
+            "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
+            "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
+            "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
+            "offline_exercise_local_mismatch": "offline-suite-exercise-local-mismatch",
+            "offline_exercise_identity_changed": "offline-suite-exercise-identity-changed",
+            "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
+        }.get(reason, failure)
+    if feature == "timer":
+        return {
+            "timer_local_id_missing": "timer-local-id-not-observed",
+            "timer_local_id_changed": "timer-local-id-changed",
+            "timer_server_id_missing": "timer-server-id-not-observed",
+            "timer_server_cleanup_failed": "timer-server-cleanup-failed",
+        }.get(reason, failure)
+    if feature == "profile":
+        return PROFILE_PREPARE_FAILURES.get(reason, failure)
+    if feature == "matching":
+        return MATCHING_PREPARE_FAILURES.get(reason, failure)
+    return failure
+
+
+class BootstrapFailure(RunnerFailure):
+    def __init__(self, operation, feature, result):
+        failed = isinstance(result, dict) and result.get("status") == "failed"
+        super().__init__(bootstrap_failure_code(operation, feature, result.get("reason") if failed else None))
+        cleanup = result.get("cleanupFailures") if failed else None
+        # 원문·잘못된 배열은 저장하지 않고 고정 두 코드만 독립적으로 전달합니다.
+        self.cleanup_failures = tuple(
+            "bootstrap-" + operation + "-secondary-" + suffix
+            for reason, suffix in SECONDARY_CLEANUP_FAILURES.items()
+            if isinstance(cleanup, list) and any(isinstance(item, str) and item == reason for item in cleanup)
+        )
+
+
+def failure_codes(exception):
+    return [str(exception), *(exception.cleanup_failures if isinstance(exception, BootstrapFailure) else ())]
+
+
+def safe_cleanup_failure_codes(exception, feature=None):
+    if not isinstance(exception, RunnerFailure):
+        return []
+    allowed = {
+        *CLEANUP_TRANSPORT_FAILURES,
+        *("bootstrap-cleanup-failed-" + suffix for suffix in COMMON_FAILURES.values()),
+        *("bootstrap-cleanup-failed-" + suffix for suffix in REGISTRATION_FAILURES.values()),
+        *("bootstrap-cleanup-secondary-" + suffix for suffix in SECONDARY_CLEANUP_FAILURES.values()),
+    }
+    allowed.update(FEATURE_CLEANUP_FAILURES.get(feature, {}).values())
+    return [
+        code for code in failure_codes(exception)
+        if code in allowed or re.fullmatch(r"bootstrap-cleanup-failed-registration-http-[1-5][0-9]{2}", code)
+    ]
 
 
 def tool_environment():
@@ -859,47 +974,7 @@ class Device:
             except (ValueError, TypeError):
                 raise RunnerFailure("invalid-bootstrap-result") from None
             if not isinstance(result, dict) or result.get("status") != expected:
-                # 앱 reason도 외부 입력이므로 검토된 고정 코드와 유효 HTTP 숫자만 공개합니다.
-                failure = "bootstrap-" + operation + "-failed"
-                if (
-                    isinstance(result, dict) and
-                    result.get("status") == "failed" and
-                    isinstance(result.get("reason"), str)
-                ):
-                    reason = result["reason"]
-                    registration = REGISTRATION_FAILURES.get(reason)
-                    http = REGISTRATION_HTTP_FAILURE.fullmatch(reason)
-                    if registration is not None:
-                        failure += "-" + registration
-                    elif http is not None:
-                        failure += "-registration-http-" + http.group(1)
-                    elif operation == "cleanup" and feature == "offline":
-                        failure = OFFLINE_CLEANUP_FAILURES.get(reason, failure)
-                    elif operation not in ("prepare", "offline-observe", "feature-observe"):
-                        pass
-                    elif operation == "offline-observe" or feature == "offline":
-                        failure = {
-                            "offline_cache_flag_disabled": "offline-suite-requires-enabled-cache-flag",
-                            "offline_upload_not_observed": "offline-suite-requires-real-server-upload",
-                            "offline_exercise_server_mismatch": "offline-suite-exercise-server-mismatch",
-                            "offline_exercise_local_mismatch": "offline-suite-exercise-local-mismatch",
-                            "offline_exercise_identity_changed": "offline-suite-exercise-identity-changed",
-                            "offline_flag_fetch_failed": "offline-suite-flag-fetch-failed",
-                        }.get(reason, failure)
-                    elif feature == "timer":
-                        failure = {
-                            "timer_local_id_missing": "timer-local-id-not-observed",
-                            "timer_local_id_changed": "timer-local-id-changed",
-                            "timer_server_id_missing": "timer-server-id-not-observed",
-                            "timer_server_cleanup_failed": "timer-server-cleanup-failed",
-                        }.get(reason, failure)
-                    elif feature is None:
-                        failure = COMMON_PREPARE_FAILURES.get(reason, failure)
-                    elif feature == "profile":
-                        failure = PROFILE_PREPARE_FAILURES.get(reason, failure)
-                    elif feature == "matching":
-                        failure = MATCHING_PREPARE_FAILURES.get(reason, failure)
-                raise RunnerFailure(failure)
+                raise BootstrapFailure(operation, feature, result)
             variables = safe_variables(result.get("variables", {}))
             self.remove_private()
             return variables
@@ -1252,7 +1327,109 @@ def maestro_result(report):
         raise RunnerFailure("maestro-assertion-failed")
 
 
+def parse_driver_processes(report):
+    lines = report.splitlines()
+    if not lines or lines[0].strip() != "NAME" or len(lines) > 2048:
+        return {"status": "unrecognized"}
+    names = [line.strip() for line in lines[1:]]
+    if any(not name or len(name.split()) != 1 for name in names):
+        return {"status": "unrecognized"}
+    # cli-2.11.0: maestro-android applicationId와 AndroidDriver instrumentation 대상.
+    return {
+        "status": "captured",
+        "app_present": "dev.mobile.maestro" in names,
+        "test_present": "dev.mobile.maestro.test" in names,
+    }
+
+
+def parse_driver_forwards(report, serial):
+    ports = set()
+    lines = report.splitlines()
+    if len(lines) > 2048:
+        return {"status": "unrecognized"}
+    for line in lines:
+        fields = line.split()
+        if not fields:
+            continue
+        if len(fields) != 3:
+            return {"status": "unrecognized"}
+        if fields[0] != serial:
+            continue
+        # 다른 종류의 소켓은 공개하지 않으며 TCP 쌍만 수치로 기록합니다.
+        if not fields[1].startswith("tcp:") or not fields[2].startswith("tcp:"):
+            continue
+        endpoints = [re.fullmatch(r"tcp:([0-9]{1,5})", value) for value in fields[1:]]
+        if not all(endpoints):
+            return {"status": "unrecognized"}
+        pair = tuple(int(endpoint.group(1)) for endpoint in endpoints)
+        if not all(1 <= port <= 65535 for port in pair):
+            return {"status": "unrecognized"}
+        ports.add(pair)
+        if len(ports) > 32:
+            return {"status": "unrecognized"}
+    return {
+        "status": "captured",
+        "tcp_ports": [{"local": local, "remote": remote} for local, remote in sorted(ports)],
+    }
+
+
+def save_driver_connectivity(device, destination):
+    summary = {}
+    deadline = time.monotonic() + 5
+    for name, arguments, parser in (
+        ("adb", ("get-state",), lambda text: (
+            {"status": "captured", "state": text.strip()}
+            if text.strip() in ("device", "offline", "unauthorized", "bootloader", "recovery", "sideload", "rescue")
+            else {"status": "unrecognized"}
+        )),
+        ("processes", ("shell", "ps", "-A", "-o", "NAME"), parse_driver_processes),
+        ("forwards", ("forward", "--list"), lambda text: parse_driver_forwards(text, device.serial)),
+    ):
+        summary[name] = {"status": "unavailable"}
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                continue
+            code, output, _ = device.call(*arguments, timeout=remaining)
+            if code == 0:
+                summary[name] = (
+                    parser(output.decode("utf-8", "strict")) if len(output) <= 65536
+                    else {"status": "unrecognized"}
+                )
+        except RunInterrupted:
+            raise
+        except UnicodeError:
+            summary[name] = {"status": "unrecognized"}
+        except Exception:
+            # 예외 종류·본문·ADB stdout/stderr는 아티팩트와 로그에 복사하지 않습니다.
+            pass
+    try:
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "driver-connectivity-summary.json").write_text(
+            json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+        )
+    except RunInterrupted:
+        raise
+    except Exception:
+        pass
+
+
 def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
+    try:
+        _run_maestro(device, flow, output, redactor, timeout, fixture_start_date, variables)
+    except RunInterrupted:
+        raise
+    except Exception:
+        try:
+            save_driver_connectivity(device, output / flow)
+        except RunInterrupted:
+            raise
+        except Exception:
+            pass
+        raise
+
+
+def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
     maestro = shutil.which("maestro")
     if not maestro:
         raise RunnerFailure("maestro-unavailable")
@@ -1381,7 +1558,7 @@ def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, 
         errors.append("run-interrupted")
         safe_to_continue = False
     except RunnerFailure as failure:
-        errors.append(str(failure))
+        errors.extend(failure_codes(failure))
     except Exception:
         errors.append("runner-operation-failed")
     finally:
@@ -1399,8 +1576,9 @@ def run_ordinary_flow(args, device, suite, flow, output, redactor, credentials, 
             if prepared:
                 try:
                     device.bootstrap("cleanup", credentials, **metadata)
-                except Exception:
+                except Exception as failure:
                     errors.append("fixture-cleanup-failed")
+                    errors.extend(safe_cleanup_failure_codes(failure, suite["name"]))
                     cleanup_failed = True
                     safe_to_continue = False
             if cleanup_failed:
@@ -1496,7 +1674,7 @@ def run_suite(args):
                     write_report(output, results)
             write_report(output, results)
     except RunnerFailure as failure:
-        results.append(("host-setup", 0, [str(failure)]))
+        results.append(("host-setup", 0, failure_codes(failure)))
     except Exception:
         results.append(("host-setup", 0, ["runner-operation-failed"]))
     finally:
@@ -1577,7 +1755,7 @@ def main():
             return 0
         return run_suite(args)
     except RunnerFailure as failure:
-        print("Runner failed: " + str(failure), file=sys.stderr)
+        print("Runner failed: " + "; ".join(failure_codes(failure)), file=sys.stderr)
         return 1
     except Exception:
         # 파이썬/subprocess 예외 객체에는 stdin 원문이 있을 수 있어 traceback을 출력하지 않습니다.
