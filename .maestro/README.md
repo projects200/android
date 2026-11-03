@@ -86,7 +86,7 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 | `feed` | fixture 소유권·snapshot 형식/일치, validation 글 목록 보존, fixture 읽기/삭제/변경·타인 댓글 보호·정리 잔존, 소유 미디어 정리 |
 | `chatting` | 전용 방 요청 유효성·방 존재·상대 일치·목록 읽기 |
 
-offline 전용 범위는 아래 기존 규칙을 유지합니다. 다른 기능의 코드, 알 수 없는 값, 접미사·개행이 붙은 문자열과 임의 예외 본문은 정리 상세로 공개하지 않습니다. prepare/observe의 기존 매핑은 바꾸지 않습니다. profile의 영역별 복구가 내부에서 포착하는 세부 오류는 앱이 실제 반환하는 `profile_restore_failed`로만 전달합니다.
+offline 전용 범위는 아래 기존 규칙을 유지합니다. 다른 기능의 코드, 알 수 없는 값, 접미사·개행이 붙은 문자열과 임의 예외 본문은 정리 상세로 공개하지 않습니다. prepare/observe의 기존 매핑은 바꾸지 않습니다. feature 메타데이터는 `prepare`/`cleanup`/`feature-observe`에서만 허용하며 `offline-observe`에는 허용하지 않습니다. 작업 단위 `offline-observe`는 timer 전용 오류 매핑을 선택하지 않습니다. profile의 영역별 복구가 내부에서 포착하는 세부 오류는 앱이 실제 반환하는 `profile_restore_failed`로만 전달합니다.
 
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 

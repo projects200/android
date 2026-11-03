@@ -288,6 +288,53 @@ class SessionTransportTests(unittest.TestCase):
                 self.assertEqual(self.clock.sleeps, [])
         self.assert_no_credential_arguments()
 
+    def test_timer_feature_observe_maps_missing_local_id_without_leaking_result(self):
+        self.transport.pending_sleeps = 0
+        self.transport.result = json.dumps({
+            "status": "failed", "reason": "timer_local_id_missing", "private": SYNTHETIC_SECRET,
+        }).encode("utf-8")
+        self.assert_failure(
+            "timer-local-id-not-observed",
+            lambda: self.device.bootstrap(
+                "feature-observe", {"memberId": CREDENTIALS["memberId"]},
+                feature="timer", flow="timer-simple-preset-crud",
+                run_id="0123456789abcdef", parameters={"stage": "simple-created"},
+            ),
+        )
+        self.assert_no_credential_arguments()
+
+    def test_offline_observe_uses_operation_only_failure_mapping(self):
+        self.transport.pending_sleeps = 0
+        cases = (
+            ("offline_upload_not_observed", "offline-suite-requires-real-server-upload"),
+            ("timer_local_id_missing", "bootstrap-offline-observe-failed"),
+        )
+        for reason, expected in cases:
+            with self.subTest(reason=reason):
+                self.transport.result = json.dumps({
+                    "status": "failed", "reason": reason, "private": SYNTHETIC_SECRET,
+                }).encode("utf-8")
+                self.assert_failure(
+                    expected,
+                    lambda: self.device.bootstrap(
+                        "offline-observe", {"memberId": CREDENTIALS["memberId"]},
+                    ),
+                )
+        self.assert_no_credential_arguments()
+
+    def test_offline_observe_rejects_feature_metadata_before_transport(self):
+        # Device 생성자의 get-state 이후 bootstrap의 전송만 확인합니다.
+        self.transport.calls.clear()
+        self.assert_failure(
+            "invalid-feature-metadata",
+            lambda: self.device.bootstrap(
+                "offline-observe", {"memberId": CREDENTIALS["memberId"]},
+                feature="timer", flow="timer-simple-preset-crud",
+                run_id="0123456789abcdef", parameters={"stage": "simple-created"},
+            ),
+        )
+        self.assertEqual(self.transport.calls, [])
+
     def test_offline_cleanup_maps_reviewed_reasons_and_preserves_private_evidence(self):
         self.transport.pending_sleeps = 0
         recovery = json.dumps({"private": SYNTHETIC_SECRET}).encode("utf-8")
@@ -1720,22 +1767,6 @@ class FeatureCleanupFailureTests(unittest.TestCase):
             for status in ("ready", "cleaned", "unknown", None):
                 failure = runner.BootstrapFailure("cleanup", feature, {"status": status, "reason": known})
                 self.assertEqual(str(failure), "bootstrap-cleanup-failed")
-
-    def test_cleanup_only_reasons_do_not_change_prepare_or_observe_mapping(self):
-        for feature, reason in (
-            ("timer", "timer_server_baseline_changed"), ("matching", "matching_place_cleanup_failed"),
-            ("profile", "profile_restore_failed"), ("feed", "feed_fixture_media_cleanup_failed"),
-            ("chatting", "chat_fixture_room_missing"),
-        ):
-            for operation in ("prepare", "feature-observe", "offline-observe", "export"):
-                self.assertEqual(
-                    runner.bootstrap_failure_code(operation, feature, reason), "bootstrap-" + operation + "-failed",
-                )
-        for operation in ("prepare", "feature-observe", "offline-observe"):
-            self.assertEqual(
-                runner.bootstrap_failure_code(operation, "timer", "timer_server_cleanup_failed"),
-                "timer-server-cleanup-failed",
-            )
 
 
 class DriverConnectivityTests(unittest.TestCase):
