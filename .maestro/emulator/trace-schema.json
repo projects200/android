@@ -1,0 +1,49 @@
+{
+  "schema": 1,
+  "environment_variable": "GFXSTREAM_COLOR_BUFFER_TRACE_FILE",
+  "status": {
+    "environment_variable": "GFXSTREAM_COLOR_BUFFER_TRACE_STATUS_FD",
+    "transport": "parent-created Linux anonymous memfd, MAP_SHARED, exactly 4 bytes",
+    "encoding": "aligned native Linux x86_64 uint32",
+    "states": {"uninitialized": 0, "active": 1, "clean": 2, "failed": 3},
+    "parent_lifetime": "Initialize the mapping to zero and seal its size before launch. Pass the descriptor through pass_fds and retain the mapping until the actual renderer process has exited.",
+    "native_lifetime": "Strictly parse the decimal descriptor, fstat size 4 and mmap before trace-file creation. Keep the shared mapping for process lifetime. No per-event allocation.",
+    "transitions": "Store active only after successful session_start. Set clean only after successful session_end with an atomic active-to-clean compare/exchange. Every logging failure and every late event stores failed. Failed never returns to clean.",
+    "acceptance": "Read status only after actual process death. Complete capture requires clean status 2 AND valid complete JSONL. Zero, active, failed, missing status or setup/read failure means incomplete capture, even if JSONL ends with a clean footer."
+  },
+  "format": "jsonl",
+  "keys": ["schema", "seq", "mono_ns", "pid", "tid", "event", "handle", "reason", "refcount", "found"],
+  "event_reasons": {
+    "session_start": ["enabled"],
+    "session_end": ["clean"],
+    "loss": ["limit", "late_event"],
+    "register": ["create_refcount_pipe", "create_legacy", "create_guest", "snapshot_load"],
+    "open": ["guest", "refcount_pipe", "window", "post"],
+    "close": ["guest", "refcount_pipe", "window", "process_cleanup", "surface_destroy"],
+    "refcount": ["guest", "forced_close", "post_release", "final_ref", "window", "process_cleanup", "surface_destroy"],
+    "delay": ["guest", "post_release", "window", "process_cleanup", "surface_destroy"],
+    "erase": ["forced_close", "delayed_expiry", "delayed_forced", "final_ref", "window", "process_cleanup", "surface_destroy", "shutdown", "snapshot_reset", "snapshot_stale", "snapshot_load_failed"],
+    "destroy_request": ["final_ref", "queue_full", "deferred_sweep"],
+    "lookup": ["generic"],
+    "bind": ["texture", "texture2", "renderbuffer"]
+  },
+  "null_handle_events": ["session_start", "session_end", "loss"],
+  "request_events": ["close", "destroy_request"],
+  "observed_events": ["open", "refcount", "lookup", "bind"],
+  "present_events": ["register", "delay", "erase"],
+  "uint32_max": 4294967295,
+  "max_ordinary_records": 1000000,
+  "max_file_bytes": 134217728,
+  "max_record_bytes": 512,
+  "identity": ["pid", "handle", "register.seq"],
+  "semantics": {
+    "ordering": "Sequence starts at 1 per process. The logger assigns sequence and CLOCK_MONOTONIC time under one mutex. Map observations occur under the existing color-buffer-map lock.",
+    "generation": "Each successful register starts a new handle generation. Erase means logical map removal, not final C++ object destruction. Requests without a map observation do not establish a generation.",
+    "references": "Present events have found=true and a uint32 refcount. Observed events have boolean found and numeric refcount exactly when found. Requests and session/loss events have null refcount/found.",
+    "erase": "Erase records precede the protected native erase/clear statement. No erased iterator is read. A terminated process can lack a completed removal; require a clean complete session before drawing lifecycle conclusions.",
+    "completion": "A valid complete capture requires parent-observed shared status 2 after actual renderer death, plus session_start, final session_end, contiguous sequence and no loss. No JSONL footer alone proves completion.",
+    "failure": "Either bound emits loss(limit) when possible and stores shared failed status 3. Clock, formatting, write, mutex, atexit or trace-file initialization failure also stores failed status. Missing or invalid status mapping leaves parent status 0 and prevents trace-file creation. A late event stores failed BEFORE attempting loss(late_event), so a zero-byte failed append cannot preserve completion. Partial metadata remains readable; no arbitrary error text is emitted.",
+    "process": "The file is exclusively created with mode 0600 and O_NOFOLLOW. A fork child never writes the parent session. A restart cannot overwrite an existing file. Use a fresh private absolute file path for every emulator invocation.",
+    "privacy": "Records contain fixed enums and numeric lifecycle metadata only. No pixels, guest data, commands, credentials, addresses, or free-form strings."
+  }
+}

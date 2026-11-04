@@ -261,7 +261,7 @@ XML ID는 `id` 셀렉터를 사용합니다. Compose의 `feed_content`, `feed_em
 - 인증 suite를 실행하지 않은 skip은 인증 통과가 아닙니다. 거절 job은 미실행 상태를 명시하며 **실패**합니다. `pull_request_target`은 사용하지 않습니다.
 - 비공개 조직 멤버는 `pull_request`에서 `CONTRIBUTOR`로 표시될 수 있지만 fork head와 첫 기여 계정(`FIRST_TIME_CONTRIBUTOR`/`FIRST_TIMER`/`NONE`)은 계속 거절하므로, 커밋 이력이 없는 신규 비공개 멤버는 조직 멤버십을 공개하거나 `dev` push/수동 실행(`dev` ref)을 사용해야 합니다.
 - 세 실행 경로 모두 **`maestro-dev` 환경**과 기존 `maestro-dev-dedicated-account` concurrency group을 유지합니다. `deployment: false`로 새 Deployment 기록 생성을 끄되, 환경 Secrets와 ref 제한 정책은 계속 적용됩니다. 기존 Deployment 기록과 Actions 검사·로그는 유지됩니다.
-- 인증 실행에는 외부 `maestro-dev` 정책에서 `dev`와 각 대상 PR의 정확한 `refs/pull/<번호>/merge` ref를 허용해야 합니다. 워크플로는 이 정책을 생성하거나 넓히지 않습니다. required reviewers 설정도 별도 환경 정책이며 `deployment: false`의 효과가 아닙니다.
+- 인증 실행에는 기존 `maestro-dev` 환경의 ref 제한이 해당 실행의 `dev` 또는 PR merge ref를 허용해야 합니다. 매 PR마다 새 exact-ref 규칙을 추가해야 한다는 뜻은 아닙니다. 워크플로는 이 정책을 생성하거나 넓히지 않습니다. required reviewers 설정도 별도 환경 정책이며 `deployment: false`의 효과가 아닙니다.
 - 기존 dev CI는 `lintDebug`, `testDebugUnitTest`, `assembleDebug`와 기존 Ktlint/Firebase 배포 검사를 유지합니다. 기존 master CI는 `lintRelease`, `testReleaseUnitTest`와 릴리스 빌드·배포를 유지합니다. 두 일반 CI는 e2e Firebase 파일을 요구하지 않도록 변형별 검증을 분리합니다.
 - Maestro job은 계정 없는 공통 Python 동작 테스트를 먼저 실행하고, `.maestro/scripts/features/`가 있으면 그 디렉터리도 별도로 discovery합니다. 이후 제공한 DEV 설정의 `:app:lintE2e`, `:app:testE2eUnitTest`, `:app:assembleE2e`를 실행한 뒤 기능별 인증 입력을 검증합니다. 소스 빌드 뒤 선택된 descriptor의 필수 입력이 없으면 실제 UI 실행은 실패로 차단하며 smoke 통과로 대체하지 않습니다. JDK17, 선택된 최대 API Google APIs x86_64/KVM/4096MB, 한국어/서울 시간대, 설치 전 실제 ARM ABI 확인과 순차 실행·finally 정리를 사용합니다.
 - CI 에뮬레이터는 호스트 기본 시간대에 의존하지 않도록 `-timezone Asia/Seoul`로 시작합니다. `--configure-emulator`의 재부팅 후 한국어·서울 시간대 검증은 유지합니다.
@@ -305,6 +305,33 @@ peer/matching 비밀은 선택된 descriptor가 요구할 때만 필수입니다
 - 빌드는 `-Pmaestro.e2e.signing.store.file`, `-Pmaestro.e2e.signing.store.password`, `-Pmaestro.e2e.signing.key.alias`, `-Pmaestro.e2e.signing.key.password`를 전달합니다. store/key password는 `android`, alias는 `androiddebugkey`입니다.
 - Gradle은 네 속성이 모두 있으면 `maestroE2e`를 e2e에만 적용하고, 로컬에서 생략하면 기존 debug 서명을 사용합니다. 일반 debug/release 서명은 변경하지 않습니다.
 - 운영자는 패키지 `com.project200.undabang`과 실제 서명 인증서를 올바른 Kakao/Firebase 앱에 등록해야 합니다. 이 진단 변경은 키 생성·비밀 등록·외부 서비스 등록을 수행하지 않으며, 고정 서명만으로 SDK 인증 성공이나 지도 실패 원인을 확정하지 않습니다.
+
+### 공개 소스 ColorBuffer 수명 진단
+
+`.github/workflows/android-color-buffer-diagnostics.yml`은 일반 Maestro workflow를 바꾸지 않는 별도 진단입니다. **SDK Emulator 37.2.13/build 16740729를 계측한 것이 아닙니다.** public manifest `2692acc620f6563b21995540656674faeb536cdc`, QEMU `cf0f40a0aad1aa3fca68f2f89372525c8d28ca68`, gfxstream `49ee51f297118cd2e98c5f4867df556e8966562a`를 사용하며, 전체 프로젝트의 실제 resolved revision을 manifest와 SHA-256으로 보관합니다. 같은 resolved checkout으로 baseline과 metadata-only 계측판의 **완전한 `emulator/` 배포본**을 각각 빌드합니다. 임의의 standalone renderer 라이브러리를 stock SDK에 끼우지 않습니다.
+
+- 자동 진입은 `dev` 대상의 같은 저장소 PR이며 association은 기존 CI와 같은 `OWNER`/`MEMBER`/`COLLABORATOR`/`CONTRIBUTOR`입니다. workflow 자체, `.maestro/emulator/**`, ColorBuffer 전용 Python 파일 변경만 paths filter에 해당합니다. 일반 앱 PR마다 native rebuild를 추가하지 않습니다. 수동 `workflow_dispatch`는 `dev` ref만 허용합니다. fork/비신뢰 작성자/다른 수동 ref는 비밀 없는 거절 job이 실패하며, `pull_request_target`은 사용하지 않습니다.
+- native build job은 `ubuntu-24.04` hosted runner에서 실행하며 `maestro-dev` 환경이나 계정 Secrets를 사용하지 않습니다. producer는 emulator CMake build와 upstream test 병렬도를 각각 2로 설정합니다. 조건부 Vulkan-Loader prebuilt 재빌드의 별도 `podman`/`make -j$(nproc)` 경로까지 전역 2작업 상한을 보장하는 것은 아닙니다. 기존과 같은 고정 경로의 미사용 도구 체인만 정리하고, 정리 전후·job 종료 시 실제 `df`와 메모리 관측을 별도 resource log로 보관합니다. public Android Repo 소스/prebuilt 다운로드 연결과 upstream native build 도구가 필요합니다. 별도 self-hosted runner나 추정 RAM/디스크 최솟값을 요구하지 않습니다. 실제 자원 부족으로 빌드가 실패하면 해당 CI의 native build 실패로 보고하며, UI 재현이나 trace 성공으로 처리하지 않습니다.
+- reproduction job은 **같은 workflow run**의 package pair만 내려받아 provenance의 source revision·manifest/package SHA-256을 검사합니다. 추출 전 경로 탈출, 외부/순환/부모 symlink, hardlink·장치·FIFO·특수 권한, 중복 경로와 archive expansion/파일 수/metadata 크기 제한을 검사합니다. native build/다운로드/검사 실패는 UI 재현이나 인증 통과가 아닙니다.
+- 실제 DEV 설정, 고정 debug keystore, JDK17, `:app:lintE2e :app:testE2eUnitTest :app:assembleE2e`, 체크섬을 고정한 Maestro 2.11.0을 사용합니다. 기존 `maestro-dev` 환경의 ref 제한이 해당 실행을 허용해야 하며 위 계정·지도 비밀이 필요합니다. 계정 잠금은 기존 `maestro-dev-dedicated-account`, `cancel-in-progress: false`, `queue: max`를 공유합니다. 보호 정책을 자동으로 넓히지 않습니다.
+- 전체 **`ci`를 baseline → instrumented 순서로 한 번씩** 실행합니다. suite preflight의 최대 API가 34가 아니면 실행을 거절합니다. 양쪽 모두 API34 `google_apis/x86_64`, 동일 기본 AVD profile·2코어·RAM4096MB·heap512MB, 같은 APK hash, 각각 새 AVD userdata를 사용합니다. flags는 `-no-window -read-only -gpu swiftshader -noaudio -no-boot-anim -no-snapshot -memory 4096 -timezone Asia/Seoul`이며 기존과 같은 animation 비활성화와 한국어/서울 시간대·ARM ABI 확인을 유지합니다. 재시도·RAM/GPU 변경·smoke 대체는 없습니다.
+- 기존 `run-tests.py`가 실제 인증 bootstrap, 각 flow, ownership 확인과 finally cleanup을 계속 소유합니다. baseline의 테스트·안전한 종료·오류 수집 중 하나라도 실패하면 instrumented 계정 변경 실행을 시작하지 않습니다. 원래 테스트 종료 상태를 진단 실패로 덮지 않습니다. 처리 가능한 신호 뒤에도 정리와 trace export를 시도합니다. emulator는 `adb emu kill` → 최대 30초 대기 → SIGTERM/30초 → 최후 SIGKILL 순서이며, 강제 종료/전체 job timeout 뒤에는 trace footer와 계정 정리를 보장할 수 없습니다.
+
+안전 artifact와 해석:
+
+|자료|의미/한계|
+|---|---|
+|`color-buffer-packages-*` / `color-buffer-native-status-*`|public-source 완전 배포본 두 개, resolved manifest·provenance, 별도 native build 상태와 실제 `df`/메모리 resource log. 계정 비밀/APK를 포함하지 않습니다.|
+|`build/color-buffer/diagnostic-status.json` / 각 variant의 `outcome.json`|패키지 검증 단계, 동일 APK SHA-256, 실제 테스트 return code, boot·emulator 종료·trace·원래 오류 관측 상태를 분리합니다. `maestro_report_directory`가 해당 variant의 기존 JUnit 디렉터리를 가리킵니다.|
+|`color-buffer-errors.jsonl`|native stdout/stderr는 비공개 파이프로만 흘리고 원문을 저장/업로드하지 않습니다. 정확한 `Failed to find ColorBuffer: <숫자>`와 `Failed to bind to texture: invalid color buffer.`만 고정 event/숫자 handle/호스트 epoch·monotonic 시각으로 다시 씁니다. 수집 제한·수집 불가는 별도 상태이며, 인접한 두 문구만으로 같은 handle의 원인을 단정하지 않습니다.|
+|`color-buffer-trace.jsonl` / `lifecycle-summary.json`|계측 emulator 시작 시점부터 별도 private 파일로 수집한 schema1을 exact key/enum/숫자 조건으로 검증·재작성합니다. PID별 연속 seq와 session 시작/clean 종료, loss·크기/이벤트 제한·잘린 행을 검사합니다. 실제 emulator 프로세스 종료 뒤 별도의 anonymous memfd 상태도 확인하며, JSONL과 독립 상태가 모두 정상이어야 complete입니다. 알 수 없는 필드/문구는 복사하지 않으며 native 원본 파일과 memfd는 업로드하지 않습니다.|
+|기존 `build/maestro/**`와 별도 E2E unit artifact|기존 필터가 만든 안전 JUnit/log/JSON/PNG만 유지합니다. 새 pixel/guest data/raw logcat/명령줄 캡처는 추가하지 않습니다. 단위 테스트 결과는 실제 인증 UI 결과와 별개입니다.|
+
+handle 재사용은 `(pid, handle, register.seq)` 세대로 나눕니다. missing bind가 실제 관측된 map erase 뒤인지, 완전한 capture 안에서 registration을 관측하지 못한 것인지를 분리합니다. erase는 map 제거이며 C++ 객체 최종 파괴와 같지 않습니다. seq gap, 알 수 없는 metadata, loss, footer/파일 부재, lifecycle coverage 부재가 있으면 **complete가 아니며** missing-registration/erase 관계는 불완전 증거로 남깁니다. refcount 값이나 누락 기록만으로 근본 원인을 확정하지 않습니다.
+
+계측판 시작 전 Linux `memfd_create`로 4바이트 공유 상태를 0으로 초기화하고 해당 fd만 native 프로세스에 전달합니다. native 상태는 0=`uninitialized`, 1=`active`, 2=`clean`, 3=`failed`입니다. 실제 프로세스가 끝난 뒤 읽은 상태 2와 유효한 전체 JSONL이 **모두** 있어야 complete입니다. footer 뒤 늦은 callback의 loss 파일 쓰기가 실패해도 독립 상태 3이 capture를 무효화합니다. 상태 API 불가·종료 미확인·0/1/3·잘못된 상태는 불완전이며 수명 관계 결론도 무효화합니다. bounded shutdown 실패 시 상태를 성공으로 읽지 않고 parent의 map/fd만 닫습니다. child가 가진 fd/map 수명과 앱의 반환 동작은 바꾸지 않습니다. 이 상태는 해당 공개 소스 계측판의 logger 종료 확인일 뿐, 원래 SDK build 전체의 정확성이나 원인 증명이 아닙니다.
+
+양쪽 `ci` 성공도 원래 SDK 오류 수정의 증거가 아닙니다. 이 public build에서 오류가 관측되지 않으면 `not-observed-in-this-public-build-run`이며 **원래 build 16740729의 비재현/수정/과거 수명 이력으로 확대 해석하지 않습니다.** job queued, 환경 승인 대기, native build만 성공, 빈 trace도 재현 성공이 아닙니다. 이 변경의 로컬 Python/빌드/기기 실행은 수행하지 않았습니다. 승인된 CI에서 builder 자원, package boot, 전체 `ci` 두 결과와 clean trace를 각각 확인해야 합니다.
 
 ## 결과와 실패 조사
 

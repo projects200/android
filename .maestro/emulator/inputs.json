@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "scope": "public-source-not-sdk-16740729",
+  "manifest_url": "https://android.googlesource.com/platform/manifest",
+  "manifest_revision": "2692acc620f6563b21995540656674faeb536cdc",
+  "qemu_revision": "cf0f40a0aad1aa3fca68f2f89372525c8d28ca68",
+  "gfxstream_revision": "49ee51f297118cd2e98c5f4867df556e8966562a",
+  "framebuffer_blob": "ed4b2b9199a89f0a95457bd0181aaa18277e0a75",
+  "repo_url": "https://gerrit.googlesource.com/git-repo",
+  "repo_revision": "338ddb7d83ea35d5aef94d3c5d95c74fa3845780",
+  "build_target": "linux",
+  "build_config": "release",
+  "sdk_build_number": "public-color-buffer",
+  "upstream_build_guide": "https://android.googlesource.com/platform/external/qemu/+/cf0f40a0aad1aa3fca68f2f89372525c8d28ca68/android/docs/LINUX-DEV.md",
+  "upstream_build_driver": "https://android.googlesource.com/platform/external/qemu/+/cf0f40a0aad1aa3fca68f2f89372525c8d28ca68/android/build/python/aemu/cmake.py",
+  "upstream_compile_task": "https://android.googlesource.com/platform/external/qemu/+/cf0f40a0aad1aa3fca68f2f89372525c8d28ca68/android/build/python/aemu/tasks/compile.py",
+  "install_relative_path": "distribution/emulator"
+}
