@@ -46,11 +46,20 @@ jobs:
           mkdir -p build/color-buffer-native
           printf '%s\n' 'Before fixed-path cleanup' > build/color-buffer-native/resource-observations.log
           df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP" | tee -a build/color-buffer-native/resource-observations.log
+          if [ -d /mnt ]; then df -h /mnt; fi | tee -a build/color-buffer-native/resource-observations.log
           free -h | tee -a build/color-buffer-native/resource-observations.log
-          sudo rm -rf -- /usr/share/dotnet /usr/local/.ghcup /usr/share/swift
+          sudo rm -rf -- /usr/share/dotnet /usr/local/.ghcup /usr/share/swift /usr/local/lib/android
           printf '%s\n' 'After fixed-path cleanup' >> build/color-buffer-native/resource-observations.log
           df -h "$GITHUB_WORKSPACE" "$RUNNER_TEMP" | tee -a build/color-buffer-native/resource-observations.log
+          if [ -d /mnt ]; then df -h /mnt; fi | tee -a build/color-buffer-native/resource-observations.log
           free -h | tee -a build/color-buffer-native/resource-observations.log
+      - name: Upload pre-build native resource observations
+        uses: actions/upload-artifact@v4
+        with:
+          name: color-buffer-native-resources-${{ github.run_id }}-${{ github.run_attempt }}
+          retention-days: 7
+          if-no-files-found: error
+          path: build/color-buffer-native/resource-observations.log
       - name: Run metadata, archive and sequential-run behavioral tests
         run: |
           python3 -m unittest discover -s .maestro/scripts -p 'test_color_buffer*.py'
