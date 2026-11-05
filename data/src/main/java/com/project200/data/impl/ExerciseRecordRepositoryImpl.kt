@@ -828,7 +828,8 @@ class ExerciseRecordRepositoryImpl
                 transient -> ExerciseSyncError.NETWORK_ERROR
                 error.errorCode == "EXERCISE_REQUEST_ID_REUSED" -> ExerciseSyncError.REQUEST_ID_REUSED
                 error.errorCode == "EXERCISE_EDIT_CONFLICT" -> ExerciseSyncError.CONFLICT
-                error.errorCode in setOf("EXERCISE_NOT_FOUND", "EXERCISE_DELETED") -> ExerciseSyncError.REMOTE_DELETED
+                // 서버는 소프트 삭제만 하므로 EXERCISE_NOT_FOUND는 원격 삭제 확인이 아닙니다. 폐기 안내는 EXERCISE_DELETED만 엽니다.
+                error.errorCode == "EXERCISE_DELETED" -> ExerciseSyncError.REMOTE_DELETED
                 error.errorCode == "MAPPING_ERROR" || error.cause is com.squareup.moshi.JsonDataException ||
                     error.cause is com.squareup.moshi.JsonEncodingException || error.cause is IllegalArgumentException ->
                     ExerciseSyncError.CONTRACT_ERROR

@@ -1512,6 +1512,20 @@ class ExerciseSyncRepositoryTest {
         }
 
     @Test
+    fun `본문 수정의 EXERCISE_NOT_FOUND는 원격 삭제 폐기 안내를 열지 않고 로컬 원문을 보존한다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "보존")
+            coEvery { remote.patchExerciseRecord(any(), any(), any()) } returns BaseResponse(false, "EXERCISE_NOT_FOUND", "")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Failure)
+            assertThat(journal(id).lastError).isEqualTo(ExerciseSyncError.PERMANENT_ERROR)
+            assertThat(syncLocal.remoteDeletionToken(member, id)).isNull()
+            assertThat(syncLocal.observeStatus(member, true, true, false).first().single { it.recordId == id }.remoteDeleted).isFalse()
+            assertThat(detail(id).title).isEqualTo("보존")
+        }
+
+    @Test
     fun `실제 관찰은 본문을 재조회하지 않고 검증 연결 예약 작업 인증 변경으로 retry gate를 갱신한다`() =
         runTest {
             val id = create()
