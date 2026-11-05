@@ -54,13 +54,10 @@ class ExerciseRetrySurfaceSmokeTest {
     private val device = ExerciseSmokeDevice()
 
     @get:Rule(order = 0)
-    val devicePreparation = device.preparationRule()
-
-    @get:Rule(order = 1)
     val compose = createAndroidComposeRule<ComponentActivity>()
 
     // Capture failures inside the activity rule, before Compose/ActivityScenario tears it down.
-    @get:Rule(order = 2)
+    @get:Rule(order = 1)
     val focusedWindow = device.focusedWindowRule { compose.activity }
 
     @Test

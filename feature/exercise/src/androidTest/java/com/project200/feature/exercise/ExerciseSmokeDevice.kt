@@ -7,7 +7,6 @@ import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
-import android.view.WindowManager
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.rules.TestRule
 import org.junit.runner.Description
@@ -19,28 +18,6 @@ internal class ExerciseSmokeDevice {
     private val power = checkNotNull(instrumentation.targetContext.getSystemService(PowerManager::class.java))
     private val keyguard = checkNotNull(instrumentation.targetContext.getSystemService(KeyguardManager::class.java))
 
-    fun preparationRule(): TestRule =
-        TestRule { base, description ->
-            object : Statement() {
-                override fun evaluate() {
-                    capture(description, "before-device-preparation")
-                    try {
-                        check(!keyguard.isDeviceSecure && !keyguard.isKeyguardSecure) {
-                            "The isolated smoke device must not have a secure keyguard"
-                        }
-                        shell("input keyevent KEYCODE_WAKEUP")
-                        shell("wm dismiss-keyguard")
-                        awaitReady("an interactive device without keyguard") { deviceReady() }
-                        capture(description, "after-device-preparation")
-                    } catch (failure: Throwable) {
-                        capture(description, "device-preparation-failure")
-                        throw failure
-                    }
-                    base.evaluate()
-                }
-            }
-        }
-
     fun focusedWindowRule(activityProvider: () -> Activity): TestRule =
         TestRule { base, description ->
             object : Statement() {
@@ -49,9 +26,6 @@ internal class ExerciseSmokeDevice {
                     try {
                         val host = activityProvider()
                         activity = host
-                        instrumentation.runOnMainSync {
-                            host.window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                        }
                         capture(description, "before-window-readiness", host)
                         // Do not enter Espresso until the actual host window can receive input.
                         awaitReady("the test activity decor window to have focus and complete layout") {
@@ -60,7 +34,7 @@ internal class ExerciseSmokeDevice {
                                 val decor = host.window.decorView
                                 windowReady = decor.isAttachedToWindow && decor.hasWindowFocus() && !decor.isLayoutRequested
                             }
-                            deviceReady() && windowReady
+                            windowReady
                         }
                         capture(description, "window-ready", host)
                         base.evaluate()
@@ -73,16 +47,14 @@ internal class ExerciseSmokeDevice {
             }
         }
 
-    private fun deviceReady(): Boolean = power.isInteractive && !keyguard.isKeyguardLocked && !keyguard.isDeviceLocked
-
     private fun awaitReady(
         condition: String,
         ready: () -> Boolean,
     ) {
         val deadline = SystemClock.uptimeMillis() + READINESS_TIMEOUT_MS
         while (!ready()) {
-            check(SystemClock.uptimeMillis() < deadline) { "Smoke preparation timed out waiting for $condition" }
-            // Poll device/window state, not an unconditional delay or a retry of a failed assertion.
+            check(SystemClock.uptimeMillis() < deadline) { "Smoke window readiness timed out waiting for $condition" }
+            // 실패한 assertion을 재시도하거나 무조건 지연하지 않고 실제 창 상태를 확인합니다
             SystemClock.sleep(50)
         }
     }
@@ -108,6 +80,8 @@ internal class ExerciseSmokeDevice {
             }
             val state =
                 "test=${description.methodName} phase=$phase uptimeMs=${SystemClock.uptimeMillis()}\n" +
+                    "testPackage=${instrumentation.context.packageName} " +
+                    "targetSdk=${instrumentation.context.applicationInfo.targetSdkVersion}\n" +
                     "interactive=${power.isInteractive} keyguardLocked=${keyguard.isKeyguardLocked} " +
                     "deviceLocked=${keyguard.isDeviceLocked} deviceSecure=${keyguard.isDeviceSecure} " +
                     "keyguardSecure=${keyguard.isKeyguardSecure}\n$activityState\n"
@@ -173,7 +147,7 @@ internal class ExerciseSmokeDevice {
         action: () -> Unit,
     ) {
         runCatching(action).onFailure { failure ->
-            // Diagnostic errors must never replace the preparation or UI assertion exception.
+            // 진단 오류가 창 준비나 UI assertion의 원래 예외를 대체하지 않도록 합니다
             runCatching { Log.w(TAG, "phase=$phase diagnosticFailure=${failure.javaClass.name}") }
         }
     }

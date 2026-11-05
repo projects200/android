@@ -195,7 +195,8 @@
 
 - **로직·저장소**: UseCase·ViewModel 단위 테스트, Robolectric 기반 Room 테스트를 두고 있습니다. JaCoCo 집계 대상은 UseCase·ViewModel입니다.
 - **사용자 흐름**: Maestro 플로우로 로그인 화면, 하단 탭과 콘텐츠, 운동 기록 작성 화면 진입을 검사하도록 구성했습니다. 기기 준비와 실행 조건은 [Maestro 가이드](.maestro/README.md)에 있습니다.
-- **CI/CD 구성**: `dev` push·PR은 debug 검증과 Firebase App Distribution 배포, `master` push·PR은 release 검증을 수행하도록 설정되어 있습니다. Google Play 내부 테스트 배포는 `master` push에서만 실행합니다.
+- **격리 운동 UI smoke**: 프로젝트 `targetSdk`로 빌드한 테스트 APK에서 실제 목록·상세 화면과 클릭을 검사하고, 실패 시 Activity 종료 전 창 상태·스크린샷을 수집합니다. 인증된 E2E 검증을 대체하지 않습니다.
+- **CI/CD 구성**: `dev` PR·수동 실행은 배포 없는 검증 전용이고, `dev` push는 debug 검증과 Firebase App Distribution 배포를 수행합니다. `master` push·PR은 release 검증을 수행하며 Google Play 내부 테스트 배포는 `master` push에서만 실행합니다.
 
 [dev 워크플로우](.github/workflows/android-dev-ci.yml) · [master 워크플로우](.github/workflows/android-master-ci-cd.yml)
 
@@ -223,8 +224,8 @@
   등록 조회의 정확한 서버 코드 `AUTHENTICATION_FAILED`는 API Gateway가 검증한 subject에 대응하는 활성 회원이 없다는 `XUserIdCheckInterceptor`의 미가입 신호입니다(미가입 허용 경로는 `/auth/v1/sign-up`뿐). 이 신호도 이전 계정 데이터 삭제에는 별도 승인이 필요합니다. 일반 HTTP 401, `USER_ID_HEADER_MISSING`, `INVALID_USER_ID_FORMAT`, `NETWORK_ERROR`는 미가입으로 간주하지 않으며 승인 재확인 중에도 데이터 삭제나 회원가입을 허용하지 않습니다.
   전체 삭제와 계정 확정은 사진 저장과 같은 잠금으로 직렬화하고 사용자 원본은 삭제하지 않습니다. 캐시 무효 표시가 있으면 다음 조회에서 재다운로드 가능한 캐시와 조회 마커만 정리하며 저널·사진 대기 작업·앱 소유 파일이 연결된 투영은 보존합니다.
 - 앱 시작 시 IO 코루틴이 `ClockProvider.now().minusMonths(6)`보다 이른 운동 횟수·목록·상세와 빈 응답 조회 마커를 한 트랜잭션으로 정리합니다. 기준일은 포함해 보관하며, 목록 없는 상세는 운동 시작 날짜로 판정합니다. 서버 ID가 있는 `SYNCED` 기록만 삭제하고, 같은 회원의 로컬/서버 ID로 연결된 대기·로컬 전용·보관 기간 안의 기록과 타이머는 보존합니다. 정리는 앱 시작을 기다리게 하지 않으며 실패해도 앱 초기화를 중단하지 않습니다.
-- `dev` CI는 lint 실패에도 독립적인 단위 테스트 결과를 수집하며, 어느 검사든 실패하면 CI가 실패하고 배포하지 않습니다. `testDebugUnitTest :domain:test --continue`로 domain 단위 테스트를 명시적으로 포함하고, `jacocoLogicCoverageVerification`으로 ViewModel·UseCase 집계 LINE 80% 이상을 검사하며 `jacocoLogicReport`를 생성합니다. `android-local-first-evidence` artifact는 KSP가 실제 생성한 Room 스키마 JSON과 테스트·커버리지·ktlint 보고서를 보관합니다. Maestro는 별도 실제 DEV 계정·기기 검증이 필요합니다.
-- `dev` 워크플로우에는 배포를 push로 제한하는 조건이 없어 PR에도 배포 단계가 있습니다. 배포 구성은 공개 출시 여부나 실제 배포 성공을 뜻하지 않습니다.
+- `dev` CI는 lint 실패에도 독립적인 단위 테스트 결과를 수집하며, 어느 검사든 실패하면 CI가 실패하고 배포하지 않습니다. `testDebugUnitTest :domain:test --continue`로 domain 단위 테스트를 명시적으로 포함하고, `jacocoLogicCoverageVerification`으로 ViewModel·UseCase 집계 LINE 80% 이상을 검사하며 `jacocoLogicReport`를 생성합니다. `android-local-first-evidence` artifact는 KSP가 실제 생성한 Room 스키마 JSON과 테스트·커버리지·ktlint 보고서, 격리 운동 UI smoke의 계측 결과·추가 출력(실패 창 상태·스크린샷)을 보관합니다. Maestro는 별도 실제 DEV 계정·기기 검증이 필요합니다.
+- PR·수동 실행은 validation-only이며 Firebase 배포는 `dev` push에서만 실행합니다. 배포 구성은 공개 출시 여부나 실제 배포 성공을 뜻하지 않습니다.
 
 ## 실행 방법
 
