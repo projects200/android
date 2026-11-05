@@ -71,14 +71,22 @@ class ExerciseSyncLocalDataSource
                 recoveryState == ExerciseRecoveryState.RETRYABLE && lastError == ExerciseSyncError.NETWORK_ERROR &&
                 inFlightOperation in setOf(SyncState.CREATE_PENDING, SyncState.UPDATE_PENDING)
 
-        suspend fun canRetryBody(memberId: String, localId: String): Boolean = journals.get(memberId, localId).isRetryableBody()
+        suspend fun canRetryBody(
+            memberId: String,
+            localId: String,
+        ): Boolean = journals.get(memberId, localId).isRetryableBody()
 
         private fun ExerciseSyncEntity.deletionToken(): String = "$operationId:$revision:$inFlightRequestId"
 
-        suspend fun remoteDeletionToken(memberId: String, localId: String): String? =
-            journals.get(memberId, localId)?.takeIf { it.lastError == ExerciseSyncError.REMOTE_DELETED }?.deletionToken()
+        suspend fun remoteDeletionToken(
+            memberId: String,
+            localId: String,
+        ): String? = journals.get(memberId, localId)?.takeIf { it.lastError == ExerciseSyncError.REMOTE_DELETED }?.deletionToken()
 
-        suspend fun consumePointNotice(memberId: String, visibleIds: Set<String>): ExercisePointNotice? =
+        suspend fun consumePointNotice(
+            memberId: String,
+            visibleIds: Set<String>,
+        ): ExercisePointNotice? =
             database.withTransaction {
                 val receipt =
                     database.exercisePointReceiptDao().getByMember(memberId).firstOrNull {
@@ -91,7 +99,10 @@ class ExerciseSyncLocalDataSource
                 ExercisePointNotice(receipt.recordLocalId, receipt.earnedPoints)
             }
 
-        suspend fun discardRemoteDeleted(memberId: String, localId: String): Boolean =
+        suspend fun discardRemoteDeleted(
+            memberId: String,
+            localId: String,
+        ): Boolean =
             database.withTransaction {
                 val journal = journals.get(memberId, localId) ?: return@withTransaction false
                 if (journal.lastError != ExerciseSyncError.REMOTE_DELETED) return@withTransaction false
@@ -107,7 +118,10 @@ class ExerciseSyncLocalDataSource
             }
 
         /** definite rejection 뒤에만 호출합니다. 새 로컬 의도는 서버 본문으로 교체하지 않습니다. */
-        suspend fun resolveBodyConflict(snapshot: ExerciseSyncSnapshot, remote: GetExerciseRecordData): Boolean? =
+        suspend fun resolveBodyConflict(
+            snapshot: ExerciseSyncSnapshot,
+            remote: GetExerciseRecordData,
+        ): Boolean? =
             database.withTransaction {
                 val current = matched(snapshot) ?: return@withTransaction false
                 val localClock = snapshot.editedAt ?: return@withTransaction null
@@ -129,9 +143,10 @@ class ExerciseSyncLocalDataSource
                 moveCount(snapshot.memberId, current.confirmedDate, date)
                 if (unchanged && remoteWins) {
                     val model = remote.toModel()
-                    val pictures = model.pictures.orEmpty().mapNotNull { picture ->
-                        picture.serverId?.let { com.project200.data.local.entity.CachedPicture(it, picture.source) }
-                    }
+                    val pictures =
+                        model.pictures.orEmpty().mapNotNull { picture ->
+                            picture.serverId?.let { com.project200.data.local.entity.CachedPicture(it, picture.source) }
+                        }
                     images.refreshSynced(snapshot.memberId, snapshot.localId, pictures)
                     records.upsertDetail(model.toSyncedEntity(snapshot.memberId, snapshot.localId, requireNotNull(snapshot.serverId)))
                     records.getListItem(snapshot.memberId, snapshot.localId)?.let {
@@ -150,7 +165,11 @@ class ExerciseSyncLocalDataSource
                     }
                 }
                 saveProjection(next)
-                if (next.operation == SyncState.SYNCED) journals.deleteApplied(next.memberId, next.localId) else journals.saveSyncState(next)
+                if (next.operation == SyncState.SYNCED) {
+                    journals.deleteApplied(next.memberId, next.localId)
+                } else {
+                    journals.saveSyncState(next)
+                }
                 !remoteWins || !unchanged
             }
 

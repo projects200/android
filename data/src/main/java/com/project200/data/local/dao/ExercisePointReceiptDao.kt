@@ -17,7 +17,10 @@ abstract class ExercisePointReceiptDao {
     abstract fun observeByMember(memberId: String): Flow<List<ExercisePointReceiptEntity>>
 
     @Query("SELECT * FROM exercise_point_receipt WHERE memberId = :memberId AND createRequestId = :createRequestId")
-    abstract suspend fun get(memberId: String, createRequestId: String): ExercisePointReceiptEntity?
+    abstract suspend fun get(
+        memberId: String,
+        createRequestId: String,
+    ): ExercisePointReceiptEntity?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     protected abstract suspend fun insert(receipt: ExercisePointReceiptEntity): Long
@@ -40,8 +43,14 @@ abstract class ExercisePointReceiptDao {
         "UPDATE exercise_point_receipt SET noticeConsumed = 1 WHERE memberId = :memberId " +
             "AND createRequestId = :createRequestId AND noticeConsumed = 0",
     )
-    abstract suspend fun consume(memberId: String, createRequestId: String): Int
+    abstract suspend fun consume(
+        memberId: String,
+        createRequestId: String,
+    ): Int
 
     @Query("DELETE FROM exercise_point_receipt WHERE memberId = :memberId AND recordLocalId = :localId")
-    abstract suspend fun deleteByRecord(memberId: String, localId: String)
+    abstract suspend fun deleteByRecord(
+        memberId: String,
+        localId: String,
+    )
 }

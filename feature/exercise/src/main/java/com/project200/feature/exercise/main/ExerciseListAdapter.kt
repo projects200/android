@@ -30,7 +30,11 @@ class ExerciseListAdapter(
         }
     }
 
-    override fun onBindViewHolder(holder: ExerciseViewHolder, position: Int, payloads: MutableList<Any>) {
+    override fun onBindViewHolder(
+        holder: ExerciseViewHolder,
+        position: Int,
+        payloads: MutableList<Any>,
+    ) {
         if (payloads.isNotEmpty() && payloads.all { it == RETRY_PAYLOAD }) {
             holder.bindRetry(getItem(position).recordId, getItem(position).recordId in retryIds, onRetryClick)
         } else {
@@ -117,7 +121,11 @@ class ExerciseListAdapter(
             }
         }
 
-        fun bindRetry(recordId: String, visible: Boolean, retry: (String) -> Unit) {
+        fun bindRetry(
+            recordId: String,
+            visible: Boolean,
+            retry: (String) -> Unit,
+        ) {
             binding.ivBodyRetry.isVisible = visible
             binding.ivBodyRetry.setOnClickListener { retry(recordId) }
         }

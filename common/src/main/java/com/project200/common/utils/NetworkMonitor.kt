@@ -49,7 +49,10 @@ class NetworkMonitor
                             trySend(hasValidatedInternet())
                         }
 
-                        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                        override fun onCapabilitiesChanged(
+                            network: Network,
+                            capabilities: NetworkCapabilities,
+                        ) {
                             if (network == connectivityManager.activeNetwork) {
                                 trySend(
                                     capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&

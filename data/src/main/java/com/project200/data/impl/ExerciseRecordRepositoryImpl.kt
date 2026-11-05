@@ -108,8 +108,10 @@ class ExerciseRecordRepositoryImpl
                 }
             }
 
-        private fun deletionToken(account: ExerciseSyncAccount, token: String): String =
-            "${account.memberId}:${account.sessionRevision}:${account.fileSessionRevision}:$token"
+        private fun deletionToken(
+            account: ExerciseSyncAccount,
+            token: String,
+        ): String = "${account.memberId}:${account.sessionRevision}:${account.fileSessionRevision}:$token"
 
         override suspend fun retryBody(recordId: String): Boolean =
             withContext(ioDispatcher) {
@@ -152,7 +154,10 @@ class ExerciseRecordRepositoryImpl
                 }
             }
 
-        override suspend fun discardRemoteDeleted(recordId: String, confirmationToken: String): BaseResult<Unit> =
+        override suspend fun discardRemoteDeleted(
+            recordId: String,
+            confirmationToken: String,
+        ): BaseResult<Unit> =
             withContext(ioDispatcher) {
                 try {
                     val member = localDataSource.currentMemberId() ?: return@withContext accountChangedError()
@@ -484,7 +489,9 @@ class ExerciseRecordRepositoryImpl
                                                     }
                                                 }
                                             } catch (_: IllegalArgumentException) {
-                                                syncState(account) { syncLocalDataSource.fail(snapshot, false, ExerciseSyncError.CONTRACT_ERROR) }
+                                                syncState(account) {
+                                                    syncLocalDataSource.fail(snapshot, false, ExerciseSyncError.CONTRACT_ERROR)
+                                                }
                                                 false
                                             }
                                         if (applied != true) break
@@ -497,7 +504,12 @@ class ExerciseRecordRepositoryImpl
                                         ) {
                                             val latest =
                                                 syncCall(
-                                                    { remoteDataSource.getExerciseRecordDetail(requireNotNull(snapshot.serverId), account) },
+                                                    {
+                                                        remoteDataSource.getExerciseRecordDetail(
+                                                            requireNotNull(snapshot.serverId),
+                                                            account,
+                                                        )
+                                                    },
                                                     { requireNotNull(it) },
                                                 )
                                             if (!syncAccountGuard.isCurrent(account)) return@sync ExerciseSyncResult.Skipped
@@ -512,7 +524,9 @@ class ExerciseRecordRepositoryImpl
                                                     break
                                                 }
                                             } else if (latest is BaseResult.Error && isAuthenticationError(latest)) {
-                                                syncState(account) { syncLocalDataSource.fail(snapshot, true, ExerciseSyncError.AUTHENTICATION_REQUIRED) }
+                                                syncState(account) {
+                                                    syncLocalDataSource.fail(snapshot, true, ExerciseSyncError.AUTHENTICATION_REQUIRED)
+                                                }
                                                 return@sync ExerciseSyncResult.Skipped
                                             } else if (latest is BaseResult.Error && isRetryable(latest)) {
                                                 syncState(account) { syncLocalDataSource.fail(snapshot, true, ExerciseSyncError.CONFLICT) }

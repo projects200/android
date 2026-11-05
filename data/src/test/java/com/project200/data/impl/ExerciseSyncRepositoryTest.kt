@@ -1438,8 +1438,15 @@ class ExerciseSyncRepositoryTest {
                 local.updateRecord(id, ExerciseWriteInput(record("후속 편집")), member, editedAt = 500)
                 success(
                     GetExerciseRecordData(
-                        "서버 승자", "본문", "OTHER", date.atTime(9, 0), date.atTime(10, 0), "장소",
-                        emptyList(), 3, 300,
+                        "서버 승자",
+                        "본문",
+                        "OTHER",
+                        date.atTime(9, 0),
+                        date.atTime(10, 0),
+                        "장소",
+                        emptyList(),
+                        3,
+                        300,
                     ),
                 )
             }
@@ -1459,7 +1466,19 @@ class ExerciseSyncRepositoryTest {
             coEvery { remote.getExerciseRecordDetail(100, any()) } coAnswers {
                 preferences.saveMemberId("other", "other")
                 token = jwt("other")
-                success(GetExerciseRecordData("서버", "본문", "OTHER", date.atTime(9, 0), date.atTime(10, 0), "장소", emptyList(), 3, Long.MAX_VALUE))
+                success(
+                    GetExerciseRecordData(
+                        "서버",
+                        "본문",
+                        "OTHER",
+                        date.atTime(9, 0),
+                        date.atTime(10, 0),
+                        "장소",
+                        emptyList(),
+                        3,
+                        Long.MAX_VALUE,
+                    ),
+                )
             }
             assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
             assertThat(db.exerciseRecordDao().getDetailByLocalId(member, id)!!.title).isEqualTo("내 원문")

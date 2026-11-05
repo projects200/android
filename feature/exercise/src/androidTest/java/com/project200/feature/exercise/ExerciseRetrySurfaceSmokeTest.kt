@@ -297,16 +297,15 @@ class ExerciseRetrySurfaceSmokeTest {
         recordId: String = RECORD_ID,
         title: String = TITLE,
         syncPending: Boolean = false,
-    ) =
-        ExerciseListItem(
-            recordId = recordId,
-            title = title,
-            type = "",
-            startTime = START,
-            endTime = START.plusMinutes(30),
-            imageUrl = emptyList(),
-            syncPending = syncPending,
-        )
+    ) = ExerciseListItem(
+        recordId = recordId,
+        title = title,
+        type = "",
+        startTime = START,
+        endTime = START.plusMinutes(30),
+        imageUrl = emptyList(),
+        syncPending = syncPending,
+    )
 
     private fun record(syncPending: Boolean) =
         ExerciseRecord(

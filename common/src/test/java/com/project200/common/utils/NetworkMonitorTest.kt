@@ -31,12 +31,11 @@ class NetworkMonitorTest {
         val network = mockk<Network>()
         every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns manager
         every { manager.activeNetwork } returns network
-        val capabilities = NetworkCapabilities().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
-        every { manager.getNetworkCapabilities(network) } returns capabilities
+        every { manager.getNetworkCapabilities(network) } returns networkCapabilities(validated = false)
         val monitor = NetworkMonitor(context)
         assertThat(monitor.isCurrentlyConnected()).isTrue()
         assertThat(monitor.hasValidatedInternet()).isFalse()
-        capabilities.addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        every { manager.getNetworkCapabilities(network) } returns networkCapabilities(validated = true)
         assertThat(monitor.hasValidatedInternet()).isTrue()
         every { manager.activeNetwork } returns null
         assertThat(monitor.hasValidatedInternet()).isFalse()
@@ -50,7 +49,7 @@ class NetworkMonitorTest {
             val network = mockk<Network>()
             val secondary = mockk<Network>()
             val callback = slot<ConnectivityManager.NetworkCallback>()
-            val capabilities = NetworkCapabilities().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            val capabilities = networkCapabilities(validated = false)
             every { context.getSystemService(Context.CONNECTIVITY_SERVICE) } returns manager
             every { manager.activeNetwork } returns network
             every { manager.getNetworkCapabilities(network) } returns capabilities
@@ -66,7 +65,7 @@ class NetworkMonitorTest {
             callback.captured.onAvailable(secondary)
             runCurrent()
             assertThat(values.last()).isFalse()
-            val validated = NetworkCapabilities(capabilities).addCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+            val validated = networkCapabilities(validated = true)
             callback.captured.onCapabilitiesChanged(network, validated)
             runCurrent()
             assertThat(values.last()).isTrue()
@@ -81,5 +80,11 @@ class NetworkMonitorTest {
             collection.cancel()
             runCurrent()
             verify(exactly = 1) { manager.unregisterNetworkCallback(callback.captured) }
+        }
+
+    private fun networkCapabilities(validated: Boolean): NetworkCapabilities =
+        mockk {
+            every { hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) } returns true
+            every { hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) } returns validated
         }
 }

@@ -55,22 +55,38 @@ class ExerciseSyncUiStorageTest {
         db.close()
     }
 
-    private suspend fun created(points: Int? = 3, version: Long = 0): String {
+    private suspend fun created(
+        points: Int? = 3,
+        version: Long = 0,
+    ): String {
         val id = local.createRecord(ExerciseWriteInput(record), editedAt = 100).recordId
         val request = requireNotNull(sync.claim(member, id))
         assertThat(sync.applyBody(request, nextServerId++, version, day, points)).isTrue()
         return id
     }
 
-    private suspend fun edit(id: String, clock: Long = 200, title: String = "로컬") {
+    private suspend fun edit(
+        id: String,
+        clock: Long = 200,
+        title: String = "로컬",
+    ) {
         local.updateRecord(id, ExerciseWriteInput(record.copy(title = title)), editedAt = clock)
     }
 
-    private fun remote(clock: Long?, version: Long = 4) =
-        GetExerciseRecordData(
-            "서버", "서버 본문", "OTHER", day.atTime(9, 0), day.atTime(10, 0), "서버 장소",
-            listOf(PictureData(91, "https://example.test/91", "91", "jpg")), version, clock,
-        )
+    private fun remote(
+        clock: Long?,
+        version: Long = 4,
+    ) = GetExerciseRecordData(
+        "서버",
+        "서버 본문",
+        "OTHER",
+        day.atTime(9, 0),
+        day.atTime(10, 0),
+        "서버 장소",
+        listOf(PictureData(91, "https://example.test/91", "91", "jpg")),
+        version,
+        clock,
+    )
 
     @Test
     fun `사용자 저장 시각과 in flight 원문은 재시도와 재편집 뒤에도 고정된다`() =
@@ -97,7 +113,17 @@ class ExerciseSyncUiStorageTest {
                 val id = created()
                 edit(id)
                 db.exerciseImageDao().save(
-                    ExerciseImageEntity(member, id, "local-photo", null, "/owned/photo.jpg", null, ExerciseImageState.ADD_LOCAL, "photo-key", 0),
+                    ExerciseImageEntity(
+                        member,
+                        id,
+                        "local-photo",
+                        null,
+                        "/owned/photo.jpg",
+                        null,
+                        ExerciseImageState.ADD_LOCAL,
+                        "photo-key",
+                        0,
+                    ),
                 )
                 val snapshot = requireNotNull(sync.claim(member, id))
                 assertThat(sync.resolveBodyConflict(snapshot, remote(clock))).isFalse()
@@ -214,7 +240,7 @@ class ExerciseSyncUiStorageTest {
     fun `영수증만 남아도 다른 계정 채택은 승인해야 하며 강제 이탈 없이 보존한다`() =
         runTest {
             db.exercisePointReceiptDao().acknowledge(ExercisePointReceiptEntity(member, "key", "record", 7, 3, false))
-            val context = RuntimeEnvironment.getApplication<android.app.Application>()
+            val context = RuntimeEnvironment.getApplication()
             val files = ExerciseImageFileStore(context)
             val cleaner = RoomSessionDataCleaner(db, StandardTestDispatcher(testScheduler), files)
             assertThat(cleaner.hasStoredData()).isTrue()
