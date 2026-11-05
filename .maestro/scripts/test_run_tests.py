@@ -1769,6 +1769,188 @@ class FeatureCleanupFailureTests(unittest.TestCase):
                 self.assertEqual(str(failure), "bootstrap-cleanup-failed")
 
 
+class DriverFailureSummaryTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="maestro-driver-failure-test-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.raw = self.root / "raw"
+        self.raw.mkdir()
+        self.destination = self.root / "published"
+        # 실제 2.11.0 실패의 예외·초기화 프레임만 재현하며 기기/계정 값은 넣지 않습니다.
+        self.failure = (
+            "00:31:26.161 [ INFO] maestro.cli.runner.TestSuiteInteractor.runFlow:  Running flow private-flow\n"
+            "maestro.android.DeviceCallFailedException: 'deviceInfo' failed: INTERNAL - error in frame handler\n"
+            "\tat maestro.android.AndroidDeviceConnectionModelKt.orThrow(AndroidDeviceConnectionModel.kt:79)\n"
+            "\tat maestro.drivers.AndroidDriver.deviceInfo(AndroidDriver.kt:205)\n"
+            "\tat maestro.orchestra.Orchestra.initJsEngine(Orchestra.kt:375)\n"
+        )
+        self.expected = {
+            "status": "captured", "classification": "initial-device-info-rpc-error",
+            "grpc_status": "INTERNAL", "frame_handler_error": True,
+            "cause_status": "unavailable", "cause_classes": [],
+        }
+
+    def summary(self):
+        return json.loads((self.destination / "driver-failure-summary.json").read_text())
+
+    def test_initial_device_info_failure_is_not_an_application_assertion_or_proven_transport_death(self):
+        self.assertEqual(runner.parse_driver_failure(self.failure), self.expected)
+        (self.raw / "maestro.log").write_text(self.failure)
+        runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), self.expected)
+
+    def test_ui_commands_and_assertions_do_not_receive_initial_startup_classification(self):
+        command = "00:31:26.100 [ INFO] maestro.cli.runner.CliConsoleListener.onCommandStart: Tap on private RUNNING\n"
+        self.assertEqual(runner.parse_driver_failure(command + self.failure), {
+            **self.expected, "classification": "device-info-rpc-error",
+        })
+        assertion = (
+            "00:31:26.200 [ERROR] maestro.orchestra.Orchestra.executeCommands: "
+            "[Command execution] CommandFailed: Assertion is false: private text\n"
+        )
+        self.assertEqual(runner.parse_driver_failure(command + assertion), {
+            "status": "captured", "classification": "application-assertion",
+        })
+        without_initialization = self.failure.replace(
+            "\tat maestro.orchestra.Orchestra.initJsEngine(Orchestra.kt:375)\n", "",
+        )
+        self.assertEqual(runner.parse_driver_failure(without_initialization), {
+            **self.expected, "classification": "device-info-rpc-error",
+        })
+
+    def test_only_allowlisted_status_and_cause_classes_survive_private_messages_and_teardown(self):
+        private = "private-address:1234 authorization=private-header payload=private-payload"
+        failure = self.failure.replace("error in frame handler", private) + (
+            "Caused by: java.io.EOFException: " + private + "\n"
+            "Caused by: private.package.PrivateException: " + private + "\n"
+            "00:31:26.484 [ INFO] maestro.drivers.AndroidDriver.close: [Start] Uninstall driver from device\n"
+            "Caused by: java.net.ConnectException: unrelated teardown failure\n"
+        )
+        (self.raw / "maestro.log").write_text(failure)
+        runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), {
+            **self.expected, "frame_handler_error": False,
+            "cause_status": "captured", "cause_classes": ["java.io.EOFException"],
+        })
+        content = (self.destination / "driver-failure-summary.json").read_text()
+        for value in (private, "PrivateException", "ConnectException", "private-flow"):
+            self.assertNotIn(value, content)
+        unknown = self.failure + "Caused by: java.io.EOFExceptionPrivate: " + private + "\n"
+        self.assertEqual(runner.parse_driver_failure(unknown), {
+            **self.expected, "cause_status": "unrecognized",
+        })
+
+    def test_unknown_status_missing_driver_frame_and_oversized_input_remain_unrecognized(self):
+        for report in (
+            "", SYNTHETIC_SECRET, self.failure.replace("INTERNAL", "PRIVATE_STATUS"),
+            self.failure.replace("INTERNAL", "INTERNAL_PRIVATE"),
+            self.failure.replace("\tat maestro.drivers.AndroidDriver.deviceInfo(AndroidDriver.kt:205)\n", ""),
+            "x" * 262145, "\n" * 4097,
+        ):
+            with self.subTest(size=len(report)):
+                self.assertEqual(runner.parse_driver_failure(report), {"status": "unrecognized"})
+
+    def test_missing_unreadable_invalid_and_oversized_logs_do_not_publish_private_bytes(self):
+        runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), {"status": "unavailable"})
+        path = self.raw / "maestro.log"
+        for content in (b"\xff", b"x" * 262145, SYNTHETIC_SECRET.encode()):
+            path.write_bytes(content)
+            runner.save_driver_failure(self.raw, self.destination)
+            self.assertEqual(self.summary(), {"status": "unrecognized"})
+        open_file = Path.open
+
+        def unreadable(log, *args, **kwargs):
+            if log == path:
+                raise OSError(SYNTHETIC_SECRET)
+            return open_file(log, *args, **kwargs)
+
+        with mock.patch.object(Path, "open", new=unreadable):
+            runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), {"status": "unavailable"})
+        path.unlink()
+        path.symlink_to(self.root / "private-outside.log")
+        path.resolve().write_text(self.failure)
+        runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), {"status": "unavailable"})
+
+    def test_expired_budget_does_not_claim_that_unread_logs_have_no_transport_error(self):
+        (self.raw / "maestro.log").write_text(self.failure)
+        with mock.patch.object(runner.time, "monotonic", side_effect=[100.0, 102.0]):
+            runner.save_driver_failure(self.raw, self.destination)
+        self.assertEqual(self.summary(), {"status": "unavailable"})
+
+    def test_raw_failure_is_classified_before_redaction_without_changing_error_or_cleanup(self):
+        device = SimpleNamespace(
+            serial="private-serial", exercise_variables=lambda: {}, clear=mock.Mock(),
+            bootstrap=mock.Mock(return_value={}), call=mock.Mock(return_value=(1, b"", b"")),
+        )
+        # 비밀값과 상태명이 우연히 같아 redaction이 상태명까지 지워도 고정 분류는 보존합니다.
+        redactor = runner.Redactor({**CREDENTIALS, "memberId": "INTERNAL"})
+
+        def command(argv, env, timeout=60, payload=None):
+            if argv[1:] == ["--version"]:
+                return 0, runner.MAESTRO_VERSION.encode(), b""
+            raw = Path(argv[argv.index("--debug-output") + 1])
+            raw.mkdir()
+            (raw / "maestro.log").write_text(self.failure)
+            return 1, b"", b""
+
+        for stage in ("captured", "parse-failed", "write-failed"):
+            with self.subTest(stage=stage), contextlib.ExitStack() as patches:
+                output = self.root / stage
+                device.clear.reset_mock()
+                device.bootstrap.reset_mock()
+                patches.enter_context(mock.patch.object(runner, "command", side_effect=command))
+                patches.enter_context(mock.patch.object(runner.shutil, "which", return_value="test-maestro"))
+                if stage == "parse-failed":
+                    patches.enter_context(mock.patch.object(
+                        runner, "parse_driver_failure", side_effect=RuntimeError(SYNTHETIC_SECRET),
+                    ))
+                elif stage == "write-failed":
+                    write_text = Path.write_text
+
+                    def write(path, *args, **kwargs):
+                        if path.name == "driver-failure-summary.json":
+                            raise OSError(SYNTHETIC_SECRET)
+                        return write_text(path, *args, **kwargs)
+
+                    patches.enter_context(mock.patch.object(Path, "write_text", new=write))
+                published = io.StringIO()
+                with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                    result, safe = runner.run_ordinary_flow(
+                        SimpleNamespace(flow_timeout=10), device, {"name": None, "fixture": False},
+                        "smoke-tabs", output, redactor, CREDENTIALS, {}, None,
+                    )
+                self.assertEqual(result[2], ["maestro-flow-failed"])
+                self.assertTrue(safe)
+                self.assertEqual(device.clear.call_count, 2)
+                self.assertEqual([call.args[0] for call in device.bootstrap.call_args_list], ["prepare", "cleanup"])
+                self.assertEqual(published.getvalue(), "")
+                if stage == "captured":
+                    summary = json.loads((output / "smoke-tabs" / "driver-failure-summary.json").read_text())
+                    self.assertEqual(summary, self.expected)
+                self.assertNotIn(SYNTHETIC_SECRET, (output / "smoke-tabs" / "console.log").read_text())
+
+    def test_diagnostic_read_parse_and_write_interruptions_propagate(self):
+        (self.raw / "maestro.log").write_text(self.failure)
+        for stage in ("read", "parse", "write"):
+            for interruption in (runner.RunInterrupted("run-interrupted"), KeyboardInterrupt()):
+                with self.subTest(stage=stage, kind=type(interruption).__name__), contextlib.ExitStack() as patches:
+                    if stage == "read":
+                        patches.enter_context(mock.patch.object(Path, "open", side_effect=interruption))
+                    elif stage == "parse":
+                        patches.enter_context(mock.patch.object(
+                            runner, "parse_driver_failure", side_effect=interruption,
+                        ))
+                    else:
+                        patches.enter_context(mock.patch.object(Path, "write_text", side_effect=interruption))
+                    with self.assertRaises(type(interruption)) as caught:
+                        runner.save_driver_failure(self.raw, self.destination)
+                    self.assertIs(caught.exception, interruption)
+
+
 class DriverConnectivityTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="maestro-connectivity-test-")
