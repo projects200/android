@@ -91,7 +91,30 @@ jobs:
           # The library test APK hosts real views/Compose only. Do not install the
           # account-enabled app APK or run authenticated Maestro in this workflow.
           script: >-
-            bash -o pipefail -c './gradlew --no-daemon --stacktrace --console=plain
+            bash -e -o pipefail -c 'mkdir -p build/ci/exercise-retry-surface;
+            capture_state() {
+            echo "phase=$1" > "build/ci/exercise-retry-surface/$1.txt";
+            adb shell dumpsys power |
+            grep -E "mWakefulness=|mIsPowered=|mStayOn=|mHoldingDisplaySuspendBlocker=" >>
+            "build/ci/exercise-retry-surface/$1.txt" || true;
+            adb shell dumpsys window policy |
+            grep -E "mKeyguard|showing=|occluded=|inputRestricted=" >>
+            "build/ci/exercise-retry-surface/$1.txt" || true;
+            adb shell dumpsys window windows |
+            grep -E "mCurrentFocus=|mFocusedApp=|mTopFocusedDisplayId=" >>
+            "build/ci/exercise-retry-surface/$1.txt" || true;
+            adb shell dumpsys activity activities |
+            grep -E "topResumedActivity=|mResumedActivity:|ResumedActivity:" >>
+            "build/ci/exercise-retry-surface/$1.txt" || true;
+            };
+            finish() { status=$?; capture_state after-gradle || true; exit "$status"; };
+            trap finish EXIT;
+            capture_state before-device-preparation;
+            adb shell svc power stayon true;
+            adb shell input keyevent KEYCODE_WAKEUP;
+            adb shell wm dismiss-keyguard;
+            capture_state after-device-preparation;
+            ./gradlew --no-daemon --stacktrace --console=plain
             :feature:exercise:connectedDebugAndroidTest
             -Pandroid.testInstrumentationRunnerArguments.class=com.project200.feature.exercise.ExerciseRetrySurfaceSmokeTest
             2>&1 | tee build/ci/exercise-retry-surface-tasks.log'
@@ -125,6 +148,7 @@ jobs:
           path: |
             data/schemas/**/*.json
             build/ci/*-tasks.log
+            build/ci/exercise-retry-surface/**
             **/build/test-results/**
             **/build/reports/tests/**
             **/build/reports/jacoco/**
@@ -132,6 +156,7 @@ jobs:
             **/build/reports/ktlint/**
             feature/exercise/build/outputs/androidTest-results/connected/**
             feature/exercise/build/reports/androidTests/connected/**
+            feature/exercise/build/outputs/connected_android_test_additional_output/**
           if-no-files-found: warn
 
       - name: Check for APK

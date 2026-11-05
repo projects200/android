@@ -5,12 +5,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
 import android.widget.ImageView
+import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -50,8 +51,17 @@ import java.time.LocalDateTime
  */
 @RunWith(AndroidJUnit4::class)
 class ExerciseRetrySurfaceSmokeTest {
-    @get:Rule
-    val compose = createComposeRule()
+    private val device = ExerciseSmokeDevice()
+
+    @get:Rule(order = 0)
+    val devicePreparation = device.preparationRule()
+
+    @get:Rule(order = 1)
+    val compose = createAndroidComposeRule<ComponentActivity>()
+
+    // Capture failures inside the activity rule, before Compose/ActivityScenario tears it down.
+    @get:Rule(order = 2)
+    val focusedWindow = device.focusedWindowRule { compose.activity }
 
     @Test
     fun normalAndPendingRowsHaveNoRetryOrNormalTransmissionText() {
