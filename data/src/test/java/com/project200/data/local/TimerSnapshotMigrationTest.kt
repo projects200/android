@@ -106,7 +106,7 @@ class TimerSnapshotMigrationTest {
     private fun openDatabase(): UndabangDatabase =
         Room.databaseBuilder(context, UndabangDatabase::class.java, name)
             .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
-            .addMigrations(DatabaseModule.MIGRATION_4_5, DatabaseModule.MIGRATION_5_6)
+            .addMigrations(DatabaseModule.MIGRATION_4_5, DatabaseModule.MIGRATION_5_6, DatabaseModule.MIGRATION_6_7)
             .allowMainThreadQueries()
             .build()
             .also { database = it }

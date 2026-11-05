@@ -17,8 +17,26 @@ import java.time.format.DateTimeFormatter
 
 class ExerciseListAdapter(
     private val onItemClicked: (String) -> Unit,
+    private val onRetryClick: (String) -> Unit = {},
 ) : ListAdapter<ExerciseListItem, ExerciseListAdapter.ExerciseViewHolder>(ExerciseDiffCallback()) {
     private val timeFormatter = DateTimeFormatter.ofPattern("HH:mm")
+    private var retryIds = emptySet<String>()
+
+    fun submitRetryIds(ids: Set<String>) {
+        val changed = (retryIds - ids) + (ids - retryIds)
+        retryIds = ids.toSet()
+        currentList.forEachIndexed { index, item ->
+            if (item.recordId in changed) notifyItemChanged(index, RETRY_PAYLOAD)
+        }
+    }
+
+    override fun onBindViewHolder(holder: ExerciseViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isNotEmpty() && payloads.all { it == RETRY_PAYLOAD }) {
+            holder.bindRetry(getItem(position).recordId, getItem(position).recordId in retryIds, onRetryClick)
+        } else {
+            super.onBindViewHolder(holder, position, payloads)
+        }
+    }
 
     override fun onCreateViewHolder(
         parent: ViewGroup,
@@ -38,6 +56,7 @@ class ExerciseListAdapter(
         position: Int,
     ) {
         holder.bind(getItem(position), position == itemCount - 1)
+        holder.bindRetry(getItem(position).recordId, getItem(position).recordId in retryIds, onRetryClick)
     }
 
     override fun onCurrentListChanged(
@@ -70,7 +89,7 @@ class ExerciseListAdapter(
         ) {
             with(binding) {
                 exerciseTitleTv.text = item.title
-                exerciseSyncPendingTv.isVisible = item.syncPending
+                ivBodyRetry.isVisible = false
                 // 시간 포맷팅 적용
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
                 // 실제 마지막 행의 시간 텍스트를 목록 끝의 접근성 경계로 사용합니다.
@@ -97,6 +116,11 @@ class ExerciseListAdapter(
                 }
             }
         }
+
+        fun bindRetry(recordId: String, visible: Boolean, retry: (String) -> Unit) {
+            binding.ivBodyRetry.isVisible = visible
+            binding.ivBodyRetry.setOnClickListener { retry(recordId) }
+        }
     }
 
     // DiffUtil 콜백 (효율적인 업데이트를 위함)
@@ -114,5 +138,9 @@ class ExerciseListAdapter(
         ): Boolean {
             return oldItem == newItem
         }
+    }
+
+    private companion object {
+        const val RETRY_PAYLOAD = "body_retry"
     }
 }

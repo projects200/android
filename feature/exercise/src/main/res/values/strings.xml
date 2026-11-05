@@ -29,8 +29,14 @@
     <string name="exercise_list_loaded">%1$s 운동 기록 목록</string>
     <string name="exercise_empty_loaded">%1$s에 운동 기록이 없습니다</string>
     <string name="exercise_list_last_item">운동 기록 목록 마지막 항목: %1$s</string>
-    <string name="exercise_sync_pending">동기화 대기</string>
-    <string name="exercise_pending_date">%1$s 동기화 대기</string>
+    <string name="exercise_body_retry">기록 전송 다시 시도</string>
+    <string name="exercise_body_failure">기록을 전송하지 못했어요. 다시 시도해주세요.</string>
+    <string name="exercise_remote_deleted">서버에서 삭제된 기록입니다. 원문을 계속 보관하거나 기기에서 삭제할 수 있어요.</string>
+    <string name="exercise_remote_keep">계속 보관</string>
+    <string name="exercise_remote_discard">기기에서 삭제</string>
+    <string name="exercise_remote_discard_title">기기에 보관한 원문과 사진을 삭제할까요?</string>
+    <string name="exercise_remote_discard_confirm">삭제</string>
+    <string name="exercise_points_earned">%1$d점 획득했어요!</string>
     <string name="exercise_refresh">새로고침</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
     <string name="search">검색</string>

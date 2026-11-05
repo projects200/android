@@ -5,6 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
 import com.project200.data.local.dao.ExerciseImageDao
+import com.project200.data.local.dao.ExercisePointReceiptDao
 import com.project200.data.local.dao.ExerciseRecordDao
 import com.project200.data.local.dao.ExerciseSyncDao
 import com.project200.data.local.dao.TimerDao
@@ -13,6 +14,7 @@ import com.project200.data.local.entity.ExerciseCacheQueryEntity
 import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseListItemEntity
+import com.project200.data.local.entity.ExercisePointReceiptEntity
 import com.project200.data.local.entity.ExerciseRecordDetailEntity
 import com.project200.data.local.entity.ExerciseSyncEntity
 import com.project200.data.local.entity.SimpleTimerEntity
@@ -32,11 +34,12 @@ import com.project200.data.local.entity.TimerSnapshotEntity
         ExerciseCacheQueryEntity::class,
         ExerciseSyncEntity::class,
         ExerciseImageEntity::class,
+        ExercisePointReceiptEntity::class,
         SimpleTimerEntity::class,
         CustomTimerEntity::class,
         TimerSnapshotEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 @TypeConverters(UndabangTypeConverters::class)
@@ -48,6 +51,8 @@ abstract class UndabangDatabase : RoomDatabase() {
     abstract fun exerciseSyncDao(): ExerciseSyncDao
 
     abstract fun exerciseImageDao(): ExerciseImageDao
+
+    abstract fun exercisePointReceiptDao(): ExercisePointReceiptDao
 
     abstract fun timerDao(): TimerDao
 

@@ -6,19 +6,25 @@ import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseImageSyncStatus
+import com.project200.domain.model.ExercisePointNotice
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseRecordPicture
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.usecase.DeleteExerciseRecordUseCase
+import com.project200.domain.usecase.ExerciseSyncUiUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.feature.exercise.detail.ExerciseDetailViewModel
 import com.project200.presentation.utils.UiState
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -47,6 +53,8 @@ class ExerciseDetailViewModelTest {
     private lateinit var viewModel: ExerciseDetailViewModel
 
     private val testDispatcher = StandardTestDispatcher()
+    private val syncUi = mockk<ExerciseSyncUiUseCase>()
+    private val syncStatuses = MutableStateFlow<List<ExerciseSyncStatus>>(emptyList())
 
     // 테스트용 샘플 데이터
     private val now: LocalDateTime = LocalDateTime.now()
@@ -65,8 +73,11 @@ class ExerciseDetailViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { syncUi.observe() } returns syncStatuses
+        coEvery { syncUi.consumePointNotice(any()) } returns null
+        coEvery { syncUi.retry(any()) } returns false
         savedStateHandle = SavedStateHandle().apply { set("recordId", recordId) }
-        viewModel = ExerciseDetailViewModel(mockGetExerciseUseCase, mockDeleteExerciseUseCase)
+        viewModel = ExerciseDetailViewModel(mockGetExerciseUseCase, mockDeleteExerciseUseCase, syncUi)
     }
 
     @After
@@ -261,5 +272,96 @@ class ExerciseDetailViewModelTest {
             testDispatcher.scheduler.runCurrent()
             assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(selected)
             coVerify(exactly = 0) { mockGetExerciseUseCase(any(), true, false) }
+        }
+
+    @Test
+    fun `상태 갱신과 재시도는 상세 본문을 다시 읽지 않고 연속 탭을 막는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord)
+            val scheduled = CompletableDeferred<Boolean>()
+            coEvery { syncUi.retry(recordId) } coAnswers { scheduled.await() }
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            syncStatuses.value = listOf(ExerciseSyncStatus(recordId, canShowBodyRetry = true))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.syncStatus.value.canShowBodyRetry).isTrue()
+            viewModel.retryBody()
+            viewModel.retryBody()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.syncStatus.value.canShowBodyRetry).isFalse()
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isSameInstanceAs(sampleRecord)
+            coVerify(exactly = 1) { syncUi.retry(recordId) }
+            coVerify(exactly = 1) { mockGetExerciseUseCase(recordId, false, false) }
+            scheduled.complete(true)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.syncStatus.value.canShowBodyRetry).isFalse()
+        }
+
+    @Test
+    fun `원격 삭제 안내는 본문을 유지하고 명시 확인 token만 폐기 계약에 보낸다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord)
+            coEvery { syncUi.discardRemoteDeleted(recordId, "account-revision") } returns BaseResult.Success(Unit)
+            viewModel.getExerciseRecord(recordId)
+            val status = ExerciseSyncStatus(recordId, remoteDeleted = true, remoteDeletionToken = "account-revision")
+            syncStatuses.value = listOf(status)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.syncStatus.value).isEqualTo(status)
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+            coVerify(exactly = 0) { syncUi.discardRemoteDeleted(any(), any()) }
+            viewModel.discardRemoteDeleted(status)
+            testDispatcher.scheduler.runCurrent()
+            coVerify(exactly = 1) { syncUi.discardRemoteDeleted(recordId, "account-revision") }
+            assertThat(viewModel.deleteResult.replayCache.single()).isEqualTo(BaseResult.Success(Unit))
+        }
+
+    @Test
+    fun `상세를 떠나 편집하는 동안 Worker 완료가 와도 점수 안내를 소비하지 않는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onScreenStopped()
+            syncStatuses.value = listOf(ExerciseSyncStatus(recordId, complete = true))
+            testDispatcher.scheduler.runCurrent()
+            coVerify(exactly = 0) { syncUi.consumePointNotice(any()) }
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+        }
+
+    @Test
+    fun `상세 점수 안내는 소비한 양수 영수증만 한 번 전달하고 재진입은 본문 스냅샷을 유지한다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord)
+            coEvery { mockGetExerciseUseCase(recordId, false, true) } returns BaseResult.Success(sampleRecord)
+            coEvery { syncUi.consumePointNotice(setOf(recordId)) } returnsMany listOf(ExercisePointNotice(recordId, 3), null)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.refreshMessages.test {
+                viewModel.onScreenStarted(recordId)
+                testDispatcher.scheduler.runCurrent()
+                assertThat(awaitItem()).isEqualTo("3점 획득했어요!")
+                viewModel.onScreenStopped()
+                viewModel.onScreenStarted(recordId)
+                testDispatcher.scheduler.runCurrent()
+                expectNoEvents()
+            }
+            assertThat((viewModel.exerciseRecord.value as UiState.Success).data).isEqualTo(sampleRecord)
+            viewModel.onScreenStopped()
+        }
+
+    @Test
+    fun `상세의 확정 0점은 소비하지만 획득 안내를 만들지 않는다`() =
+        runTest(testDispatcher) {
+            coEvery { mockGetExerciseUseCase(recordId, false, false) } returns BaseResult.Success(sampleRecord)
+            coEvery { syncUi.consumePointNotice(setOf(recordId)) } returns ExercisePointNotice(recordId, 0)
+            viewModel.getExerciseRecord(recordId)
+            testDispatcher.scheduler.runCurrent()
+            viewModel.refreshMessages.test {
+                viewModel.onScreenStarted(recordId)
+                testDispatcher.scheduler.runCurrent()
+                expectNoEvents()
+            }
+            coVerify(exactly = 1) { syncUi.consumePointNotice(setOf(recordId)) }
+            viewModel.onScreenStopped()
         }
 }

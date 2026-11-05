@@ -25,12 +25,13 @@
             app:layout_constraintBottom_toBottomOf="parent"/>
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_marginStart="12dp"
             android:orientation="vertical"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toEndOf="@id/exercise_iv"
+            app:layout_constraintEnd_toStartOf="@id/iv_body_retry"
             app:layout_constraintTop_toTopOf="parent">
             <TextView
                 android:id="@+id/exercise_title_tv"
@@ -38,13 +39,6 @@
                 android:layout_height="wrap_content"
                 style="@style/content_bold"
                 android:text="asdasd" />
-            <TextView
-                android:id="@+id/exercise_sync_pending_tv"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/exercise_sync_pending"
-                android:textColor="@color/main"
-                android:visibility="gone" />
             <TextView
                 android:id="@+id/exercise_time_tv"
                 android:layout_width="match_parent"
@@ -54,5 +48,17 @@
                 android:textColor="@color/gray200"
                 android:layout_marginTop="8dp"/>
         </LinearLayout>
+        <ImageButton
+            android:id="@+id/iv_body_retry"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:contentDescription="@string/exercise_body_retry"
+            android:src="@drawable/ic_body_retry"
+            android:visibility="gone"
+            app:tint="#D32F2F"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
     </androidx.constraintlayout.widget.ConstraintLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>

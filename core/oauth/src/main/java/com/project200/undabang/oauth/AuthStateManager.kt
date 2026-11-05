@@ -7,6 +7,10 @@ import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import com.project200.undabang.oauth.config.CognitoConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import net.openid.appauth.AuthState
 import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationResponse
@@ -23,6 +27,8 @@ class AuthStateManager
         private val cognitoConfig: CognitoConfig,
     ) {
         private var currentAuthState: AuthState = AuthState()
+        private val revisions = MutableStateFlow(0L)
+        val stateChanges: StateFlow<Long> = revisions.asStateFlow()
         private val prefs: SharedPreferences
 
         init {
@@ -88,6 +94,7 @@ class AuthStateManager
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed to serialize/save auth state to ${cognitoConfig.authPrefsName}")
             }
+            revisions.update { it + 1 }
         }
 
         private fun restoreAuthState() {
@@ -113,6 +120,7 @@ class AuthStateManager
 
         fun clearAuthState() {
             currentAuthState = AuthState()
+            revisions.update { it + 1 }
             // 로그인 게이트는 이 삭제가 디스크에 반영된 뒤에만 해제할 수 있습니다.
             check(prefs.edit().remove(cognitoConfig.authStatePrefKey).commit()) {
                 "AuthState를 지우지 못했습니다."

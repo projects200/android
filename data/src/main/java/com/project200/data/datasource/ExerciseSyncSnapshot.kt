@@ -31,12 +31,13 @@ data class ExerciseSyncSnapshot(
     val mimeType: String? = null,
     val byteLength: Long? = null,
     val sha256: String? = null,
+    val editedAt: Long? = null,
 ) {
     fun matches(journal: ExerciseSyncEntity): Boolean =
         memberId == journal.memberId && localId == journal.localId &&
             operation == journal.inFlightOperation && revision == journal.inFlightRevision &&
             operationId == journal.inFlightOperationId && requestId == journal.inFlightRequestId &&
-            baseVersion == journal.inFlightBaseVersion
+            baseVersion == journal.inFlightBaseVersion && editedAt == journal.inFlightEditedAt
 
     fun validate() {
         require(revision > 0 && memberId.isNotBlank() && localId.isNotBlank())
@@ -45,6 +46,7 @@ data class ExerciseSyncSnapshot(
         submittedDate?.let { LocalDate.parse(it) }
         previousDate?.let { LocalDate.parse(it) }
         require(baseVersion == null || baseVersion >= 0)
+        require(editedAt == null || editedAt > 0)
         when (kind) {
             ExerciseRequestKind.BODY -> {
                 require(operation != SyncState.SYNCED)
@@ -52,7 +54,7 @@ data class ExerciseSyncSnapshot(
                 require(operation != SyncState.CREATE_PENDING || serverId == null)
                 require(operation != SyncState.CREATE_PENDING || baseVersion == null && previousDate == null)
                 if (operation != SyncState.DELETE_PENDING) {
-                    require(body != null && submittedDate != null && body.createRequestId == null)
+                    require(body != null && submittedDate != null && body.createRequestId == null && body.editedAt == null)
                     require(body.exerciseTitle != null && body.exerciseDetail != null && body.exercisePersonalType != null)
                     require(body.exerciseLocation != null && body.exerciseStartedAt != null && body.exerciseEndedAt != null)
                     java.time.LocalDateTime.parse(body.exerciseStartedAt)
@@ -62,6 +64,7 @@ data class ExerciseSyncSnapshot(
                 require(operation != SyncState.UPDATE_PENDING || previousDate != null)
             }
             ExerciseRequestKind.UPLOAD, ExerciseRequestKind.DELETE_PHOTO -> {
+                require(editedAt == null)
                 require(operation == SyncState.SYNCED && serverId != null && serverId > 0 && baseVersion != null)
                 require(!imageId.isNullOrBlank() && !imageRequestId.isNullOrBlank())
                 UUID.fromString(imageRequestId)
@@ -77,7 +80,7 @@ data class ExerciseSyncSnapshot(
         }
     }
 
-    fun createRequest(): PostExerciseRequestDto = requireNotNull(body).copy(createRequestId = requestId)
+    fun createRequest(): PostExerciseRequestDto = requireNotNull(body).copy(createRequestId = requestId, editedAt = editedAt)
 
     fun editRequest(): PatchExerciseRequestDto =
         requireNotNull(body).let {
@@ -90,6 +93,7 @@ data class ExerciseSyncSnapshot(
                 it.exerciseEndedAt,
                 requestId,
                 requireNotNull(baseVersion),
+                editedAt,
             )
         }
 }

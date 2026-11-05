@@ -3,6 +3,8 @@ package com.project200.data.local
 import android.content.Context
 import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,6 +39,19 @@ class PreferenceManager
         }
 
         fun getMemberId(): String? = if (prefs.contains(KEY_PENDING_LOGIN)) null else getRetainedMemberId()
+
+        fun observeExerciseMember() =
+            callbackFlow {
+                val listener =
+                    SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                        if (key == KEY_MEMBER_ID || key == KEY_MEMBER_SUBJECT || key == KEY_PENDING_LOGIN) {
+                            trySend(getMemberId())
+                        }
+                    }
+                prefs.registerOnSharedPreferenceChangeListener(listener)
+                trySend(getMemberId())
+                awaitClose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+            }
 
         fun getRetainedMemberId(): String? = prefs.getString(KEY_MEMBER_ID, null)
 

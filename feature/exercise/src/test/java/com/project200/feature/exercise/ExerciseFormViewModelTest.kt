@@ -465,6 +465,20 @@ class ExerciseFormViewModelTest {
         }
 
     @Test
+    fun `사진만 삭제하는 저장은 본문 편집 시각을 새로 만들지 않는 의도를 전달한다`() =
+        runTest(testDispatcher) {
+            val picture = ExerciseRecordPicture("server:99", 99L, "http://exist.com/1.png", ExerciseImageSyncStatus.SYNCED)
+            setupViewModelForEditMode(sampleRecord.copy(pictures = listOf(picture)))
+            coEvery { mockUpdateUseCase(any(), any()) } returns BaseResult.Success(LocalExerciseSaveResult(recordId))
+            viewModel.removeImage(viewModel.imageItems.value.filterIsInstance<ExerciseImageListItem.ExistingImageItem>().single())
+            viewModel.submitRecord(recordId, sampleRecord.title, sampleRecord.personalType, sampleRecord.location, sampleRecord.detail)
+            testDispatcher.scheduler.advanceUntilIdle()
+            coVerify(exactly = 1) {
+                mockUpdateUseCase(recordId, match { !it.bodyEdited && it.removedImageLocalIds == setOf("server:99") })
+            }
+        }
+
+    @Test
     fun `submitRecord 호출 시 수정 실패하면 Failure 결과를 반영`() =
         runTest(testDispatcher) {
             // Given: 수정 모드이고, 초기 데이터 로드 완료

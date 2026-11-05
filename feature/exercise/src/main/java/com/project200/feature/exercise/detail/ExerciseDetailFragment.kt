@@ -43,12 +43,17 @@ class ExerciseDetailFragment : Fragment() {
         ComposeView(requireContext()).apply {
             applyAppTheme {
                 val state by viewModel.exerciseRecord.collectAsStateWithLifecycle()
+                val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
                 ExerciseDetailScreen(
                     state = state,
                     onBackClick = { findNavController().navigateUp() },
                     onShareClick = ::handleShareClick,
                     onMenuClick = ::showExerciseDetailMenu,
                     onRefreshClick = { viewModel.getExerciseRecord(args.recordId, refresh = true, force = true) },
+                    canShowBodyRetry = syncStatus.canShowBodyRetry,
+                    remoteDeleted = syncStatus.remoteDeleted,
+                    onRetryClick = viewModel::retryBody,
+                    onDiscardRemoteClick = { viewModel.discardRemoteDeleted(syncStatus) },
                 )
             }
         }

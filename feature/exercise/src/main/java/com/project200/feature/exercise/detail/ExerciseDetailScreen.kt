@@ -19,6 +19,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,6 +27,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -64,6 +69,10 @@ fun ExerciseDetailScreen(
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRefreshClick: () -> Unit = {},
+    canShowBodyRetry: Boolean = false,
+    remoteDeleted: Boolean = false,
+    onRetryClick: () -> Unit = {},
+    onDiscardRemoteClick: () -> Unit = {},
 ) {
     UndabangScaffold(
         modifier = modifier.semantics { testTagsAsResourceId = true },
@@ -107,7 +116,13 @@ fun ExerciseDetailScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
                 is UiState.Success -> {
-                    DetailContent(record = state.data)
+                    DetailContent(
+                        record = state.data,
+                        canShowBodyRetry = canShowBodyRetry,
+                        remoteDeleted = remoteDeleted,
+                        onRetryClick = onRetryClick,
+                        onDiscardRemoteClick = onDiscardRemoteClick,
+                    )
                 }
                 is UiState.Error -> {
                     Text(
@@ -127,7 +142,36 @@ fun ExerciseDetailScreen(
 private fun DetailContent(
     record: ExerciseRecord,
     modifier: Modifier = Modifier,
+    canShowBodyRetry: Boolean = false,
+    remoteDeleted: Boolean = false,
+    onRetryClick: () -> Unit = {},
+    onDiscardRemoteClick: () -> Unit = {},
 ) {
+    var keepRemoteOriginal by remember(remoteDeleted) { mutableStateOf(false) }
+    // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다.
+    var confirmDiscard by remember(remoteDeleted) { mutableStateOf<(() -> Unit)?>(null) }
+    if (remoteDeleted && confirmDiscard != null) {
+        AlertDialog(
+            onDismissRequest = { confirmDiscard = null },
+            title = { Text(stringResource(R.string.exercise_remote_discard_title)) },
+            confirmButton = {
+                TextButton(
+                    modifier = Modifier.testTag("exercise_remote_discard_confirm"),
+                    onClick = {
+                        val action = confirmDiscard
+                        confirmDiscard = null
+                        action?.invoke()
+                    },
+                ) { Text(stringResource(R.string.exercise_remote_discard_confirm)) }
+            },
+            dismissButton = {
+                TextButton(
+                    modifier = Modifier.testTag("exercise_remote_discard_cancel"),
+                    onClick = { confirmDiscard = null },
+                ) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
     Column(
         modifier =
             modifier
@@ -181,12 +225,31 @@ private fun DetailContent(
         }
 
         Spacer(Modifier.height(20.dp))
-        if (record.syncPending) {
+        if (canShowBodyRetry) {
             Text(
-                text = stringResource(R.string.exercise_sync_pending),
-                modifier = Modifier.padding(horizontal = 20.dp),
-                color = ColorMain,
+                text = stringResource(R.string.exercise_body_failure),
+                modifier = Modifier.padding(horizontal = 20.dp).testTag("exercise_body_failure"),
+                color = Color(0xFFD32F2F),
             )
+            TextButton(onClick = onRetryClick, modifier = Modifier.testTag("exercise_body_retry")) {
+                Text(stringResource(R.string.exercise_body_retry), color = Color(0xFFD32F2F))
+            }
+        }
+        if (remoteDeleted && !keepRemoteOriginal) {
+            Text(
+                text = stringResource(R.string.exercise_remote_deleted),
+                modifier = Modifier.padding(horizontal = 20.dp).testTag("exercise_remote_deleted"),
+            )
+            Row {
+                TextButton(
+                    onClick = { keepRemoteOriginal = true },
+                    modifier = Modifier.testTag("exercise_remote_keep"),
+                ) { Text(stringResource(R.string.exercise_remote_keep)) }
+                TextButton(
+                    onClick = { confirmDiscard = onDiscardRemoteClick },
+                    modifier = Modifier.testTag("exercise_remote_discard"),
+                ) { Text(stringResource(R.string.exercise_remote_discard)) }
+            }
         }
 
         // 제목 (항상 표시)

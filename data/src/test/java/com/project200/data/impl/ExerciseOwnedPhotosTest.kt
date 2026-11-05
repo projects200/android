@@ -248,7 +248,7 @@ class ExerciseOwnedPhotosTest {
             val selected = source()
             val entered = CompletableDeferred<Unit>()
             val blocked = spyk(local)
-            coEvery { blocked.createRecord(any(), any(), any()) } coAnswers {
+            coEvery { blocked.createRecord(any(), any(), any(), any()) } coAnswers {
                 entered.complete(Unit)
                 awaitCancellation()
             }
@@ -267,8 +267,8 @@ class ExerciseOwnedPhotosTest {
             val selected = source()
             val committed = CompletableDeferred<LocalExerciseSaveResult>()
             val delayed = spyk(local)
-            coEvery { delayed.createRecord(any(), any(), any()) } coAnswers {
-                val saved = local.createRecord(firstArg(), secondArg(), thirdArg())
+            coEvery { delayed.createRecord(any(), any(), any(), any()) } coAnswers {
+                val saved = local.createRecord(firstArg(), secondArg(), thirdArg(), arg<Long>(3))
                 committed.complete(saved)
                 awaitCancellation()
             }
@@ -458,10 +458,10 @@ class ExerciseOwnedPhotosTest {
             val entered = CompletableDeferred<Unit>()
             val release = CompletableDeferred<Unit>()
             val delayed = spyk(local)
-            coEvery { delayed.createRecord(any(), any(), any()) } coAnswers {
+            coEvery { delayed.createRecord(any(), any(), any(), any()) } coAnswers {
                 entered.complete(Unit)
                 release.await()
-                local.createRecord(firstArg(), secondArg(), thirdArg())
+                local.createRecord(firstArg(), secondArg(), thirdArg(), arg<Long>(3))
             }
             val saving = async { writer(delayed).createExerciseRecord(ExerciseWriteInput(record(), listOf(uri(selected)))) }
             entered.await()
