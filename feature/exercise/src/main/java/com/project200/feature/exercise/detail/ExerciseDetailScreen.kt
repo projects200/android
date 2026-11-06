@@ -39,7 +39,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -265,11 +264,6 @@ private fun DetailContent(
         }
         if (remoteDeleted && !keepRemoteOriginal) {
             item(key = "remote_deleted") {
-                val actionHeight =
-                    maxOf(
-                        48.dp,
-                        with(LocalDensity.current) { MaterialTheme.typography.labelLarge.lineHeight.toDp() } + 16.dp,
-                    )
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                     Text(
                         text = stringResource(R.string.exercise_remote_deleted),
@@ -288,14 +282,16 @@ private fun DetailContent(
                             onClick = { keepRemoteOriginal = true },
                             modifier = Modifier.testTag("exercise_remote_keep"),
                             isCompact = true,
-                            height = actionHeight,
+                            height = 48.dp,
+                            growForContent = true,
                         )
                         PrimaryButton(
                             text = stringResource(R.string.exercise_remote_discard),
                             onClick = { confirmDiscard = onDiscardRemoteClick },
                             modifier = Modifier.testTag("exercise_remote_discard"),
                             isCompact = true,
-                            height = actionHeight,
+                            height = 48.dp,
+                            growForContent = true,
                             containerColor = ColorErrorRed,
                             contentColor = ColorWhite300,
                         )

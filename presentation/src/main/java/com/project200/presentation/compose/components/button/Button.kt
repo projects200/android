@@ -2,6 +2,7 @@ package com.project200.presentation.compose.components.button
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
@@ -32,10 +33,11 @@ fun PrimaryButton(
     height: Dp = if (isCompact) 36.dp else 55.dp,
     containerColor: Color = MaterialTheme.colorScheme.primary,
     contentColor: Color = MaterialTheme.colorScheme.onPrimary,
+    growForContent: Boolean = false,
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(height),
+        modifier = if (growForContent) modifier.heightIn(min = height) else modifier.height(height),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = containerColor,
@@ -66,10 +68,11 @@ fun SecondaryButton(
     enabled: Boolean = true,
     isCompact: Boolean = false,
     height: Dp = if (isCompact) 36.dp else 55.dp,
+    growForContent: Boolean = false,
 ) {
     Button(
         onClick = onClick,
-        modifier = modifier.height(height),
+        modifier = if (growForContent) modifier.heightIn(min = height) else modifier.height(height),
         colors =
             ButtonDefaults.buttonColors(
                 containerColor = ColorGray300,
