@@ -2,8 +2,11 @@ package com.project200.feature.exercise.detail
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -36,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -46,21 +50,25 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.ExerciseRecord
-import com.project200.presentation.compose.components.button.TextButton
+import com.project200.presentation.compose.components.button.PrimaryButton
+import com.project200.presentation.compose.components.button.SecondaryButton
 import com.project200.presentation.compose.components.feedback.UndabangAlertDialog
 import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
+import com.project200.presentation.compose.theme.ColorErrorRed
 import com.project200.presentation.compose.theme.ColorGray100
 import com.project200.presentation.compose.theme.ColorGray200
 import com.project200.presentation.compose.theme.ColorMain
 import com.project200.presentation.compose.theme.ColorWhite100
 import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
+import com.project200.presentation.compose.theme.contentRegular
 import com.project200.presentation.compose.theme.subtext14
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
+import com.project200.undabang.presentation.R as PresentationR
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -136,7 +144,7 @@ fun ExerciseDetailScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 private fun DetailContent(
     record: ExerciseRecord,
@@ -153,7 +161,7 @@ private fun DetailContent(
         UndabangAlertDialog(
             title = stringResource(R.string.exercise_remote_discard_title),
             message = stringResource(R.string.exercise_remote_discard_message),
-            confirmText = stringResource(R.string.exercise_remote_discard),
+            confirmText = stringResource(PresentationR.string.delete),
             cancelText = stringResource(R.string.cancel),
             onConfirm = {
                 val action = confirmDiscard
@@ -164,6 +172,9 @@ private fun DetailContent(
             onDismiss = { confirmDiscard = null },
             confirmButtonModifier = Modifier.testTag("exercise_remote_discard_confirm"),
             cancelButtonModifier = Modifier.testTag("exercise_remote_discard_cancel"),
+            messageStyle = MaterialTheme.typography.contentRegular,
+            confirmContainerColor = ColorErrorRed,
+            confirmContentColor = ColorWhite300,
         )
     }
     val pictures = record.pictures.orEmpty()
@@ -221,31 +232,44 @@ private fun DetailContent(
         }
         if (canShowBodyRetry && !remoteDeleted) {
             item(key = "body_retry") {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                    Text(
-                        text = stringResource(R.string.exercise_body_failure),
-                        modifier = Modifier.testTag("exercise_body_failure"),
-                        style = MaterialTheme.typography.contentBold,
-                        color = ColorBlack,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        text = stringResource(R.string.exercise_body_failure_description),
-                        style = MaterialTheme.typography.subtext14,
-                        color = ColorGray100,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    TextButton(
-                        text = stringResource(R.string.exercise_body_retry_action),
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.exercise_body_failure),
+                            modifier = Modifier.testTag("exercise_body_failure"),
+                            style = MaterialTheme.typography.contentBold,
+                            color = ColorBlack,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = stringResource(R.string.exercise_body_failure_description),
+                            style = MaterialTheme.typography.subtext14,
+                            color = ColorGray100,
+                        )
+                    }
+                    IconButton(
                         onClick = onRetryClick,
-                        modifier = Modifier.align(Alignment.End).testTag("exercise_body_retry"),
-                        isCompact = false,
-                    )
+                        modifier = Modifier.size(48.dp).testTag("exercise_body_retry"),
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_body_retry),
+                            contentDescription = stringResource(R.string.exercise_body_retry),
+                            tint = ColorErrorRed,
+                        )
+                    }
                 }
             }
         }
         if (remoteDeleted && !keepRemoteOriginal) {
             item(key = "remote_deleted") {
+                val actionHeight =
+                    maxOf(
+                        48.dp,
+                        with(LocalDensity.current) { MaterialTheme.typography.labelLarge.lineHeight.toDp() } + 16.dp,
+                    )
                 Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
                     Text(
                         text = stringResource(R.string.exercise_remote_deleted),
@@ -254,19 +278,28 @@ private fun DetailContent(
                         color = ColorGray100,
                     )
                     Spacer(Modifier.height(12.dp))
-                    TextButton(
-                        text = stringResource(R.string.exercise_remote_keep),
-                        onClick = { keepRemoteOriginal = true },
-                        modifier = Modifier.align(Alignment.End).testTag("exercise_remote_keep"),
-                        isCompact = false,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    TextButton(
-                        text = stringResource(R.string.exercise_remote_discard),
-                        onClick = { confirmDiscard = onDiscardRemoteClick },
-                        modifier = Modifier.align(Alignment.End).testTag("exercise_remote_discard"),
-                        isCompact = false,
-                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        SecondaryButton(
+                            text = stringResource(R.string.exercise_remote_keep),
+                            onClick = { keepRemoteOriginal = true },
+                            modifier = Modifier.testTag("exercise_remote_keep"),
+                            isCompact = true,
+                            height = actionHeight,
+                        )
+                        PrimaryButton(
+                            text = stringResource(R.string.exercise_remote_discard),
+                            onClick = { confirmDiscard = onDiscardRemoteClick },
+                            modifier = Modifier.testTag("exercise_remote_discard"),
+                            isCompact = true,
+                            height = actionHeight,
+                            containerColor = ColorErrorRed,
+                            contentColor = ColorWhite300,
+                        )
+                    }
                 }
             }
         }
