@@ -35,10 +35,9 @@
     <string name="exercise_body_failure">기록을 전송하지 못했어요</string>
     <string name="exercise_body_failure_description">기록은 이 기기에 저장되어 있어요.</string>
     <string name="exercise_remote_deleted">서버에서 삭제된 기록이에요. 이 기기에는 기록이 남아 있어요.</string>
-    <string name="exercise_remote_keep">안내 닫기</string>
     <string name="exercise_remote_discard">기기에서 삭제</string>
     <string name="exercise_remote_discard_title">이 기기에서 삭제할까요?</string>
-    <string name="exercise_remote_discard_message">보관된 기록과 사진이 삭제되며, 되돌릴 수 없어요.</string>
+    <string name="exercise_remote_discard_message">보관된 기록과 사진이 삭제되며\n되돌릴 수 없어요</string>
     <string name="exercise_points_earned">%1$d점 획득했어요!</string>
     <string name="exercise_refresh">새로고침</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
