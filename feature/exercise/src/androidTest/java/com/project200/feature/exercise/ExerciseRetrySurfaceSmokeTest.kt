@@ -613,12 +613,58 @@ class ExerciseRetrySurfaceSmokeTest {
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single()
-        val visibleBounds = node.fetchSemanticsNode().boundsInRoot
-        assertFalse("The complete text must fit without overflow", layout.hasVisualOverflow)
-        assertTrue((0 until layout.lineCount).none { layout.isLineEllipsized(it) })
-        assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
-        assertTrue("Text must not be clipped horizontally by its ancestors", layout.size.width <= visibleBounds.width + 1f)
-        assertTrue("Text must not be clipped vertically by its ancestors", layout.size.height <= visibleBounds.height + 1f)
+        val semanticsNode = node.fetchSemanticsNode()
+        val visibleBounds = semanticsNode.boundsInRoot
+        val lineBounds =
+            (0 until layout.lineCount).map { line ->
+                Rect(
+                    layout.getLineLeft(line),
+                    layout.getLineTop(line),
+                    layout.getLineRight(line),
+                    layout.getLineBottom(line),
+                )
+            }
+        val diagnostics =
+            "text=${layout.layoutInput.text.text}, size=${layout.size}, " +
+                "paragraph=${layout.multiParagraph.width}x${layout.multiParagraph.height}, " +
+                "didOverflowWidth=${layout.didOverflowWidth}, didOverflowHeight=${layout.didOverflowHeight}, " +
+                "maxLines=${layout.layoutInput.maxLines}, didExceedMaxLines=${layout.multiParagraph.didExceedMaxLines}, " +
+                "lines=$lineBounds, position=${semanticsNode.positionInRoot}, visibleBounds=$visibleBounds"
+        // Compose 1.6's ParagraphLayoutCache.slowCreateTextLayoutResultOrNull rebuilds MultiParagraph
+        // at the incoming maxWidth, but retains the smaller measured size. didOverflowWidth can
+        // therefore report unused paragraph space as overflow; check occupied line bounds instead.
+        assertFalse("The complete text must fit vertically: $diagnostics", layout.didOverflowHeight)
+        assertTrue(
+            "The complete text must fit horizontally: $diagnostics",
+            lineBounds.all { it.left >= 0f && it.right <= layout.size.width },
+        )
+        assertTrue(
+            "No text may be ellipsized: $diagnostics",
+            (0 until layout.lineCount).none { layout.isLineEllipsized(it) },
+        )
+        assertEquals(
+            "No text may be omitted: $diagnostics",
+            layout.layoutInput.text.length,
+            layout.getLineEnd(layout.lineCount - 1, visibleEnd = true),
+        )
+        assertTrue(
+            "Text must not be clipped horizontally by its ancestors: $diagnostics",
+            layout.size.width <= visibleBounds.width + 1f,
+        )
+        assertTrue(
+            "Text must not be clipped vertically by its ancestors: $diagnostics",
+            layout.size.height <= visibleBounds.height + 1f,
+        )
+        assertTrue(
+            "Every line must lie within the visible bounds: $diagnostics",
+            lineBounds.all {
+                val boundsInRoot = it.translate(semanticsNode.positionInRoot)
+                boundsInRoot.left >= visibleBounds.left - 1f &&
+                    boundsInRoot.right <= visibleBounds.right + 1f &&
+                    boundsInRoot.top >= visibleBounds.top - 1f &&
+                    boundsInRoot.bottom <= visibleBounds.bottom + 1f
+            },
+        )
         return layout
     }
 
