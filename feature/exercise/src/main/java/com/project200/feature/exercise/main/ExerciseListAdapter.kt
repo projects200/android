@@ -1,8 +1,9 @@
 package com.project200.feature.exercise.main
 
 import android.view.LayoutInflater
+import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
+import androidx.core.view.isInvisible
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
@@ -93,7 +94,6 @@ class ExerciseListAdapter(
         ) {
             with(binding) {
                 exerciseTitleTv.text = item.title
-                ivBodyRetry.isVisible = false
                 // 시간 포맷팅 적용
                 exerciseTimeTv.text = "${item.startTime.format(formatter)} ~ ${item.endTime.format(formatter)}"
                 // 실제 마지막 행의 시간 텍스트를 목록 끝의 접근성 경계로 사용합니다.
@@ -126,8 +126,15 @@ class ExerciseListAdapter(
             visible: Boolean,
             retry: (String) -> Unit,
         ) {
-            binding.ivBodyRetry.isVisible = visible
-            binding.ivBodyRetry.setOnClickListener { retry(recordId) }
+            binding.ivBodyRetry.apply {
+                isInvisible = !visible
+                isEnabled = visible
+                isFocusable = visible
+                importantForAccessibility =
+                    if (visible) View.IMPORTANT_FOR_ACCESSIBILITY_YES else View.IMPORTANT_FOR_ACCESSIBILITY_NO
+                setOnClickListener(if (visible) View.OnClickListener { retry(recordId) } else null)
+                isClickable = visible
+            }
         }
     }
 

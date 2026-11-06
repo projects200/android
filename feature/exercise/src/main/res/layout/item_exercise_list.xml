@@ -55,8 +55,11 @@
             android:background="?attr/selectableItemBackgroundBorderless"
             android:contentDescription="@string/exercise_body_retry"
             android:src="@drawable/ic_body_retry"
-            android:visibility="gone"
-            app:tint="#D32F2F"
+            android:visibility="invisible"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no"
+            app:tint="@color/error_red"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintBottom_toBottomOf="parent" />

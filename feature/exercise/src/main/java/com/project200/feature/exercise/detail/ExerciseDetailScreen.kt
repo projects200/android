@@ -4,6 +4,7 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -13,19 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -47,10 +46,13 @@ import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.ExerciseRecord
+import com.project200.presentation.compose.components.button.TextButton
+import com.project200.presentation.compose.components.feedback.UndabangAlertDialog
 import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
+import com.project200.presentation.compose.theme.ColorGray100
 import com.project200.presentation.compose.theme.ColorGray200
 import com.project200.presentation.compose.theme.ColorMain
 import com.project200.presentation.compose.theme.ColorWhite100
@@ -68,7 +70,6 @@ fun ExerciseDetailScreen(
     onShareClick: () -> Unit,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onRefreshClick: () -> Unit = {},
     canShowBodyRetry: Boolean = false,
     remoteDeleted: Boolean = false,
     onRetryClick: () -> Unit = {},
@@ -81,7 +82,6 @@ fun ExerciseDetailScreen(
                 title = stringResource(R.string.exercise_detail),
                 onNavigationClick = onBackClick,
                 actions = {
-                    TextButton(onClick = onRefreshClick) { Text(stringResource(R.string.exercise_refresh)) }
                     // 우측: 공유 + 메뉴
                     IconButton(onClick = onShareClick) {
                         Icon(
@@ -93,7 +93,6 @@ fun ExerciseDetailScreen(
                     IconButton(
                         onClick = onMenuClick,
                         modifier = Modifier.testTag("exercise_detail_menu"),
-                        enabled = (state as? UiState.Success)?.data?.canModify == true,
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_menu),
@@ -148,179 +147,209 @@ private fun DetailContent(
     onDiscardRemoteClick: () -> Unit = {},
 ) {
     var keepRemoteOriginal by remember(remoteDeleted) { mutableStateOf(false) }
-    // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다.
+    // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다
     var confirmDiscard by remember(remoteDeleted) { mutableStateOf<(() -> Unit)?>(null) }
     if (remoteDeleted && confirmDiscard != null) {
-        AlertDialog(
-            onDismissRequest = { confirmDiscard = null },
-            title = { Text(stringResource(R.string.exercise_remote_discard_title)) },
-            confirmButton = {
-                TextButton(
-                    modifier = Modifier.testTag("exercise_remote_discard_confirm"),
-                    onClick = {
-                        val action = confirmDiscard
-                        confirmDiscard = null
-                        action?.invoke()
-                    },
-                ) { Text(stringResource(R.string.exercise_remote_discard_confirm)) }
+        UndabangAlertDialog(
+            title = stringResource(R.string.exercise_remote_discard_title),
+            message = stringResource(R.string.exercise_remote_discard_message),
+            confirmText = stringResource(R.string.exercise_remote_discard),
+            cancelText = stringResource(R.string.cancel),
+            onConfirm = {
+                val action = confirmDiscard
+                confirmDiscard = null
+                action?.invoke()
             },
-            dismissButton = {
-                TextButton(
-                    modifier = Modifier.testTag("exercise_remote_discard_cancel"),
-                    onClick = { confirmDiscard = null },
-                ) { Text(stringResource(R.string.cancel)) }
-            },
+            onCancel = { confirmDiscard = null },
+            onDismiss = { confirmDiscard = null },
+            confirmButtonModifier = Modifier.testTag("exercise_remote_discard_confirm"),
+            cancelButtonModifier = Modifier.testTag("exercise_remote_discard_cancel"),
         )
     }
-    Column(
-        modifier =
-            modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(bottom = 40.dp),
+    val pictures = record.pictures.orEmpty()
+    // 안내가 앞에 생기거나 사라져도 첫 가시 필드의 key와 스크롤 offset을 유지합니다
+    LazyColumn(
+        state = rememberLazyListState(),
+        modifier = modifier.fillMaxSize().testTag("exercise_detail_scroll"),
+        contentPadding = PaddingValues(top = if (pictures.isEmpty()) 20.dp else 0.dp, bottom = 40.dp),
     ) {
-        // 이미지 슬라이더 (HorizontalPager + 인디케이터)
-        val pictures = record.pictures.orEmpty()
         if (pictures.isNotEmpty()) {
-            val pagerState = rememberPagerState(pageCount = { pictures.size })
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .background(ColorBlack),
-            ) {
-                HorizontalPager(
-                    state = pagerState,
-                    modifier = Modifier.fillMaxWidth().height(240.dp),
-                ) { page ->
-                    AsyncImage(
-                        model = pictures[page].source,
-                        contentDescription = null,
-                        contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-                // 페이지 인디케이터 (하단 가운데)
-                if (pictures.size > 1) {
-                    Row(
+            item(key = "pictures") {
+                Column {
+                    val pagerState = rememberPagerState(pageCount = { pictures.size })
+                    Box(
                         modifier =
                             Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(bottom = 16.dp),
+                                .fillMaxWidth()
+                                .background(ColorBlack),
                     ) {
-                        repeat(pictures.size) { index ->
-                            val color = if (index == pagerState.currentPage) ColorMain else ColorWhite300
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .padding(horizontal = 4.dp)
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(color),
+                        HorizontalPager(
+                            state = pagerState,
+                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                        ) { page ->
+                            AsyncImage(
+                                model = pictures[page].source,
+                                contentDescription = null,
+                                contentScale = ContentScale.Fit,
+                                modifier = Modifier.fillMaxSize(),
                             )
                         }
+                        if (pictures.size > 1) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(bottom = 16.dp),
+                            ) {
+                                repeat(pictures.size) { index ->
+                                    val color = if (index == pagerState.currentPage) ColorMain else ColorWhite300
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .padding(horizontal = 4.dp)
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(color),
+                                    )
+                                }
+                            }
+                        }
                     }
+                    Spacer(Modifier.height(20.dp))
                 }
             }
         }
-
-        Spacer(Modifier.height(20.dp))
-        if (canShowBodyRetry) {
-            Text(
-                text = stringResource(R.string.exercise_body_failure),
-                modifier = Modifier.padding(horizontal = 20.dp).testTag("exercise_body_failure"),
-                color = Color(0xFFD32F2F),
-            )
-            TextButton(onClick = onRetryClick, modifier = Modifier.testTag("exercise_body_retry")) {
-                Text(stringResource(R.string.exercise_body_retry), color = Color(0xFFD32F2F))
+        if (canShowBodyRetry && !remoteDeleted) {
+            item(key = "body_retry") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                    Text(
+                        text = stringResource(R.string.exercise_body_failure),
+                        modifier = Modifier.testTag("exercise_body_failure"),
+                        style = MaterialTheme.typography.contentBold,
+                        color = ColorBlack,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.exercise_body_failure_description),
+                        style = MaterialTheme.typography.subtext14,
+                        color = ColorGray100,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    TextButton(
+                        text = stringResource(R.string.exercise_body_retry_action),
+                        onClick = onRetryClick,
+                        modifier = Modifier.align(Alignment.End).testTag("exercise_body_retry"),
+                        isCompact = false,
+                    )
+                }
             }
         }
         if (remoteDeleted && !keepRemoteOriginal) {
-            Text(
-                text = stringResource(R.string.exercise_remote_deleted),
-                modifier = Modifier.padding(horizontal = 20.dp).testTag("exercise_remote_deleted"),
-            )
-            Row {
-                TextButton(
-                    onClick = { keepRemoteOriginal = true },
-                    modifier = Modifier.testTag("exercise_remote_keep"),
-                ) { Text(stringResource(R.string.exercise_remote_keep)) }
-                TextButton(
-                    onClick = { confirmDiscard = onDiscardRemoteClick },
-                    modifier = Modifier.testTag("exercise_remote_discard"),
-                ) { Text(stringResource(R.string.exercise_remote_discard)) }
+            item(key = "remote_deleted") {
+                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                    Text(
+                        text = stringResource(R.string.exercise_remote_deleted),
+                        modifier = Modifier.testTag("exercise_remote_deleted"),
+                        style = MaterialTheme.typography.subtext14,
+                        color = ColorGray100,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    TextButton(
+                        text = stringResource(R.string.exercise_remote_keep),
+                        onClick = { keepRemoteOriginal = true },
+                        modifier = Modifier.align(Alignment.End).testTag("exercise_remote_keep"),
+                        isCompact = false,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        text = stringResource(R.string.exercise_remote_discard),
+                        onClick = { confirmDiscard = onDiscardRemoteClick },
+                        modifier = Modifier.align(Alignment.End).testTag("exercise_remote_discard"),
+                        isCompact = false,
+                    )
+                }
             }
         }
-
-        // 제목 (항상 표시)
-        DetailField(
-            label = stringResource(R.string.exercise_record_title),
-            value = record.title,
-            valueModifier = Modifier.testTag("exercise_detail_title"),
-        )
-
-        // 운동 종류 (있을 때만)
-        if (!record.personalType.isNullOrBlank()) {
-            DetailField(
-                label = stringResource(R.string.exercise_record_type),
-                value = record.personalType.orEmpty(),
-            )
+        item(key = "title") {
+            Column {
+                DetailField(
+                    label = stringResource(R.string.exercise_detail_title_label),
+                    value = record.title,
+                    valueModifier = Modifier.testTag("exercise_detail_title"),
+                )
+            }
         }
-
-        // 운동 시간 (시작/종료)
+        if (!record.personalType.isNullOrBlank()) {
+            item(key = "type") {
+                Column {
+                    DetailField(
+                        label = stringResource(R.string.exercise_record_type),
+                        value = record.personalType.orEmpty(),
+                    )
+                }
+            }
+        }
         val formatter = CommonDateTimeFormatters.YY_MM_DD_HH_MM
         val startStr = record.startedAt.format(formatter)
         val endStr = record.endedAt.format(formatter)
         if (!startStr.isNullOrBlank() || !endStr.isNullOrBlank()) {
-            Spacer(Modifier.height(24.dp))
-            Text(
-                text = stringResource(R.string.exercise_record_time),
-                style = MaterialTheme.typography.contentBold,
-                color = ColorBlack,
-                modifier = Modifier.padding(horizontal = 20.dp),
-            )
-            Spacer(Modifier.height(8.dp))
-            Row(
-                modifier = Modifier.padding(horizontal = 20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = startStr.orEmpty(),
-                    style = MaterialTheme.typography.subtext14,
-                    color = ColorBlack,
-                    modifier = Modifier.weight(1f).testTag("exercise_detail_start_time"),
-                )
-                Spacer(Modifier.width(8.dp))
-                Icon(
-                    painter = painterResource(com.project200.undabang.presentation.R.drawable.ic_arrow_right),
-                    contentDescription = null,
-                    tint = ColorGray200,
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = endStr.orEmpty(),
-                    style = MaterialTheme.typography.subtext14,
-                    color = ColorBlack,
-                    modifier = Modifier.weight(1f).testTag("exercise_detail_end_time"),
-                )
+            item(key = "time") {
+                Column {
+                    Spacer(Modifier.height(24.dp))
+                    Text(
+                        text = stringResource(R.string.exercise_detail_time_label),
+                        style = MaterialTheme.typography.contentBold,
+                        color = ColorBlack,
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = startStr.orEmpty(),
+                            style = MaterialTheme.typography.subtext14,
+                            color = ColorBlack,
+                            modifier = Modifier.weight(1f).testTag("exercise_detail_start_time"),
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Icon(
+                            painter = painterResource(com.project200.undabang.presentation.R.drawable.ic_arrow_right),
+                            contentDescription = null,
+                            tint = ColorGray200,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = endStr.orEmpty(),
+                            style = MaterialTheme.typography.subtext14,
+                            color = ColorBlack,
+                            modifier = Modifier.weight(1f).testTag("exercise_detail_end_time"),
+                        )
+                    }
+                }
             }
         }
-
-        // 운동 장소 (있을 때만)
         if (!record.location.isNullOrBlank()) {
-            DetailField(
-                label = stringResource(R.string.exercise_record_location),
-                value = record.location.orEmpty(),
-            )
+            item(key = "location") {
+                Column {
+                    DetailField(
+                        label = stringResource(R.string.exercise_record_location),
+                        value = record.location.orEmpty(),
+                    )
+                }
+            }
         }
-
-        // 운동 내용 (있을 때만)
         if (!record.detail.isNullOrBlank()) {
-            DetailField(
-                label = stringResource(R.string.exercise_record_desc),
-                value = record.detail.orEmpty(),
-                minHeight = 120.dp,
-            )
+            item(key = "detail") {
+                Column {
+                    DetailField(
+                        label = stringResource(R.string.exercise_record_desc),
+                        value = record.detail.orEmpty(),
+                        minHeight = 120.dp,
+                    )
+                }
+            }
         }
     }
 }

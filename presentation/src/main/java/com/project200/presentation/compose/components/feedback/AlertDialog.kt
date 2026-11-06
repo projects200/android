@@ -40,6 +40,8 @@ fun UndabangAlertDialog(
     cancelText: String = "취소",
     onCancel: (() -> Unit)? = null,
     isCancelable: Boolean = true,
+    confirmButtonModifier: Modifier = Modifier,
+    cancelButtonModifier: Modifier = Modifier,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -66,6 +68,8 @@ fun UndabangAlertDialog(
                         onDismiss()
                     }
                 },
+            confirmButtonModifier = confirmButtonModifier,
+            cancelButtonModifier = cancelButtonModifier,
         )
     }
 }
@@ -84,6 +88,8 @@ fun UndabangAlertDialogContent(
     confirmText: String = "확인",
     cancelText: String = "취소",
     onCancel: (() -> Unit)? = null,
+    confirmButtonModifier: Modifier = Modifier,
+    cancelButtonModifier: Modifier = Modifier,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -122,13 +128,13 @@ fun UndabangAlertDialogContent(
                     SecondaryButton(
                         text = cancelText,
                         onClick = onCancel,
-                        modifier = Modifier.weight(1f),
+                        modifier = cancelButtonModifier.weight(1f),
                         height = DialogButtonHeight,
                     )
                     PrimaryButton(
                         text = confirmText,
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = confirmButtonModifier.weight(1f),
                         height = DialogButtonHeight,
                     )
                 }
@@ -136,7 +142,7 @@ fun UndabangAlertDialogContent(
                 PrimaryButton(
                     text = confirmText,
                     onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = confirmButtonModifier.fillMaxWidth(),
                     height = DialogButtonHeight,
                 )
             }

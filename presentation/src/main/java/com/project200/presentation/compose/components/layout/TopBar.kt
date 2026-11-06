@@ -5,12 +5,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Icon
@@ -29,7 +27,7 @@ import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 
 /**
- * 화면 상단 앱바 (좌측 네비 아이콘 / 가운데 제목 / 우측 액션 슬롯 구조)
+ * 화면 상단 앱바 (네비 아이콘 / 남은 폭 안의 제목 / 액션 슬롯 구조)
  * 액션 버튼은 actions 슬롯에 IconButton 등을 직접 넣어 배치합니다
  * navigationIconVisible = false면 자리만 남기고 숨깁니다
  */
@@ -42,19 +40,33 @@ fun UndabangTopBar(
     navigationIconVisible: Boolean = true,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Box(
+    Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .height(65.dp)
-                .background(color = ColorWhite300),
+                .background(color = ColorWhite300)
+                .padding(horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (navigationIconVisible) {
+            IconButton(
+                onClick = { onNavigationClick?.invoke() },
+                modifier = Modifier.size(48.dp),
+            ) {
+                Icon(
+                    imageVector = navigationIcon,
+                    contentDescription = "뒤로가기",
+                    tint = ColorBlack,
+                )
+            }
+        } else {
+            Box(modifier = Modifier.size(48.dp))
+        }
+
         Text(
             text = title,
-            modifier =
-                Modifier
-                    .align(Alignment.Center)
-                    .padding(horizontal = 64.dp),
+            modifier = Modifier.weight(1f),
             style = MaterialTheme.typography.contentBold,
             color = ColorBlack,
             textAlign = TextAlign.Center,
@@ -63,36 +75,9 @@ fun UndabangTopBar(
         )
 
         Row(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 4.dp),
+            horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (navigationIconVisible) {
-                IconButton(
-                    onClick = { onNavigationClick?.invoke() },
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Icon(
-                        imageVector = navigationIcon,
-                        contentDescription = "뒤로가기",
-                        tint = ColorBlack,
-                    )
-                }
-            } else {
-                Box(modifier = Modifier.size(48.dp))
-            }
-
-            Row(
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .wrapContentWidth(align = Alignment.End),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-                content = actions,
-            )
-        }
+            content = actions,
+        )
     }
 }

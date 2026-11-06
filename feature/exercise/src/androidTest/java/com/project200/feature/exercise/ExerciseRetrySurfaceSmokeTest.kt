@@ -5,27 +5,42 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
-import androidx.test.espresso.assertion.ViewAssertions.doesNotExist
 import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.Visibility.GONE
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
-import androidx.test.espresso.matcher.ViewMatchers.withEffectiveVisibility
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -35,9 +50,12 @@ import com.project200.domain.model.canShowExerciseBodyRetry
 import com.project200.feature.exercise.detail.ExerciseDetailScreen
 import com.project200.feature.exercise.main.ExerciseListAdapter
 import com.project200.presentation.compose.theme.AppTheme
+import com.project200.presentation.utils.Failure
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
+import org.hamcrest.Matchers.not
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -64,12 +82,10 @@ class ExerciseRetrySurfaceSmokeTest {
     fun normalAndPendingRowsHaveNoRetryOrNormalTransmissionText() {
         val adapter = showList(listOf(listItem(syncPending = false)))
         assertListRetryHidden()
-        onView(withText("동기화 대기")).check(doesNotExist())
 
         compose.runOnIdle { adapter.submitList(listOf(listItem(syncPending = true))) }
         compose.waitUntil { adapter.currentList.single().syncPending }
         assertListRetryHidden()
-        onView(withText("동기화 대기")).check(doesNotExist())
         onView(withId(R.id.exercise_title_tv)).check(matches(withText(TITLE)))
     }
 
@@ -132,14 +148,16 @@ class ExerciseRetrySurfaceSmokeTest {
             updateListRetry(adapter, eligible)
             assertListRetryHidden()
             onView(withId(R.id.exercise_title_tv)).check(matches(withText(TITLE)))
-            onView(withText("동기화 대기")).check(doesNotExist())
         }
     }
 
     @Test
     fun retryOnlyUpdatesKeepTheVisibleListBodyAndScrollAnchor() {
         lateinit var recycler: RecyclerView
-        val items = (0 until 40).map { listItem(recordId = "row-$it", title = "Synthetic row $it") }
+        val items =
+            (0 until 40).map {
+                listItem(recordId = "row-$it", title = "Synthetic row $it with a long title that wraps onto several lines")
+            }
         val adapter = showList(items, onRecyclerCreated = { recycler = it })
         compose.runOnIdle {
             (recycler.layoutManager as LinearLayoutManager).scrollToPositionWithOffset(20, 12)
@@ -147,16 +165,19 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.waitForIdle()
         var firstPosition = -1
         var firstTop = 0
+        var geometry = emptyList<Int>()
         compose.runOnIdle {
             firstPosition = (recycler.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition()
             firstTop = recycler.getChildAt(0).top
             assertTrue(firstPosition > 0)
+            geometry = rowGeometry(recycler, 20)
             adapter.submitRetryIds(setOf("row-20"))
         }
         compose.waitForIdle()
         compose.runOnIdle {
             assertEquals(firstPosition, (recycler.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition())
             assertEquals(firstTop, recycler.getChildAt(0).top)
+            assertEquals(geometry, rowGeometry(recycler, 20))
             assertEquals(items, adapter.currentList)
             adapter.submitRetryIds(emptySet())
         }
@@ -164,6 +185,7 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.runOnIdle {
             assertEquals(firstPosition, (recycler.layoutManager as LinearLayoutManager).findFirstVisibleItemPosition())
             assertEquals(firstTop, recycler.getChildAt(0).top)
+            assertEquals(geometry, rowGeometry(recycler, 20))
             assertEquals(items, adapter.currentList)
         }
     }
@@ -186,15 +208,16 @@ class ExerciseRetrySurfaceSmokeTest {
             }
         }
         assertDetailBody()
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
-        compose.onNodeWithText("동기화 대기").assertDoesNotExist()
 
         compose.runOnIdle { snapshot.value = record(syncPending = true) }
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
-        compose.onNodeWithText("동기화 대기").assertDoesNotExist()
         compose.runOnIdle { retryVisible.value = retryEligible() }
+        scrollDetailTo("exercise_body_retry")
         compose.onNodeWithTag("exercise_body_retry").assertIsDisplayed().performClick()
         compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(1, retries) }
@@ -207,12 +230,13 @@ class ExerciseRetrySurfaceSmokeTest {
             retryEligible(retryableBodyFailure = false),
         ).forEach { eligible ->
             compose.runOnIdle { retryVisible.value = retryEligible() }
+            scrollDetailTo("exercise_body_retry")
             compose.onNodeWithTag("exercise_body_retry").assertIsDisplayed()
             compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
             compose.runOnIdle { retryVisible.value = eligible }
+            compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
             compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
             compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
-            compose.onNodeWithText("동기화 대기").assertDoesNotExist()
             assertDetailBody()
         }
     }
@@ -228,6 +252,7 @@ class ExerciseRetrySurfaceSmokeTest {
                     onShareClick = {},
                     onMenuClick = {},
                     remoteDeleted = true,
+                    canShowBodyRetry = true,
                     onDiscardRemoteClick = { discards++ },
                 )
             }
@@ -236,6 +261,7 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         assertDetailBody()
+        scrollDetailTo("exercise_remote_discard")
         compose.onNodeWithTag("exercise_remote_discard").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, discards) }
@@ -243,6 +269,194 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, discards) }
         assertDetailBody()
+        scrollDetailTo("exercise_remote_keep")
+        compose.onNodeWithTag("exercise_remote_keep").performClick()
+        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
+        compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(0, discards) }
+        assertDetailBody()
+    }
+
+    @Test
+    fun confirmationInvokesTheCallbackBoundWhenOpenedNotItsReplacement() {
+        val replacement = mutableStateOf(false)
+        val remoteDeleted = mutableStateOf(true)
+        var originalDiscards = 0
+        var replacementDiscards = 0
+        compose.setContent {
+            AppTheme {
+                ExerciseDetailScreen(
+                    state = UiState.Success(record(syncPending = true)),
+                    onBackClick = {},
+                    onShareClick = {},
+                    onMenuClick = {},
+                    remoteDeleted = remoteDeleted.value,
+                    onDiscardRemoteClick =
+                        if (replacement.value) {
+                            { replacementDiscards++ }
+                        } else {
+                            { originalDiscards++ }
+                        },
+                )
+            }
+        }
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+        compose.runOnIdle { replacement.value = true }
+        compose.onNodeWithTag("exercise_remote_discard_confirm").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, originalDiscards)
+            assertEquals(0, replacementDiscards)
+        }
+
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
+        compose.runOnIdle {
+            assertEquals(1, originalDiscards)
+            assertEquals(0, replacementDiscards)
+        }
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").performClick()
+        compose.runOnIdle {
+            assertEquals(1, originalDiscards)
+            assertEquals(1, replacementDiscards)
+        }
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+        compose.runOnIdle { remoteDeleted.value = false }
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle { remoteDeleted.value = true }
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, originalDiscards)
+            assertEquals(1, replacementDiscards)
+        }
+    }
+
+    @Test
+    fun retryAndRemoteNoticeTransitionsPreserveTheScrolledDateAnchor() {
+        val retryVisible = mutableStateOf(false)
+        val remoteDeleted = mutableStateOf(false)
+        val snapshot =
+            record(syncPending = true).copy(
+                personalType = List(30) { "Synthetic exercise type line $it" }.joinToString("\n"),
+                location = "Synthetic retained location",
+                detail = List(30) { "Synthetic retained body line $it" }.joinToString("\n"),
+            )
+        compose.setContent {
+            AppTheme {
+                Box(Modifier.width(320.dp).height(480.dp)) {
+                    ExerciseDetailScreen(
+                        state = UiState.Success(snapshot),
+                        onBackClick = {},
+                        onShareClick = {},
+                        onMenuClick = {},
+                        canShowBodyRetry = retryVisible.value,
+                        remoteDeleted = remoteDeleted.value,
+                    )
+                }
+            }
+        }
+        scrollDetailTo("exercise_detail_start_time")
+        val start = compose.onNodeWithTag("exercise_detail_start_time")
+        val end = compose.onNodeWithTag("exercise_detail_end_time")
+        start.assertIsDisplayed()
+        end.assertIsDisplayed()
+        val startBounds = start.fetchSemanticsNode().boundsInRoot
+        val endBounds = end.fetchSemanticsNode().boundsInRoot
+        val startText = start.fetchSemanticsNode().config[SemanticsProperties.Text]
+        val endText = end.fetchSemanticsNode().config[SemanticsProperties.Text]
+        listOf(true to false, false to false, false to true, false to false).forEach { (retry, remote) ->
+            compose.runOnIdle {
+                retryVisible.value = retry
+                remoteDeleted.value = remote
+            }
+            start.assertIsDisplayed()
+            end.assertIsDisplayed()
+            assertEquals(startBounds, start.fetchSemanticsNode().boundsInRoot)
+            assertEquals(endBounds, end.fetchSemanticsNode().boundsInRoot)
+            assertEquals(startText, start.fetchSemanticsNode().config[SemanticsProperties.Text])
+            assertEquals(endText, end.fetchSemanticsNode().config[SemanticsProperties.Text])
+        }
+        scrollDetailTo("exercise_detail_title")
+        compose.onNodeWithTag("exercise_detail_title").assertTextEquals(TITLE)
+    }
+
+    @Test
+    fun narrowLargeFontTopBarKeepsTitleBetweenNavigationAndActions() {
+        var navigations = 0
+        var shares = 0
+        var menus = 0
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                AppTheme {
+                    Box(Modifier.width(320.dp).height(480.dp)) {
+                        ExerciseDetailScreen(
+                            state = UiState.Success(record(syncPending = false)),
+                            onBackClick = { navigations++ },
+                            onShareClick = { shares++ },
+                            onMenuClick = { menus++ },
+                        )
+                    }
+                }
+            }
+        }
+        val title = compose.onNodeWithText(compose.activity.getString(R.string.exercise_detail))
+        val navigation = compose.onNodeWithContentDescription("뒤로가기")
+        val share = compose.onNodeWithContentDescription(compose.activity.getString(R.string.share))
+        val menu = compose.onNodeWithTag("exercise_detail_menu")
+        title.assertIsDisplayed()
+        navigation.assertIsDisplayed()
+        share.assertIsDisplayed()
+        menu.assertIsDisplayed()
+        val titleBounds = title.fetchSemanticsNode().boundsInRoot
+        val navigationBounds = navigation.fetchSemanticsNode().boundsInRoot
+        val shareBounds = share.fetchSemanticsNode().boundsInRoot
+        val menuBounds = menu.fetchSemanticsNode().boundsInRoot
+        assertTrue(titleBounds.width > 0)
+        assertTrue(navigationBounds.right <= titleBounds.left)
+        assertTrue(titleBounds.right <= shareBounds.left)
+        assertTrue(shareBounds.right <= menuBounds.left)
+        val layouts = mutableListOf<TextLayoutResult>()
+        title.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        assertEquals(1, layouts.single().lineCount)
+        assertFalse(layouts.single().hasVisualOverflow && !layouts.single().isLineEllipsized(0))
+        navigation.performClick()
+        share.performClick()
+        menu.performClick()
+        compose.runOnIdle {
+            assertEquals(1, navigations)
+            assertEquals(1, shares)
+            assertEquals(1, menus)
+        }
+    }
+
+    @Test
+    fun readOnlyAndLoadErrorDetailKeepTheMenuReachable() {
+        val state =
+            mutableStateOf<UiState<ExerciseRecord>>(
+                UiState.Success(record(syncPending = false).copy(canModify = false)),
+            )
+        var menus = 0
+        compose.setContent {
+            AppTheme {
+                ExerciseDetailScreen(
+                    state = state.value,
+                    onBackClick = {},
+                    onShareClick = {},
+                    onMenuClick = { menus++ },
+                )
+            }
+        }
+        compose.onNodeWithTag("exercise_detail_menu").assertIsEnabled().performClick()
+        compose.runOnIdle {
+            assertEquals(1, menus)
+            state.value = UiState.Error(Failure.NetworkError)
+        }
+        compose.onNodeWithTag("exercise_detail_menu").assertIsEnabled().performClick()
+        compose.runOnIdle { assertEquals(2, menus) }
     }
 
     private fun retryEligible(
@@ -292,11 +506,39 @@ class ExerciseRetrySurfaceSmokeTest {
     }
 
     private fun assertListRetryHidden() {
-        onView(withId(R.id.iv_body_retry)).check(matches(withEffectiveVisibility(GONE)))
+        onView(withId(R.id.iv_body_retry))
+            .check(matches(not(isDisplayed())))
+            .check { view, error ->
+                if (error != null) throw error
+                val hidden = requireNotNull(view)
+                assertTrue(hidden.width > 0)
+                assertTrue(hidden.height > 0)
+                assertFalse(hidden.isClickable)
+                assertFalse(hidden.isFocusable)
+                assertFalse(hidden.isEnabled)
+                assertFalse(hidden.isImportantForAccessibility)
+                assertFalse(hidden.performClick())
+            }
+    }
+
+    private fun rowGeometry(
+        recycler: RecyclerView,
+        position: Int,
+    ): List<Int> {
+        val row = requireNotNull(recycler.findViewHolderForAdapterPosition(position)).itemView
+        val title = row.findViewById<TextView>(R.id.exercise_title_tv)
+        assertTrue(title.lineCount > 1)
+        return listOf(row.width, row.height, title.left, title.top, title.width, title.height, title.lineCount)
+    }
+
+    private fun scrollDetailTo(tag: String) {
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToNode(hasTestTag(tag))
     }
 
     private fun assertDetailBody() {
+        scrollDetailTo("exercise_detail_title")
         compose.onNodeWithTag("exercise_detail_title").assertIsDisplayed().assertTextEquals(TITLE)
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToNode(hasText(BODY))
         compose.onNodeWithText(BODY).assertIsDisplayed()
     }
 
