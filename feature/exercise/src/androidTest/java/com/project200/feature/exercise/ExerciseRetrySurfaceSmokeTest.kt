@@ -121,6 +121,8 @@ class ExerciseRetrySurfaceSmokeTest {
             assertEquals(1, navigations)
         }
 
+        device.captureSurface("ui-list-body-retry.png")
+
         listOf(
             retryEligible(validatedInternet = false),
             retryEligible(workerBusy = true),
@@ -200,6 +202,8 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.runOnIdle { assertEquals(1, retries) }
         assertDetailBody()
 
+        device.captureSurface("ui-detail-body-retry.png")
+
         listOf(
             retryEligible(validatedInternet = false),
             retryEligible(workerBusy = true),
@@ -236,9 +240,13 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         assertDetailBody()
+
+        device.captureSurface("ui-detail-remote-deleted.png")
         compose.onNodeWithTag("exercise_remote_discard").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, discards) }
+
+        device.captureSurface("ui-detail-remote-discard-confirm.png")
         compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, discards) }

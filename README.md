@@ -195,7 +195,7 @@
 
 - **로직·저장소**: UseCase·ViewModel 단위 테스트, Robolectric 기반 Room 테스트를 두고 있습니다. JaCoCo 집계 대상은 UseCase·ViewModel입니다.
 - **사용자 흐름**: Maestro 플로우로 로그인 화면, 하단 탭과 콘텐츠, 운동 기록 작성 화면 진입을 검사하도록 구성했습니다. 기기 준비와 실행 조건은 [Maestro 가이드](.maestro/README.md)에 있습니다.
-- **격리 운동 UI smoke**: 프로젝트 `targetSdk`로 빌드한 테스트 APK에서 실제 목록·상세 화면과 클릭을 검사하고, 실패 시 Activity 종료 전 창 상태·스크린샷을 수집합니다. 인증된 E2E 검증을 대체하지 않습니다.
+- **격리 운동 UI smoke**: 프로젝트 `targetSdk`로 빌드한 테스트 APK에서 실제 목록·상세 화면과 클릭을 검사합니다. 테스트용 기록으로 목록 재시도·상세 재시도·원격 삭제 안내·삭제 확인창의 `ui-*.png`를 저장하고, 실패 시 Activity 종료 전 창 상태·스크린샷도 수집합니다. 실제 계정·서버 없이 UI만 캡처하므로 인증된 E2E 검증을 대체하지 않습니다.
 - **CI/CD 구성**: `dev` PR·수동 실행은 배포 없는 검증 전용이고, `dev` push는 debug 검증과 Firebase App Distribution 배포를 수행합니다. `master` push·PR은 release 검증을 수행하며 Google Play 내부 테스트 배포는 `master` push에서만 실행합니다.
 
 [dev 워크플로우](.github/workflows/android-dev-ci.yml) · [master 워크플로우](.github/workflows/android-master-ci-cd.yml)
