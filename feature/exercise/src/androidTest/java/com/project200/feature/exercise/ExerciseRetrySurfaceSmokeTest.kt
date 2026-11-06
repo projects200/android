@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
+import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
@@ -14,12 +15,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -34,11 +39,13 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.espresso.Espresso.onView
 import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
+import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withId
@@ -53,6 +60,7 @@ import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.utils.Failure
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
+import org.hamcrest.Matchers.instanceOf
 import org.hamcrest.Matchers.not
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -61,6 +69,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDateTime
+import com.project200.undabang.presentation.R as PresentationR
 
 /**
  * Real production surfaces hosted by the library's existing Compose test activity.
@@ -220,7 +229,10 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
         compose.runOnIdle { retryVisible.value = retryEligible() }
         scrollDetailTo("exercise_body_retry")
-        compose.onNodeWithTag("exercise_body_retry").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("exercise_body_retry")
+            .assertIsDisplayed()
+            .assertContentDescriptionEquals(compose.activity.getString(R.string.exercise_body_retry))
+            .performClick()
         compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(1, retries) }
         assertDetailBody()
@@ -473,6 +485,141 @@ class ExerciseRetrySurfaceSmokeTest {
         }
         compose.onNodeWithTag("exercise_detail_menu").assertIsEnabled().performClick()
         compose.runOnIdle { assertEquals(2, menus) }
+    }
+
+    @Test
+    fun narrowRemoteActionsShareOneCompactRowAndKeepActuallyDismissesTheNotice() {
+        var discards = 0
+        showRemoteDeletedDetail(onDiscardRemoteClick = { discards++ })
+
+        val keepBounds =
+            assertReadableAction("exercise_remote_keep", compose.activity.getString(R.string.exercise_remote_keep))
+        val discardBounds =
+            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
+        val touchTarget = with(compose.density) { 48.dp.toPx() }
+        assertEquals(keepBounds.top, discardBounds.top, 1f)
+        assertTrue(keepBounds.right <= discardBounds.left)
+        assertTrue(keepBounds.height >= touchTarget - 1f)
+        assertTrue(discardBounds.height >= touchTarget - 1f)
+
+        compose.onNodeWithTag("exercise_remote_keep").performClick()
+        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
+        compose.onNodeWithTag("exercise_remote_discard").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(0, discards) }
+        assertDetailBody()
+    }
+
+    @Test
+    fun narrowDoubleSizeTextWrapsFullRemoteActionsWithoutOverlapAndKeepsThemClickable() {
+        var discards = 0
+        showRemoteDeletedDetail(fontScale = 2f, onDiscardRemoteClick = { discards++ })
+
+        val keepBounds =
+            assertReadableAction("exercise_remote_keep", compose.activity.getString(R.string.exercise_remote_keep))
+        val discardBounds =
+            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
+        val touchTarget = with(compose.density) { 48.dp.toPx() }
+        assertTrue(keepBounds.bottom <= discardBounds.top)
+        assertTrue(keepBounds.height >= touchTarget - 1f)
+        assertTrue(discardBounds.height >= touchTarget - 1f)
+
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, discards) }
+        compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.onNodeWithTag("exercise_remote_keep").performClick()
+        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(0, discards) }
+        assertDetailBody()
+    }
+
+    @Test
+    fun narrowConfirmationShowsTheWholeMessageAndDeleteActionBeforeDiscarding() {
+        var discards = 0
+        showRemoteDeletedDetail(onDiscardRemoteClick = { discards++ })
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        // A Compose Dialog has its own window; narrowing only the screen Box does not constrain it.
+        onView(instanceOf(DialogWindowProvider::class.java))
+            .inRoot(isDialog())
+            .check { view, error ->
+                if (error != null) throw error
+                (view as DialogWindowProvider).window.setLayout(
+                    with(compose.density) { 320.dp.roundToPx() },
+                    WindowManager.LayoutParams.WRAP_CONTENT,
+                )
+            }
+        compose.waitForIdle()
+
+        assertFullyVisibleText(
+            compose.onNodeWithText(
+                compose.activity.getString(R.string.exercise_remote_discard_message),
+                useUnmergedTree = true,
+            ),
+        )
+        val cancelBounds =
+            assertReadableAction("exercise_remote_discard_cancel", compose.activity.getString(R.string.cancel))
+        val confirmBounds =
+            assertReadableAction("exercise_remote_discard_confirm", compose.activity.getString(PresentationR.string.delete))
+        assertTrue(cancelBounds.right <= confirmBounds.left)
+        compose.runOnIdle { assertEquals(0, discards) }
+        compose.onNodeWithTag("exercise_remote_discard_confirm").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, discards) }
+        assertDetailBody()
+    }
+
+    private fun showRemoteDeletedDetail(
+        fontScale: Float = 1f,
+        onDiscardRemoteClick: () -> Unit,
+    ) {
+        compose.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = fontScale)) {
+                AppTheme {
+                    Box(Modifier.width(320.dp).height(480.dp)) {
+                        ExerciseDetailScreen(
+                            state = UiState.Success(record(syncPending = true)),
+                            onBackClick = {},
+                            onShareClick = {},
+                            onMenuClick = {},
+                            remoteDeleted = true,
+                            onDiscardRemoteClick = onDiscardRemoteClick,
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun assertReadableAction(
+        tag: String,
+        text: String,
+    ): Rect {
+        val action = compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled()
+        val label = compose.onNode(hasText(text) and hasAnyAncestor(hasTestTag(tag)), useUnmergedTree = true)
+        assertEquals(1, assertFullyVisibleText(label).lineCount)
+        val actionBounds = action.fetchSemanticsNode().boundsInRoot
+        val labelBounds = label.fetchSemanticsNode().boundsInRoot
+        assertTrue(actionBounds.left <= labelBounds.left)
+        assertTrue(labelBounds.right <= actionBounds.right)
+        assertTrue(actionBounds.top <= labelBounds.top)
+        assertTrue(labelBounds.bottom <= actionBounds.bottom)
+        return actionBounds
+    }
+
+    private fun assertFullyVisibleText(node: SemanticsNodeInteraction): TextLayoutResult {
+        node.assertIsDisplayed()
+        val layouts = mutableListOf<TextLayoutResult>()
+        node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+        val layout = layouts.single()
+        val visibleBounds = node.fetchSemanticsNode().boundsInRoot
+        assertFalse("The complete text must fit without overflow", layout.hasVisualOverflow)
+        assertTrue((0 until layout.lineCount).none { layout.isLineEllipsized(it) })
+        assertEquals(layout.layoutInput.text.length, layout.getLineEnd(layout.lineCount - 1, visibleEnd = true))
+        assertTrue("Text must not be clipped horizontally by its ancestors", layout.size.width <= visibleBounds.width + 1f)
+        assertTrue("Text must not be clipped vertically by its ancestors", layout.size.height <= visibleBounds.height + 1f)
+        return layout
     }
 
     private fun retryEligible(

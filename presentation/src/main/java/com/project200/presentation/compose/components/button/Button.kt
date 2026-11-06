@@ -9,6 +9,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.project200.presentation.compose.theme.ColorGray200
@@ -29,14 +30,16 @@ fun PrimaryButton(
     enabled: Boolean = true,
     isCompact: Boolean = false,
     height: Dp = if (isCompact) 36.dp else 55.dp,
+    containerColor: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     Button(
         onClick = onClick,
         modifier = modifier.height(height),
         colors =
             ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = MaterialTheme.colorScheme.onPrimary,
+                containerColor = containerColor,
+                contentColor = contentColor,
                 disabledContainerColor = ColorGray200,
                 disabledContentColor = ColorWhite300,
             ),

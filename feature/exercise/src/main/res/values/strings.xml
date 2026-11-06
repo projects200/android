@@ -34,7 +34,6 @@
     <string name="exercise_body_retry">기록 전송 다시 시도</string>
     <string name="exercise_body_failure">기록을 전송하지 못했어요</string>
     <string name="exercise_body_failure_description">기록은 이 기기에 저장되어 있어요.</string>
-    <string name="exercise_body_retry_action">다시 전송</string>
     <string name="exercise_remote_deleted">서버에서 삭제된 기록이에요. 이 기기에는 기록이 남아 있어요.</string>
     <string name="exercise_remote_keep">안내 닫기</string>
     <string name="exercise_remote_discard">기기에서 삭제</string>
