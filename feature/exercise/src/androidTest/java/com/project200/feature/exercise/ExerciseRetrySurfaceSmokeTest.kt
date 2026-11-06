@@ -36,7 +36,12 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
+import androidx.compose.ui.text.Paragraph
+import androidx.compose.ui.text.ParagraphIntrinsics
 import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.resolveDefaults
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -70,6 +75,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.time.LocalDateTime
+import kotlin.math.ceil
 import com.project200.undabang.presentation.R as PresentationR
 
 /**
@@ -595,44 +601,72 @@ class ExerciseRetrySurfaceSmokeTest {
         return actionBounds
     }
 
-    private fun assertFullyVisibleText(node: SemanticsNodeInteraction): TextLayoutResult {
+    private fun assertFullyVisibleText(node: SemanticsNodeInteraction) {
         node.assertIsDisplayed()
         val layouts = mutableListOf<TextLayoutResult>()
         node.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
         val layout = layouts.single()
+        val input = layout.layoutInput
+        val ellipsis = input.overflow == TextOverflow.Ellipsis
+        val intrinsics =
+            ParagraphIntrinsics(
+                text = input.text.text,
+                style = resolveDefaults(input.style, input.layoutDirection),
+                density = input.density,
+                fontFamilyResolver = input.fontFamilyResolver,
+            )
+        // Compose 1.6 String Text renders a Paragraph, but its semantics rebuild a MultiParagraph
+        // at the incoming maxWidth. Reconstruct the renderer at the actual measured width instead.
+        // Without soft wrap or ellipsis, retain intrinsic width so real overflow is not reflowed away.
+        val paragraphWidth =
+            if (input.softWrap || ellipsis) {
+                layout.size.width
+            } else {
+                maxOf(layout.size.width, ceil(intrinsics.maxIntrinsicWidth).toInt())
+            }
+        val paragraph =
+            Paragraph(
+                paragraphIntrinsics = intrinsics,
+                constraints = Constraints(maxWidth = paragraphWidth, maxHeight = input.constraints.maxHeight),
+                maxLines = if (!input.softWrap && ellipsis) 1 else input.maxLines.coerceAtLeast(1),
+                ellipsis = ellipsis,
+            )
         val semanticsNode = node.fetchSemanticsNode()
         val visibleBounds = semanticsNode.boundsInRoot
         val lineBounds =
-            (0 until layout.lineCount).map { line ->
+            (0 until paragraph.lineCount).map { line ->
                 Rect(
-                    layout.getLineLeft(line),
-                    layout.getLineTop(line),
-                    layout.getLineRight(line),
-                    layout.getLineBottom(line),
+                    paragraph.getLineLeft(line),
+                    paragraph.getLineTop(line),
+                    paragraph.getLineRight(line),
+                    paragraph.getLineBottom(line),
                 )
             }
         val diagnostics =
             "text=${layout.layoutInput.text.text}, size=${layout.size}, " +
                 "paragraph=${layout.multiParagraph.width}x${layout.multiParagraph.height}, " +
+                "renderedParagraph=${paragraph.width}x${paragraph.height}, " +
                 "didOverflowWidth=${layout.didOverflowWidth}, didOverflowHeight=${layout.didOverflowHeight}, " +
                 "maxLines=${layout.layoutInput.maxLines}, didExceedMaxLines=${layout.multiParagraph.didExceedMaxLines}, " +
+                "renderedDidExceedMaxLines=${paragraph.didExceedMaxLines}, " +
+                "softWrap=${input.softWrap}, overflow=${input.overflow}, constraints=${input.constraints}, " +
                 "lines=$lineBounds, position=${semanticsNode.positionInRoot}, visibleBounds=$visibleBounds"
-        // Compose 1.6's ParagraphLayoutCache.slowCreateTextLayoutResultOrNull rebuilds MultiParagraph
-        // at the incoming maxWidth, but retains the smaller measured size. didOverflowWidth can
-        // therefore report unused paragraph space as overflow; check occupied line bounds instead.
-        assertFalse("The complete text must fit vertically: $diagnostics", layout.didOverflowHeight)
+        assertFalse(
+            "The complete text must fit vertically: $diagnostics",
+            paragraph.didExceedMaxLines || paragraph.height > layout.size.height,
+        )
         assertTrue(
             "The complete text must fit horizontally: $diagnostics",
             lineBounds.all { it.left >= 0f && it.right <= layout.size.width },
         )
         assertTrue(
             "No text may be ellipsized: $diagnostics",
-            (0 until layout.lineCount).none { layout.isLineEllipsized(it) },
+            (0 until paragraph.lineCount).none { paragraph.isLineEllipsized(it) },
         )
         assertEquals(
             "No text may be omitted: $diagnostics",
-            layout.layoutInput.text.length,
-            layout.getLineEnd(layout.lineCount - 1, visibleEnd = true),
+            input.text.length,
+            paragraph.getLineEnd(paragraph.lineCount - 1, visibleEnd = true),
         )
         assertTrue(
             "Text must not be clipped horizontally by its ancestors: $diagnostics",
@@ -652,7 +686,6 @@ class ExerciseRetrySurfaceSmokeTest {
                     boundsInRoot.bottom <= visibleBounds.bottom + 1f
             },
         )
-        return layout
     }
 
     private fun retryEligible(
