@@ -7,6 +7,7 @@ import android.os.ParcelFileDescriptor
 import android.os.PowerManager
 import android.os.SystemClock
 import android.util.Log
+import androidx.test.core.app.takeScreenshot
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.rules.TestRule
 import org.junit.runner.Description
@@ -46,6 +47,19 @@ internal class ExerciseSmokeDevice {
                 }
             }
         }
+
+    fun capturePng(name: String) {
+        // AndroidX redraws every root window (including dialogs) before UiAutomation captures the screen.
+        // It also temporarily enables hardware drawing, which Compose/Espresso may disable while idle.
+        val bitmap = takeScreenshot()
+        try {
+            evidenceFile(name).outputStream().use { output ->
+                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Screenshot encoding failed: $name" }
+            }
+        } finally {
+            bitmap.recycle()
+        }
+    }
 
     private fun awaitReady(
         condition: String,

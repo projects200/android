@@ -126,7 +126,9 @@ class ExerciseRetrySurfaceSmokeTest {
                 )
                 rendered.recycle()
             }
-            .perform(click())
+        compose.waitForIdle()
+        device.capturePng("ui-list-body-retry.png")
+        onView(withId(R.id.iv_body_retry)).perform(click())
         compose.runOnIdle {
             assertEquals(1, retries)
             assertEquals(0, navigations)
@@ -222,6 +224,11 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
         compose.runOnIdle { assertEquals(1, retries) }
         assertDetailBody()
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
+        compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
+        compose.onNodeWithTag("exercise_body_retry").assertIsDisplayed()
+        compose.waitForIdle()
+        device.capturePng("ui-detail-body-retry.png")
 
         listOf(
             retryEligible(validatedInternet = false),
@@ -261,10 +268,19 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         assertDetailBody()
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
+        compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
+        compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
+        compose.onNodeWithTag("exercise_remote_discard").assertIsDisplayed()
+        compose.waitForIdle()
+        device.capturePng("ui-detail-remote-deleted.png")
         scrollDetailTo("exercise_remote_discard")
         compose.onNodeWithTag("exercise_remote_discard").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, discards) }
+        compose.onNodeWithTag("exercise_remote_discard_cancel").assertIsDisplayed()
+        compose.waitForIdle()
+        device.capturePng("ui-detail-remote-discard-confirm.png")
         compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, discards) }
