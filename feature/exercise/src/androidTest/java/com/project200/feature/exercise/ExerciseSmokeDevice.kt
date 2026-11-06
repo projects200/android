@@ -103,20 +103,15 @@ internal class ExerciseSmokeDevice {
         }
         if (screenshot && activity != null) {
             bestEffort(phase) {
-                captureSurface("$prefix.png")
+                val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) { "No device screenshot returned" }
+                try {
+                    evidenceFile("$prefix.png").outputStream().use { output ->
+                        check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Screenshot encoding failed" }
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
             }
-        }
-    }
-
-    fun captureSurface(name: String) {
-        instrumentation.waitForIdleSync()
-        val bitmap = checkNotNull(instrumentation.uiAutomation.takeScreenshot()) { "No device screenshot returned" }
-        try {
-            evidenceFile(name).outputStream().use { output ->
-                check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Screenshot encoding failed" }
-            }
-        } finally {
-            bitmap.recycle()
         }
     }
 
