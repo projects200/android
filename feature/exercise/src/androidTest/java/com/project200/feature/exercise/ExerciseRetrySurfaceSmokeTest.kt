@@ -17,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsNodeInteraction
@@ -276,33 +277,33 @@ class ExerciseRetrySurfaceSmokeTest {
                 )
             }
         }
+        scrollDetailTo("exercise_remote_deleted")
         compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
-        compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         assertDetailBody()
         compose.onNodeWithTag("exercise_detail_scroll").performScrollToIndex(0)
         compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
-        compose.onNodeWithTag("exercise_remote_keep").assertIsDisplayed()
         compose.onNodeWithTag("exercise_remote_discard").assertIsDisplayed()
         compose.waitForIdle()
         device.capturePng("ui-detail-remote-deleted.png")
-        scrollDetailTo("exercise_remote_discard")
-        compose.onNodeWithTag("exercise_remote_discard").performClick()
-        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
-        compose.runOnIdle { assertEquals(0, discards) }
-        compose.onNodeWithTag("exercise_remote_discard_cancel").assertIsDisplayed()
-        compose.waitForIdle()
-        device.capturePng("ui-detail-remote-discard-confirm.png")
-        compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
-        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
-        compose.runOnIdle { assertEquals(0, discards) }
-        assertDetailBody()
-        scrollDetailTo("exercise_remote_keep")
-        compose.onNodeWithTag("exercise_remote_keep").performClick()
-        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
-        compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
-        compose.runOnIdle { assertEquals(0, discards) }
-        assertDetailBody()
+        repeat(2) { attempt ->
+            scrollDetailTo("exercise_remote_discard")
+            compose.onNodeWithTag("exercise_remote_discard").assertIsDisplayed().assertIsEnabled().performClick()
+            compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+            compose.runOnIdle { assertEquals(0, discards) }
+            if (attempt == 0) {
+                compose.onNodeWithTag("exercise_remote_discard_cancel").assertIsDisplayed()
+                compose.waitForIdle()
+                device.capturePng("ui-detail-remote-discard-confirm.png")
+            }
+            compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
+            compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+            scrollDetailTo("exercise_remote_deleted")
+            compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
+            compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
+            compose.runOnIdle { assertEquals(0, discards) }
+            assertDetailBody()
+        }
     }
 
     @Test
@@ -488,48 +489,33 @@ class ExerciseRetrySurfaceSmokeTest {
     }
 
     @Test
-    fun narrowRemoteActionsShareOneCompactRowAndKeepActuallyDismissesTheNotice() {
+    fun narrowRemoteNoticeAndDeletionTextRemainReadableAndCancelPreservesTheOriginal() {
         var discards = 0
         showRemoteDeletedDetail(onDiscardRemoteClick = { discards++ })
 
-        val keepBounds =
-            assertReadableAction("exercise_remote_keep", compose.activity.getString(R.string.exercise_remote_keep))
-        val discardBounds =
-            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
-        val touchTarget = with(compose.density) { 48.dp.toPx() }
-        assertEquals(keepBounds.top, discardBounds.top, 1f)
-        assertTrue(keepBounds.right <= discardBounds.left)
-        assertTrue(keepBounds.height >= touchTarget - 1f)
-        assertTrue(discardBounds.height >= touchTarget - 1f)
-
-        compose.onNodeWithTag("exercise_remote_keep").performClick()
-        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
-        compose.onNodeWithTag("exercise_remote_discard").assertDoesNotExist()
-        compose.runOnIdle { assertEquals(0, discards) }
-        assertDetailBody()
-    }
-
-    @Test
-    fun narrowDoubleSizeTextWrapsFullRemoteActionsWithoutOverlapAndKeepsThemClickable() {
-        var discards = 0
-        showRemoteDeletedDetail(fontScale = 2f, onDiscardRemoteClick = { discards++ })
-
-        val keepBounds =
-            assertReadableAction("exercise_remote_keep", compose.activity.getString(R.string.exercise_remote_keep))
-        val discardBounds =
-            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
-        val touchTarget = with(compose.density) { 48.dp.toPx() }
-        assertTrue(keepBounds.bottom <= discardBounds.top)
-        assertTrue(keepBounds.height >= touchTarget - 1f)
-        assertTrue(discardBounds.height >= touchTarget - 1f)
-
+        assertReadableRemoteNoticeAndAction()
         compose.onNodeWithTag("exercise_remote_discard").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, discards) }
         compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
-        compose.onNodeWithTag("exercise_remote_keep").performClick()
-        compose.onNodeWithTag("exercise_remote_deleted").assertDoesNotExist()
+        assertReadableRemoteNoticeAndAction()
+        compose.runOnIdle { assertEquals(0, discards) }
+        assertDetailBody()
+    }
+
+    @Test
+    fun narrowDoubleSizeTextKeepsTheNoticeAndDeletionActionReadableWithoutOverlap() {
+        var discards = 0
+        showRemoteDeletedDetail(fontScale = 2f, onDiscardRemoteClick = { discards++ })
+
+        assertReadableRemoteNoticeAndAction()
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, discards) }
+        compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        assertReadableRemoteNoticeAndAction()
         compose.runOnIdle { assertEquals(0, discards) }
         assertDetailBody()
     }
@@ -592,14 +578,32 @@ class ExerciseRetrySurfaceSmokeTest {
         }
     }
 
+    private fun assertReadableRemoteNoticeAndAction() {
+        scrollDetailTo("exercise_remote_deleted")
+        val notice = compose.onNodeWithTag("exercise_remote_deleted")
+        assertFullyVisibleText(notice)
+        val noticeBounds = notice.fetchSemanticsNode().boundsInRoot
+        val discardBounds =
+            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
+        assertTrue(noticeBounds.right <= discardBounds.left)
+        assertTrue(noticeBounds.top < discardBounds.bottom)
+        assertTrue(discardBounds.top < noticeBounds.bottom)
+        val touchTarget = with(compose.density) { 48.dp.toPx() }
+        assertTrue(discardBounds.width >= touchTarget - 1f)
+        assertTrue(discardBounds.height >= touchTarget - 1f)
+    }
+
     private fun assertReadableAction(
         tag: String,
         text: String,
     ): Rect {
         val action = compose.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled()
         val label = compose.onNode(hasText(text) and hasAnyAncestor(hasTestTag(tag)), useUnmergedTree = true)
-        assertEquals(1, assertFullyVisibleText(label).lineCount)
-        val actionBounds = action.fetchSemanticsNode().boundsInRoot
+        assertFullyVisibleText(label)
+        val actionNode = action.fetchSemanticsNode()
+        assertTrue(actionNode.config.contains(SemanticsActions.OnClick))
+        assertEquals(Role.Button, actionNode.config[SemanticsProperties.Role])
+        val actionBounds = actionNode.boundsInRoot
         val labelBounds = label.fetchSemanticsNode().boundsInRoot
         assertTrue(actionBounds.left <= labelBounds.left)
         assertTrue(labelBounds.right <= actionBounds.right)

@@ -2,11 +2,9 @@ package com.project200.feature.exercise.detail
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -16,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,15 +41,16 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.ExerciseRecord
-import com.project200.presentation.compose.components.button.PrimaryButton
-import com.project200.presentation.compose.components.button.SecondaryButton
 import com.project200.presentation.compose.components.feedback.UndabangAlertDialog
 import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.components.layout.UndabangTopBar
@@ -64,6 +64,7 @@ import com.project200.presentation.compose.theme.ColorWhite100
 import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.contentRegular
+import com.project200.presentation.compose.theme.subtext10
 import com.project200.presentation.compose.theme.subtext14
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
@@ -143,7 +144,7 @@ fun ExerciseDetailScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun DetailContent(
     record: ExerciseRecord,
@@ -153,7 +154,6 @@ private fun DetailContent(
     onRetryClick: () -> Unit = {},
     onDiscardRemoteClick: () -> Unit = {},
 ) {
-    var keepRemoteOriginal by remember(remoteDeleted) { mutableStateOf(false) }
     // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다
     var confirmDiscard by remember(remoteDeleted) { mutableStateOf<(() -> Unit)?>(null) }
     if (remoteDeleted && confirmDiscard != null) {
@@ -239,13 +239,13 @@ private fun DetailContent(
                         Text(
                             text = stringResource(R.string.exercise_body_failure),
                             modifier = Modifier.testTag("exercise_body_failure"),
-                            style = MaterialTheme.typography.contentBold,
-                            color = ColorBlack,
+                            style = MaterialTheme.typography.subtext10.copy(fontWeight = FontWeight.Bold),
+                            color = ColorGray100,
                         )
                         Spacer(Modifier.height(8.dp))
                         Text(
                             text = stringResource(R.string.exercise_body_failure_description),
-                            style = MaterialTheme.typography.subtext14,
+                            style = MaterialTheme.typography.subtext10,
                             color = ColorGray100,
                         )
                     }
@@ -262,38 +262,32 @@ private fun DetailContent(
                 }
             }
         }
-        if (remoteDeleted && !keepRemoteOriginal) {
+        if (remoteDeleted) {
             item(key = "remote_deleted") {
-                Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Text(
                         text = stringResource(R.string.exercise_remote_deleted),
-                        modifier = Modifier.testTag("exercise_remote_deleted"),
+                        modifier = Modifier.weight(1f).testTag("exercise_remote_deleted"),
                         style = MaterialTheme.typography.subtext14,
                         color = ColorGray100,
                     )
-                    Spacer(Modifier.height(12.dp))
-                    FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    Spacer(Modifier.width(8.dp))
+                    Box(
+                        modifier =
+                            Modifier
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                                .testTag("exercise_remote_discard")
+                                .clickable(role = Role.Button) { confirmDiscard = onDiscardRemoteClick },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        SecondaryButton(
-                            text = stringResource(R.string.exercise_remote_keep),
-                            onClick = { keepRemoteOriginal = true },
-                            modifier = Modifier.testTag("exercise_remote_keep"),
-                            isCompact = true,
-                            height = 48.dp,
-                            growForContent = true,
-                        )
-                        PrimaryButton(
+                        Text(
                             text = stringResource(R.string.exercise_remote_discard),
-                            onClick = { confirmDiscard = onDiscardRemoteClick },
-                            modifier = Modifier.testTag("exercise_remote_discard"),
-                            isCompact = true,
-                            height = 48.dp,
-                            growForContent = true,
-                            containerColor = ColorErrorRed,
-                            contentColor = ColorWhite300,
+                            style = MaterialTheme.typography.subtext14,
+                            color = ColorErrorRed,
+                            textDecoration = TextDecoration.Underline,
                         )
                     }
                 }
