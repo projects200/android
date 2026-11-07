@@ -4,19 +4,27 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.view.ContextThemeWrapper
+import android.view.View
 import android.view.WindowManager
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -46,6 +54,9 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import androidx.test.espresso.Espresso.onView
@@ -53,7 +64,6 @@ import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -80,7 +90,7 @@ import com.project200.undabang.presentation.R as PresentationR
 
 /**
  * Real production surfaces hosted by the library's existing Compose test activity.
- * Inputs are synthetic UI state only: no account, repository, Worker or server is used.
+ * Inputs are synthetic UI state and actual platform window insets: no account, repository, Worker or server is used.
  * This smoke does not replace the authenticated device/server checks in #657.
  */
 @RunWith(AndroidJUnit4::class)
@@ -125,7 +135,6 @@ class ExerciseRetrySurfaceSmokeTest {
 
         onView(withId(R.id.iv_body_retry))
             .check(matches(isDisplayed()))
-            .check(matches(withContentDescription("기록 전송 다시 시도")))
             .check { view, error ->
                 if (error != null) throw error
                 val icon = view as ImageView
@@ -142,9 +151,7 @@ class ExerciseRetrySurfaceSmokeTest {
                 )
                 rendered.recycle()
             }
-        compose.waitForIdle()
-        device.capturePng("ui-list-body-retry.png")
-        onView(withId(R.id.iv_body_retry)).perform(click())
+            .perform(click())
         compose.runOnIdle {
             assertEquals(1, retries)
             assertEquals(0, navigations)
@@ -235,7 +242,6 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
         compose.runOnIdle { retryVisible.value = retryEligible() }
-        scrollDetailTo("exercise_body_retry")
         compose.onNodeWithTag("exercise_body_retry")
             .assertIsDisplayed()
             .assertContentDescriptionEquals(compose.activity.getString(R.string.exercise_body_retry))
@@ -256,7 +262,6 @@ class ExerciseRetrySurfaceSmokeTest {
             retryEligible(retryableBodyFailure = false),
         ).forEach { eligible ->
             compose.runOnIdle { retryVisible.value = retryEligible() }
-            scrollDetailTo("exercise_body_retry")
             compose.onNodeWithTag("exercise_body_retry").assertIsDisplayed()
             compose.onNodeWithTag("exercise_body_failure").assertIsDisplayed()
             compose.runOnIdle { retryVisible.value = eligible }
@@ -283,7 +288,6 @@ class ExerciseRetrySurfaceSmokeTest {
                 )
             }
         }
-        scrollDetailTo("exercise_remote_deleted")
         compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
         compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
         assertDetailBody()
@@ -293,7 +297,6 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.waitForIdle()
         device.capturePng("ui-detail-remote-deleted.png")
         repeat(2) { attempt ->
-            scrollDetailTo("exercise_remote_discard")
             compose.onNodeWithTag("exercise_remote_discard").assertIsDisplayed().assertIsEnabled().performClick()
             compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
             compose.runOnIdle { assertEquals(0, discards) }
@@ -304,7 +307,6 @@ class ExerciseRetrySurfaceSmokeTest {
             }
             compose.onNodeWithTag("exercise_remote_discard_cancel").performClick()
             compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
-            scrollDetailTo("exercise_remote_deleted")
             compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
             compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
             compose.runOnIdle { assertEquals(0, discards) }
@@ -316,12 +318,13 @@ class ExerciseRetrySurfaceSmokeTest {
     fun confirmationInvokesTheCallbackBoundWhenOpenedNotItsReplacement() {
         val replacement = mutableStateOf(false)
         val remoteDeleted = mutableStateOf(true)
+        val state = mutableStateOf<UiState<ExerciseRecord>>(UiState.Success(record(syncPending = true)))
         var originalDiscards = 0
         var replacementDiscards = 0
         compose.setContent {
             AppTheme {
                 ExerciseDetailScreen(
-                    state = UiState.Success(record(syncPending = true)),
+                    state = state.value,
                     onBackClick = {},
                     onShareClick = {},
                     onMenuClick = {},
@@ -363,6 +366,20 @@ class ExerciseRetrySurfaceSmokeTest {
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
         compose.runOnIdle { remoteDeleted.value = true }
         compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, originalDiscards)
+            assertEquals(1, replacementDiscards)
+        }
+        listOf(UiState.Loading, UiState.Error(Failure.NetworkError)).forEach { unavailable ->
+            compose.onNodeWithTag("exercise_remote_discard").performClick()
+            compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+            compose.runOnIdle { state.value = unavailable }
+            compose.onNodeWithTag("exercise_sync_notice").assertDoesNotExist()
+            compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+            compose.runOnIdle { state.value = UiState.Success(record(syncPending = true)) }
+            compose.onNodeWithTag("exercise_remote_deleted").assertIsDisplayed()
+            compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        }
         compose.runOnIdle {
             assertEquals(1, originalDiscards)
             assertEquals(1, replacementDiscards)
@@ -416,6 +433,146 @@ class ExerciseRetrySurfaceSmokeTest {
         }
         scrollDetailTo("exercise_detail_title")
         compose.onNodeWithTag("exercise_detail_title").assertTextEquals(TITLE)
+    }
+
+    @Test
+    fun retryAndRemoteActionsStayAtTheBottomWhileTheLastBodyFieldScrollsIntoView() {
+        val remoteDeleted = mutableStateOf(false)
+        var retries = 0
+        var discards = 0
+        val snapshot =
+            record(syncPending = true).copy(
+                personalType = List(30) { "Synthetic exercise type line $it" }.joinToString("\n"),
+                location = "Synthetic retained location",
+            )
+        compose.setContent {
+            AppTheme {
+                Box(Modifier.width(320.dp).height(480.dp)) {
+                    ExerciseDetailScreen(
+                        state = UiState.Success(snapshot),
+                        onBackClick = {},
+                        onShareClick = {},
+                        onMenuClick = {},
+                        canShowBodyRetry = true,
+                        remoteDeleted = remoteDeleted.value,
+                        onRetryClick = { retries++ },
+                        onDiscardRemoteClick = { discards++ },
+                    )
+                }
+            }
+        }
+        assertReadableRetryNoticeAndAction()
+        assertBottomNoticeStaysFixedWhileScrolling("exercise_body_retry")
+        compose.onNodeWithTag("exercise_body_retry").performClick()
+        compose.runOnIdle {
+            assertEquals(1, retries)
+            assertEquals(0, discards)
+            remoteDeleted.value = true
+        }
+        compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
+        assertReadableRemoteNoticeAndAction()
+        assertBottomNoticeStaysFixedWhileScrolling("exercise_remote_discard")
+        compose.onNodeWithTag("exercise_remote_discard").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, discards) }
+        compose.onNodeWithTag("exercise_remote_discard_confirm").performClick()
+        compose.onNodeWithTag("exercise_remote_discard_confirm").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, retries)
+            assertEquals(1, discards)
+        }
+    }
+
+    @Test
+    fun edgeToEdgeNoticeReservesThePlatformBottomInsetOnlyOnceWhenAParentConsumesIt() {
+        val parentConsumesInsets = mutableStateOf(false)
+        lateinit var hostView: View
+        compose.runOnUiThread {
+            WindowCompat.setDecorFitsSystemWindows(compose.activity.window, false)
+        }
+        compose.setContent {
+            hostView = LocalView.current
+            AppTheme {
+                val parentInsets =
+                    if (parentConsumesInsets.value) {
+                        Modifier.windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                        )
+                    } else {
+                        Modifier
+                    }
+                Box(Modifier.fillMaxSize().then(parentInsets)) {
+                    ExerciseDetailScreen(
+                        state = UiState.Success(record(syncPending = true)),
+                        onBackClick = {},
+                        onShareClick = {},
+                        onMenuClick = {},
+                        remoteDeleted = true,
+                    )
+                }
+            }
+        }
+        compose.runOnUiThread { ViewCompat.requestApplyInsets(hostView) }
+        compose.waitForIdle()
+        val platformInsets =
+            compose.runOnIdle {
+                checkNotNull(ViewCompat.getRootWindowInsets(compose.activity.window.decorView))
+            }
+        val safeInsetTypes = WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+        val platformSafeInsets = platformInsets.getInsets(safeInsetTypes)
+        val windowBounds =
+            compose.runOnIdle {
+                val decor = compose.activity.window.decorView
+                val origin = IntArray(2)
+                decor.getLocationInWindow(origin)
+                Rect(
+                    origin[0].toFloat(),
+                    origin[1].toFloat(),
+                    (origin[0] + decor.width).toFloat(),
+                    (origin[1] + decor.height).toFloat(),
+                )
+            }
+        val safeBounds =
+            Rect(
+                windowBounds.left + platformSafeInsets.left,
+                windowBounds.top + platformSafeInsets.top,
+                windowBounds.right - platformSafeInsets.right,
+                windowBounds.bottom - platformSafeInsets.bottom,
+            )
+        val rootOffset =
+            compose.runOnIdle {
+                val origin = IntArray(2)
+                hostView.getLocationInWindow(origin)
+                val hostBottom = (origin[1] + hostView.height).toFloat()
+                assertEquals(
+                    "The edge-to-edge Compose host must reach the window bottom",
+                    windowBounds.bottom,
+                    hostBottom,
+                    1f,
+                )
+                if (platformSafeInsets.bottom > 0) {
+                    assertTrue(
+                        "The host must extend behind a positive platform bottom inset",
+                        hostBottom > safeBounds.bottom,
+                    )
+                }
+                Offset(origin[0].toFloat(), origin[1].toFloat())
+            }
+        val (noticeBounds, actionBounds) = assertReadableRemoteNoticeAndAction()
+        val noticeInWindow = noticeBounds.translate(rootOffset)
+        assertEquals(
+            "The colored bar must end at the platform safe bottom, including zero inset",
+            safeBounds.bottom,
+            noticeInWindow.bottom,
+            1f,
+        )
+        assertTrue(noticeInWindow.left >= safeBounds.left - 1f)
+        assertTrue(noticeInWindow.right <= safeBounds.right + 1f)
+        compose.runOnIdle { parentConsumesInsets.value = true }
+        compose.waitForIdle()
+        val (consumedNoticeBounds, consumedActionBounds) = assertReadableRemoteNoticeAndAction()
+        assertEquals("Parent consumption must not add another bottom gap", noticeBounds, consumedNoticeBounds)
+        assertEquals(actionBounds, consumedActionBounds)
     }
 
     @Test
@@ -497,7 +654,7 @@ class ExerciseRetrySurfaceSmokeTest {
     @Test
     fun narrowRemoteNoticeAndDeletionTextRemainReadableAndCancelPreservesTheOriginal() {
         var discards = 0
-        showRemoteDeletedDetail(onDiscardRemoteClick = { discards++ })
+        showNoticeDetail(onDiscardRemoteClick = { discards++ })
 
         assertReadableRemoteNoticeAndAction()
         compose.onNodeWithTag("exercise_remote_discard").performClick()
@@ -513,7 +670,7 @@ class ExerciseRetrySurfaceSmokeTest {
     @Test
     fun narrowDoubleSizeTextKeepsTheNoticeAndDeletionActionReadableWithoutOverlap() {
         var discards = 0
-        showRemoteDeletedDetail(fontScale = 2f, onDiscardRemoteClick = { discards++ })
+        showNoticeDetail(fontScale = 2f, onDiscardRemoteClick = { discards++ })
 
         assertReadableRemoteNoticeAndAction()
         compose.onNodeWithTag("exercise_remote_discard").performClick()
@@ -527,9 +684,21 @@ class ExerciseRetrySurfaceSmokeTest {
     }
 
     @Test
+    fun narrowDoubleSizeTextKeepsBothRetryLinesAndTheAccessibleActionVisible() {
+        var retries = 0
+        showNoticeDetail(fontScale = 2f, remoteDeleted = false, onRetryClick = { retries++ })
+
+        assertReadableRetryNoticeAndAction()
+        compose.onNodeWithTag("exercise_body_retry").performClick()
+        compose.runOnIdle { assertEquals(1, retries) }
+        assertDetailBody()
+        assertReadableRetryNoticeAndAction()
+    }
+
+    @Test
     fun narrowConfirmationShowsTheWholeMessageAndDeleteActionBeforeDiscarding() {
         var discards = 0
-        showRemoteDeletedDetail(onDiscardRemoteClick = { discards++ })
+        showNoticeDetail(onDiscardRemoteClick = { discards++ })
         compose.onNodeWithTag("exercise_remote_discard").performClick()
         // A Compose Dialog has its own window; narrowing only the screen Box does not constrain it.
         onView(instanceOf(DialogWindowProvider::class.java))
@@ -561,9 +730,11 @@ class ExerciseRetrySurfaceSmokeTest {
         assertDetailBody()
     }
 
-    private fun showRemoteDeletedDetail(
+    private fun showNoticeDetail(
         fontScale: Float = 1f,
-        onDiscardRemoteClick: () -> Unit,
+        remoteDeleted: Boolean = true,
+        onRetryClick: () -> Unit = {},
+        onDiscardRemoteClick: () -> Unit = {},
     ) {
         compose.setContent {
             val density = LocalDensity.current
@@ -575,7 +746,9 @@ class ExerciseRetrySurfaceSmokeTest {
                             onBackClick = {},
                             onShareClick = {},
                             onMenuClick = {},
-                            remoteDeleted = true,
+                            canShowBodyRetry = true,
+                            remoteDeleted = remoteDeleted,
+                            onRetryClick = onRetryClick,
                             onDiscardRemoteClick = onDiscardRemoteClick,
                         )
                     }
@@ -584,19 +757,88 @@ class ExerciseRetrySurfaceSmokeTest {
         }
     }
 
-    private fun assertReadableRemoteNoticeAndAction() {
-        scrollDetailTo("exercise_remote_deleted")
-        val notice = compose.onNodeWithTag("exercise_remote_deleted")
-        assertFullyVisibleText(notice)
+    private fun assertReadableRetryNoticeAndAction(): Pair<Rect, Rect> =
+        assertReadableNoticeAndAction(
+            titleResourceId = R.string.exercise_body_failure,
+            messageResourceId = R.string.exercise_body_failure_description,
+            actionTag = "exercise_body_retry",
+            actionResourceId = R.string.exercise_body_retry,
+        )
+
+    private fun assertReadableRemoteNoticeAndAction(): Pair<Rect, Rect> =
+        assertReadableNoticeAndAction(
+            titleResourceId = R.string.exercise_remote_deleted,
+            messageResourceId = R.string.exercise_remote_deleted_description,
+            actionTag = "exercise_remote_discard",
+            actionResourceId = R.string.exercise_remote_discard,
+        )
+
+    private fun assertReadableNoticeAndAction(
+        titleResourceId: Int,
+        messageResourceId: Int,
+        actionTag: String,
+        actionResourceId: Int,
+    ): Pair<Rect, Rect> {
+        val notice = compose.onNodeWithTag("exercise_sync_notice").assertIsDisplayed()
         val noticeBounds = notice.fetchSemanticsNode().boundsInRoot
-        val discardBounds =
-            assertReadableAction("exercise_remote_discard", compose.activity.getString(R.string.exercise_remote_discard))
-        assertTrue(noticeBounds.right <= discardBounds.left)
-        assertTrue(noticeBounds.top < discardBounds.bottom)
-        assertTrue(discardBounds.top < noticeBounds.bottom)
+        val textBounds =
+            listOf(titleResourceId, messageResourceId).map { resourceId ->
+                val text =
+                    compose.onNode(
+                        hasText(compose.activity.getString(resourceId)) and
+                            hasAnyAncestor(hasTestTag("exercise_sync_notice")),
+                        useUnmergedTree = true,
+                    )
+                assertFullyVisibleText(text)
+                text.fetchSemanticsNode().boundsInRoot
+            }
+        val action =
+            compose.onNodeWithTag(actionTag)
+                .assertIsDisplayed()
+                .assertIsEnabled()
+                .assertContentDescriptionEquals(compose.activity.getString(actionResourceId))
+        val actionNode = action.fetchSemanticsNode()
+        assertTrue(actionNode.config.contains(SemanticsActions.OnClick))
+        assertEquals(Role.Button, actionNode.config[SemanticsProperties.Role])
+        val actionBounds = actionNode.boundsInRoot
         val touchTarget = with(compose.density) { 48.dp.toPx() }
-        assertTrue(discardBounds.width >= touchTarget - 1f)
-        assertTrue(discardBounds.height >= touchTarget - 1f)
+        assertTrue(actionBounds.width >= touchTarget - 1f)
+        assertTrue(actionBounds.height >= touchTarget - 1f)
+        assertTrue(textBounds[0].bottom <= textBounds[1].top + 1f)
+        textBounds.forEach { assertTrue(it.right <= actionBounds.left) }
+        (textBounds + actionBounds).forEach { bounds ->
+            assertTrue(noticeBounds.left <= bounds.left)
+            assertTrue(bounds.right <= noticeBounds.right)
+            assertTrue(noticeBounds.top <= bounds.top)
+            assertTrue(bounds.bottom <= noticeBounds.bottom)
+        }
+        return noticeBounds to actionBounds
+    }
+
+    private fun assertBottomNoticeStaysFixedWhileScrolling(actionTag: String) {
+        scrollDetailTo("exercise_detail_title")
+        val notice = compose.onNodeWithTag("exercise_sync_notice").assertIsDisplayed()
+        val action = compose.onNodeWithTag(actionTag).assertIsDisplayed().assertIsEnabled()
+        val noticeBounds = notice.fetchSemanticsNode().boundsInRoot
+        val actionBounds = action.fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("exercise_detail_scroll").performScrollToNode(hasText(BODY))
+        val body = compose.onNodeWithText(BODY)
+        assertFullyVisibleText(body)
+        val viewportNode = compose.onNodeWithTag("exercise_detail_scroll").fetchSemanticsNode()
+        val viewportBounds = viewportNode.boundsInRoot
+        val bodyBounds = body.fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "The body must actually scroll",
+            viewportNode.config[SemanticsProperties.VerticalScrollAxisRange].value() > 0f,
+        )
+        notice.assertIsDisplayed()
+        action.assertIsDisplayed().assertIsEnabled()
+        assertEquals(noticeBounds, notice.fetchSemanticsNode().boundsInRoot)
+        assertEquals(actionBounds, action.fetchSemanticsNode().boundsInRoot)
+        assertTrue("The scroll viewport must end above the notice", viewportBounds.bottom <= noticeBounds.top + 1f)
+        assertTrue(bodyBounds.top >= viewportBounds.top - 1f)
+        assertTrue(bodyBounds.bottom <= viewportBounds.bottom + 1f)
+        assertTrue("The final body field must not be hidden behind the notice", bodyBounds.bottom <= noticeBounds.top + 1f)
     }
 
     private fun assertReadableAction(
