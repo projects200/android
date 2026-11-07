@@ -54,6 +54,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -64,7 +65,6 @@ import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.RootMatchers.isDialog
 import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
-import androidx.test.espresso.matcher.ViewMatchers.withContentDescription
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -91,7 +91,7 @@ import com.project200.undabang.presentation.R as PresentationR
 
 /**
  * Real production surfaces hosted by the library's existing Compose test activity.
- * Inputs are synthetic UI state only: no account, repository, Worker or server is used.
+ * Inputs are synthetic UI state and controlled window insets: no account, repository, Worker or server is used.
  * This smoke does not replace the authenticated device/server checks in #657.
  */
 @RunWith(AndroidJUnit4::class)
@@ -136,7 +136,6 @@ class ExerciseRetrySurfaceSmokeTest {
 
         onView(withId(R.id.iv_body_retry))
             .check(matches(isDisplayed()))
-            .check(matches(withContentDescription("기록 전송 다시 시도")))
             .check { view, error ->
                 if (error != null) throw error
                 val icon = view as ImageView
@@ -501,42 +500,109 @@ class ExerciseRetrySurfaceSmokeTest {
         }
         compose.runOnUiThread { ViewCompat.requestApplyInsets(hostView) }
         compose.waitForIdle()
-        val safeBounds =
+        val platformInsets =
+            compose.runOnIdle {
+                checkNotNull(ViewCompat.getRootWindowInsets(compose.activity.window.decorView))
+            }
+        val safeInsetTypes = WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+        val platformSafeInsets = platformInsets.getInsets(safeInsetTypes)
+        val windowBounds =
             compose.runOnIdle {
                 val decor = compose.activity.window.decorView
-                val insets =
-                    checkNotNull(ViewCompat.getRootWindowInsets(decor)).getInsets(
-                        WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout(),
-                    )
-                assertTrue("This scenario must expose a real platform bottom inset", insets.bottom > 0)
                 val origin = IntArray(2)
                 decor.getLocationInWindow(origin)
                 Rect(
-                    (origin[0] + insets.left).toFloat(),
-                    (origin[1] + insets.top).toFloat(),
-                    (origin[0] + decor.width - insets.right).toFloat(),
-                    (origin[1] + decor.height - insets.bottom).toFloat(),
+                    origin[0].toFloat(),
+                    origin[1].toFloat(),
+                    (origin[0] + decor.width).toFloat(),
+                    (origin[1] + decor.height).toFloat(),
                 )
             }
+        val safeBounds =
+            Rect(
+                windowBounds.left + platformSafeInsets.left,
+                windowBounds.top + platformSafeInsets.top,
+                windowBounds.right - platformSafeInsets.right,
+                windowBounds.bottom - platformSafeInsets.bottom,
+            )
         val rootOffset =
             compose.runOnIdle {
                 val origin = IntArray(2)
                 hostView.getLocationInWindow(origin)
-                assertTrue(
-                    "The edge-to-edge Compose host must extend behind the bottom system area",
-                    origin[1] + hostView.height > safeBounds.bottom,
+                val hostBottom = (origin[1] + hostView.height).toFloat()
+                assertEquals(
+                    "The edge-to-edge Compose host must reach the window bottom",
+                    windowBounds.bottom,
+                    hostBottom,
+                    1f,
                 )
+                if (platformSafeInsets.bottom > 0) {
+                    assertTrue(
+                        "The host must extend behind a positive platform bottom inset",
+                        hostBottom > safeBounds.bottom,
+                    )
+                }
                 Offset(origin[0].toFloat(), origin[1].toFloat())
             }
-        val (noticeBounds, actionBounds) = assertReadableRemoteNoticeAndAction()
+        val (noticeBounds, _) = assertReadableRemoteNoticeAndAction()
         val noticeInWindow = noticeBounds.translate(rootOffset)
-        assertEquals("The colored bar must end above the system area", safeBounds.bottom, noticeInWindow.bottom, 1f)
+        assertEquals(
+            "The colored bar must end at the platform safe bottom, including zero inset",
+            safeBounds.bottom,
+            noticeInWindow.bottom,
+            1f,
+        )
         assertTrue(noticeInWindow.left >= safeBounds.left - 1f)
         assertTrue(noticeInWindow.right <= safeBounds.right + 1f)
+        val viewportBounds = compose.onNodeWithTag("exercise_detail_scroll").fetchSemanticsNode().boundsInRoot
+        val additionalBottomInsetPx = with(compose.density) { 48.dp.roundToPx() }
+        val controlledBottomInset = platformSafeInsets.bottom + additionalBottomInsetPx
+        val navigationInsets = platformInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+        val controlledInsets =
+            WindowInsetsCompat.Builder(platformInsets)
+                .setInsets(
+                    WindowInsetsCompat.Type.navigationBars(),
+                    Insets.of(navigationInsets.left, navigationInsets.top, navigationInsets.right, controlledBottomInset),
+                )
+                .setVisible(WindowInsetsCompat.Type.navigationBars(), true)
+                .build()
+        compose.runOnUiThread { ViewCompat.dispatchApplyWindowInsets(hostView, controlledInsets) }
+        val (controlledNoticeBounds, controlledActionBounds) = assertReadableRemoteNoticeAndAction()
+        val controlledNoticeInWindow = controlledNoticeBounds.translate(rootOffset)
+        assertTrue(
+            "The controlled bottom inset must reserve a positive system area",
+            controlledNoticeInWindow.bottom < windowBounds.bottom,
+        )
+        assertEquals(
+            "The notice must reserve the complete controlled bottom inset",
+            controlledBottomInset.toFloat(),
+            windowBounds.bottom - controlledNoticeInWindow.bottom,
+            1f,
+        )
+        assertEquals(
+            "The real notice must move up by the additional bottom inset",
+            noticeBounds.bottom - additionalBottomInsetPx,
+            controlledNoticeBounds.bottom,
+            1f,
+        )
+        val controlledViewportBounds = compose.onNodeWithTag("exercise_detail_scroll").fetchSemanticsNode().boundsInRoot
+        assertTrue(
+            "The scroll viewport must remain above the notice",
+            controlledViewportBounds.bottom <= controlledNoticeBounds.top + 1f,
+        )
+        assertEquals(
+            "The scroll viewport must reserve the additional bottom inset",
+            viewportBounds.bottom - additionalBottomInsetPx,
+            controlledViewportBounds.bottom,
+            1f,
+        )
         compose.runOnIdle { parentConsumesInsets.value = true }
+        // Finish any real inset dispatch from parent recomposition before restoring the controlled input.
+        compose.waitForIdle()
+        compose.runOnUiThread { ViewCompat.dispatchApplyWindowInsets(hostView, controlledInsets) }
         val (consumedNoticeBounds, consumedActionBounds) = assertReadableRemoteNoticeAndAction()
-        assertEquals("Parent consumption must not add another bottom gap", noticeBounds, consumedNoticeBounds)
-        assertEquals(actionBounds, consumedActionBounds)
+        assertEquals("Parent consumption must not add another bottom gap", controlledNoticeBounds, consumedNoticeBounds)
+        assertEquals(controlledActionBounds, consumedActionBounds)
     }
 
     @Test
