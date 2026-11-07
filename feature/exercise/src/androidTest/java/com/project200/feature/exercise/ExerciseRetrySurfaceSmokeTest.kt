@@ -156,6 +156,8 @@ class ExerciseRetrySurfaceSmokeTest {
             assertEquals(1, retries)
             assertEquals(0, navigations)
         }
+        compose.waitForIdle()
+        device.capturePng("ui-list-body-retry.png")
         onView(withId(R.id.exercise_list_cl)).perform(click())
         compose.runOnIdle {
             assertEquals(1, retries)
