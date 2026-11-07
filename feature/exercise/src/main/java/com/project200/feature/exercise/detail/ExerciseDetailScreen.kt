@@ -2,20 +2,24 @@ package com.project200.feature.exercise.detail
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
@@ -41,30 +45,26 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.project200.common.utils.CommonDateTimeFormatters
 import com.project200.domain.model.ExerciseRecord
 import com.project200.presentation.compose.components.feedback.UndabangAlertDialog
+import com.project200.presentation.compose.components.feedback.UndabangNoticeBar
 import com.project200.presentation.compose.components.layout.UndabangScaffold
 import com.project200.presentation.compose.components.layout.UndabangTopBar
 import com.project200.presentation.compose.theme.AppTheme
 import com.project200.presentation.compose.theme.ColorBlack
 import com.project200.presentation.compose.theme.ColorErrorRed
-import com.project200.presentation.compose.theme.ColorGray100
 import com.project200.presentation.compose.theme.ColorGray200
 import com.project200.presentation.compose.theme.ColorMain
 import com.project200.presentation.compose.theme.ColorWhite100
 import com.project200.presentation.compose.theme.ColorWhite300
 import com.project200.presentation.compose.theme.contentBold
 import com.project200.presentation.compose.theme.contentRegular
-import com.project200.presentation.compose.theme.subtext10
 import com.project200.presentation.compose.theme.subtext14
 import com.project200.presentation.utils.UiState
 import com.project200.undabang.feature.exercise.R
@@ -83,6 +83,29 @@ fun ExerciseDetailScreen(
     onRetryClick: () -> Unit = {},
     onDiscardRemoteClick: () -> Unit = {},
 ) {
+    val isSuccess = state is UiState.Success
+    // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다
+    var confirmDiscard by remember(remoteDeleted, isSuccess) { mutableStateOf<(() -> Unit)?>(null) }
+    if (isSuccess && remoteDeleted && confirmDiscard != null) {
+        UndabangAlertDialog(
+            title = stringResource(R.string.exercise_remote_discard_title),
+            message = stringResource(R.string.exercise_remote_discard_message),
+            confirmText = stringResource(PresentationR.string.delete),
+            cancelText = stringResource(R.string.cancel),
+            onConfirm = {
+                val action = confirmDiscard
+                confirmDiscard = null
+                action?.invoke()
+            },
+            onCancel = { confirmDiscard = null },
+            onDismiss = { confirmDiscard = null },
+            confirmButtonModifier = Modifier.testTag("exercise_remote_discard_confirm"),
+            cancelButtonModifier = Modifier.testTag("exercise_remote_discard_cancel"),
+            messageStyle = MaterialTheme.typography.contentRegular,
+            confirmContainerColor = ColorErrorRed,
+            confirmContentColor = ColorWhite300,
+        )
+    }
     UndabangScaffold(
         modifier = modifier.semantics { testTagsAsResourceId = true },
         topBar = {
@@ -111,12 +134,50 @@ fun ExerciseDetailScreen(
                 },
             )
         },
+        bottomBar = {
+            if (isSuccess && (remoteDeleted || canShowBodyRetry)) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .windowInsetsPadding(
+                                WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom),
+                            ),
+                ) {
+                    if (remoteDeleted) {
+                        UndabangNoticeBar(
+                            title = stringResource(R.string.exercise_remote_deleted),
+                            message = stringResource(R.string.exercise_remote_deleted_description),
+                            actionIcon = painterResource(PresentationR.drawable.ic_trash),
+                            actionContentDescription = stringResource(R.string.exercise_remote_discard),
+                            onActionClick = { confirmDiscard = onDiscardRemoteClick },
+                            modifier = Modifier.fillMaxWidth().testTag("exercise_sync_notice"),
+                            titleModifier = Modifier.testTag("exercise_remote_deleted"),
+                            actionModifier = Modifier.testTag("exercise_remote_discard"),
+                        )
+                    } else {
+                        UndabangNoticeBar(
+                            title = stringResource(R.string.exercise_body_failure),
+                            message = stringResource(R.string.exercise_body_failure_description),
+                            actionIcon = painterResource(PresentationR.drawable.ic_notice_retry),
+                            actionContentDescription = stringResource(R.string.exercise_body_retry),
+                            onActionClick = onRetryClick,
+                            modifier = Modifier.fillMaxWidth().testTag("exercise_sync_notice"),
+                            emphasizeTitle = true,
+                            titleModifier = Modifier.testTag("exercise_body_failure"),
+                            actionModifier = Modifier.testTag("exercise_body_retry"),
+                        )
+                    }
+                }
+            }
+        },
     ) { innerPadding ->
         Box(
             modifier =
                 Modifier
                     .fillMaxSize()
-                    .padding(innerPadding),
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
         ) {
             when (state) {
                 is UiState.Loading -> {
@@ -125,10 +186,6 @@ fun ExerciseDetailScreen(
                 is UiState.Success -> {
                     DetailContent(
                         record = state.data,
-                        canShowBodyRetry = canShowBodyRetry,
-                        remoteDeleted = remoteDeleted,
-                        onRetryClick = onRetryClick,
-                        onDiscardRemoteClick = onDiscardRemoteClick,
                     )
                 }
                 is UiState.Error -> {
@@ -149,35 +206,9 @@ fun ExerciseDetailScreen(
 private fun DetailContent(
     record: ExerciseRecord,
     modifier: Modifier = Modifier,
-    canShowBodyRetry: Boolean = false,
-    remoteDeleted: Boolean = false,
-    onRetryClick: () -> Unit = {},
-    onDiscardRemoteClick: () -> Unit = {},
 ) {
-    // 확인을 연 순간의 계정·revision에 묶인 콜백을 보존합니다
-    var confirmDiscard by remember(remoteDeleted) { mutableStateOf<(() -> Unit)?>(null) }
-    if (remoteDeleted && confirmDiscard != null) {
-        UndabangAlertDialog(
-            title = stringResource(R.string.exercise_remote_discard_title),
-            message = stringResource(R.string.exercise_remote_discard_message),
-            confirmText = stringResource(PresentationR.string.delete),
-            cancelText = stringResource(R.string.cancel),
-            onConfirm = {
-                val action = confirmDiscard
-                confirmDiscard = null
-                action?.invoke()
-            },
-            onCancel = { confirmDiscard = null },
-            onDismiss = { confirmDiscard = null },
-            confirmButtonModifier = Modifier.testTag("exercise_remote_discard_confirm"),
-            cancelButtonModifier = Modifier.testTag("exercise_remote_discard_cancel"),
-            messageStyle = MaterialTheme.typography.contentRegular,
-            confirmContainerColor = ColorErrorRed,
-            confirmContentColor = ColorWhite300,
-        )
-    }
     val pictures = record.pictures.orEmpty()
-    // 안내가 앞에 생기거나 사라져도 첫 가시 필드의 key와 스크롤 offset을 유지합니다
+    // 고정된 하단 안내가 바뀌어도 기록 필드의 key와 스크롤 offset을 유지합니다
     LazyColumn(
         state = rememberLazyListState(),
         modifier = modifier.fillMaxSize().testTag("exercise_detail_scroll"),
@@ -226,70 +257,6 @@ private fun DetailContent(
                         }
                     }
                     Spacer(Modifier.height(20.dp))
-                }
-            }
-        }
-        if (canShowBodyRetry && !remoteDeleted) {
-            item(key = "body_retry") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.exercise_body_failure),
-                            modifier = Modifier.testTag("exercise_body_failure"),
-                            style = MaterialTheme.typography.subtext10.copy(fontWeight = FontWeight.Bold),
-                            color = ColorGray100,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = stringResource(R.string.exercise_body_failure_description),
-                            style = MaterialTheme.typography.subtext10,
-                            color = ColorGray100,
-                        )
-                    }
-                    IconButton(
-                        onClick = onRetryClick,
-                        modifier = Modifier.size(48.dp).testTag("exercise_body_retry"),
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_body_retry),
-                            contentDescription = stringResource(R.string.exercise_body_retry),
-                            tint = ColorErrorRed,
-                        )
-                    }
-                }
-            }
-        }
-        if (remoteDeleted) {
-            item(key = "remote_deleted") {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = stringResource(R.string.exercise_remote_deleted),
-                        modifier = Modifier.weight(1f).testTag("exercise_remote_deleted"),
-                        style = MaterialTheme.typography.subtext14,
-                        color = ColorGray100,
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Box(
-                        modifier =
-                            Modifier
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .testTag("exercise_remote_discard")
-                                .clickable(role = Role.Button) { confirmDiscard = onDiscardRemoteClick },
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.exercise_remote_discard),
-                            style = MaterialTheme.typography.subtext14,
-                            color = ColorErrorRed,
-                            textDecoration = TextDecoration.Underline,
-                        )
-                    }
                 }
             }
         }
