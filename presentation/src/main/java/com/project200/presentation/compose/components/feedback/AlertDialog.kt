@@ -11,6 +11,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -40,6 +42,11 @@ fun UndabangAlertDialog(
     cancelText: String = "취소",
     onCancel: (() -> Unit)? = null,
     isCancelable: Boolean = true,
+    confirmButtonModifier: Modifier = Modifier,
+    cancelButtonModifier: Modifier = Modifier,
+    messageStyle: TextStyle = MaterialTheme.typography.contentBold,
+    confirmContainerColor: Color = MaterialTheme.colorScheme.primary,
+    confirmContentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     Dialog(
         onDismissRequest = onDismiss,
@@ -66,6 +73,11 @@ fun UndabangAlertDialog(
                         onDismiss()
                     }
                 },
+            confirmButtonModifier = confirmButtonModifier,
+            cancelButtonModifier = cancelButtonModifier,
+            messageStyle = messageStyle,
+            confirmContainerColor = confirmContainerColor,
+            confirmContentColor = confirmContentColor,
         )
     }
 }
@@ -84,6 +96,11 @@ fun UndabangAlertDialogContent(
     confirmText: String = "확인",
     cancelText: String = "취소",
     onCancel: (() -> Unit)? = null,
+    confirmButtonModifier: Modifier = Modifier,
+    cancelButtonModifier: Modifier = Modifier,
+    messageStyle: TextStyle = MaterialTheme.typography.contentBold,
+    confirmContainerColor: Color = MaterialTheme.colorScheme.primary,
+    confirmContentColor: Color = MaterialTheme.colorScheme.onPrimary,
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -108,7 +125,7 @@ fun UndabangAlertDialogContent(
             if (message.isNotBlank()) {
                 Text(
                     text = message,
-                    style = MaterialTheme.typography.contentBold,
+                    style = messageStyle,
                     color = ColorBlack,
                     textAlign = TextAlign.Center,
                 )
@@ -122,22 +139,26 @@ fun UndabangAlertDialogContent(
                     SecondaryButton(
                         text = cancelText,
                         onClick = onCancel,
-                        modifier = Modifier.weight(1f),
+                        modifier = cancelButtonModifier.weight(1f),
                         height = DialogButtonHeight,
                     )
                     PrimaryButton(
                         text = confirmText,
                         onClick = onConfirm,
-                        modifier = Modifier.weight(1f),
+                        modifier = confirmButtonModifier.weight(1f),
                         height = DialogButtonHeight,
+                        containerColor = confirmContainerColor,
+                        contentColor = confirmContentColor,
                     )
                 }
             } else {
                 PrimaryButton(
                     text = confirmText,
                     onClick = onConfirm,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = confirmButtonModifier.fillMaxWidth(),
                     height = DialogButtonHeight,
+                    containerColor = confirmContainerColor,
+                    contentColor = confirmContentColor,
                 )
             }
         }

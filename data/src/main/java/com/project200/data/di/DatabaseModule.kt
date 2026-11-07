@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.project200.data.impl.RoomExerciseCacheCleaner
 import com.project200.data.impl.RoomSessionDataCleaner
 import com.project200.data.local.ExerciseStorageMigration
+import com.project200.data.local.ExerciseSyncUiMigration
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.UndabangTypeConverters
 import com.project200.data.local.dao.ExerciseCountDao
@@ -83,6 +84,7 @@ abstract class DatabaseModule {
             }
 
         val MIGRATION_5_6: Migration = ExerciseStorageMigration
+        val MIGRATION_6_7: Migration = ExerciseSyncUiMigration
 
         @Provides
         @Singleton
@@ -105,7 +107,7 @@ abstract class DatabaseModule {
                 UndabangDatabase.DATABASE_NAME,
             )
                 .addTypeConverter(typeConverters)
-                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
                 .build()
         }
 

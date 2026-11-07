@@ -8,9 +8,12 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.ListenableWorker
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequest
+import androidx.work.Operation
+import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.google.common.truth.Truth.assertThat
+import com.google.common.util.concurrent.ListenableFuture
 import com.project200.data.local.PreferenceManager
 import com.project200.domain.model.ExerciseSyncResult
 import com.project200.domain.usecase.GetMemberIdUseCase
@@ -24,6 +27,8 @@ import io.mockk.slot
 import io.mockk.unmockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -131,4 +136,64 @@ class ExerciseSyncWorkerTest {
             unmockkStatic(WorkManager::class)
         }
     }
+
+    @Test
+    fun `수동 재시도는 현재 계정의 비활성 작업만 KEEP으로 예약하고 연속 요청을 취소하지 않는다`() =
+        runTest {
+            val preferences = mockk<PreferenceManager>()
+            val manager = mockk<WorkManager>()
+            val operation = mockk<Operation>()
+            val future = mockk<ListenableFuture<Operation.State.SUCCESS>>()
+            val queued = mockk<WorkInfo>()
+            val states = MutableStateFlow<List<WorkInfo>>(emptyList())
+            every { preferences.getMemberId() } returns "member"
+            every { queued.state } returns WorkInfo.State.ENQUEUED
+            every { future.isDone } returns true
+            every { future.get() } returns Operation.SUCCESS
+            every { operation.result } returns future
+            every { manager.getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME) } returns states
+            every { manager.enqueueUniqueWork(ExerciseSyncWorker.WORK_NAME, ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>()) } answers {
+                states.value = listOf(queued)
+                operation
+            }
+            mockkStatic(WorkManager::class)
+            try {
+                every { WorkManager.getInstance(context) } returns manager
+                val scheduler = ExerciseSyncSchedulerImpl(context, preferences)
+                val first = async { scheduler.retry("member") }
+                val second = async { scheduler.retry("member") }
+                assertThat(first.await()).isTrue()
+                assertThat(second.await()).isFalse()
+                assertThat(scheduler.isBusy()).isTrue()
+                verify(exactly = 1) {
+                    manager.enqueueUniqueWork(ExerciseSyncWorker.WORK_NAME, ExistingWorkPolicy.KEEP, any<OneTimeWorkRequest>())
+                }
+                verify(exactly = 0) { manager.cancelUniqueWork(any()) }
+                states.value = emptyList()
+                every { preferences.getMemberId() } returns "other"
+                assertThat(scheduler.retry("member")).isFalse()
+            } finally {
+                unmockkStatic(WorkManager::class)
+            }
+        }
+
+    @Test
+    fun `실행 예약 blocked 작업은 모두 수동 재시도를 막고 종료된 작업만 해제한다`() =
+        runTest {
+            val preferences = mockk<PreferenceManager>()
+            val manager = mockk<WorkManager>()
+            val work = mockk<WorkInfo>()
+            every { manager.getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME) } returns MutableStateFlow(listOf(work))
+            mockkStatic(WorkManager::class)
+            try {
+                every { WorkManager.getInstance(context) } returns manager
+                val scheduler = ExerciseSyncSchedulerImpl(context, preferences)
+                for (state in WorkInfo.State.values()) {
+                    every { work.state } returns state
+                    assertThat(scheduler.isBusy()).isEqualTo(!state.isFinished)
+                }
+            } finally {
+                unmockkStatic(WorkManager::class)
+            }
+        }
 }

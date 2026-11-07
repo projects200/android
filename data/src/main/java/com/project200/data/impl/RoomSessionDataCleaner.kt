@@ -37,6 +37,7 @@ class RoomSessionDataCleaner
                         "OR EXISTS(SELECT 1 FROM exercise_cache_query) " +
                         "OR EXISTS(SELECT 1 FROM exercise_sync) " +
                         "OR EXISTS(SELECT 1 FROM exercise_image) " +
+                        "OR EXISTS(SELECT 1 FROM exercise_point_receipt) " +
                         "OR EXISTS(SELECT 1 FROM simple_timer) " +
                         "OR EXISTS(SELECT 1 FROM custom_timer) " +
                         "OR EXISTS(SELECT 1 FROM timer_snapshot)",

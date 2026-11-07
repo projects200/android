@@ -1327,6 +1327,114 @@ def maestro_result(report):
         raise RunnerFailure("maestro-assertion-failed")
 
 
+def parse_driver_failure(report):
+    if len(report) > 262144:
+        return {"status": "unrecognized"}
+    lines = report.splitlines()
+    if len(lines) > 4096:
+        return {"status": "unrecognized"}
+    command_started = False
+    for index, line in enumerate(lines):
+        if re.match(
+            r"^[0-9:.]+ \[[ A-Z]+\] maestro\.cli\.runner\.CliConsoleListener\.onCommandStart: ", line,
+        ):
+            command_started = True
+        if command_started and re.match(
+            r"^[0-9:.]+ \[[ A-Z]+\] maestro\.orchestra\.Orchestra\.executeCommands: "
+            r"\[Command execution\] CommandFailed: Assertion is false:", line,
+        ):
+            return {"status": "captured", "classification": "application-assertion"}
+        failure = re.fullmatch(
+            r"maestro\.android\.DeviceCallFailedException: 'deviceInfo' failed: ([A-Z_]+)(?: - (.*))?", line,
+        )
+        if not failure or failure.group(1) not in (
+            "CANCELLED", "UNKNOWN", "INVALID_ARGUMENT", "DEADLINE_EXCEEDED", "NOT_FOUND",
+            "ALREADY_EXISTS", "PERMISSION_DENIED", "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION",
+            "ABORTED", "OUT_OF_RANGE", "UNIMPLEMENTED", "INTERNAL", "UNAVAILABLE",
+            "DATA_LOSS", "UNAUTHENTICATED",
+        ):
+            continue
+        # 다음 로그 레코드(특히 close())의 오류를 초기 실패 원인에 섞지 않습니다.
+        frames = []
+        for frame in lines[index + 1:]:
+            if re.match(r"^[0-9:.]+ \[[ A-Z]+\] ", frame):
+                break
+            frames.append(frame)
+        if not any(re.fullmatch(
+            r"\s+at maestro\.drivers\.AndroidDriver\.deviceInfo\(AndroidDriver\.kt:[0-9]+\)", frame,
+        ) for frame in frames):
+            continue
+        initial = not command_started and any(re.fullmatch(
+            r"\s+at maestro\.orchestra\.Orchestra\.initJsEngine\(Orchestra\.kt:[0-9]+\)", frame,
+        ) for frame in frames)
+        causes = sorted({
+            name for name in (
+                "java.io.EOFException", "java.io.IOException", "java.net.SocketException",
+                "java.net.SocketTimeoutException", "java.net.ConnectException",
+                "io.grpc.StatusRuntimeException",
+            )
+            if any(re.match(r"^Caused by: " + re.escape(name) + r"(?::|$)", frame) for frame in frames)
+        })
+        # INTERNAL은 upstream에서 transport-death로 분류하지 않습니다. 원문을 원인으로 단정하지 않습니다.
+        return {
+            "status": "captured",
+            "classification": "initial-device-info-rpc-error" if initial else "device-info-rpc-error",
+            "grpc_status": failure.group(1),
+            "frame_handler_error": failure.group(2) == "error in frame handler",
+            "cause_status": (
+                "captured" if causes else
+                "unrecognized" if any(frame.startswith("Caused by: ") for frame in frames) else "unavailable"
+            ),
+            "cause_classes": causes,
+        }
+    return {"status": "unrecognized"}
+
+
+def save_driver_failure(raw, destination):
+    summary = {"status": "unavailable"}
+    try:
+        # 삭제·redaction 전 private CLI 로그만 읽습니다. ADB 조회나 재연결은 추가하지 않습니다.
+        deadline = time.monotonic() + 2
+        remaining = 1048576
+        log_count = 0
+        for index, path in enumerate(raw.rglob("*")):
+            if time.monotonic() >= deadline:
+                break
+            if index >= 256 or log_count >= 16 or remaining <= 0:
+                summary = {"status": "unrecognized"}
+                break
+            if path.is_symlink() or not path.is_file() or path.suffix.lower() != ".log":
+                continue
+            if "logcat" in path.name.lower():
+                continue
+            log_count += 1
+            try:
+                with path.open("rb") as handle:
+                    content = handle.read(min(262145, remaining + 1))
+                remaining -= len(content)
+                summary = {"status": "unrecognized"}
+                if len(content) > 262144 or remaining < 0:
+                    continue
+                summary = parse_driver_failure(content.decode("utf-8", "strict"))
+                if summary["status"] == "captured":
+                    break
+            except RunInterrupted:
+                raise
+            except UnicodeError:
+                summary = {"status": "unrecognized"}
+            except Exception:
+                pass
+        destination.mkdir(parents=True, exist_ok=True)
+        (destination / "driver-failure-summary.json").write_text(
+            json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+        )
+    except RunInterrupted:
+        raise
+    except Exception:
+        # 수집 실패는 원래 Maestro 실패·정리를 바꾸거나 private 예외를 공개하지 않습니다.
+        pass
+
+
 def parse_driver_processes(report):
     lines = report.splitlines()
     if not lines or lines[0].strip() != "NAME" or len(lines) > 2048:
@@ -1471,6 +1579,16 @@ def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=Non
                 save_failure_anr_events(device, output / flow)
                 raise RunnerFailure("maestro-flow-failed")
             maestro_result(report)
+        except RunInterrupted:
+            raise
+        except Exception:
+            try:
+                save_driver_failure(raw, output / flow)
+            except RunInterrupted:
+                raise
+            except Exception:
+                pass
+            raise
         finally:
             save_debug(raw, output / flow, redactor, stdout + b"\n" + stderr)
 

@@ -3,10 +3,13 @@ package com.project200.domain.repository
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
+import com.project200.domain.model.ExercisePointNotice
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseSyncResult
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.LocalExerciseSaveResult
-import com.project200.domain.model.ExerciseSyncResult
+import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
 
 interface ExerciseRecordRepository {
@@ -18,4 +21,8 @@ interface ExerciseRecordRepository {
     suspend fun updateExerciseRecord(input: ExerciseWriteInput, recordId: String): BaseResult<LocalExerciseSaveResult>
     suspend fun deleteExerciseRecord(recordId: String): BaseResult<Unit>
     suspend fun syncPendingExercises(memberId: String): ExerciseSyncResult
+    fun observeSyncStatus(): Flow<List<ExerciseSyncStatus>>
+    suspend fun retryBody(recordId: String): Boolean
+    suspend fun discardRemoteDeleted(recordId: String, confirmationToken: String): BaseResult<Unit>
+    suspend fun consumePointNotice(recordIds: Set<String>): ExercisePointNotice?
 }

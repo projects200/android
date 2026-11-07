@@ -112,6 +112,7 @@ class ExerciseSyncTransportTest {
             assertThat(request.method).isEqualTo("POST")
             assertThat(request.url.encodedPath).isEqualTo("/api/v1/exercises")
             assertThat(body().getString("createRequestId")).isEqualTo(key)
+            assertThat(body().has("editedAt")).isFalse()
             assertThat(request.tag(ExerciseSyncAccount::class.java)).isEqualTo(account)
             assertThat(response.data?.exerciseId).isEqualTo(42)
             assertThat(response.data?.version).isEqualTo(0)
@@ -139,6 +140,7 @@ class ExerciseSyncTransportTest {
             assertThat(request.method).isEqualTo("PATCH")
             assertThat(body().getString("editId")).isEqualTo(key)
             assertThat(body().getLong("baseVersion")).isEqualTo(7)
+            assertThat(body().has("editedAt")).isFalse()
             assertThat(response.data?.version).isEqualTo(8)
         }
 
@@ -177,5 +179,40 @@ class ExerciseSyncTransportTest {
             assertThat(remote.deleteExerciseRecord(42).data).isNull()
             assertThat(request.url.queryParameter("editId")).isNull()
             assertThat(request.tag(ExerciseSyncAccount::class.java)).isNull()
+        }
+
+    @Test
+    fun `새 저장 시각은 실제 create PATCH JSON의 같은 nullable Long 계약으로 전송한다`() =
+        runTest {
+            val clock = 1793869200123L
+            data = "{\"exerciseId\":42,\"earnedPoints\":3,\"version\":0}"
+            remote.postExerciseRecord(
+                PostExerciseRequestDto("A", "OTHER", "장소", "본문", "2026-10-20T09:00:00", "2026-10-20T10:00:00", key, clock),
+                account,
+            )
+            assertThat(body().getLong("editedAt")).isEqualTo(clock)
+            data = "{\"exerciseId\":42,\"version\":12}"
+            remote.patchExerciseRecord(
+                42,
+                PatchExerciseRequestDto("B", "OTHER", "장소", "본문", "2026-10-20T09:00:00", "2026-10-20T10:00:00", key, 0, clock),
+                account,
+            )
+            assertThat(body().getLong("editedAt")).isEqualTo(clock)
+            assertThat(body().getLong("baseVersion")).isEqualTo(0)
+        }
+
+    @Test
+    fun `GET 상세 시각의 누락과 null은 unknown이고 정수만 실제 시각으로 읽는다`() =
+        runTest {
+            val fields =
+                "\"exerciseTitle\":\"A\",\"exerciseDetail\":\"본문\",\"exercisePersonalType\":\"OTHER\"," +
+                    "\"exerciseStartedAt\":\"2026-10-20T09:00:00\",\"exerciseEndedAt\":\"2026-10-20T10:00:00\"," +
+                    "\"exerciseLocation\":\"장소\",\"pictureDataList\":[],\"version\":3"
+            data = "{$fields}"
+            assertThat(remote.getExerciseRecordDetail(42, account).data!!.editedAt).isNull()
+            data = "{$fields,\"editedAt\":null}"
+            assertThat(remote.getExerciseRecordDetail(42, account).data!!.editedAt).isNull()
+            data = "{$fields,\"editedAt\":1793869200123}"
+            assertThat(remote.getExerciseRecordDetail(42, account).data!!.editedAt).isEqualTo(1793869200123L)
         }
 }

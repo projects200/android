@@ -29,6 +29,8 @@ data class ExerciseSyncEntity(
     val inFlightRequestId: String? = null,
     val inFlightBody: String? = null,
     val inFlightBaseVersion: Long? = null,
+    val desiredEditedAt: Long? = null,
+    val inFlightEditedAt: Long? = null,
 )
 
 enum class ExerciseRecoveryState {

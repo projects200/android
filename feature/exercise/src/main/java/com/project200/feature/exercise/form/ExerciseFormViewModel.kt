@@ -449,7 +449,13 @@ class ExerciseFormViewModel
             record: ExerciseRecord,
             newImageUris: List<String>,
         ) {
-            val input = ExerciseWriteInput(record, newImageUris, removedPictureLocalIds.toSet())
+            val input =
+                ExerciseWriteInput(
+                    record,
+                    newImageUris,
+                    removedPictureLocalIds.toSet(),
+                    bodyEdited = hasContentChanges(record),
+                )
             viewModelScope.launch {
                 try {
                     _editResult.emit(updateExerciseRecordUseCase(recordId, input).toSubmissionResult())

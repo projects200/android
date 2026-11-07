@@ -8,6 +8,8 @@
     <string name="exercise_record_title">제목 *</string>
     <string name="exercise_record_type">운동 종류</string>
     <string name="exercise_record_time">운동 시간 *</string>
+    <string name="exercise_detail_title_label">제목</string>
+    <string name="exercise_detail_time_label">운동 시간</string>
     <string name="exercise_record_time_divider">:</string>
     <string name="exercise_record_location">장소</string>
     <string name="exercise_record_title_hint">제목을 입력해주세요.</string>
@@ -29,8 +31,15 @@
     <string name="exercise_list_loaded">%1$s 운동 기록 목록</string>
     <string name="exercise_empty_loaded">%1$s에 운동 기록이 없습니다</string>
     <string name="exercise_list_last_item">운동 기록 목록 마지막 항목: %1$s</string>
-    <string name="exercise_sync_pending">동기화 대기</string>
-    <string name="exercise_pending_date">%1$s 동기화 대기</string>
+    <string name="exercise_body_retry">기록 저장 다시 시도</string>
+    <string name="exercise_body_failure">기록 저장을 마무리하지 못했어요.</string>
+    <string name="exercise_body_failure_description">작성한 내용은 이 기기에 남아 있어요.</string>
+    <string name="exercise_remote_deleted">다른 기기에서 삭제된 기록이에요.</string>
+    <string name="exercise_remote_deleted_description">이 기기에는 아직 남아 있어요.</string>
+    <string name="exercise_remote_discard">기기에서 삭제</string>
+    <string name="exercise_remote_discard_title">이 기기에서 삭제할까요?</string>
+    <string name="exercise_remote_discard_message">보관된 기록과 사진이 삭제되며\n되돌릴 수 없어요</string>
+    <string name="exercise_points_earned">%1$d점 획득했어요!</string>
     <string name="exercise_refresh">새로고침</string>
     <string name="exercise_place_search">운동하는 장소 검색</string>
     <string name="search">검색</string>

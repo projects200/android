@@ -28,6 +28,7 @@ fun GetExerciseRecordData.toModel(): ExerciseRecord {
         endedAt = exerciseEndedAt,
         location = exerciseLocation,
         serverVersion = version,
+        editedAt = editedAt,
         pictures =
             pictureDataList?.map {
                 ExerciseRecordPicture("server:${it.pictureId}", it.pictureId, it.pictureUrl, ExerciseImageSyncStatus.SYNCED)

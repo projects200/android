@@ -7,6 +7,7 @@ import androidx.room.Upsert
 import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.ExerciseSyncEntity
 import com.project200.data.local.entity.SyncState
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 abstract class ExerciseSyncDao {
@@ -24,6 +25,9 @@ abstract class ExerciseSyncDao {
 
     @Query("SELECT * FROM exercise_sync WHERE memberId = :memberId ORDER BY localId")
     abstract suspend fun getByMember(memberId: String): List<ExerciseSyncEntity>
+
+    @Query("SELECT * FROM exercise_sync WHERE memberId = :memberId ORDER BY localId")
+    abstract fun observeByMember(memberId: String): Flow<List<ExerciseSyncEntity>>
 
     /** 복구 필요 행은 제외합니다. 기존 in-flight가 있으면 그 원문과 키로만 재시도합니다 */
     @Query(
@@ -70,6 +74,7 @@ abstract class ExerciseSyncDao {
                 inFlightRequestId = previous?.inFlightRequestId,
                 inFlightBody = previous?.inFlightBody,
                 inFlightBaseVersion = previous?.inFlightBaseVersion,
+                inFlightEditedAt = previous?.inFlightEditedAt,
             ),
         )
     }
@@ -93,7 +98,8 @@ abstract class ExerciseSyncDao {
 
     @Query(
         "UPDATE exercise_sync SET inFlightOperation = operation, inFlightRevision = revision, " +
-            "inFlightOperationId = operationId, inFlightRequestId = :requestId, inFlightBody = :body, inFlightBaseVersion = :baseVersion " +
+            "inFlightOperationId = operationId, inFlightRequestId = :requestId, inFlightBody = :body, " +
+            "inFlightBaseVersion = :baseVersion, inFlightEditedAt = desiredEditedAt " +
             "WHERE memberId = :memberId AND localId = :localId AND revision = :revision AND operationId = :operationId " +
             "AND operation != 'SYNCED' AND recoveryState != 'RECOVERY_REQUIRED' AND inFlightOperationId IS NULL",
     )
@@ -110,7 +116,7 @@ abstract class ExerciseSyncDao {
     /** 일치한 전송 원문만 해제합니다. 최신 의도와 읽기 투영은 완료 처리하지 않습니다 */
     @Query(
         "UPDATE exercise_sync SET inFlightOperation = NULL, inFlightRevision = NULL, inFlightOperationId = NULL, " +
-            "inFlightRequestId = NULL, inFlightBody = NULL, inFlightBaseVersion = NULL " +
+            "inFlightRequestId = NULL, inFlightBody = NULL, inFlightBaseVersion = NULL, inFlightEditedAt = NULL " +
             "WHERE memberId = :memberId AND localId = :localId AND inFlightOperationId = :operationId " +
             "AND inFlightRevision = :revision AND inFlightRequestId = :requestId",
     )
@@ -126,7 +132,7 @@ abstract class ExerciseSyncDao {
         "DELETE FROM exercise_sync WHERE memberId = :memberId AND localId = :localId " +
             "AND operationId IS :operationId AND revision IS :revision AND inFlightOperationId IS NULL " +
             "AND inFlightOperation IS NULL AND inFlightRevision IS NULL AND inFlightBody IS NULL " +
-            "AND inFlightRequestId IS NULL AND inFlightBaseVersion IS NULL",
+            "AND inFlightRequestId IS NULL AND inFlightBaseVersion IS NULL AND inFlightEditedAt IS NULL",
     )
     abstract suspend fun deleteMatching(
         memberId: String,

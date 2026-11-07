@@ -85,6 +85,7 @@ fun ExerciseRecord.toSyncedEntity(
         location = location,
         pictures = pictures?.mapNotNull { picture -> picture.serverId?.let { CachedPicture(it, picture.source) } },
         serverVersion = serverVersion,
+        editedAt = editedAt,
     )
 }
 
@@ -100,6 +101,7 @@ fun ExerciseRecordDetailEntity.toModel(): ExerciseRecord {
         syncPending = syncState != SyncState.SYNCED,
         canModify = syncState != SyncState.DELETE_PENDING,
         serverVersion = serverVersion,
+        editedAt = editedAt,
     )
 }
 
