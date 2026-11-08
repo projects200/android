@@ -32,16 +32,17 @@ import java.time.ZoneId
 class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layout.fragment_exercise_main) {
     private val viewModel: ExerciseMainViewModel by viewModels()
     private var exerciseCompleteDates: Set<LocalDate> = emptySet()
-    private var pendingDates: Set<LocalDate> = emptySet()
     private var listSubmissionId = 0L
     private var isListCommitted = false
     private val exerciseAdapter: ExerciseListAdapter by lazy {
-        ExerciseListAdapter { recordId ->
-            // 상세 화면으로 이동
-            findNavController().navigate(
-                ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseDetailFragment(recordId),
-            )
-        }
+        ExerciseListAdapter(
+            onItemClicked = { recordId ->
+                findNavController().navigate(
+                    ExerciseMainFragmentDirections.actionExerciseMainFragmentToExerciseDetailFragment(recordId),
+                )
+            },
+            onRetryClick = viewModel::retryBody,
+        )
     }
 
     override fun getViewBinding(view: View): FragmentExerciseMainBinding {
@@ -95,8 +96,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         calendarDayTv.contentDescription =
                             if (data.position != DayPosition.MonthDate) {
                                 null
-                            } else if (data.date in pendingDates) {
-                                getString(R.string.exercise_pending_date, data.date)
                             } else {
                                 data.date.toString()
                             }
@@ -104,7 +103,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
                         // 선택 효과, 오늘 날짜 표시, 운동 완료 점을 모두 초기 상태로 리셋합니다.
                         calendarDayTv.background = null
                         selectedIv.isVisible = false
-                        exercisePendingTv.isVisible = data.position == DayPosition.MonthDate && data.date in pendingDates
                         exerciseCompleteIv.apply {
                             isVisible = false
                             contentDescription = null
@@ -132,8 +130,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
                             // 운동 기록이 있는 날 표시
                             if (exerciseCompleteDates.contains(data.date)) {
-                                exerciseCompleteIv.contentDescription =
-                                    if (data.date in pendingDates) getString(R.string.exercise_sync_pending) else null
                                 exerciseCompleteIv.apply {
                                     alpha = 0f
                                     isVisible = true
@@ -198,6 +194,13 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
     }
 
     override fun setupObservers() {
+        viewModel.retryIds.observe(viewLifecycleOwner) { ids -> exerciseAdapter.submitRetryIds(ids.orEmpty()) }
+        viewModel.pointNotice.observe(viewLifecycleOwner) { points ->
+            if (points != null) {
+                Toast.makeText(requireContext(), getString(R.string.exercise_points_earned, points), Toast.LENGTH_SHORT).show()
+                viewModel.consumePointNoticeEvent()
+            }
+        }
         viewModel.selectedMonth.observe(viewLifecycleOwner) { month ->
             // 날짜 헤더 업데이트
             binding.dateTv.text = month.format(YYYY_M_KR)
@@ -211,10 +214,6 @@ class ExerciseMainFragment : BindingFragment<FragmentExerciseMainBinding>(R.layo
 
         viewModel.exerciseDates.observe(viewLifecycleOwner) { dates ->
             exerciseCompleteDates = dates
-            binding.exerciseCalendar.notifyCalendarChanged()
-        }
-        viewModel.pendingDates.observe(viewLifecycleOwner) { dates ->
-            pendingDates = dates
             binding.exerciseCalendar.notifyCalendarChanged()
         }
 

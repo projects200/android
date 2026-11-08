@@ -12,6 +12,11 @@ android {
     defaultConfig {
         manifestPlaceholders["appAuthRedirectScheme"] = "com.project200.undabang"
     }
+
+    testOptions {
+        // 기본 targetSdk가 minSdk인 테스트 APK의 구버전 경고가 포커스를 가로채므로 프로젝트 타깃을 사용합니다
+        targetSdk = libs.versions.targetSdk.get().toInt()
+    }
 }
 
 dependencies {

@@ -33,4 +33,5 @@ data class ExerciseRecordDetailEntity(
     val pictures: List<CachedPicture>?,
     val serverVersion: Long? = null,
     val confirmedDate: LocalDate? = null,
+    val editedAt: Long? = null,
 )

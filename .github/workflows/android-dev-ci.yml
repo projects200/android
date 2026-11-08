@@ -7,14 +7,22 @@ on:
     branches: [ "dev" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: android-dev-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dev-ci:
     runs-on: ubuntu-latest
+    env:
+      VALIDATION_ONLY: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
 
     steps:
       - uses: actions/checkout@v4
       - name: Enable KVM
-        if: github.event_name != 'workflow_dispatch'
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -29,8 +37,8 @@ jobs:
           echo $GOOGLE_SERVICES_JSON_BASE64 | base64 --decode > app/src/debug/google-services.json
           echo "google-services.json created successfully."
 
-      - name: Prepare E2E google-services.json for manual validation
-        if: github.event_name == 'workflow_dispatch'
+      - name: Prepare E2E google-services.json for test-only validation
+        if: env.VALIDATION_ONLY == 'true'
         run: |
           mkdir -p app/src/e2e
           cp app/src/debug/google-services.json app/src/e2e/google-services.json
@@ -54,33 +62,59 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Run manual validation without devices or deployment
-        if: github.event_name == 'workflow_dispatch'
+      - name: Run test-only validation without distribution or deployment
+        id: validation
+        if: env.VALIDATION_ONLY == 'true'
+        shell: bash
         run: |
-          ./gradlew --no-daemon --stacktrace --continue \
+          set -o pipefail
+          mkdir -p build/ci
+          ./gradlew --no-daemon --stacktrace --console=plain --continue \
             lintDebug ktlintCheck testDebugUnitTest :domain:test \
             jacocoLogicReport jacocoLogicCoverageVerification assembleDebug \
-            :app:lintE2e :app:testE2eUnitTest :app:assembleE2e
+            :app:lintE2e :app:testE2eUnitTest :app:assembleE2e \
+            2>&1 | tee build/ci/validation-tasks.log
+
+      - name: Require generated Room v7 schema
+        if: env.VALIDATION_ONLY == 'true'
+        run: test -s data/schemas/com.project200.data.local.UndabangDatabase/7.json
+
+      - name: Run isolated exercise retry UI surface smoke
+        if: env.VALIDATION_ONLY == 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -no-snapshot -memory 4096
+          # The library test APK hosts real views/Compose only. Do not install the
+          # account-enabled app APK or run authenticated Maestro in this workflow.
+          script: >-
+            bash -o pipefail -c './gradlew --no-daemon --stacktrace --console=plain
+            :feature:exercise:connectedDebugAndroidTest
+            -Pandroid.testInstrumentationRunnerArguments.class=com.project200.feature.exercise.ExerciseRetrySurfaceSmokeTest
+            2>&1 | tee build/ci/exercise-retry-surface-tasks.log'
 
       - name: Run Android Lint (Debug)
         id: lint
-        if: ${{ github.event_name != 'workflow_dispatch' }}
+        if: ${{ env.VALIDATION_ONLY != 'true' }}
         run: ./gradlew lintDebug
 
       - name: Run Ktlint Check
-        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        if: ${{ env.VALIDATION_ONLY != 'true' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
         run: ./gradlew ktlintCheck --continue
 
       - name: Run Unit Tests
         id: unit
-        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
+        if: ${{ env.VALIDATION_ONLY != 'true' && !cancelled() && (steps.lint.outcome == 'success' || steps.lint.outcome == 'failure') }}
         run: ./gradlew testDebugUnitTest :domain:test --continue
       - name: Verify JaCoCo line coverage
-        if: ${{ github.event_name != 'workflow_dispatch' && !cancelled() && steps.unit.outcome == 'success' }}
+        if: ${{ env.VALIDATION_ONLY != 'true' && !cancelled() && steps.unit.outcome == 'success' }}
         run: ./gradlew jacocoLogicReport jacocoLogicCoverageVerification
 
       - name: Build Debug APK
-        if: github.event_name != 'workflow_dispatch'
+        if: env.VALIDATION_ONLY != 'true'
         run: ./gradlew assembleDebug
 
       - name: Upload schema and test evidence
@@ -90,11 +124,15 @@ jobs:
           name: android-local-first-evidence
           path: |
             data/schemas/**/*.json
+            build/ci/*-tasks.log
             **/build/test-results/**
             **/build/reports/tests/**
             **/build/reports/jacoco/**
             **/build/reports/lint-results*
             **/build/reports/ktlint/**
+            feature/exercise/build/outputs/androidTest-results/connected/**
+            feature/exercise/build/reports/androidTests/connected/**
+            feature/exercise/build/outputs/connected_android_test_additional_output/**
           if-no-files-found: warn
 
       - name: Check for APK
@@ -103,11 +141,11 @@ jobs:
           ls -R app/build/outputs/apk
 
       - name: Install Firebase CLI
-        if: github.event_name != 'workflow_dispatch'
+        if: env.VALIDATION_ONLY != 'true'
         run: npm install -g firebase-tools
 
       - name: Upload Debug APK to Firebase App Distribution
-        if: github.event_name != 'workflow_dispatch'
+        if: env.VALIDATION_ONLY != 'true'
         run: |
           firebase appdistribution:distribute app/build/outputs/apk/debug/app-debug.apk \
             --app ${{ secrets.FIREBASE_APP_DEV_ID }} \

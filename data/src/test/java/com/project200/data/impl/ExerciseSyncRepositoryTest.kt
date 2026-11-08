@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.util.Base64
 import androidx.room.Room
+import app.cash.turbine.test
 import com.google.common.truth.Truth.assertThat
 import com.project200.common.utils.NetworkMonitor
 import com.project200.data.api.ApiService
@@ -51,6 +52,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.openid.appauth.AuthState
@@ -124,6 +127,7 @@ class ExerciseSyncRepositoryTest {
         every { fileContext.filesDir } returns root
         every { fileContext.contentResolver } returns context.contentResolver
         every { network.isCurrentlyConnected() } returns true
+        every { network.hasValidatedInternet() } returns true
         every { auth.getCurrent() } returns authState
         every { authState.idToken } answers { token }
         preferences.saveMemberId(member, null)
@@ -213,6 +217,7 @@ class ExerciseSyncRepositoryTest {
                             request.exerciseDetail,
                             request.exerciseStartedAt,
                             request.exerciseEndedAt,
+                            editedAt = request.editedAt,
                         )
                     versions[id] = versions.getValue(id) + 1
                     val response = ExerciseIdDto(id, versions.getValue(id))
@@ -247,6 +252,7 @@ class ExerciseSyncRepositoryTest {
                         requireNotNull(body.exerciseLocation),
                         emptyList(),
                         versions.getValue(id),
+                        body.editedAt,
                     ),
                 )
             }
@@ -1202,12 +1208,15 @@ class ExerciseSyncRepositoryTest {
             assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
             assertThat(journal(id).inFlightBody).isEqualTo(snapshot)
             assertThat(File(requireNotNull(image.localFilePath)).exists()).isTrue()
+            assertThat(db.exercisePointReceiptDao().getByMember(member).single().noticeConsumed).isFalse()
             token = jwt(member)
             reopen()
             afterUpload = {}
             assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
             assertThat(uploads[0]).isEqualTo(uploads[1])
             assertThat(detail(id).pictures!!.single().localId).isEqualTo(image.localId)
+            assertThat(repository.consumePointNotice(setOf(id))!!.earnedPoints).isEqualTo(3)
+            assertThat(repository.consumePointNotice(setOf(id))).isNull()
         }
 
     @Test
@@ -1303,5 +1312,269 @@ class ExerciseSyncRepositoryTest {
             assertThat(db.exerciseImageDao().getByRecord(member, id)).isEmpty()
             assertThat(local.getListByDate(date).single().imageUrl).isEmpty()
             assertThat(detail(id).pictures).isEmpty()
+        }
+
+    @Test
+    fun `503 소진 뒤 검증된 연결에서만 같은 본문 원문을 KEEP 경로로 수동 예약한다`() =
+        runTest {
+            val id = create()
+            coEvery { remote.postExerciseRecord(any(), any()) } returns BaseResponse(false, "503", "")
+            repeat(5) { assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry) }
+            val original = journal(id)
+            coEvery { scheduler.isBusy() } returns false
+            coEvery { scheduler.retry(member) } returns true
+            every { network.hasValidatedInternet() } returns false
+            assertThat(repository.retryBody(id)).isFalse()
+            every { network.hasValidatedInternet() } returns true
+            coEvery { scheduler.isBusy() } returns true
+            assertThat(repository.retryBody(id)).isFalse()
+            coEvery { scheduler.isBusy() } returns false
+            token = jwt("other")
+            assertThat(repository.retryBody(id)).isFalse()
+            token = jwt(member)
+            every { network.hasValidatedInternet() } returnsMany listOf(true, false)
+            assertThat(repository.retryBody(id)).isFalse()
+            every { network.hasValidatedInternet() } returns true
+            assertThat(repository.retryBody(id)).isTrue()
+            coVerify(exactly = 1) { scheduler.retry(member) }
+            verify(exactly = 0) { scheduler.cancel() }
+            assertThat(journal(id).inFlightBody).isEqualTo(original.inFlightBody)
+            assertThat(journal(id).inFlightRequestId).isEqualTo(original.inFlightRequestId)
+            assertThat(journal(id).desiredEditedAt).isEqualTo(original.desiredEditedAt)
+        }
+
+    @Test
+    fun `정상 대기 사진 실패 인증 보류에는 일반 본문 수동 재시도를 예약하지 않는다`() =
+        runTest {
+            val pending = create()
+            assertThat(repository.retryBody(pending)).isFalse()
+            coEvery { remote.postExerciseRecord(any(), any()) } returns BaseResponse(false, "401", "")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+            assertThat(repository.retryBody(pending)).isFalse()
+            stubServer()
+            val photo = create(image = image())
+            coEvery { remote.postExerciseImages(any(), any(), any(), any(), any()) } throws IOException("사진 유실")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+            assertThat(repository.retryBody(photo)).isFalse()
+            val status = syncLocal.observeStatus(member, true, true, false).first().single { it.recordId == photo }
+            assertThat(status.canShowBodyRetry).isFalse()
+            assertThat(status.complete).isFalse()
+            assertThat(repository.consumePointNotice(setOf(photo))).isNull()
+            coVerify(exactly = 0) { scheduler.retry(any()) }
+        }
+
+    @Test
+    fun `서버가 더 최신이거나 동률이면 충돌 GET 뒤 자동 승자를 저장하고 추가 PATCH를 하지 않는다`() =
+        runTest {
+            for (clock in listOf(200L, 300L)) {
+                val id = create()
+                sync()
+                val serverId = requireNotNull(local.resolveServerId(id, member))
+                edit(id, "로컬")
+                db.exerciseSyncDao().saveSyncState(journal(id).copy(desiredEditedAt = 200))
+                serverBodies[serverId] = serverBodies.getValue(serverId).copy(exerciseTitle = "서버 최신", editedAt = clock)
+                versions[serverId] = 3
+                val before = edits.size
+                assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
+                assertThat(detail(id).title).isEqualTo("서버 최신")
+                assertThat(db.exerciseSyncDao().get(member, id)).isNull()
+                assertThat(edits.size - before).isEqualTo(1)
+            }
+        }
+
+    @Test
+    fun `더 최신 로컬 본문은 거절된 요청과 다른 ID로 다음 Worker 시도에서만 rebase한다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "로컬 최신")
+            db.exerciseSyncDao().saveSyncState(journal(id).copy(desiredEditedAt = 400))
+            serverBodies[100] = serverBodies.getValue(100).copy(editedAt = 300)
+            versions[100] = 3
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+            val rejected = edits.single()
+            assertThat(journal(id).inFlightBody).isNull()
+            assertThat(journal(id).desiredEditedAt).isEqualTo(400)
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Success)
+            val accepted = edits.last()
+            assertThat(accepted.editId).isNotEqualTo(rejected.editId)
+            assertThat(accepted.baseVersion).isEqualTo(3)
+            assertThat(accepted.editedAt).isEqualTo(rejected.editedAt)
+            assertThat(accepted.exerciseTitle).isEqualTo(rejected.exerciseTitle)
+            assertThat(detail(id).title).isEqualTo("로컬 최신")
+        }
+
+    @Test
+    fun `알 수 없는 legacy 시각과 서버 시각 충돌은 원문을 recovery required로 보존한다`() =
+        runTest {
+            for (legacy in listOf(false, true)) {
+                val id = create()
+                sync()
+                val serverId = requireNotNull(local.resolveServerId(id, member))
+                edit(id, "보존 원문")
+                db.exerciseSyncDao().saveSyncState(journal(id).copy(desiredEditedAt = if (legacy) null else 200))
+                serverBodies[serverId] = serverBodies.getValue(serverId).copy(editedAt = if (legacy) 300 else null)
+                versions[serverId] = 3
+                val snapshot = requireNotNull(syncLocal.claim(member, id))
+                val original = journal(id).inFlightBody
+                assertThat(sync()).isEqualTo(ExerciseSyncResult.Failure)
+                assertThat(detail(id).title).isEqualTo("보존 원문")
+                assertThat(journal(id).inFlightBody).isEqualTo(original)
+                assertThat(journal(id).inFlightRequestId).isEqualTo(snapshot.requestId)
+                assertThat(journal(id).lastError).isEqualTo(ExerciseSyncError.CONFLICT)
+            }
+        }
+
+    @Test
+    fun `충돌 GET 중 새 로컬 편집은 늦은 서버 승자로 교체하지 않는다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "첫 편집")
+            db.exerciseSyncDao().saveSyncState(journal(id).copy(desiredEditedAt = 200))
+            versions[100] = 3
+            val before = serverBodies.getValue(100)
+            coEvery { remote.getExerciseRecordDetail(100, any()) } coAnswers {
+                local.updateRecord(id, ExerciseWriteInput(record("후속 편집")), member, editedAt = 500)
+                success(
+                    GetExerciseRecordData(
+                        "서버 승자",
+                        "본문",
+                        "OTHER",
+                        date.atTime(9, 0),
+                        date.atTime(10, 0),
+                        "장소",
+                        emptyList(),
+                        3,
+                        300,
+                    ),
+                )
+            }
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+            assertThat(detail(id).title).isEqualTo("후속 편집")
+            assertThat(journal(id).desiredEditedAt).isEqualTo(500)
+            assertThat(serverBodies.getValue(100)).isEqualTo(before)
+        }
+
+    @Test
+    fun `충돌 GET 중 계정이 바뀌면 이전 자동 판정과 점수 소비를 적용하지 않는다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "내 원문")
+            versions[100] = 3
+            coEvery { remote.getExerciseRecordDetail(100, any()) } coAnswers {
+                preferences.saveMemberId("other", "other")
+                token = jwt("other")
+                success(
+                    GetExerciseRecordData(
+                        "서버",
+                        "본문",
+                        "OTHER",
+                        date.atTime(9, 0),
+                        date.atTime(10, 0),
+                        "장소",
+                        emptyList(),
+                        3,
+                        Long.MAX_VALUE,
+                    ),
+                )
+            }
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Skipped)
+            assertThat(db.exerciseRecordDao().getDetailByLocalId(member, id)!!.title).isEqualTo("내 원문")
+            assertThat(repository.consumePointNotice(setOf(id))).isNull()
+            assertThat(db.exercisePointReceiptDao().getByMember(member).single().noticeConsumed).isFalse()
+        }
+
+    @Test
+    fun `일반 404는 원격 삭제 증거가 아니며 명명된 삭제도 stale 확인으로 폐기하지 않는다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "보존")
+            coEvery { remote.patchExerciseRecord(any(), any(), any()) } returns BaseResponse(false, "404", "")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Failure)
+            assertThat(journal(id).lastError).isEqualTo(ExerciseSyncError.PERMANENT_ERROR)
+            assertThat(repository.discardRemoteDeleted(id, "unapproved")).isInstanceOf(BaseResult.Error::class.java)
+            val old = journal(id)
+            db.exerciseSyncDao().saveSyncState(old.copy(lastError = ExerciseSyncError.REMOTE_DELETED))
+            val account = requireNotNull(ExerciseSyncAccountGuard(preferences, files, auth).capture(member))
+            val originalToken =
+                "${account.memberId}:${account.sessionRevision}:${account.fileSessionRevision}:${syncLocal.remoteDeletionToken(member, id)}"
+            edit(id, "새 원문")
+            assertThat(repository.discardRemoteDeleted(id, originalToken)).isInstanceOf(BaseResult.Error::class.java)
+            assertThat(detail(id).title).isEqualTo("새 원문")
+            val currentToken =
+                "${account.memberId}:${account.sessionRevision}:${account.fileSessionRevision}:${syncLocal.remoteDeletionToken(member, id)}"
+            assertThat(repository.discardRemoteDeleted(id, currentToken)).isInstanceOf(BaseResult.Success::class.java)
+            assertThat(db.exerciseRecordDao().getDetailByLocalId(member, id)).isNull()
+            assertThat(db.exercisePointReceiptDao().getByMember(member)).isEmpty()
+        }
+
+    @Test
+    fun `본문 수정의 EXERCISE_NOT_FOUND는 원격 삭제 폐기 안내를 열지 않고 로컬 원문을 보존한다`() =
+        runTest {
+            val id = create()
+            sync()
+            edit(id, "보존")
+            coEvery { remote.patchExerciseRecord(any(), any(), any()) } returns BaseResponse(false, "EXERCISE_NOT_FOUND", "")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Failure)
+            assertThat(journal(id).lastError).isEqualTo(ExerciseSyncError.PERMANENT_ERROR)
+            assertThat(syncLocal.remoteDeletionToken(member, id)).isNull()
+            assertThat(syncLocal.observeStatus(member, true, true, false).first().single { it.recordId == id }.remoteDeleted).isFalse()
+            assertThat(detail(id).title).isEqualTo("보존")
+        }
+
+    @Test
+    fun `실제 관찰은 본문을 재조회하지 않고 검증 연결 예약 작업 인증 변경으로 retry gate를 갱신한다`() =
+        runTest {
+            val id = create()
+            coEvery { remote.postExerciseRecord(any(), any()) } returns BaseResponse(false, "503", "")
+            assertThat(sync()).isEqualTo(ExerciseSyncResult.Retry)
+            val validated = MutableStateFlow(true)
+            val busy = MutableStateFlow(false)
+            val credentials = MutableStateFlow(0L)
+            every { network.validatedInternet } returns validated
+            every { scheduler.observeBusy() } returns busy
+            every { auth.stateChanges } returns credentials
+            repository.observeSyncStatus().test {
+                assertThat(awaitItem().single { it.recordId == id }.canShowBodyRetry).isTrue()
+                validated.value = false
+                assertThat(awaitItem().single { it.recordId == id }.canShowBodyRetry).isFalse()
+                busy.value = true
+                assertThat(awaitItem().single { it.recordId == id }.canShowBodyRetry).isFalse()
+                validated.value = true
+                assertThat(awaitItem().single { it.recordId == id }.canShowBodyRetry).isFalse()
+                busy.value = false
+                assertThat(awaitItem().single { it.recordId == id }.canShowBodyRetry).isTrue()
+                token = jwt("other")
+                credentials.value++
+                assertThat(awaitItem()).isEmpty()
+                cancelAndIgnoreRemainingEvents()
+            }
+            coVerify(exactly = 0) { remote.getExerciseRecordDetail(any(), any()) }
+            assertThat(journal(id).inFlightBody).isNotNull()
+        }
+
+    @Test
+    fun `clocked PATCH ACK는 사진 증가보다 큰 version도 수락하지만 legacy CAS 응답 검증은 유지한다`() =
+        runTest {
+            for (clocked in listOf(true, false)) {
+                val id = create()
+                sync()
+                edit(id, "수정")
+                if (!clocked) db.exerciseSyncDao().saveSyncState(journal(id).copy(desiredEditedAt = null))
+                coEvery { remote.patchExerciseRecord(any(), any(), any()) } coAnswers {
+                    success(ExerciseIdDto(firstArg(), 7))
+                }
+                assertThat(sync()).isEqualTo(if (clocked) ExerciseSyncResult.Success else ExerciseSyncResult.Failure)
+                if (clocked) {
+                    assertThat(detail(id).serverVersion).isEqualTo(7)
+                } else {
+                    assertThat(journal(id).lastError).isEqualTo(ExerciseSyncError.CONTRACT_ERROR)
+                    assertThat(journal(id).inFlightBody).isNotNull()
+                }
+                stubServer()
+            }
         }
 }

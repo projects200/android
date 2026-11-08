@@ -8,11 +8,14 @@ import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
+import com.project200.domain.model.ExercisePointNotice
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.Policy
 import com.project200.domain.model.PolicyGroup
 import com.project200.domain.model.Score
 import com.project200.domain.model.ValidWindow
+import com.project200.domain.usecase.ExerciseSyncUiUseCase
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetExerciseRecordListUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
@@ -22,8 +25,10 @@ import com.project200.feature.exercise.main.ExerciseMainViewModel
 import io.mockk.clearMocks
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.junit4.MockKRule
+import io.mockk.mockk
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -71,6 +76,8 @@ class ExerciseMainViewModelTest {
 
     private lateinit var viewModel: ExerciseMainViewModel
     private val testDispatcher = StandardTestDispatcher()
+    private val syncUi = mockk<ExerciseSyncUiUseCase>()
+    private val syncStatuses = MutableStateFlow<List<ExerciseSyncStatus>>(emptyList())
 
     private val today = LocalDate.of(2025, 6, 19)
     private val thisMonth = YearMonth.from(today)
@@ -145,6 +152,9 @@ class ExerciseMainViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
+        every { syncUi.observe() } returns syncStatuses
+        coEvery { syncUi.consumePointNotice(any()) } returns null
+        coEvery { syncUi.retry(any()) } returns false
         coEvery { mockClockProvider.yearMonthNow() } returns thisMonth
         coEvery { mockClockProvider.now() } returns today
         coEvery { mockNetworkMonitor.isCurrentlyConnected() } returns true
@@ -178,6 +188,7 @@ class ExerciseMainViewModelTest {
                 mockGetExpectedScoreInfoUseCase,
                 mockClockProvider,
                 mockNetworkMonitor,
+                syncUi,
             )
     }
 
@@ -609,6 +620,7 @@ class ExerciseMainViewModelTest {
                     mockGetExpectedScoreInfoUseCase,
                     mockClockProvider,
                     mockNetworkMonitor,
+                    syncUi,
                 )
             testDispatcher.scheduler.advanceUntilIdle()
             viewModel.scrollPosition = 240
@@ -753,6 +765,7 @@ class ExerciseMainViewModelTest {
                     mockGetExpectedScoreInfoUseCase,
                     mockClockProvider,
                     mockNetworkMonitor,
+                    syncUi,
                 )
             testDispatcher.scheduler.runCurrent()
             assertThat(viewModel.exerciseList.value).isEqualTo(cached)
@@ -792,6 +805,7 @@ class ExerciseMainViewModelTest {
                     mockGetExpectedScoreInfoUseCase,
                     mockClockProvider,
                     mockNetworkMonitor,
+                    syncUi,
                 )
             testDispatcher.scheduler.runCurrent()
             val changed = listOf(item("own-write", today))
@@ -808,6 +822,87 @@ class ExerciseMainViewModelTest {
             assertThat(viewModel.isExerciseListLoaded.value).isTrue()
             coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any(), true, false) }
             coVerify(exactly = 0) { mockGetExerciseCountUseCase(any(), any(), true, false) }
+        }
+
+    @Test
+    fun `Worker 상태 관찰은 현재 목록의 아이콘만 바꾸고 본문 날짜 월 스크롤은 교체하지 않는다`() =
+        runTest(testDispatcher) {
+            val visible = listOf(item("visible", today))
+            coEvery { mockGetExerciseRecordListUseCase(today, false, true) } returns BaseResult.Success(visible)
+            viewModel.onOwnWrite()
+            testDispatcher.scheduler.runCurrent()
+            viewModel.scrollPosition = 321
+            clearMocks(mockGetExerciseRecordListUseCase, mockGetExerciseCountUseCase, mockGetScoreUseCase, answers = false)
+            syncStatuses.value = listOf(ExerciseSyncStatus("visible", canShowBodyRetry = true), ExerciseSyncStatus("hidden", true))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.retryIds.value).containsExactly("visible")
+            assertThat(viewModel.exerciseList.value).isSameInstanceAs(visible)
+            assertThat(viewModel.selectedDate.value).isEqualTo(today)
+            assertThat(viewModel.selectedMonth.value).isEqualTo(thisMonth)
+            assertThat(viewModel.scrollPosition).isEqualTo(321)
+            syncStatuses.value = listOf(ExerciseSyncStatus("visible", complete = true))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.retryIds.value).isEmpty()
+            assertThat(viewModel.exerciseList.value).isSameInstanceAs(visible)
+            coVerify(exactly = 0) { mockGetExerciseRecordListUseCase(any(), any(), any()) }
+            coVerify(exactly = 0) { mockGetExerciseCountUseCase(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { mockGetScoreUseCase() }
+        }
+
+    @Test
+    fun `재시도 연속 탭은 즉시 아이콘을 숨기고 한 번만 domain 예약을 요청한다`() =
+        runTest(testDispatcher) {
+            val result = CompletableDeferred<Boolean>()
+            coEvery { mockGetExerciseRecordListUseCase(today, false, true) } returns BaseResult.Success(listOf(item("record", today)))
+            coEvery { syncUi.retry("record") } coAnswers { result.await() }
+            viewModel.onOwnWrite()
+            syncStatuses.value = listOf(ExerciseSyncStatus("record", canShowBodyRetry = true))
+            testDispatcher.scheduler.runCurrent()
+            viewModel.retryBody("record")
+            viewModel.retryBody("record")
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.retryIds.value).isEmpty()
+            coVerify(exactly = 1) { syncUi.retry("record") }
+            result.complete(true)
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.retryIds.value).isEmpty()
+        }
+
+    @Test
+    fun `편집 화면으로 떠난 동안 점수 영수증을 소비하지 않고 목록 복귀 뒤에만 소비한다`() =
+        runTest(testDispatcher) {
+            testDispatcher.scheduler.runCurrent()
+            viewModel.onScreenStopped()
+            syncStatuses.value = listOf(ExerciseSyncStatus("record", complete = true))
+            testDispatcher.scheduler.runCurrent()
+            coVerify(exactly = 0) { syncUi.consumePointNotice(any()) }
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.runCurrent()
+            coVerify(atLeast = 1) { syncUi.consumePointNotice(any()) }
+            viewModel.onScreenStopped()
+        }
+
+    @Test
+    fun `확정 0점은 안내하지 않고 양수 영수증만 표시하며 총점과 본문은 서버 재조회 없이 유지한다`() =
+        runTest(testDispatcher) {
+            val visible = listOf(item("zero", today), item("positive", today))
+            coEvery { mockGetExerciseRecordListUseCase(today, false, true) } returns BaseResult.Success(visible)
+            coEvery { syncUi.consumePointNotice(setOf("zero", "positive")) } returnsMany
+                listOf(ExercisePointNotice("zero", 0), ExercisePointNotice("positive", 3), null)
+            viewModel.onOwnWrite()
+            testDispatcher.scheduler.runCurrent()
+            clearMocks(mockGetScoreUseCase, answers = false)
+            viewModel.onScreenStarted()
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.pointNotice.value).isEqualTo(3)
+            assertThat(viewModel.exerciseList.value).isSameInstanceAs(visible)
+            coVerify(exactly = 0) { mockGetScoreUseCase() }
+            viewModel.consumePointNoticeEvent()
+            assertThat(viewModel.pointNotice.value).isNull()
+            syncStatuses.value = listOf(ExerciseSyncStatus("positive", complete = true))
+            testDispatcher.scheduler.runCurrent()
+            assertThat(viewModel.pointNotice.value).isNull()
+            viewModel.onScreenStopped()
         }
 
     private fun item(

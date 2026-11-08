@@ -84,9 +84,11 @@ class ExerciseRecordLocalDataSource
             input: ExerciseWriteInput,
             memberId: String = requireNotNull(currentMemberId()) { "ACCOUNT_MISMATCH" },
             preparedImages: List<PreparedExerciseImage> = emptyList(),
+            editedAt: Long = System.currentTimeMillis(),
         ): LocalExerciseSaveResult =
             database.withTransaction {
                 require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
+                require(editedAt > 0)
                 require(input.removedImageLocalIds.isEmpty()) { "INVALID_IMAGE_IDS" }
                 require(input.addedImageUris.size == preparedImages.size) { "IMAGES_NOT_PREPARED" }
                 val id = newLocalId()
@@ -103,6 +105,7 @@ class ExerciseRecordLocalDataSource
                         confirmedDate = null,
                         currentDate = input.record.startedAt.toLocalDate(),
                         recoveryState = ExerciseRecoveryState.READY,
+                        desiredEditedAt = editedAt,
                     )
                 saveLocalRecord(journal, input.record, null)
                 saveImageChanges(memberId, id, emptySet(), preparedImages)
@@ -115,12 +118,20 @@ class ExerciseRecordLocalDataSource
             input: ExerciseWriteInput,
             memberId: String = requireNotNull(currentMemberId()) { "ACCOUNT_MISMATCH" },
             preparedImages: List<PreparedExerciseImage> = emptyList(),
+            editedAt: Long = System.currentTimeMillis(),
         ): LocalExerciseSaveResult =
             database.withTransaction {
                 require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
+                require(editedAt > 0)
                 require(input.addedImageUris.size == preparedImages.size) { "IMAGES_NOT_PREPARED" }
                 val detail = requireNotNull(exerciseRecordDao.getDetailByLocalId(memberId, localId)) { "INCOMPLETE_DETAIL" }
                 require(!exerciseRecordDao.isDeleted(memberId, localId, detail.serverId)) { "RECORD_DELETED" }
+                if (!input.bodyEdited) {
+                    require(input.addedImageUris.isNotEmpty() || input.removedImageLocalIds.isNotEmpty()) { "NO_IMAGE_CHANGES" }
+                    saveImageChanges(memberId, localId, input.removedImageLocalIds, preparedImages)
+                    require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
+                    return@withTransaction LocalExerciseSaveResult(localId)
+                }
                 val item = exerciseRecordDao.getListItem(memberId, localId)
                 val previous = database.exerciseSyncDao().get(memberId, localId)
                 val date =
@@ -130,7 +141,17 @@ class ExerciseRecordLocalDataSource
                         input.record.startedAt.toLocalDate()
                     }
                 val serverId = checkedServerId(item, detail, previous)
-                val journal = desiredJournal(memberId, localId, serverId, item, detail, previous, date)
+                val replacingRejectedBody =
+                    previous?.lastError == ExerciseSyncError.CONFLICT && previous.inFlightOperation == SyncState.UPDATE_PENDING
+                val desired = desiredJournal(memberId, localId, serverId, item, detail, previous, date)
+                val journal =
+                    desired.copy(
+                        desiredEditedAt = editedAt,
+                        recoveryState = if (replacingRejectedBody) ExerciseRecoveryState.READY else desired.recoveryState,
+                        lastError = if (replacingRejectedBody) null else desired.lastError,
+                    )
+                // 거절이 확정된 본문만 새 저장으로 대체합니다. 불명확한 요청/사진은 먼저 재생합니다.
+                if (replacingRejectedBody) database.exerciseSyncDao().saveSyncState(journal)
                 saveLocalRecord(journal, input.record, item, detail.pictures)
                 saveImageChanges(memberId, localId, input.removedImageLocalIds, preparedImages)
                 require(isCurrentMember(memberId)) { "ACCOUNT_MISMATCH" }
@@ -151,6 +172,7 @@ class ExerciseRecordLocalDataSource
                 val serverId = checkedServerId(item, detail, previous)
                 val date = item?.date ?: previous?.currentDate ?: detail?.startedAt?.toLocalDate()
                 date?.let { markLocalDate(memberId, it) }
+                database.exercisePointReceiptDao().deleteByRecord(memberId, localId)
                 val images = database.exerciseImageDao().getByRecord(memberId, localId)
                 val definitelyUnsent =
                     serverId == null && previous?.operation == SyncState.CREATE_PENDING &&
@@ -252,7 +274,8 @@ class ExerciseRecordLocalDataSource
 
         private fun hasInFlight(journal: ExerciseSyncEntity): Boolean =
             journal.inFlightOperation != null || journal.inFlightRevision != null || journal.inFlightOperationId != null ||
-                journal.inFlightRequestId != null || journal.inFlightBody != null || journal.inFlightBaseVersion != null
+                journal.inFlightRequestId != null || journal.inFlightBody != null || journal.inFlightBaseVersion != null ||
+                journal.inFlightEditedAt != null
 
         private fun hasIncompleteInFlight(journal: ExerciseSyncEntity): Boolean =
             hasInFlight(journal) &&
@@ -309,6 +332,7 @@ class ExerciseRecordLocalDataSource
                 serverVersion = version,
                 confirmedDate = confirmedDate,
                 currentDate = date,
+                desiredEditedAt = previous?.desiredEditedAt,
                 recoveryState =
                     if (recovery) ExerciseRecoveryState.RECOVERY_REQUIRED else previous?.recoveryState ?: ExerciseRecoveryState.READY,
                 lastError =
@@ -360,6 +384,7 @@ class ExerciseRecordLocalDataSource
                     pictures = pictures,
                     serverVersion = journal.serverVersion,
                     confirmedDate = journal.confirmedDate,
+                    editedAt = journal.desiredEditedAt,
                 ),
             )
             markLocalDate(journal.memberId, date)

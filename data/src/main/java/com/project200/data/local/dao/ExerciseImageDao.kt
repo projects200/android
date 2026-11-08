@@ -7,6 +7,7 @@ import androidx.room.Upsert
 import com.project200.data.local.entity.CachedPicture
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseImageState
+import kotlinx.coroutines.flow.Flow
 import java.util.UUID
 
 @Dao
@@ -19,6 +20,9 @@ abstract class ExerciseImageDao {
 
     @Query("SELECT * FROM exercise_image WHERE memberId = :memberId AND state != 'SYNCED' ORDER BY recordLocalId, sortOrder")
     abstract suspend fun getPending(memberId: String): List<ExerciseImageEntity>
+
+    @Query("SELECT * FROM exercise_image WHERE memberId = :memberId AND state != 'SYNCED' ORDER BY recordLocalId, sortOrder")
+    abstract fun observePending(memberId: String): Flow<List<ExerciseImageEntity>>
 
     @Query("SELECT EXISTS(SELECT 1 FROM exercise_image WHERE localFilePath = :path)")
     abstract suspend fun isPathReferenced(path: String): Boolean

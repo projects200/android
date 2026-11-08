@@ -27,16 +27,24 @@ import com.project200.domain.manager.ExerciseSyncScheduler
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseCount
 import com.project200.domain.model.ExerciseListItem
+import com.project200.domain.model.ExercisePointNotice
 import com.project200.domain.model.ExerciseRecord
 import com.project200.domain.model.ExerciseSyncResult
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.model.ExerciseWriteInput
 import com.project200.domain.model.LocalExerciseSaveResult
 import com.project200.domain.repository.ExerciseRecordRepository
 import com.project200.undabang.oauth.AuthStateManager
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -70,6 +78,107 @@ class ExerciseRecordRepositoryImpl
         private val refreshMutex = Mutex()
         private val syncMutex = Mutex()
         private var generation = 0L
+        private val manualRetryMutex = Mutex()
+
+        @OptIn(ExperimentalCoroutinesApi::class)
+        override fun observeSyncStatus(): Flow<List<ExerciseSyncStatus>> =
+            combine(
+                preferences.observeExerciseMember(),
+                networkMonitor.validatedInternet,
+                syncScheduler.observeBusy(),
+                authStateManager.stateChanges,
+            ) { member, validated, busy, _ ->
+                Triple(member, validated, busy)
+            }.flatMapLatest { (member, validated, busy) ->
+                val account = member?.let(syncAccountGuard::capture)
+                if (account == null) {
+                    flowOf(emptyList())
+                } else {
+                    syncLocalDataSource.observeStatus(account.memberId, validated, true, busy).map { statuses ->
+                        if (!syncAccountGuard.isCurrent(account)) {
+                            emptyList()
+                        } else {
+                            statuses.map { status ->
+                                status.copy(
+                                    remoteDeletionToken = status.remoteDeletionToken?.let { deletionToken(account, it) },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+        private fun deletionToken(
+            account: ExerciseSyncAccount,
+            token: String,
+        ): String = "${account.memberId}:${account.sessionRevision}:${account.fileSessionRevision}:$token"
+
+        override suspend fun retryBody(recordId: String): Boolean =
+            withContext(ioDispatcher) {
+                try {
+                    manualRetryMutex.withLock {
+                        val member = localDataSource.currentMemberId() ?: return@withLock false
+                        val account = syncAccountGuard.capture(member) ?: return@withLock false
+                        val eligible =
+                            syncState(account) {
+                                val id = localDataSource.resolveExistingLocalId(recordId, member)
+                                id != null && syncLocalDataSource.canRetryBody(member, id)
+                            } == true
+                        if (!eligible || !networkMonitor.hasValidatedInternet() || syncScheduler.isBusy()) return@withLock false
+                        val stillEligible =
+                            syncState(account) {
+                                val id = localDataSource.resolveExistingLocalId(recordId, member)
+                                id != null && syncLocalDataSource.canRetryBody(member, id)
+                            } == true
+                        if (!stillEligible) return@withLock false
+                        if (!syncAccountGuard.isCurrent(account) || !networkMonitor.hasValidatedInternet()) return@withLock false
+                        syncScheduler.retry(member)
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    false
+                }
+            }
+
+        override suspend fun consumePointNotice(recordIds: Set<String>): ExercisePointNotice? =
+            withContext(ioDispatcher) {
+                try {
+                    val member = localDataSource.currentMemberId() ?: return@withContext null
+                    val account = syncAccountGuard.capture(member) ?: return@withContext null
+                    syncState(account) { syncLocalDataSource.consumePointNotice(member, recordIds) }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (_: Exception) {
+                    null
+                }
+            }
+
+        override suspend fun discardRemoteDeleted(
+            recordId: String,
+            confirmationToken: String,
+        ): BaseResult<Unit> =
+            withContext(ioDispatcher) {
+                try {
+                    val member = localDataSource.currentMemberId() ?: return@withContext accountChangedError()
+                    val account = syncAccountGuard.capture(member) ?: return@withContext accountChangedError()
+                    val discarded =
+                        syncState(account, recordId) {
+                            val token = syncLocalDataSource.remoteDeletionToken(member, recordId)
+                            token != null && deletionToken(account, token) == confirmationToken &&
+                                syncLocalDataSource.discardRemoteDeleted(member, recordId)
+                        }
+                    when {
+                        discarded == true -> BaseResult.Success(Unit)
+                        !syncAccountGuard.isCurrent(account) -> accountChangedError()
+                        else -> BaseResult.Error("DISCARD_CONFIRMATION_CHANGED", "기록이 변경되었습니다. 삭제 안내를 다시 확인해주세요.")
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    cacheError(e)
+                }
+            }
 
         override suspend fun getExerciseCountByRange(
             startDate: LocalDate,
@@ -210,17 +319,21 @@ class ExerciseRecordRepositoryImpl
             }
         }
 
-        override suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult> =
-            imageWrite(input) { memberId, prepared -> localDataSource.createRecord(input, memberId, prepared) }
+        override suspend fun createExerciseRecord(input: ExerciseWriteInput): BaseResult<LocalExerciseSaveResult> {
+            val editedAt = System.currentTimeMillis()
+            return imageWrite(input) { memberId, prepared -> localDataSource.createRecord(input, memberId, prepared, editedAt) }
+        }
 
         override suspend fun updateExerciseRecord(
             input: ExerciseWriteInput,
             recordId: String,
-        ): BaseResult<LocalExerciseSaveResult> =
-            imageWrite(input, recordId) { memberId, prepared ->
+        ): BaseResult<LocalExerciseSaveResult> {
+            val editedAt = System.currentTimeMillis()
+            return imageWrite(input, recordId) { memberId, prepared ->
                 val id = requireNotNull(localDataSource.resolveExistingLocalId(recordId, memberId)) { "RECORD_NOT_FOUND" }
-                localDataSource.updateRecord(id, input, memberId, prepared)
+                localDataSource.updateRecord(id, input, memberId, prepared, editedAt)
             }
+        }
 
         private suspend fun imageWrite(
             input: ExerciseWriteInput,
@@ -357,25 +470,70 @@ class ExerciseRecordRepositoryImpl
                                 when (response) {
                                     is BaseResult.Success -> {
                                         val applied =
-                                            syncState(account, localId) {
-                                                if (snapshot.kind == ExerciseRequestKind.BODY) {
-                                                    syncLocalDataSource.applyBody(
-                                                        snapshot,
-                                                        response.data.serverId,
-                                                        response.data.version,
-                                                        response.data.date,
-                                                    )
-                                                } else {
-                                                    syncLocalDataSource.applyPhoto(
-                                                        snapshot,
-                                                        response.data.version,
-                                                        response.data.picture,
-                                                    )
+                                            try {
+                                                syncState(account, localId) {
+                                                    if (snapshot.kind == ExerciseRequestKind.BODY) {
+                                                        syncLocalDataSource.applyBody(
+                                                            snapshot,
+                                                            response.data.serverId,
+                                                            response.data.version,
+                                                            response.data.date,
+                                                            response.data.earnedPoints,
+                                                        )
+                                                    } else {
+                                                        syncLocalDataSource.applyPhoto(
+                                                            snapshot,
+                                                            response.data.version,
+                                                            response.data.picture,
+                                                        )
+                                                    }
                                                 }
+                                            } catch (_: IllegalArgumentException) {
+                                                syncState(account) {
+                                                    syncLocalDataSource.fail(snapshot, false, ExerciseSyncError.CONTRACT_ERROR)
+                                                }
+                                                false
                                             }
                                         if (applied != true) break
                                     }
                                     is BaseResult.Error -> {
+                                        if (
+                                            response.errorCode == "EXERCISE_EDIT_CONFLICT" &&
+                                            snapshot.kind == ExerciseRequestKind.BODY && snapshot.operation == SyncState.UPDATE_PENDING &&
+                                            snapshot.editedAt != null
+                                        ) {
+                                            val latest =
+                                                syncCall(
+                                                    {
+                                                        remoteDataSource.getExerciseRecordDetail(
+                                                            requireNotNull(snapshot.serverId),
+                                                            account,
+                                                        )
+                                                    },
+                                                    { requireNotNull(it) },
+                                                )
+                                            if (!syncAccountGuard.isCurrent(account)) return@sync ExerciseSyncResult.Skipped
+                                            if (latest is BaseResult.Success) {
+                                                val resolution =
+                                                    syncState(account, localId) {
+                                                        syncLocalDataSource.resolveBodyConflict(snapshot, latest.data)
+                                                    }
+                                                if (resolution != null) {
+                                                    if (!resolution) continue
+                                                    retry = true
+                                                    break
+                                                }
+                                            } else if (latest is BaseResult.Error && isAuthenticationError(latest)) {
+                                                syncState(account) {
+                                                    syncLocalDataSource.fail(snapshot, true, ExerciseSyncError.AUTHENTICATION_REQUIRED)
+                                                }
+                                                return@sync ExerciseSyncResult.Skipped
+                                            } else if (latest is BaseResult.Error && isRetryable(latest)) {
+                                                syncState(account) { syncLocalDataSource.fail(snapshot, true, ExerciseSyncError.CONFLICT) }
+                                                retry = true
+                                                break
+                                            }
+                                        }
                                         val auth = isAuthenticationError(response)
                                         val transient = auth || isRetryable(response)
                                         val deletionReady =
@@ -451,6 +609,7 @@ class ExerciseRecordRepositoryImpl
             val version: Long,
             val date: LocalDate? = null,
             val picture: ExercisePictureMappingDto? = null,
+            val earnedPoints: Int? = null,
         )
 
         private suspend fun sendSnapshot(
@@ -464,7 +623,12 @@ class ExerciseRecordRepositoryImpl
                             SyncState.CREATE_PENDING ->
                                 syncCall(
                                     { remoteDataSource.postExerciseRecord(snapshot.createRequest(), account) },
-                                    { dto -> requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version) } },
+                                    { dto ->
+                                        requireNotNull(dto).let {
+                                            require(it.earnedPoints >= 0)
+                                            acknowledgment(it.exerciseId, it.version).copy(earnedPoints = it.earnedPoints)
+                                        }
+                                    },
                                 )
                             SyncState.UPDATE_PENDING ->
                                 syncCall(
@@ -478,7 +642,8 @@ class ExerciseRecordRepositoryImpl
                                     { dto ->
                                         val ack = requireNotNull(dto).let { acknowledgment(it.exerciseId, it.version, snapshot.serverId) }
                                         val baseVersion = requireNotNull(snapshot.baseVersion)
-                                        require(ack.version in baseVersion..baseVersion + 1)
+                                        require(ack.version >= baseVersion)
+                                        require(snapshot.editedAt != null || ack.version <= baseVersion + 1)
                                         ack
                                     },
                                 )
@@ -663,7 +828,8 @@ class ExerciseRecordRepositoryImpl
                 transient -> ExerciseSyncError.NETWORK_ERROR
                 error.errorCode == "EXERCISE_REQUEST_ID_REUSED" -> ExerciseSyncError.REQUEST_ID_REUSED
                 error.errorCode == "EXERCISE_EDIT_CONFLICT" -> ExerciseSyncError.CONFLICT
-                error.errorCode in setOf("EXERCISE_NOT_FOUND", "EXERCISE_DELETED") -> ExerciseSyncError.REMOTE_DELETED
+                // 서버는 소프트 삭제만 하므로 EXERCISE_NOT_FOUND는 원격 삭제 확인이 아닙니다. 폐기 안내는 EXERCISE_DELETED만 엽니다.
+                error.errorCode == "EXERCISE_DELETED" -> ExerciseSyncError.REMOTE_DELETED
                 error.errorCode == "MAPPING_ERROR" || error.cause is com.squareup.moshi.JsonDataException ||
                     error.cause is com.squareup.moshi.JsonEncodingException || error.cause is IllegalArgumentException ->
                     ExerciseSyncError.CONTRACT_ERROR

@@ -4,18 +4,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.usecase.DeleteExerciseRecordUseCase
+import com.project200.domain.usecase.ExerciseSyncUiUseCase
 import com.project200.domain.usecase.GetExerciseRecordDetailUseCase
 import com.project200.presentation.utils.UiState
 import com.project200.presentation.utils.mapCodeToFailure
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -26,6 +30,7 @@ class ExerciseDetailViewModel
     constructor(
         private val exerciseRecordDetailUseCase: GetExerciseRecordDetailUseCase,
         private val deleteExerciseRecordUseCase: DeleteExerciseRecordUseCase,
+        private val syncUi: ExerciseSyncUiUseCase,
     ) : ViewModel() {
         private val _exerciseRecord = MutableStateFlow<UiState<ExerciseRecord>>(UiState.Loading)
         val exerciseRecord: StateFlow<UiState<ExerciseRecord>> = _exerciseRecord
@@ -36,10 +41,54 @@ class ExerciseDetailViewModel
         private val notifications = Channel<String>(Channel.BUFFERED)
         val refreshMessages = notifications.receiveAsFlow()
         private var initializedRecordId: String? = null
+        private var loadedRecordId: String? = null
         private var requestId = 0L
         private var hasStarted = false
         private var screenStarted = false
         private var localReadSinceStop = false
+        private val _syncStatus = MutableStateFlow(ExerciseSyncStatus(""))
+        val syncStatus: StateFlow<ExerciseSyncStatus> = _syncStatus
+        private var statuses = emptyList<ExerciseSyncStatus>()
+        private var noticeJob: Job? = null
+
+        init {
+            viewModelScope.launch {
+                syncUi.observe().collect {
+                    statuses = it
+                    updateSyncUi()
+                }
+            }
+        }
+
+        private fun updateSyncUi() {
+            val id = initializedRecordId ?: return
+            _syncStatus.value = statuses.singleOrNull { it.recordId == id } ?: ExerciseSyncStatus(id)
+            if (screenStarted && loadedRecordId == id && noticeJob?.isActive != true) {
+                noticeJob =
+                    viewModelScope.launch {
+                        val notice = syncUi.consumePointNotice(setOf(id))
+                        if (screenStarted && notice != null && notice.earnedPoints > 0) {
+                            notifications.send("${notice.earnedPoints}점 획득했어요!")
+                        }
+                    }
+            }
+        }
+
+        fun retryBody() {
+            val id = initializedRecordId ?: return
+            if (!_syncStatus.value.canShowBodyRetry) return
+            _syncStatus.value = _syncStatus.value.copy(canShowBodyRetry = false)
+            viewModelScope.launch {
+                if (!syncUi.retry(id)) updateSyncUi()
+            }
+        }
+
+        fun discardRemoteDeleted(status: ExerciseSyncStatus) {
+            val token = status.remoteDeletionToken ?: return
+            viewModelScope.launch {
+                _deleteResult.emit(syncUi.discardRemoteDeleted(status.recordId, token))
+            }
+        }
 
         fun getExerciseRecord(
             recordId: String,
@@ -49,6 +98,7 @@ class ExerciseDetailViewModel
         ) {
             if (!force && initializedRecordId == recordId) return
             initializedRecordId = recordId
+            updateSyncUi()
             val currentRequest = ++requestId
             viewModelScope.launch {
                 val result = exerciseRecordDetailUseCase(recordId, refresh, localOnly)
@@ -56,6 +106,8 @@ class ExerciseDetailViewModel
                 when (result) {
                     is BaseResult.Success -> {
                         _exerciseRecord.value = UiState.Success(result.data)
+                        loadedRecordId = recordId
+                        updateSyncUi()
                         result.refreshError?.let { notifications.send(it.message ?: "기록을 새로고침하지 못했습니다.") }
                         if (!refresh && !localOnly && result.isCachedSnapshot) {
                             viewModelScope.launch { exerciseRecordDetailUseCase(recordId, refresh = true) }
@@ -77,6 +129,7 @@ class ExerciseDetailViewModel
         fun onScreenStarted(recordId: String) {
             if (screenStarted) return
             screenStarted = true
+            updateSyncUi()
             if (hasStarted && !localReadSinceStop) {
                 getExerciseRecord(recordId, refresh = false, force = true, localOnly = true)
             }
@@ -85,6 +138,7 @@ class ExerciseDetailViewModel
 
         fun onScreenStopped() {
             screenStarted = false
+            noticeJob?.cancel()
             localReadSinceStop = false
         }
 

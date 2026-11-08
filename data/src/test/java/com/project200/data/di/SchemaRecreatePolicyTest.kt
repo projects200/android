@@ -56,11 +56,11 @@ class SchemaRecreatePolicyTest {
         SQLiteDatabase.openOrCreateDatabase(context.getDatabasePath(name), null).use { raw ->
             raw.execSQL("CREATE TABLE original_data (value TEXT NOT NULL)")
             raw.execSQL("INSERT INTO original_data VALUES ('preserved')")
-            raw.version = 7
+            raw.version = 8
         }
         assertThrows(IllegalStateException::class.java) { openDatabase().openHelper.writableDatabase }
         SQLiteDatabase.openDatabase(context.getDatabasePath(name).path, null, SQLiteDatabase.OPEN_READONLY).use { raw ->
-            assertThat(raw.version).isEqualTo(7)
+            assertThat(raw.version).isEqualTo(8)
             raw.rawQuery("SELECT value FROM original_data", null).use {
                 assertThat(it.moveToFirst()).isTrue()
                 assertThat(it.getString(0)).isEqualTo("preserved")
@@ -75,7 +75,7 @@ class SchemaRecreatePolicyTest {
             db.exerciseCountDao().upsertAll(listOf(ExerciseCountEntity("member-a", date, 3)))
             db.close()
             db = openDatabase()
-            assertThat(db.openHelper.readableDatabase.version).isEqualTo(6)
+            assertThat(db.openHelper.readableDatabase.version).isEqualTo(7)
             assertThat(db.exerciseCountDao().getRange("member-a", date, date))
                 .containsExactly(ExerciseCountEntity("member-a", date, 3))
         }
@@ -93,7 +93,7 @@ class SchemaRecreatePolicyTest {
                 raw.execSQL("INSERT INTO simple_timer VALUES ('member-a', 'timer', NULL, 'CREATE_PENDING', 60, 'create', NULL, 1)")
             }
             val db = openDatabase()
-            assertThat(db.openHelper.readableDatabase.version).isEqualTo(6)
+            assertThat(db.openHelper.readableDatabase.version).isEqualTo(7)
             assertThat(db.exerciseRecordDao().getListItem("member-a", "pending")?.title).isEqualTo("대기 운동")
             assertThat(db.exerciseSyncDao().get("member-a", "pending")?.recoveryState).isEqualTo(ExerciseRecoveryState.RECOVERY_REQUIRED)
             assertThat(db.exerciseSyncDao().getSendable("member-a")).isEmpty()

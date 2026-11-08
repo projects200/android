@@ -43,12 +43,20 @@ class ExerciseDetailFragment : Fragment() {
         ComposeView(requireContext()).apply {
             applyAppTheme {
                 val state by viewModel.exerciseRecord.collectAsStateWithLifecycle()
+                val syncStatus by viewModel.syncStatus.collectAsStateWithLifecycle()
                 ExerciseDetailScreen(
                     state = state,
                     onBackClick = { findNavController().navigateUp() },
                     onShareClick = ::handleShareClick,
-                    onMenuClick = ::showExerciseDetailMenu,
-                    onRefreshClick = { viewModel.getExerciseRecord(args.recordId, refresh = true, force = true) },
+                    onMenuClick = {
+                        showExerciseDetailMenu(
+                            canModify = { (state as? UiState.Success)?.data?.canModify == true },
+                        )
+                    },
+                    canShowBodyRetry = syncStatus.canShowBodyRetry,
+                    remoteDeleted = syncStatus.remoteDeleted,
+                    onRetryClick = viewModel::retryBody,
+                    onDiscardRemoteClick = { viewModel.discardRemoteDeleted(syncStatus) },
                 )
             }
         }
@@ -108,18 +116,35 @@ class ExerciseDetailFragment : Fragment() {
         }
     }
 
-    private fun showExerciseDetailMenu() {
-        // 종속 다이얼로그(ExerciseMenuBottomSheetDialog) → 공통 UndabangBottomSheet.showMenu로 대체
-        UndabangBottomSheet.showMenu(
+    private fun showExerciseDetailMenu(canModify: () -> Boolean) {
+        val refresh = getString(R.string.exercise_refresh)
+        val edit = getString(R.string.exercise_record_edit)
+        val delete = getString(R.string.exercise_record_delete)
+        val items =
+            buildList {
+                add(refresh)
+                if (canModify()) {
+                    add(edit)
+                    add(delete)
+                }
+            }
+        UndabangBottomSheet.showSelection(
             fragmentManager = parentFragmentManager,
-            onEditClick = {
-                findNavController().navigate(
-                    ExerciseDetailFragmentDirections
-                        .actionExerciseDetailFragmentToExerciseFormFragment(args.recordId),
-                )
-            },
-            onDeleteClick = { showDeleteConfirmationDialog() },
-        )
+            items = items,
+        ) { selected ->
+            if (selected == refresh) {
+                viewModel.getExerciseRecord(args.recordId, refresh = true, force = true)
+            } else if (canModify()) {
+                when (selected) {
+                    edit ->
+                        findNavController().navigate(
+                            ExerciseDetailFragmentDirections
+                                .actionExerciseDetailFragmentToExerciseFormFragment(args.recordId),
+                        )
+                    delete -> showDeleteConfirmationDialog()
+                }
+            }
+        }
     }
 
     private fun showDeleteConfirmationDialog() {

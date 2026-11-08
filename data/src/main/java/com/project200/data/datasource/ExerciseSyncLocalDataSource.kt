@@ -2,17 +2,24 @@ package com.project200.data.datasource
 
 import androidx.room.withTransaction
 import com.project200.data.dto.ExercisePictureMappingDto
+import com.project200.data.dto.GetExerciseRecordData
 import com.project200.data.local.UndabangDatabase
 import com.project200.data.local.entity.ExerciseCountEntity
 import com.project200.data.local.entity.ExerciseImageEntity
 import com.project200.data.local.entity.ExerciseImageState
+import com.project200.data.local.entity.ExercisePointReceiptEntity
 import com.project200.data.local.entity.ExerciseRecoveryState
 import com.project200.data.local.entity.ExerciseSyncEntity
 import com.project200.data.local.entity.ExerciseSyncError
 import com.project200.data.local.entity.SyncState
 import com.project200.data.mapper.toModel
 import com.project200.data.mapper.toPostExerciseDTO
+import com.project200.data.mapper.toSyncedEntity
+import com.project200.domain.model.ExercisePointNotice
+import com.project200.domain.model.ExerciseSyncStatus
+import com.project200.domain.model.canShowExerciseBodyRetry
 import com.squareup.moshi.Moshi
+import kotlinx.coroutines.flow.combine
 import java.io.File
 import java.security.MessageDigest
 import java.time.LocalDate
@@ -36,6 +43,135 @@ class ExerciseSyncLocalDataSource
 
         suspend fun hasRecovery(memberId: String): Boolean =
             journals.getByMember(memberId).any { it.recoveryState == ExerciseRecoveryState.RECOVERY_REQUIRED }
+
+        fun observeStatus(
+            memberId: String,
+            validated: Boolean,
+            authenticated: Boolean,
+            busy: Boolean,
+        ) = combine(
+            journals.observeByMember(memberId),
+            images.observePending(memberId),
+            database.exercisePointReceiptDao().observeByMember(memberId),
+        ) { pending, photos, receipts ->
+            (pending.map { it.localId } + photos.map { it.recordLocalId } + receipts.map { it.recordLocalId }).distinct().map { id ->
+                val journal = pending.singleOrNull { it.localId == id }
+                ExerciseSyncStatus(
+                    recordId = id,
+                    canShowBodyRetry = canShowExerciseBodyRetry(validated, authenticated, journal.isRetryableBody(), busy),
+                    remoteDeleted = authenticated && journal?.lastError == ExerciseSyncError.REMOTE_DELETED,
+                    complete = journal == null && photos.none { it.recordLocalId == id },
+                    remoteDeletionToken = journal?.takeIf { it.lastError == ExerciseSyncError.REMOTE_DELETED }?.deletionToken(),
+                )
+            }
+        }
+
+        private fun ExerciseSyncEntity?.isRetryableBody(): Boolean =
+            this != null && operation in setOf(SyncState.CREATE_PENDING, SyncState.UPDATE_PENDING) &&
+                recoveryState == ExerciseRecoveryState.RETRYABLE && lastError == ExerciseSyncError.NETWORK_ERROR &&
+                inFlightOperation in setOf(SyncState.CREATE_PENDING, SyncState.UPDATE_PENDING)
+
+        suspend fun canRetryBody(
+            memberId: String,
+            localId: String,
+        ): Boolean = journals.get(memberId, localId).isRetryableBody()
+
+        private fun ExerciseSyncEntity.deletionToken(): String = "$operationId:$revision:$inFlightRequestId"
+
+        suspend fun remoteDeletionToken(
+            memberId: String,
+            localId: String,
+        ): String? = journals.get(memberId, localId)?.takeIf { it.lastError == ExerciseSyncError.REMOTE_DELETED }?.deletionToken()
+
+        suspend fun consumePointNotice(
+            memberId: String,
+            visibleIds: Set<String>,
+        ): ExercisePointNotice? =
+            database.withTransaction {
+                val receipt =
+                    database.exercisePointReceiptDao().getByMember(memberId).firstOrNull {
+                        !it.noticeConsumed && it.recordLocalId in visibleIds &&
+                            journals.get(memberId, it.recordLocalId) == null &&
+                            images.getByRecord(memberId, it.recordLocalId).all { image -> image.state == ExerciseImageState.SYNCED } &&
+                            records.getDetailByLocalId(memberId, it.recordLocalId)?.syncState == SyncState.SYNCED
+                    } ?: return@withTransaction null
+                if (database.exercisePointReceiptDao().consume(memberId, receipt.createRequestId) != 1) return@withTransaction null
+                ExercisePointNotice(receipt.recordLocalId, receipt.earnedPoints)
+            }
+
+        suspend fun discardRemoteDeleted(
+            memberId: String,
+            localId: String,
+        ): Boolean =
+            database.withTransaction {
+                val journal = journals.get(memberId, localId) ?: return@withTransaction false
+                if (journal.lastError != ExerciseSyncError.REMOTE_DELETED) return@withTransaction false
+                moveCount(memberId, journal.confirmedDate, null)
+                images.getByRecord(memberId, localId).forEach {
+                    images.deleteMatching(memberId, localId, it.localId, it.requestId)
+                }
+                records.deleteConfirmedList(memberId, localId)
+                records.deleteConfirmedDetail(memberId, localId)
+                database.exercisePointReceiptDao().deleteByRecord(memberId, localId)
+                journals.deleteApplied(memberId, localId)
+                true
+            }
+
+        /** definite rejection 뒤에만 호출합니다. 새 로컬 의도는 서버 본문으로 교체하지 않습니다. */
+        suspend fun resolveBodyConflict(
+            snapshot: ExerciseSyncSnapshot,
+            remote: GetExerciseRecordData,
+        ): Boolean? =
+            database.withTransaction {
+                val current = matched(snapshot) ?: return@withTransaction false
+                val localClock = snapshot.editedAt ?: return@withTransaction null
+                val remoteClock = remote.editedAt?.takeIf { it > 0 } ?: return@withTransaction null
+                val version = remote.version?.takeIf { it >= 0 } ?: return@withTransaction null
+                if (version < requireNotNull(snapshot.baseVersion)) return@withTransaction null
+                val date = remote.exerciseStartedAt.toLocalDate()
+                val unchanged = current.revision == snapshot.revision && current.operationId == snapshot.operationId
+                val remoteWins = remoteClock >= localClock
+                val next =
+                    clearSnapshot(current).copy(
+                        serverVersion = version,
+                        confirmedDate = date,
+                        recoveryState = ExerciseRecoveryState.READY,
+                        lastError = null,
+                        operation = if (unchanged && remoteWins) SyncState.SYNCED else current.operation,
+                        operationId = if (unchanged && !remoteWins) UUID.randomUUID().toString() else current.operationId,
+                    )
+                moveCount(snapshot.memberId, current.confirmedDate, date)
+                if (unchanged && remoteWins) {
+                    val model = remote.toModel()
+                    val pictures =
+                        model.pictures.orEmpty().mapNotNull { picture ->
+                            picture.serverId?.let { com.project200.data.local.entity.CachedPicture(it, picture.source) }
+                        }
+                    images.refreshSynced(snapshot.memberId, snapshot.localId, pictures)
+                    records.upsertDetail(model.toSyncedEntity(snapshot.memberId, snapshot.localId, requireNotNull(snapshot.serverId)))
+                    records.getListItem(snapshot.memberId, snapshot.localId)?.let {
+                        records.upsertListItems(
+                            listOf(
+                                it.copy(
+                                    title = model.title,
+                                    personalType = model.personalType,
+                                    startedAt = model.startedAt,
+                                    endedAt = model.endedAt,
+                                    date = date,
+                                    thumbnailUrls = pictures.map { picture -> picture.url },
+                                ),
+                            ),
+                        )
+                    }
+                }
+                saveProjection(next)
+                if (next.operation == SyncState.SYNCED) {
+                    journals.deleteApplied(next.memberId, next.localId)
+                } else {
+                    journals.saveSyncState(next)
+                }
+                !remoteWins || !unchanged
+            }
 
         suspend fun claim(
             memberId: String,
@@ -73,7 +209,8 @@ class ExerciseSyncLocalDataSource
                     require(current.operation != SyncState.UPDATE_PENDING || current.serverId != null)
                     if (
                         current.inFlightOperationId != null || current.inFlightBody != null || current.inFlightRequestId != null ||
-                        current.inFlightOperation != null || current.inFlightRevision != null || current.inFlightBaseVersion != null
+                        current.inFlightOperation != null || current.inFlightRevision != null || current.inFlightBaseVersion != null ||
+                        current.inFlightEditedAt != null
                     ) {
                         val saved = requireNotNull(snapshots.fromJson(requireNotNull(current.inFlightBody)))
                         saved.validate()
@@ -143,6 +280,7 @@ class ExerciseSyncLocalDataSource
                                 } else {
                                     requireNotNull(detail).toModel().toPostExerciseDTO()
                                 },
+                                editedAt = current.desiredEditedAt.takeUnless { current.operation == SyncState.DELETE_PENDING },
                             )
                         } else {
                             if (photo == null) {
@@ -165,6 +303,7 @@ class ExerciseSyncLocalDataSource
                             inFlightRequestId = snapshot.requestId,
                             inFlightBody = snapshots.toJson(snapshot),
                             inFlightBaseVersion = snapshot.baseVersion,
+                            inFlightEditedAt = snapshot.editedAt,
                         ),
                     )
                     snapshot
@@ -262,11 +401,24 @@ class ExerciseSyncLocalDataSource
             serverId: Long,
             version: Long,
             date: LocalDate?,
+            earnedPoints: Int? = null,
         ): Boolean =
             database.withTransaction {
                 val current = matched(snapshot) ?: return@withTransaction false
                 require(snapshot.kind == ExerciseRequestKind.BODY && serverId > 0 && version >= 0)
                 require(snapshot.serverId == null || snapshot.serverId == serverId)
+                if (snapshot.operation == SyncState.CREATE_PENDING && earnedPoints != null) {
+                    database.exercisePointReceiptDao().acknowledge(
+                        ExercisePointReceiptEntity(
+                            snapshot.memberId,
+                            snapshot.requestId,
+                            snapshot.localId,
+                            serverId,
+                            earnedPoints,
+                            current.operation == SyncState.DELETE_PENDING,
+                        ),
+                    )
+                }
                 if (snapshot.operation == SyncState.DELETE_PENDING) {
                     moveCount(snapshot.memberId, snapshot.previousDate?.let(LocalDate::parse), null)
                     images.getByRecord(snapshot.memberId, snapshot.localId).forEach {
@@ -275,6 +427,7 @@ class ExerciseSyncLocalDataSource
                     records.deleteConfirmedList(snapshot.memberId, snapshot.localId)
                     records.deleteConfirmedDetail(snapshot.memberId, snapshot.localId)
                     journals.deleteApplied(snapshot.memberId, snapshot.localId)
+                    database.exercisePointReceiptDao().deleteByRecord(snapshot.memberId, snapshot.localId)
                     return@withTransaction true
                 }
                 require(date != null)
@@ -380,6 +533,7 @@ class ExerciseSyncLocalDataSource
                 inFlightRequestId = null,
                 inFlightBody = null,
                 inFlightBaseVersion = null,
+                inFlightEditedAt = null,
             )
 
         private suspend fun saveProjection(journal: ExerciseSyncEntity) {

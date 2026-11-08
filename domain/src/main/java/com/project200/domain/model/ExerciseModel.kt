@@ -14,6 +14,7 @@ data class ExerciseRecord(
     val syncPending: Boolean = false,
     val canModify: Boolean = true,
     val serverVersion: Long? = null,
+    val editedAt: Long? = null,
 )
 
 enum class ExerciseImageSyncStatus { PENDING, SYNCED, FAILED }
@@ -50,4 +51,6 @@ data class ExerciseWriteInput(
     val record: ExerciseRecord,
     val addedImageUris: List<String> = emptyList(),
     val removedImageLocalIds: Set<String> = emptySet(),
+    /** 폼의 최초 스냅샷과 비교합니다. 사진만 저장할 때 오래된 본문에 새 시각을 붙이지 않습니다. */
+    val bodyEdited: Boolean = true,
 )

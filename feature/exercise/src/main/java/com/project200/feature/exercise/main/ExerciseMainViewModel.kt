@@ -8,15 +8,19 @@ import com.project200.common.utils.ClockProvider
 import com.project200.common.utils.NetworkMonitor
 import com.project200.domain.model.BaseResult
 import com.project200.domain.model.ExerciseListItem
+import com.project200.domain.model.ExerciseSyncStatus
 import com.project200.domain.model.ExpectedScoreInfo
 import com.project200.domain.model.PolicyGroup
 import com.project200.domain.model.Score
+import com.project200.domain.usecase.ExerciseSyncUiUseCase
 import com.project200.domain.usecase.GetExerciseCountInMonthUseCase
 import com.project200.domain.usecase.GetExerciseRecordListUseCase
 import com.project200.domain.usecase.GetExpectedScoreInfoUseCase
 import com.project200.domain.usecase.GetScorePolicyUseCase
 import com.project200.domain.usecase.GetScoreUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.YearMonth
@@ -33,6 +37,7 @@ class ExerciseMainViewModel
         private val getExpectedScoreInfoUseCase: GetExpectedScoreInfoUseCase,
         private val clockProvider: ClockProvider,
         private val networkMonitor: NetworkMonitor,
+        private val syncUi: ExerciseSyncUiUseCase,
     ) : ViewModel() {
         private val _selectedMonth = MutableLiveData<YearMonth>()
         val selectedMonth: LiveData<YearMonth> = _selectedMonth
@@ -48,6 +53,40 @@ class ExerciseMainViewModel
         private var hasStarted = false
         private var screenStarted = false
         private var localReadSinceStop = false
+        private var statuses = emptyList<ExerciseSyncStatus>()
+        private var noticeJob: Job? = null
+        private val _retryIds = MutableLiveData<Set<String>>(emptySet())
+        val retryIds: LiveData<Set<String>> = _retryIds
+        private val _pointNotice = MutableLiveData<Int?>()
+        val pointNotice: LiveData<Int?> = _pointNotice
+
+        private fun updateSyncUi() {
+            val visible = _exerciseList.value.orEmpty().map { it.recordId }.toSet()
+            _retryIds.value = statuses.filter { it.recordId in visible && it.canShowBodyRetry }.map { it.recordId }.toSet()
+            if (screenStarted && noticeJob?.isActive != true) {
+                noticeJob =
+                    viewModelScope.launch {
+                        while (screenStarted) {
+                            val notice = syncUi.consumePointNotice(visible) ?: break
+                            if (screenStarted && notice.earnedPoints > 0) {
+                                _pointNotice.value = notice.earnedPoints
+                            }
+                        }
+                    }
+            }
+        }
+
+        fun retryBody(recordId: String) {
+            if (recordId !in _retryIds.value.orEmpty()) return
+            _retryIds.value = _retryIds.value.orEmpty() - recordId
+            viewModelScope.launch {
+                if (!syncUi.retry(recordId)) updateSyncUi()
+            }
+        }
+
+        fun consumePointNoticeEvent() {
+            _pointNotice.value = null
+        }
 
         private val _toastMessage = MutableLiveData<String?>()
         val toastMessage: LiveData<String?> = _toastMessage
@@ -84,6 +123,12 @@ class ExerciseMainViewModel
         val earnablePoints: LiveData<Int> = _earnablePoints
 
         init {
+            viewModelScope.launch {
+                syncUi.observe().collect {
+                    statuses = it
+                    updateSyncUi()
+                }
+            }
             val today = clockProvider.now()
             _selectedMonth.value = YearMonth.from(today)
             _selectedDate.value = today
@@ -107,6 +152,7 @@ class ExerciseMainViewModel
             _isExerciseListLoaded.value = false
             _selectedDate.value = date
             _exerciseList.value = emptyList()
+            updateSyncUi()
             loadExercisesForDate(date)
             updateEarnablePoints()
         }
@@ -127,6 +173,7 @@ class ExerciseMainViewModel
                     is BaseResult.Success -> {
                         _exerciseList.value = result.data
                         _isExerciseListLoaded.value = true
+                        updateSyncUi()
                         result.refreshError?.let { notifyRefreshError(it) }
                         if (!refresh && !localOnly && result.isCachedSnapshot) {
                             viewModelScope.launch { getExerciseRecordListUseCase(date, refresh = true) }
@@ -273,6 +320,7 @@ class ExerciseMainViewModel
         fun onScreenStarted() {
             if (screenStarted) return
             screenStarted = true
+            updateSyncUi()
             if (hasStarted && !localReadSinceStop) {
                 reloadExerciseQueries(refresh = false, localOnly = true)
             }
@@ -281,6 +329,8 @@ class ExerciseMainViewModel
 
         fun onScreenStopped() {
             screenStarted = false
+            noticeJob?.cancel()
+            _pointNotice.value = null
             localReadSinceStop = false
         }
 

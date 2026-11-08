@@ -6,6 +6,8 @@ import androidx.compose.ui.graphics.Color
 val ColorMain = Color(0xFF4F7942)
 val ColorMainBackground = Color(0xFFEBF1E5)
 val ColorErrorRed = Color(0xFFE53935)
+val ColorNoticeText = Color(0xFFE5716E)
+val ColorNoticeBackground = ColorErrorRed.copy(alpha = 0.15f)
 
 val ColorWhite300 = Color(0xFFFFFFFF)
 val ColorWhite200 = Color(0xFFFAFAFA)

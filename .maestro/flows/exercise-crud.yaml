@@ -71,12 +71,14 @@ tags:
       id: exercise_create_btn
     timeout: 30000
 - runFlow: ../subflows/select-exercise-date.yaml
+# 하단 고정 작성 버튼에 가리지 않은 행을 탭합니다.
 - scrollUntilVisible:
     element:
       id: exercise_title_tv
       text: "${EXERCISE_TITLE}"
     direction: DOWN
     timeout: 30000
+    centerElement: true
 - assertVisible:
     id: exercise_list_cl
     containsDescendants:
@@ -132,12 +134,14 @@ tags:
     file: ../subflows/assert-exercise-records-absent.yaml
     env:
       ABSENT_RECORD_PATTERN: "${EXERCISE_TITLE}"
+# 재진입한 목록에서도 하단 고정 작성 버튼을 피합니다.
 - scrollUntilVisible:
     element:
       id: exercise_title_tv
       text: "${EDITED_EXERCISE_TITLE}"
     direction: DOWN
     timeout: 30000
+    centerElement: true
 - assertVisible:
     id: exercise_list_cl
     containsDescendants:

@@ -493,7 +493,7 @@ class ExerciseRecordRepositoryImplTest {
     fun `로컬 트랜잭션 실패는 저장 성공이나 서버 재시도로 바꾸지 않는다`() =
         runTest {
             val failingLocal = spyk(local)
-            coEvery { failingLocal.createRecord(any(), memberId, any()) } throws IOException("Room 저장 실패")
+            coEvery { failingLocal.createRecord(any(), memberId, any(), any()) } throws IOException("Room 저장 실패")
             val writer =
                 ExerciseRecordRepositoryImpl(
                     remote,
