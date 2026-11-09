@@ -47,13 +47,18 @@ internal object MaestroFeaturePolicy {
     private val jwtPattern = Regex("eyJ[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.")
     private val offlineCaseVariables =
         setOf(
-            "EXERCISE_DESCRIPTION", "EXERCISE_EDITED_DESCRIPTION", "EXERCISE_REMOTE_DESCRIPTION",
-            "E2E_APP_VERSION", "E2E_APP_VERSION_CODE", "E2E_SERVER_CONTRACT",
-        ) + setOf("A", "B").flatMap { label ->
-            setOf("NAME", "PICKER_LABEL", "SHA256", "TAKEN", "CAPTURE_TEXT", "RELATIVE_PATH").map {
-                "PHOTO_${label}_$it"
+            "EXERCISE_DESCRIPTION",
+            "EXERCISE_EDITED_DESCRIPTION",
+            "EXERCISE_REMOTE_DESCRIPTION",
+            "E2E_APP_VERSION",
+            "E2E_APP_VERSION_CODE",
+            "E2E_SERVER_CONTRACT",
+        ) +
+            setOf("A", "B").flatMap { label ->
+                setOf("NAME", "PICKER_LABEL", "SHA256", "TAKEN", "CAPTURE_TEXT", "RELATIVE_PATH").map {
+                    "PHOTO_${label}_$it"
+                }
             }
-        }
 
     fun validateIdentity(
         feature: String,

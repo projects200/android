@@ -62,9 +62,17 @@ class MaestroOfflineSessionCasesTest {
         coEvery { cleaner.hasStoredData() } returns false
         coEvery { exerciseCases.assertRetained(any(), any(), any()) } returns Unit
         coEvery { exerciseCases.assertErased(any(), any(), any()) } returns Unit
-        observer = MaestroOfflineSessionCases(
-            preferences, bootstrap, clear, cleaner, ExerciseImageFileStore(context), exerciseCases, api, database,
-        )
+        observer =
+            MaestroOfflineSessionCases(
+                preferences,
+                bootstrap,
+                clear,
+                cleaner,
+                ExerciseImageFileStore(context),
+                exerciseCases,
+                api,
+                database,
+            )
     }
 
     @After
@@ -204,13 +212,16 @@ class MaestroOfflineSessionCasesTest {
         runTest {
             val request = request("offline-session-adoption")
             val saved = prepared(request)
-            val session = saved.getJSONObject("session")
-                .put("approvedErasure", true).put("peerApproved", true).put("peerMemberId", "member-b")
+            val session =
+                saved.getJSONObject("session")
+                    .put("approvedErasure", true).put("peerApproved", true).put("peerMemberId", "member-b")
             preferences.saveMemberId("member-b", "subject-b")
             coEvery { bootstrap.verifyCurrent("member-b") } returns "member-b"
             coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns
                 BaseResponse(
-                    true, "OK", "",
+                    true,
+                    "OK",
+                    "",
                     listOf(GetExerciseRecordListDto(71, run.exerciseTitle, "RUNNING", run.startedAt, run.endedAt, null)),
                 )
             assertThat(failure { observer.observe(request, run, saved, "session-peer-isolated") })
@@ -228,8 +239,14 @@ class MaestroOfflineSessionCasesTest {
 
     private fun pending(confirmation: String?): PendingLogin =
         PendingLogin(
-            "private-attempt", "member-a", "subject-a", preferences.exerciseSessionRevision(), 0,
-            "subject-b", "member-b", confirmation,
+            "private-attempt",
+            "member-a",
+            "subject-a",
+            preferences.exerciseSessionRevision(),
+            0,
+            "subject-b",
+            "member-b",
+            confirmation,
         )
 
     private fun request(flow: String = "offline-session-retain"): MaestroFeatureRequest =

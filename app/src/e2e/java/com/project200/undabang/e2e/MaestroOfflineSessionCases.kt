@@ -131,7 +131,9 @@ internal class MaestroOfflineSessionCases
                         preferences.getMemberId() != null || preferences.getRetainedMemberId() != request.memberId ||
                         pending.retainedMemberId != request.memberId || pending.targetMemberId != peer(session) ||
                         pending.subject.isNullOrBlank() || pending.confirmationId.isNullOrBlank()
-                    ) fail()
+                    ) {
+                        fail()
+                    }
                     requireCredentials()
                     exercises.assertRetained(request, run, saved)
                     session.put("peerConfirmationObserved", true)
@@ -163,7 +165,11 @@ internal class MaestroOfflineSessionCases
                     }
                     val dao = database.exerciseRecordDao()
                     val date = run.startedAt.toLocalDate()
-                    if ((dao.getListByDate(member, date) + dao.getPendingInRange(member, date, date)).any { it.title in run.exerciseTitles }) {
+                    if (
+                        (dao.getListByDate(member, date) + dao.getPendingInRange(member, date, date)).any {
+                            it.title in run.exerciseTitles
+                        }
+                    ) {
                         throw MaestroSetupFailure("offline_session_peer_not_isolated")
                     }
                     requireActive(member)
@@ -216,7 +222,10 @@ internal class MaestroOfflineSessionCases
             }
         }
 
-        private fun validate(request: MaestroFeatureRequest, run: MaestroOfflineRun) {
+        private fun validate(
+            request: MaestroFeatureRequest,
+            run: MaestroOfflineRun,
+        ) {
             if (request.feature != "offline" || request.flow !in FLOWS || request.runId != run.id || request.memberId.isBlank()) fail()
         }
 
@@ -227,11 +236,16 @@ internal class MaestroOfflineSessionCases
             if (!session.optBoolean("cleanBaseline") || !session.optBoolean("pendingCaptured")) fail()
         }
 
-        private fun requireAdoption(request: MaestroFeatureRequest, session: JSONObject) {
+        private fun requireAdoption(
+            request: MaestroFeatureRequest,
+            session: JSONObject,
+        ) {
             if (
                 request.flow != "offline-session-adoption" || session.optString("stagedTarget") != "peer" ||
                 session.optBoolean("approvedErasure") || peer(session) == request.memberId
-            ) fail()
+            ) {
+                fail()
+            }
         }
 
         private fun peer(session: JSONObject): String = session.optString("peerMemberId").takeIf { it.isNotBlank() } ?: fail()
@@ -240,7 +254,9 @@ internal class MaestroOfflineSessionCases
             if (
                 preferences.getMemberId() != memberId || preferences.getRetainedMemberId() != memberId ||
                 preferences.getPendingLogin() != null
-            ) fail()
+            ) {
+                fail()
+            }
             requireCredentials()
         }
 
@@ -254,7 +270,9 @@ internal class MaestroOfflineSessionCases
             if (
                 preferences.getRetainedMemberId() != retainedMemberId || preferences.getMemberId() != retainedMemberId ||
                 preferences.getPendingLogin() != null || state.isAuthorized || state.refreshToken != null
-            ) fail()
+            ) {
+                fail()
+            }
         }
 
         private fun fail(): Nothing = throw MaestroSetupFailure("offline_session_boundary_invalid")
@@ -264,9 +282,17 @@ internal class MaestroOfflineSessionCases
             val CONTROL_ACTIONS = setOf("force-exit", "stage-primary-login", "stage-peer-login")
             val LOCAL_STAGES =
                 setOf(
-                    "session-baseline", "session-pending", "session-forced-retained", "session-primary-restored",
-                    "session-logout-cancelled", "session-logout-approved", "session-peer-pending", "session-peer-cancelled",
-                    "session-peer-approved", "session-peer-logged-out", "session-primary-restored-clean",
+                    "session-baseline",
+                    "session-pending",
+                    "session-forced-retained",
+                    "session-primary-restored",
+                    "session-logout-cancelled",
+                    "session-logout-approved",
+                    "session-peer-pending",
+                    "session-peer-cancelled",
+                    "session-peer-approved",
+                    "session-peer-logged-out",
+                    "session-primary-restored-clean",
                 )
             val SERVER_STAGES = setOf("session-peer-isolated")
         }

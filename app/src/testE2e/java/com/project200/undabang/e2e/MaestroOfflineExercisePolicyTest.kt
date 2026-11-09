@@ -62,14 +62,27 @@ class MaestroOfflineExercisePolicyTest {
 
     @Test
     fun `photo retention permits claim state only and rejects key path mapping and disappearance changes`() {
-        val image = ExerciseImageEntity("member", "record", "image", null, "/private/image.png", null,
-            ExerciseImageState.ADD_LOCAL, "image-request", 0)
+        val image =
+            ExerciseImageEntity(
+                "member",
+                "record",
+                "image",
+                null,
+                "/private/image.png",
+                null,
+                ExerciseImageState.ADD_LOCAL,
+                "image-request",
+                0,
+            )
         val proof = JSONObject().put("identity", MaestroOfflineExercisePolicy.imageIdentity(image)).put("state", image.state.name)
         MaestroOfflineExercisePolicy.requireImageRetention(image.copy(state = ExerciseImageState.ADD_PENDING), proof)
         for (changed in listOf(
-            image.copy(requestId = "new-request"), image.copy(localFilePath = "/private/replaced.png"),
-            image.copy(serverPictureId = 12), image.copy(state = ExerciseImageState.SYNCED),
-            image.copy(memberId = "peer"), image.copy(state = ExerciseImageState.DELETE_PENDING),
+            image.copy(requestId = "new-request"),
+            image.copy(localFilePath = "/private/replaced.png"),
+            image.copy(serverPictureId = 12),
+            image.copy(state = ExerciseImageState.SYNCED),
+            image.copy(memberId = "peer"),
+            image.copy(state = ExerciseImageState.DELETE_PENDING),
         )) {
             failure("offline_photo_retention_mismatch") { MaestroOfflineExercisePolicy.requireImageRetention(changed, proof) }
         }
@@ -90,6 +103,7 @@ class MaestroOfflineExercisePolicyTest {
     @Test
     fun `zero-point genuine receipt is valid but duplicate request server or record receipts are not`() {
         val receipt = ExercisePointReceiptEntity("member", "create", "record", 101, 0, false)
+
         fun check(receipts: List<ExercisePointReceiptEntity>) =
             MaestroOfflineExercisePolicy.requireReceiptIdentity(receipts, "member", "record", "create", 101, 0)
         check(listOf(receipt))
@@ -113,8 +127,11 @@ class MaestroOfflineExercisePolicyTest {
         MaestroOfflineExercisePolicy.requireRetryTrace(listOf(injected, injected), frozen, 2, completed = false)
         MaestroOfflineExercisePolicy.requireRetryTrace(listOf(injected, injected, ack), frozen, 2, completed = true)
         for (changed in listOf(
-            ack.copy(editId = "replacement"), ack.copy(baseVersion = 8), ack.copy(editedAt = now + 1),
-            ack.copy(bodySha256 = "b".repeat(64)), ack.copy(intendedSha256 = "c".repeat(64)),
+            ack.copy(editId = "replacement"),
+            ack.copy(baseVersion = 8),
+            ack.copy(editedAt = now + 1),
+            ack.copy(bodySha256 = "b".repeat(64)),
+            ack.copy(intendedSha256 = "c".repeat(64)),
             ack.copy(outcome = MaestroOfflineTransport.BodyOutcome.CONFLICT),
             ack.copy(outcome = MaestroOfflineTransport.BodyOutcome.STARTED),
         )) {
@@ -182,7 +199,11 @@ class MaestroOfflineExercisePolicyTest {
                 failure("offline_conflict_request_trace_mismatch") {
                     MaestroOfflineExercisePolicy.requireConflictTrace(
                         listOf(injected, changed.copy(outcome = terminal.outcome, responseStatus = terminal.responseStatus)),
-                        "request", 7, now, 8, localWins,
+                        "request",
+                        7,
+                        now,
+                        8,
+                        localWins,
                     )
                 }
             }
@@ -272,27 +293,69 @@ class MaestroOfflineExercisePolicyTest {
         status: Int? = if (outcome == MaestroOfflineTransport.BodyOutcome.ACK) 200 else null,
     ) = MaestroOfflineTransport.BodyAttempt("request", 7, now, "a".repeat(64), "e".repeat(64), outcome, status)
 
-    private fun encoded(label: String, format: Bitmap.CompressFormat): ByteArray {
+    private fun encoded(
+        label: String,
+        format: Bitmap.CompressFormat,
+    ): ByteArray {
         val bitmap = MaestroOfflinePhotoMedia.bitmap(label)
-        return try { ByteArrayOutputStream().use { bitmap.compress(format, 85, it); it.toByteArray() } } finally { bitmap.recycle() }
+        return try {
+            ByteArrayOutputStream().use {
+                bitmap.compress(format, 85, it)
+                it.toByteArray()
+            }
+        } finally {
+            bitmap.recycle()
+        }
     }
 
-    private fun remote(version: Long? = 7, clock: Long? = now) = GetExerciseRecordData(
-        "owned", "body", "", LocalDateTime.of(2026, 1, 1, 9, 0), LocalDateTime.of(2026, 1, 1, 10, 0), "", null, version, clock,
-    )
+    private fun remote(
+        version: Long? = 7,
+        clock: Long? = now,
+    ) =
+        GetExerciseRecordData(
+            "owned",
+            "body",
+            "",
+            LocalDateTime.of(2026, 1, 1, 9, 0),
+            LocalDateTime.of(2026, 1, 1, 10, 0),
+            "",
+            null,
+            version,
+            clock,
+        )
 
-    private fun journal() = ExerciseSyncEntity(
-        memberId = "member", localId = "record", serverId = 1, operation = SyncState.UPDATE_PENDING,
-        revision = 1, operationId = "operation", createRequestId = "create", serverVersion = 7,
-        confirmedDate = LocalDate.of(2026, 1, 1), currentDate = LocalDate.of(2026, 1, 1),
-        recoveryState = ExerciseRecoveryState.RETRYABLE, lastError = ExerciseSyncError.NETWORK_ERROR,
-        inFlightOperation = SyncState.UPDATE_PENDING, inFlightRevision = 1, inFlightOperationId = "operation",
-        inFlightRequestId = "request", inFlightBody = "original-bytes", inFlightBaseVersion = 7,
-        desiredEditedAt = now, inFlightEditedAt = now,
-    )
+    private fun journal() =
+        ExerciseSyncEntity(
+            memberId = "member",
+            localId = "record",
+            serverId = 1,
+            operation = SyncState.UPDATE_PENDING,
+            revision = 1,
+            operationId = "operation",
+            createRequestId = "create",
+            serverVersion = 7,
+            confirmedDate = LocalDate.of(2026, 1, 1),
+            currentDate = LocalDate.of(2026, 1, 1),
+            recoveryState = ExerciseRecoveryState.RETRYABLE,
+            lastError = ExerciseSyncError.NETWORK_ERROR,
+            inFlightOperation = SyncState.UPDATE_PENDING,
+            inFlightRevision = 1,
+            inFlightOperationId = "operation",
+            inFlightRequestId = "request",
+            inFlightBody = "original-bytes",
+            inFlightBaseVersion = 7,
+            desiredEditedAt = now,
+            inFlightEditedAt = now,
+        )
 
-    private fun failure(code: String, block: () -> Unit) {
-        try { block(); throw AssertionError("Expected private fixture failure") } catch (failure: MaestroSetupFailure) {
+    private fun failure(
+        code: String,
+        block: () -> Unit,
+    ) {
+        try {
+            block()
+            throw AssertionError("Expected private fixture failure")
+        } catch (failure: MaestroSetupFailure) {
             assertThat(failure.reason).isEqualTo(code)
         }
     }

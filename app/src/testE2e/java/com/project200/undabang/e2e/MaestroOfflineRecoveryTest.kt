@@ -989,7 +989,10 @@ class MaestroOfflineRecoveryTest {
         return owner
     }
 
-    private fun controlRequest(owner: MaestroFeatureRequest, action: String): JSONObject =
+    private fun controlRequest(
+        owner: MaestroFeatureRequest,
+        action: String,
+    ): JSONObject =
         JSONObject()
             .put("operation", "offline-control")
             .put("memberId", owner.memberId)

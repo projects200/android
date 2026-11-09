@@ -30,7 +30,10 @@ import kotlin.math.abs
 
 /** Only synthetic MediaStore originals are mutable. Product-owned image files are read-only. */
 internal class MaestroOfflinePhotoMedia(private val context: Context) {
-    fun prepare(run: MaestroOfflineRun, saved: JSONObject): Map<String, String> {
+    fun prepare(
+        run: MaestroOfflineRun,
+        saved: JSONObject,
+    ): Map<String, String> {
         if (Build.VERSION.SDK_INT < 33) fail("offline_photo_picker_prerequisite")
         if (saved.has("media")) fail("offline_photo_identity_changed")
         val media = JSONObject().put("runId", run.id).put("originalsDeleted", false)
@@ -55,17 +58,25 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
                 if (ExifInterface(file.path).dateTimeOriginal != taken) fail("offline_photo_media_failed")
                 val bytes = file.readBytes()
                 item.put("sha256", sha256(bytes))
-                val values = ContentValues().apply {
-                    put(MediaStore.Images.Media.DISPLAY_NAME, name)
-                    put(MediaStore.Images.Media.MIME_TYPE, "image/png")
-                    put(MediaStore.Images.Media.RELATIVE_PATH, relativePath(run))
-                    put(MediaStore.Images.Media.DATE_TAKEN, taken)
-                    put(MediaStore.Images.Media.IS_PENDING, 1)
-                }
+                val values =
+                    ContentValues().apply {
+                        put(MediaStore.Images.Media.DISPLAY_NAME, name)
+                        put(MediaStore.Images.Media.MIME_TYPE, "image/png")
+                        put(MediaStore.Images.Media.RELATIVE_PATH, relativePath(run))
+                        put(MediaStore.Images.Media.DATE_TAKEN, taken)
+                        put(MediaStore.Images.Media.IS_PENDING, 1)
+                    }
                 val uri = context.contentResolver.insert(COLLECTION, values) ?: fail("offline_photo_media_failed")
                 item.put("uri", uri.toString())
                 context.contentResolver.openOutputStream(uri)?.use { it.write(bytes) } ?: fail("offline_photo_media_failed")
-                if (context.contentResolver.update(uri, ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) }, null, null) != 1) {
+                if (
+                    context.contentResolver.update(
+                        uri,
+                        ContentValues().apply { put(MediaStore.Images.Media.IS_PENDING, 0) },
+                        null,
+                        null,
+                    ) != 1
+                ) {
                     fail("offline_photo_media_failed")
                 }
                 variables["PHOTO_${label}_NAME"] = name
@@ -83,7 +94,11 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
         return variables
     }
 
-    fun verifyOwned(image: ExerciseImageEntity, label: String, saved: JSONObject): JSONObject {
+    fun verifyOwned(
+        image: ExerciseImageEntity,
+        label: String,
+        saved: JSONObject,
+    ): JSONObject {
         val path = image.localFilePath ?: fail("offline_photo_owned_copy_missing")
         val file = ownedFile(path)
         if (!file.isFile || file.length() <= 0 || file.length() > MAX_BYTES) fail("offline_photo_owned_copy_missing")
@@ -94,7 +109,10 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
             .put("requestId", image.requestId ?: JSONObject.NULL).put("label", label)
     }
 
-    fun assertFiles(proof: JSONArray, erased: Boolean = false) {
+    fun assertFiles(
+        proof: JSONArray,
+        erased: Boolean = false,
+    ) {
         for (index in 0 until proof.length()) {
             val item = proof.getJSONObject(index)
             val file = ownedFile(item.getString("path"))
@@ -107,7 +125,11 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
         }
     }
 
-    fun deleteOriginals(run: MaestroOfflineRun, saved: JSONObject, requireCopies: Boolean) {
+    fun deleteOriginals(
+        run: MaestroOfflineRun,
+        saved: JSONObject,
+        requireCopies: Boolean,
+    ) {
         val media = saved.getJSONObject("media")
         if (media.getString("runId") != run.id) fail("offline_photo_identity_changed")
         if (requireCopies) {
@@ -121,12 +143,15 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
         }
         for (label in listOf("A", "B")) {
             val item = media.getJSONObject(label)
-            if (item.getString("name") != name(run, label) || item.getString("path") != relativePath(run)) fail("offline_photo_identity_changed")
+            if (item.getString("name") != name(run, label) || item.getString("path") != relativePath(run)) {
+                fail("offline_photo_identity_changed")
+            }
             val selection = "${MediaStore.Images.Media.RELATIVE_PATH} = ? AND ${MediaStore.Images.Media.DISPLAY_NAME} = ?"
             val args = arrayOf(relativePath(run), name(run, label))
             val ids = mutableListOf<Long>()
-            val cursor = context.contentResolver.query(COLLECTION, arrayOf(MediaStore.Images.Media._ID), selection, args, null)
-                ?: fail("offline_photo_media_cleanup_failed")
+            val cursor =
+                context.contentResolver.query(COLLECTION, arrayOf(MediaStore.Images.Media._ID), selection, args, null)
+                    ?: fail("offline_photo_media_cleanup_failed")
             cursor.use { while (it.moveToNext()) ids.add(it.getLong(0)) }
             if (ids.size > 1) fail("offline_photo_identity_changed")
             for (id in ids) {
@@ -145,37 +170,49 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
     }
 
     /** Independent URL bytes, not local cache or upload acknowledgement. JPEG/WebP recompression is allowed. */
-    suspend fun assertRemote(url: String, label: String) = withContext(Dispatchers.IO) {
-        val target = try { URL(url) } catch (_: Exception) { fail("offline_photo_remote_content_failed") }
-        if (target.protocol != "https" || target.userInfo != null) fail("offline_photo_remote_content_failed")
-        val connection = target.openConnection() as HttpURLConnection
-        try {
-            connection.instanceFollowRedirects = false
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 15_000
-            connection.useCaches = false
-            if (connection.responseCode != 200 || connection.contentLengthLong > MAX_BYTES) fail("offline_photo_remote_content_failed")
-            val bytes = connection.inputStream.use { input ->
-                val output = ByteArrayOutputStream()
-                val buffer = ByteArray(8192)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    if (output.size() + count > MAX_BYTES) fail("offline_photo_remote_content_failed")
-                    output.write(buffer, 0, count)
+    suspend fun assertRemote(
+        url: String,
+        label: String,
+    ) =
+        withContext(Dispatchers.IO) {
+            val target =
+                try {
+                    URL(url)
+                } catch (_: Exception) {
+                    fail("offline_photo_remote_content_failed")
                 }
-                output.toByteArray()
+            if (target.protocol != "https" || target.userInfo != null) fail("offline_photo_remote_content_failed")
+            val connection = target.openConnection() as HttpURLConnection
+            try {
+                connection.instanceFollowRedirects = false
+                connection.connectTimeout = 15_000
+                connection.readTimeout = 15_000
+                connection.useCaches = false
+                if (connection.responseCode != 200 || connection.contentLengthLong > MAX_BYTES) fail("offline_photo_remote_content_failed")
+                val bytes =
+                    connection.inputStream.use { input ->
+                        val output = ByteArrayOutputStream()
+                        val buffer = ByteArray(8192)
+                        while (true) {
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            if (output.size() + count > MAX_BYTES) fail("offline_photo_remote_content_failed")
+                            output.write(buffer, 0, count)
+                        }
+                        output.toByteArray()
+                    }
+                if (!matchesContent(bytes, label)) fail("offline_photo_remote_content_mismatch")
+            } finally {
+                connection.disconnect()
             }
-            if (!matchesContent(bytes, label)) fail("offline_photo_remote_content_mismatch")
-        } finally {
-            connection.disconnect()
         }
-    }
 
     private fun ownedFile(path: String): File {
         val directory = File(context.filesDir, "exercise-images").canonicalFile
         val file = File(path)
-        if (file.parentFile?.canonicalFile != directory || file.canonicalFile.parentFile != directory) fail("offline_photo_ownership_invalid")
+        if (file.parentFile?.canonicalFile != directory || file.canonicalFile.parentFile != directory) {
+            fail("offline_photo_ownership_invalid")
+        }
         return file
     }
 
@@ -183,21 +220,45 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
         private val COLLECTION = MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         private const val MAX_BYTES = 8 * 1024 * 1024
         private val EXIF_DATE = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss", Locale.ROOT).withZone(ZoneOffset.UTC)
+
         fun sha256(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
-        fun captureText(taken: Long): String = DateFormat.getInstanceForSkeleton("MMMdyhmmss", Locale.getDefault())
-            .apply { setContext(DisplayContext.CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE) }.format(Date(taken))
-        private fun name(run: MaestroOfflineRun, label: String) = "maestro-${run.id}-${label.lowercase(Locale.ROOT)}.png"
+
+        fun captureText(taken: Long): String =
+            DateFormat.getInstanceForSkeleton("MMMdyhmmss", Locale.getDefault())
+                .apply { setContext(DisplayContext.CAPITALIZATION_FOR_BEGINNING_OF_SENTENCE) }.format(Date(taken))
+
+        private fun name(
+            run: MaestroOfflineRun,
+            label: String,
+        ) = "maestro-${run.id}-${label.lowercase(Locale.ROOT)}.png"
+
         private fun relativePath(run: MaestroOfflineRun) = "Pictures/maestro-offline/${run.id}/"
-        private fun colors(label: String): List<Int> = when (label) {
-            "A" -> listOf(Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW)
-            "B" -> listOf(Color.CYAN, Color.MAGENTA, Color.YELLOW, Color.BLUE)
-            else -> fail("offline_photo_identity_changed")
-        }
-        internal fun bitmap(label: String): Bitmap = Bitmap.createBitmap(192, 192, Bitmap.Config.ARGB_8888).apply {
-            val colors = colors(label)
-            for (y in 0 until height) for (x in 0 until width) setPixel(x, y, colors[(if (y < height / 2) 0 else 2) + if (x < width / 2) 0 else 1])
-        }
-        internal fun matchesContent(bytes: ByteArray, label: String): Boolean {
+
+        private fun colors(label: String): List<Int> =
+            when (label) {
+                "A" -> listOf(Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW)
+                "B" -> listOf(Color.CYAN, Color.MAGENTA, Color.YELLOW, Color.BLUE)
+                else -> fail("offline_photo_identity_changed")
+            }
+
+        internal fun bitmap(label: String): Bitmap =
+            Bitmap.createBitmap(192, 192, Bitmap.Config.ARGB_8888).apply {
+                val colors = colors(label)
+                for (y in 0 until height) {
+                    for (x in 0 until width) {
+                        setPixel(
+                            x,
+                            y,
+                            colors[(if (y < height / 2) 0 else 2) + if (x < width / 2) 0 else 1],
+                        )
+                    }
+                }
+            }
+
+        internal fun matchesContent(
+            bytes: ByteArray,
+            label: String,
+        ): Boolean {
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             if (bounds.outWidth !in 16..4096 || bounds.outHeight !in 16..4096 || abs(bounds.outWidth - bounds.outHeight) > 2) return false
@@ -209,12 +270,19 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
                     val y = bitmap.height * (if (index < 2) 1 else 3) / 4
                     val actual = bitmap.getPixel(x, y)
                     val color = expected[index]
-                    if (abs(Color.red(actual) - Color.red(color)) > 40 || abs(Color.green(actual) - Color.green(color)) > 40 ||
-                        abs(Color.blue(actual) - Color.blue(color)) > 40) return false
+                    if (
+                        abs(Color.red(actual) - Color.red(color)) > 40 || abs(Color.green(actual) - Color.green(color)) > 40 ||
+                        abs(Color.blue(actual) - Color.blue(color)) > 40
+                    ) {
+                        return false
+                    }
                 }
                 return true
-            } finally { bitmap.recycle() }
+            } finally {
+                bitmap.recycle()
+            }
         }
+
         private fun fail(code: String): Nothing = throw MaestroSetupFailure(code)
     }
 }

@@ -152,9 +152,10 @@ class MaestroSessionBootstrapStageTest {
     @Test
     fun `peer credentials remain pending before and after verified refresh without adoption`() =
         runTest {
-            val imported = authorizedState().apply {
-                update(tokens(checkNotNull(lastAuthorizationResponse), "latest-imported-refresh"), null)
-            }
+            val imported =
+                authorizedState().apply {
+                    update(tokens(checkNotNull(lastAuthorizationResponse), "latest-imported-refresh"), null)
+                }
             assertThat(bootstrap.stagePendingLogin(imported, "member-b", "member-a")).isEqualTo("member-b")
             assertThat(preferences.getMemberId()).isNull()
             assertThat(preferences.getPendingLogin()?.targetMemberId).isNull()
@@ -171,12 +172,20 @@ class MaestroSessionBootstrapStageTest {
             // Recreate both revision holders and restore AppAuth from its persisted representation.
             current = AuthState.jsonDeserialize(current.jsonSerializeString())
             val reopened = PreferenceManager(context)
-            val restoredRepository = AuthRepositoryImpl(
-                api, reopened, stateManager, cleaner, UnconfinedTestDispatcher(), ExerciseImageFileStore(context),
-            )
-            val restoredLogin = LoginSessionUseCase(
-                restoredRepository, ClearSessionUseCase(restoredRepository, fcm, timers, cleaner, exercises),
-            )
+            val restoredRepository =
+                AuthRepositoryImpl(
+                    api,
+                    reopened,
+                    stateManager,
+                    cleaner,
+                    UnconfinedTestDispatcher(),
+                    ExerciseImageFileStore(context),
+                )
+            val restoredLogin =
+                LoginSessionUseCase(
+                    restoredRepository,
+                    ClearSessionUseCase(restoredRepository, fcm, timers, cleaner, exercises),
+                )
             val second = restoredLogin.resumePendingLogin() as RegistrationStatus.ConfirmationRequired
             assertThat(second.confirmationId).isNotEqualTo(first.confirmationId)
             assertThat(restoredLogin.confirmAccountAdoption(first.confirmationId)).isEqualTo(RegistrationStatus.Indeterminate)
@@ -216,7 +225,10 @@ class MaestroSessionBootstrapStageTest {
     @Test
     fun `untrusted credentials do not replace existing session or begin pending login`() =
         runTest {
-            val failure = runCatching { bootstrap.stagePendingLogin(authorizedState("foreign-client"), "member-b", "member-a") }.exceptionOrNull()
+            val failure =
+                runCatching {
+                    bootstrap.stagePendingLogin(authorizedState("foreign-client"), "member-b", "member-a")
+                }.exceptionOrNull()
             assertThat((failure as MaestroSetupFailure).reason).isEqualTo("untrusted_session")
             assertThat(preferences.getPendingLogin()).isNull()
             verify(exactly = 0) { stateManager.update(any<TokenResponse>(), any()) }
@@ -241,18 +253,23 @@ class MaestroSessionBootstrapStageTest {
         runTest {
             val name = "maestro-session-stage-approval.db"
             context.deleteDatabase(name)
-            val database = Room.databaseBuilder(context, UndabangDatabase::class.java, name)
-                .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
-                .allowMainThreadQueries()
-                .setQueryExecutor { it.run() }
-                .setTransactionExecutor { it.run() }
-                .build()
+            val database =
+                Room.databaseBuilder(context, UndabangDatabase::class.java, name)
+                    .addTypeConverter(UndabangTypeConverters(Moshi.Builder().add(KotlinJsonAdapterFactory()).build()))
+                    .allowMainThreadQueries()
+                    .setQueryExecutor { it.run() }
+                    .setTransactionExecutor { it.run() }
+                    .build()
             try {
                 val dispatcher = UnconfinedTestDispatcher()
                 val files = ExerciseImageFileStore(context)
                 val realCleaner = RoomSessionDataCleaner(database, dispatcher, files)
                 val realRepository = AuthRepositoryImpl(api, preferences, stateManager, realCleaner, dispatcher, files)
-                val realLogin = LoginSessionUseCase(realRepository, ClearSessionUseCase(realRepository, fcm, timers, realCleaner, exercises))
+                val realLogin =
+                    LoginSessionUseCase(
+                        realRepository,
+                        ClearSessionUseCase(realRepository, fcm, timers, realCleaner, exercises),
+                    )
                 val registration = MaestroRegistrationCheck(api, preferences, stateManager, realCleaner, dispatcher, files)
                 val staging = MaestroSessionBootstrap(config, stateManager, manager, realRepository, registration, realLogin, preferences)
                 staging.stagePendingLogin(authorizedState(), "member-b", "member-a")
@@ -290,11 +307,15 @@ class MaestroSessionBootstrapStageTest {
         }
     }
 
-    private fun tokens(response: AuthorizationResponse, refresh: String): TokenResponse {
+    private fun tokens(
+        response: AuthorizationResponse,
+        refresh: String,
+    ): TokenResponse {
         val payload = JSONObject().put("sub", "synthetic-subject").put("iss", ISSUER).put("aud", CLIENT)
-        val token = "eyJhbGciOiJSUzI1NiJ9." +
-            Base64.encodeToString(payload.toString().toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE) +
-            ".synthetic-signature"
+        val token =
+            "eyJhbGciOiJSUzI1NiJ9." +
+                Base64.encodeToString(payload.toString().toByteArray(), Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE) +
+                ".synthetic-signature"
         return TokenResponse.Builder(response.createTokenExchangeRequest())
             .setTokenType("Bearer")
             .setAccessToken("synthetic-access")

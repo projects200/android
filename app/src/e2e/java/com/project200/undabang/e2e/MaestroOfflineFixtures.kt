@@ -455,7 +455,10 @@ internal class MaestroOfflineFixtures
             fun isSessionRequest(request: MaestroFeatureRequest): Boolean =
                 request.feature == "offline" && request.flow in MaestroOfflineSessionCases.FLOWS
 
-            fun isSessionStage(request: MaestroFeatureRequest, stage: String): Boolean =
+            fun isSessionStage(
+                request: MaestroFeatureRequest,
+                stage: String,
+            ): Boolean =
                 isSessionRequest(request) &&
                     (stage in MaestroOfflineSessionCases.LOCAL_STAGES || stage in MaestroOfflineSessionCases.SERVER_STAGES)
 

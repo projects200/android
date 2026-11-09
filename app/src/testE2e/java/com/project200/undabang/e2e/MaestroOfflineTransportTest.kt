@@ -75,7 +75,16 @@ class MaestroOfflineTransportTest {
         every { helper.readableDatabase } returns sql
         every { sql.query(any<String>(), any<Array<out Any?>>()) } answers {
             val arguments = secondArg<Array<out Any?>>()
-            assertThat(arguments.toList()).containsExactly(MEMBER, LOCAL, TITLE, "$TITLE-edited", MEMBER, LOCAL, TITLE, "$TITLE-edited").inOrder()
+            assertThat(arguments.toList()).containsExactly(
+                MEMBER,
+                LOCAL,
+                TITLE,
+                "$TITLE-edited",
+                MEMBER,
+                LOCAL,
+                TITLE,
+                "$TITLE-edited",
+            ).inOrder()
             MatrixCursor(arrayOf("localId", "serverId", "title", "startedAt", "endedAt")).apply {
                 rows.forEach { addRow(it) }
             }
@@ -302,7 +311,9 @@ class MaestroOfflineTransportTest {
         val recovery = snapshotFile.readBytes()
         assertFailure("offline_transport_invalid_request") { transport.clear("", RUN) }
         assertFailure("offline_transport_invalid_request") { transport.clear(MEMBER, "not-a-run") }
-        assertFailure("offline_transport_invalid_request") { transport.arm(MEMBER, RUN.uppercase(), LOCAL, MaestroOfflineTransport.Mode.BODY) }
+        assertFailure("offline_transport_invalid_request") {
+            transport.arm(MEMBER, RUN.uppercase(), LOCAL, MaestroOfflineTransport.Mode.BODY)
+        }
         assertFailure("offline_transport_invalid_request") { transport.arm(MEMBER, RUN, "", MaestroOfflineTransport.Mode.BODY) }
         assertThat(faultFile.readBytes()).isEqualTo(fault)
         assertThat(snapshotFile.readBytes()).isEqualTo(recovery)
@@ -333,7 +344,8 @@ class MaestroOfflineTransportTest {
         response.close()
         val attempts = transport.bodyTrace(MEMBER, RUN, LOCAL)
         assertThat(attempts.map { it.outcome }).containsExactly(
-            MaestroOfflineTransport.BodyOutcome.INJECTED, MaestroOfflineTransport.BodyOutcome.ACK,
+            MaestroOfflineTransport.BodyOutcome.INJECTED,
+            MaestroOfflineTransport.BodyOutcome.ACK,
         ).inOrder()
         val bytes = Buffer().also { patch.body!!.writeTo(it) }.readByteArray()
         assertThat(attempts[0].bodySha256).isEqualTo(MaestroOfflinePhotoMedia.sha256(bytes))
@@ -345,7 +357,8 @@ class MaestroOfflineTransportTest {
         assertThat(persisted).doesNotContain("private-owned-description")
         assertThat(persisted).doesNotContain("example.test")
         assertThat(persisted).doesNotContain("synthetic-secret-token")
-        assertThat(android.system.Os.stat(traceFile.path).st_mode and 511).isEqualTo(384)
+        // Robolectric은 소유자·그룹·기타 권한 비트를 구분하지 못한다.
+        // 실제 Unix 파일 모드는 Android 기기에서 검증해야 한다.
         // safe owned UI cleanup is checked by ExerciseCases before this lifecycle operation
         transport.finishTrace(MEMBER, RUN, LOCAL)
         assertThat(traceFile.exists()).isFalse()
@@ -396,12 +409,13 @@ class MaestroOfflineTransportTest {
         transport.arm(MEMBER, RUN, LOCAL, MaestroOfflineTransport.Mode.BODY)
         transport.clear(MEMBER, RUN)
         val original = traceFile.readText()
-        val corrupt = listOf(
-            "{broken-private-trace",
-            JSONObject(original).put("extra", "private").toString(),
-            JSONObject(original).put("attempts", JSONArray().put(JSONObject().put("stage", "ACK"))).toString(),
-            "x".repeat(65_537),
-        )
+        val corrupt =
+            listOf(
+                "{broken-private-trace",
+                JSONObject(original).put("extra", "private").toString(),
+                JSONObject(original).put("attempts", JSONArray().put(JSONObject().put("stage", "ACK"))).toString(),
+                "x".repeat(65_537),
+            )
         corrupt.forEach { bytes ->
             traceFile.writeText(bytes)
             transport = newTransport()
@@ -449,18 +463,24 @@ class MaestroOfflineTransportTest {
     fun `허용되지 않은 요청 key는 원문 없이 trace를 실패시키고 실제 성공은 그대로 반환한다`() {
         transport.arm(MEMBER, RUN, LOCAL, MaestroOfflineTransport.Mode.BODY)
         transport.clear(MEMBER, RUN)
-        val patch = request("PATCH", "/dev/api/v1/exercises/41").newBuilder()
-            .method("PATCH", patchBody().put("editId", "private-invalid-key").toString().toRequestBody()).build()
+        val patch =
+            request("PATCH", "/dev/api/v1/exercises/41").newBuilder()
+                .method("PATCH", patchBody().put("editId", "private-invalid-key").toString().toRequestBody()).build()
         passResponse(patch, 200, """{"succeed":true,"code":"OK"}""").close()
         transport = newTransport()
         assertFailure("offline_transport_trace_invalid") { transport.bodyTrace(MEMBER, RUN, LOCAL) }
         assertThat(traceFile.readText()).doesNotContain("private-invalid-key")
     }
 
-    private fun passResponse(request: Request, code: Int, body: String): Response {
+    private fun passResponse(
+        request: Request,
+        code: Int,
+        body: String,
+    ): Response {
         val chain = mockk<Interceptor.Chain>()
-        val downstream = Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
-            .code(code).message("sentinel").body(body.toResponseBody()).build()
+        val downstream =
+            Response.Builder().request(request).protocol(Protocol.HTTP_1_1)
+                .code(code).message("sentinel").body(body.toResponseBody()).build()
         every { chain.request() } returns request
         every { chain.proceed(request) } returns downstream
         assertSame(downstream, transport.intercept(chain))
@@ -468,10 +488,11 @@ class MaestroOfflineTransportTest {
         return downstream
     }
 
-    private fun patchBody() = JSONObject().put("exerciseTitle", TITLE).put("exercisePersonalType", "")
-        .put("exerciseLocation", "").put("exerciseDetail", "private-owned-description")
-        .put("exerciseStartedAt", "2026-01-01T09:00:00").put("exerciseEndedAt", "2026-01-01T10:00:00")
-        .put("editId", EDIT_ID).put("baseVersion", 7).put("editedAt", CLOCK)
+    private fun patchBody() =
+        JSONObject().put("exerciseTitle", TITLE).put("exercisePersonalType", "")
+            .put("exerciseLocation", "").put("exerciseDetail", "private-owned-description")
+            .put("exerciseStartedAt", "2026-01-01T09:00:00").put("exerciseEndedAt", "2026-01-01T10:00:00")
+            .put("editId", EDIT_ID).put("baseVersion", 7).put("editedAt", CLOCK)
 
     private fun assertFault(request: Request) {
         val chain = mockk<Interceptor.Chain>()
@@ -516,7 +537,16 @@ class MaestroOfflineTransportTest {
     ): Request =
         Request.Builder()
             .url("https://example.test$path")
-            .method(method, if (method == "PATCH") patchBody().toString().toRequestBody() else if (method == "POST") "owned-input".toRequestBody() else null)
+            .method(
+                method,
+                if (method == "PATCH") {
+                    patchBody().toString().toRequestBody()
+                } else if (method == "POST") {
+                    "owned-input".toRequestBody()
+                } else {
+                    null
+                },
+            )
             .header("Authorization", "Bearer synthetic-secret-token")
             .tag(ExerciseSyncAccount::class.java, account)
             .build()

@@ -61,7 +61,9 @@ internal class MaestroOfflineTransport
         )
 
         private data class Trace(val owner: Fault, val attempts: List<BodyAttempt>, val invalid: Boolean = false)
+
         private data class AttemptToken(val owner: Fault, val index: Int, val account: ExerciseSyncAccount)
+
         private var traceBroken = false
 
         @Synchronized
@@ -77,7 +79,11 @@ internal class MaestroOfflineTransport
             val proposed =
                 guarded {
                     Fault(
-                        memberId, runId, localId, mode, null,
+                        memberId,
+                        runId,
+                        localId,
+                        mode,
+                        null,
                         string(saved, "flow"),
                         LocalDateTime.parse(string(saved.getJSONObject("parameters"), "startedAt")),
                         LocalDateTime.parse(string(saved.getJSONObject("parameters"), "endedAt")),
@@ -139,7 +145,11 @@ internal class MaestroOfflineTransport
          * until ExerciseCases checks the actual requests and verifies safe owned UI deletion.
          */
         @Synchronized
-        fun bodyTrace(memberId: String, runId: String, localId: String): List<BodyAttempt> {
+        fun bodyTrace(
+            memberId: String,
+            runId: String,
+            localId: String,
+        ): List<BodyAttempt> {
             validateIdentity(memberId, runId, localId)
             if (traceBroken) fail("offline_transport_trace_invalid")
             val trace = readTrace()
@@ -151,14 +161,22 @@ internal class MaestroOfflineTransport
 
         /** Caller must first verify local erasure and independent remote deletion/ACK. */
         @Synchronized
-        fun finishTrace(memberId: String, runId: String, localId: String) {
+        fun finishTrace(
+            memberId: String,
+            runId: String,
+            localId: String,
+        ) {
             validateIdentity(memberId, runId, localId)
             val saved = ownedSnapshot(memberId, runId, localId)
             if (readFault() != null) fail("offline_transport_armed")
             if (!hasTrace()) {
                 if (traceBroken) fail("offline_transport_trace_invalid")
-                if (saved.optJSONObject("extendedExercise")?.optString("faultMode") == "BODY" &&
-                    saved.optJSONObject("extendedExercise")?.optBoolean("traceFinished") != true) fail("offline_transport_trace_missing")
+                if (
+                    saved.optJSONObject("extendedExercise")?.optString("faultMode") == "BODY" &&
+                    saved.optJSONObject("extendedExercise")?.optBoolean("traceFinished") != true
+                ) {
+                    fail("offline_transport_trace_missing")
+                }
                 return
             }
             val trace = readTrace()
@@ -177,22 +195,27 @@ internal class MaestroOfflineTransport
             // Fixture API calls have no sync account. Never inspect their URL, body or private state.
             if (request.tag(ExerciseSyncAccount::class.java) == null) return chain.proceed(request)
             val inject: Boolean
-            val token = synchronized(this) {
-                inject = shouldInject(request)
-                beginAttempt(request, inject)
-            }
+            val token =
+                synchronized(this) {
+                    inject = shouldInject(request)
+                    beginAttempt(request, inject)
+                }
             if (inject) throw IOException("MAESTRO_OFFLINE_TRANSPORT_INJECTED")
-            val response = try {
-                chain.proceed(request)
-            } catch (failure: IOException) {
-                finishAttempt(token, BodyOutcome.IO_ERROR, null)
-                throw failure
-            }
+            val response =
+                try {
+                    chain.proceed(request)
+                } catch (failure: IOException) {
+                    finishAttempt(token, BodyOutcome.IO_ERROR, null)
+                    throw failure
+                }
             if (token != null) finishAttempt(token, responseOutcome(response), response.code)
             return response
         }
 
-        private fun beginAttempt(request: Request, inject: Boolean): AttemptToken? {
+        private fun beginAttempt(
+            request: Request,
+            inject: Boolean,
+        ): AttemptToken? {
             if (request.method != "PATCH" || traceBroken || !hasTrace()) return null
             val account = request.tag(ExerciseSyncAccount::class.java) ?: return null
             val endpoint = ENDPOINT.matchEntire(request.url.encodedPath) ?: return null
@@ -200,8 +223,12 @@ internal class MaestroOfflineTransport
             try {
                 val trace = readTrace()
                 val owner = trace.owner
-                if (account.memberId != owner.memberId || !accounts.isCurrent(account) ||
-                    endpoint.groupValues[1].toLongOrNull() != owner.serverId) return null
+                if (
+                    account.memberId != owner.memberId || !accounts.isCurrent(account) ||
+                    endpoint.groupValues[1].toLongOrNull() != owner.serverId
+                ) {
+                    return null
+                }
                 // Reuse the fault ownership boundary even after clear(): never adopt another row.
                 try {
                     validateSnapshot(owner)
@@ -225,14 +252,20 @@ internal class MaestroOfflineTransport
             }
         }
 
-        private fun finishAttempt(token: AttemptToken?, outcome: BodyOutcome, status: Int?) {
+        private fun finishAttempt(
+            token: AttemptToken?,
+            outcome: BodyOutcome,
+            status: Int?,
+        ) {
             if (token == null) return
             synchronized(this) {
                 if (traceBroken) return
                 try {
                     val trace = readTrace()
-                    if (trace.owner != token.owner || !accounts.isCurrent(token.account) ||
-                        trace.attempts.getOrNull(token.index)?.outcome != BodyOutcome.STARTED) {
+                    if (
+                        trace.owner != token.owner || !accounts.isCurrent(token.account) ||
+                        trace.attempts.getOrNull(token.index)?.outcome != BodyOutcome.STARTED
+                    ) {
                         traceBroken = true
                         invalidateTrace()
                         return
@@ -247,16 +280,20 @@ internal class MaestroOfflineTransport
             }
         }
 
-        private fun fingerprint(request: Request, outcome: BodyOutcome): BodyAttempt {
+        private fun fingerprint(
+            request: Request,
+            outcome: BodyOutcome,
+        ): BodyAttempt {
             val body = request.body ?: fail("offline_transport_trace_invalid")
             if (body.isOneShot() || body.isDuplex() || body.contentLength() !in 1..MAX_BODY_BYTES.toLong()) {
                 fail("offline_transport_trace_invalid")
             }
-            val bytes = Buffer().use { buffer ->
-                body.writeTo(buffer)
-                if (buffer.size !in 1..MAX_BODY_BYTES.toLong()) fail("offline_transport_trace_invalid")
-                buffer.readByteArray()
-            }
+            val bytes =
+                Buffer().use { buffer ->
+                    body.writeTo(buffer)
+                    if (buffer.size !in 1..MAX_BODY_BYTES.toLong()) fail("offline_transport_trace_invalid")
+                    buffer.readByteArray()
+                }
             val json = JSONObject(bytes.toString(Charsets.UTF_8))
             if (json.keys().asSequence().toSet() != PATCH_KEYS) fail("offline_transport_trace_invalid")
             val key = string(json, "editId")
@@ -266,9 +303,17 @@ internal class MaestroOfflineTransport
                 val value = json.get(field) as? String ?: fail("offline_transport_trace_invalid")
                 intended.put(value)
             }
-            return BodyAttempt(key, long(json, "baseVersion"), long(json, "editedAt").also {
-                if (it <= 0) fail("offline_transport_trace_invalid")
-            }, sha256(bytes), sha256(intended.toString().toByteArray(Charsets.UTF_8)), outcome, null)
+            return BodyAttempt(
+                key,
+                long(json, "baseVersion"),
+                long(json, "editedAt").also {
+                    if (it <= 0) fail("offline_transport_trace_invalid")
+                },
+                sha256(bytes),
+                sha256(intended.toString().toByteArray(Charsets.UTF_8)),
+                outcome,
+                null,
+            )
         }
 
         private fun responseOutcome(response: Response): BodyOutcome =
@@ -285,7 +330,12 @@ internal class MaestroOfflineTransport
                 BodyOutcome.OTHER
             }
 
-        private fun requireTraceOwner(trace: Trace, memberId: String, runId: String, localId: String) {
+        private fun requireTraceOwner(
+            trace: Trace,
+            memberId: String,
+            runId: String,
+            localId: String,
+        ) {
             if (trace.owner.memberId != memberId || trace.owner.runId != runId || trace.owner.localId != localId) {
                 fail("offline_transport_ownership_invalid")
             }
@@ -302,24 +352,42 @@ internal class MaestroOfflineTransport
                 if (owner.mode != Mode.BODY) fail("offline_transport_trace_invalid")
                 val entries = json.getJSONArray("attempts")
                 if (entries.length() > MAX_ATTEMPTS) fail("offline_transport_trace_invalid")
-                val attempts = (0 until entries.length()).map { index ->
-                    val entry = entries.getJSONObject(index)
-                    if (entry.keys().asSequence().toSet() != ATTEMPT_KEYS || entry.get("method") != "PATCH") fail("offline_transport_trace_invalid")
-                    val status = if (entry.isNull("status")) null else long(entry, "status").also {
-                        if (it !in 100L..599L) fail("offline_transport_trace_invalid")
-                    }.toInt()
-                    val outcome = BodyOutcome.valueOf(string(entry, "stage"))
-                    val attempt = BodyAttempt(string(entry, "editId"), long(entry, "baseVersion"), long(entry, "editedAt"),
-                        string(entry, "bodySha256"), string(entry, "intendedSha256"), outcome, status)
-                    if (!EDIT_ID.matches(attempt.editId) || attempt.editedAt <= 0 ||
-                        !SHA256.matches(attempt.bodySha256) || !SHA256.matches(attempt.intendedSha256) ||
-                        (status != null) != (outcome in RESPONSE_OUTCOMES) ||
-                        (outcome == BodyOutcome.ACK && (status == null || status !in 200..299)) ||
-                        (outcome == BodyOutcome.CONFLICT && (status == null || status !in 200..299 && status !in 400..499))) {
-                        fail("offline_transport_trace_invalid")
+                val attempts =
+                    (0 until entries.length()).map { index ->
+                        val entry = entries.getJSONObject(index)
+                        if (entry.keys().asSequence().toSet() != ATTEMPT_KEYS || entry.get("method") != "PATCH") {
+                            fail("offline_transport_trace_invalid")
+                        }
+                        val status =
+                            if (entry.isNull("status")) {
+                                null
+                            } else {
+                                long(entry, "status").also {
+                                    if (it !in 100L..599L) fail("offline_transport_trace_invalid")
+                                }.toInt()
+                            }
+                        val outcome = BodyOutcome.valueOf(string(entry, "stage"))
+                        val attempt =
+                            BodyAttempt(
+                                string(entry, "editId"),
+                                long(entry, "baseVersion"),
+                                long(entry, "editedAt"),
+                                string(entry, "bodySha256"),
+                                string(entry, "intendedSha256"),
+                                outcome,
+                                status,
+                            )
+                        if (
+                            !EDIT_ID.matches(attempt.editId) || attempt.editedAt <= 0 ||
+                            !SHA256.matches(attempt.bodySha256) || !SHA256.matches(attempt.intendedSha256) ||
+                            (status != null) != (outcome in RESPONSE_OUTCOMES) ||
+                            (outcome == BodyOutcome.ACK && (status == null || status !in 200..299)) ||
+                            (outcome == BodyOutcome.CONFLICT && (status == null || status !in 200..299 && status !in 400..499))
+                        ) {
+                            fail("offline_transport_trace_invalid")
+                        }
+                        attempt
                     }
-                    attempt
-                }
                 return Trace(owner, attempts, json.getBoolean("invalid"))
             } catch (_: Exception) {
                 fail("offline_transport_trace_invalid")
@@ -329,13 +397,16 @@ internal class MaestroOfflineTransport
         private fun writeTrace(trace: Trace) {
             val entries = JSONArray()
             trace.attempts.forEach { attempt ->
-                entries.put(JSONObject().put("method", "PATCH").put("stage", attempt.outcome.name)
-                    .put("editId", attempt.editId).put("baseVersion", attempt.baseVersion).put("editedAt", attempt.editedAt)
-                    .put("bodySha256", attempt.bodySha256).put("intendedSha256", attempt.intendedSha256)
-                    .put("status", attempt.responseStatus ?: JSONObject.NULL))
+                entries.put(
+                    JSONObject().put("method", "PATCH").put("stage", attempt.outcome.name)
+                        .put("editId", attempt.editId).put("baseVersion", attempt.baseVersion).put("editedAt", attempt.editedAt)
+                        .put("bodySha256", attempt.bodySha256).put("intendedSha256", attempt.intendedSha256)
+                        .put("status", attempt.responseStatus ?: JSONObject.NULL),
+                )
             }
-            val bytes = JSONObject().put("schema", 1).put("owner", faultJson(trace.owner))
-                .put("invalid", trace.invalid).put("attempts", entries).toString().toByteArray(Charsets.UTF_8)
+            val bytes =
+                JSONObject().put("schema", 1).put("owner", faultJson(trace.owner))
+                    .put("invalid", trace.invalid).put("attempts", entries).toString().toByteArray(Charsets.UTF_8)
             if (bytes.size > MAX_TRACE_BYTES) fail("offline_transport_trace_invalid")
             val file = traceAtomic()
             val stream = file.startWrite()
@@ -346,7 +417,11 @@ internal class MaestroOfflineTransport
                 file.finishWrite(stream)
             } catch (_: Exception) {
                 // Keep the unfinished .new marker: restoring an older successful trace could hide loss.
-                try { stream.close() } catch (_: Exception) { /* no private diagnostics */ }
+                try {
+                    stream.close()
+                } catch (_: Exception) {
+                    /* no private diagnostics */
+                }
                 fail("offline_transport_trace_invalid")
             }
         }
@@ -361,14 +436,20 @@ internal class MaestroOfflineTransport
         }
 
         private fun traceAtomic() = AtomicFile(File(context.filesDir, TRACE_FILE))
+
         private fun hasTrace(): Boolean =
             File(context.filesDir, TRACE_FILE).exists() || File(context.filesDir, "$TRACE_FILE.bak").exists() ||
                 File(context.filesDir, "$TRACE_FILE.new").exists()
-        private fun long(json: JSONObject, key: String): Long = when (val value = json.get(key)) {
-            is Int -> value.toLong()
-            is Long -> value
-            else -> fail("offline_transport_trace_invalid")
-        }.also { if (it < 0) fail("offline_transport_trace_invalid") }
+
+        private fun long(
+            json: JSONObject,
+            key: String,
+        ): Long =
+            when (val value = json.get(key)) {
+                is Int -> value.toLong()
+                is Long -> value
+                else -> fail("offline_transport_trace_invalid")
+            }.also { if (it < 0) fail("offline_transport_trace_invalid") }
 
         private fun sha256(bytes: ByteArray): String =
             MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -497,9 +578,14 @@ internal class MaestroOfflineTransport
                     }
                 val fault =
                     Fault(
-                        string(json, "memberId"), string(json, "runId"), string(json, "localId"),
-                        Mode.valueOf(string(json, "mode")), id, string(json, "flow"),
-                        LocalDateTime.parse(string(json, "startedAt")), LocalDateTime.parse(string(json, "endedAt")),
+                        string(json, "memberId"),
+                        string(json, "runId"),
+                        string(json, "localId"),
+                        Mode.valueOf(string(json, "mode")),
+                        id,
+                        string(json, "flow"),
+                        LocalDateTime.parse(string(json, "startedAt")),
+                        LocalDateTime.parse(string(json, "endedAt")),
                     )
                 validateIdentity(fault.memberId, fault.runId, fault.localId)
                 if (
@@ -513,16 +599,16 @@ internal class MaestroOfflineTransport
             }
 
         private fun faultJson(fault: Fault): JSONObject =
-                JSONObject()
-                    .put("schema", 1)
-                    .put("memberId", fault.memberId)
-                    .put("runId", fault.runId)
-                    .put("localId", fault.localId)
-                    .put("mode", fault.mode.name)
-                    .put("serverId", fault.serverId ?: JSONObject.NULL)
-                    .put("flow", fault.flow)
-                    .put("startedAt", fault.startedAt.toString())
-                    .put("endedAt", fault.endedAt.toString())
+            JSONObject()
+                .put("schema", 1)
+                .put("memberId", fault.memberId)
+                .put("runId", fault.runId)
+                .put("localId", fault.localId)
+                .put("mode", fault.mode.name)
+                .put("serverId", fault.serverId ?: JSONObject.NULL)
+                .put("flow", fault.flow)
+                .put("startedAt", fault.startedAt.toString())
+                .put("endedAt", fault.endedAt.toString())
 
         private fun writeFault(fault: Fault) {
             val json = faultJson(fault)
@@ -561,8 +647,7 @@ internal class MaestroOfflineTransport
 
         private fun atomic() = AtomicFile(File(context.filesDir, FAULT_FILE))
 
-        private fun hasState(): Boolean =
-            listOf("", ".bak", ".new").any { File(context.filesDir, FAULT_FILE + it).exists() }
+        private fun hasState(): Boolean = listOf("", ".bak", ".new").any { File(context.filesDir, FAULT_FILE + it).exists() }
 
         private fun string(
             json: JSONObject,
@@ -603,11 +688,29 @@ internal class MaestroOfflineTransport
             private const val MAX_ATTEMPTS = 64
             private val EDIT_ID = Regex("[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}")
             private val SHA256 = Regex("[a-f0-9]{64}")
-            private val BODY_FIELDS = listOf("exerciseTitle", "exercisePersonalType", "exerciseLocation", "exerciseDetail", "exerciseStartedAt", "exerciseEndedAt")
+            private val BODY_FIELDS =
+                listOf(
+                    "exerciseTitle",
+                    "exercisePersonalType",
+                    "exerciseLocation",
+                    "exerciseDetail",
+                    "exerciseStartedAt",
+                    "exerciseEndedAt",
+                )
             private val PATCH_KEYS = BODY_FIELDS.toSet() + setOf("editId", "baseVersion", "editedAt")
             private val RESPONSE_OUTCOMES = setOf(BodyOutcome.ACK, BodyOutcome.CONFLICT, BodyOutcome.OTHER)
             private val TRACE_KEYS = setOf("schema", "owner", "invalid", "attempts")
-            private val ATTEMPT_KEYS = setOf("method", "stage", "editId", "baseVersion", "editedAt", "bodySha256", "intendedSha256", "status")
+            private val ATTEMPT_KEYS =
+                setOf(
+                    "method",
+                    "stage",
+                    "editId",
+                    "baseVersion",
+                    "editedAt",
+                    "bodySha256",
+                    "intendedSha256",
+                    "status",
+                )
             private val RUN_ID = Regex("[a-f0-9]{32}")
             private val ENDPOINT = Regex("/(?:dev/)?api/v1/exercises/([1-9][0-9]*)(/pictures)?")
             private val PHOTO_METHODS = setOf("POST", "DELETE")
