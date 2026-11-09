@@ -12,6 +12,7 @@ import com.project200.data.dto.GetExerciseRecordListDto
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
+import net.openid.appauth.AuthState
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -68,26 +69,39 @@ internal class MaestroOfflineFixtures
         @ApplicationContext private val context: Context,
         private val localDataSource: TimerLocalDataSource,
         private val exercises: MaestroOfflineExerciseFixture,
+        private val exerciseCases: MaestroOfflineExerciseCases,
+        private val sessionCases: MaestroOfflineSessionCases,
+        private val transport: MaestroOfflineTransport,
     ) : MaestroFeatureFixture {
         override suspend fun prepare(request: MaestroFeatureRequest): Map<String, String> {
             val run = run(request)
             if (request.parameters.has("stage")) throw MaestroSetupFailure("invalid_feature_request")
+            transport.assertClear()
             val file = snapshot().baseFile
             if (file.exists() || File(file.path + ".bak").exists() || File(file.path + ".new").exists()) {
                 throw MaestroSetupFailure("offline_recovery_required")
             }
-            save(
+            val saved =
                 JSONObject()
                     .put("memberId", request.memberId)
                     .put("runId", request.runId)
                     .put("flow", request.flow)
                     .put("parameters", request.parameters)
                     .put("baselineLocalIds", JSONArray(localDataSource.getCustomTimers().map { it.localId }))
-                    .put("baselineExerciseLocalIds", exercises.baseline(request.memberId, run)),
-            )
+                    .put("baselineExerciseLocalIds", exercises.baseline(request.memberId, run))
+            save(saved)
             validateDate(run)
+            if (isExtendedRequest(request)) {
+                val variables =
+                    try {
+                        exerciseCases.prepare(request, run, saved).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                    } finally {
+                        save(saved)
+                    }
+                return run.variables() + appVariables() + variables
+            }
             clean(request.memberId, run, validateRequest(request))
-            return run.variables()
+            return run.variables() + appVariables()
         }
 
         override suspend fun cleanup(request: MaestroFeatureRequest) {
@@ -101,7 +115,29 @@ internal class MaestroOfflineFixtures
                 }
             val run = run(request)
             validateDate(run)
-            clean(request.memberId, run, saved)
+            if (isExtendedRequest(request)) {
+                val owned = saved ?: throw MaestroSetupFailure("offline_snapshot_missing")
+                if (isSessionRequest(request)) sessionCases.requireSafeCleanup(request, run, owned)
+                exerciseCases.requireSafeCleanup(request, run, owned)
+                try {
+                    exerciseCases.cleanup(request, run, owned)
+                    transport.clear(request.memberId, request.runId)
+                } finally {
+                    save(owned)
+                }
+            } else {
+                transport.assertClear()
+                clean(request.memberId, run, saved)
+            }
+        }
+
+        @Suppress("DEPRECATION")
+        private fun appVariables(): Map<String, String> {
+            val installed = context.packageManager.getPackageInfo(context.packageName, 0)
+            return buildMap {
+                put("E2E_APP_VERSION_CODE", installed.longVersionCode.toString())
+                installed.versionName?.takeIf { it.isNotBlank() }?.let { put("E2E_APP_VERSION", it) }
+            }.also(MaestroFeaturePolicy::validateOfflineCaseVariables)
         }
 
         fun validateRequest(request: MaestroFeatureRequest): JSONObject {
@@ -112,17 +148,67 @@ internal class MaestroOfflineFixtures
                 } catch (_: Exception) {
                     throw MaestroSetupFailure("offline_snapshot_missing")
                 }
+            try {
+                if (
+                    saved.get("memberId") != request.memberId || saved.get("runId") != request.runId ||
+                    saved.get("flow") != request.flow
+                ) {
+                    throw MaestroSetupFailure("offline_snapshot_identity_invalid")
+                }
+                val expected = saved.getJSONObject("parameters")
+                if (
+                    expected.keys().asSequence().toSet() != MaestroOfflineTimerInput.PARAMETER_KEYS ||
+                    MaestroOfflineTimerInput.PARAMETER_KEYS.any {
+                        expected.get(it) !is String || expected.get(it) != request.parameters.get(it)
+                    }
+                ) {
+                    throw MaestroSetupFailure("offline_snapshot_input_mismatch")
+                }
+                return saved
+            } catch (failure: MaestroSetupFailure) {
+                throw failure
+            } catch (_: Exception) {
+                throw MaestroSetupFailure("offline_snapshot_invalid")
+            }
+        }
+
+        suspend fun validateCleanupContext(request: MaestroFeatureRequest) {
+            val saved = validateRequest(request)
+            if (isSessionRequest(request)) sessionCases.requireSafeCleanup(request, run(request), saved)
+        }
+
+        suspend fun control(
+            request: MaestroFeatureRequest,
+            action: String,
+            authState: AuthState?,
+            targetMemberId: String?,
+        ): Map<String, String> {
+            val run = run(request)
+            if (request.parameters.has("stage") || !isExtendedRequest(request) || action !in CONTROL_ACTIONS) {
+                throw MaestroSetupFailure("invalid_request")
+            }
+            val sessionAction = action in MaestroOfflineSessionCases.CONTROL_ACTIONS
+            val loginAction = action in LOGIN_ACTIONS
             if (
-                saved.getString("memberId") != request.memberId || saved.getString("runId") != request.runId ||
-                saved.getString("flow") != request.flow
+                (sessionAction && !isSessionRequest(request)) ||
+                (loginAction && (authState == null || targetMemberId.isNullOrBlank())) ||
+                (!loginAction && (authState != null || targetMemberId != null)) ||
+                (action == "stage-primary-login" && targetMemberId != request.memberId) ||
+                (action == "stage-peer-login" && (targetMemberId == request.memberId || request.flow != "offline-session-adoption"))
             ) {
-                throw MaestroSetupFailure("offline_snapshot_identity_invalid")
+                throw MaestroSetupFailure("invalid_request")
             }
-            val expected = saved.getJSONObject("parameters")
-            if (MaestroOfflineTimerInput.PARAMETER_KEYS.any { expected.getString(it) != request.parameters.getString(it) }) {
-                throw MaestroSetupFailure("offline_snapshot_input_mismatch")
+            val saved = validateRequest(request)
+            return try {
+                if (sessionAction) {
+                    sessionCases.control(request, run, saved, action, authState, targetMemberId)
+                        .also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                } else {
+                    exerciseCases.control(request, run, saved, action).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                }
+            } finally {
+                save(saved)
             }
-            return saved
         }
 
         override suspend fun observe(
@@ -137,6 +223,22 @@ internal class MaestroOfflineFixtures
                 throw MaestroSetupFailure("invalid_request")
             }
             val saved = validateRequest(request)
+            if (stage in MaestroOfflineSessionCases.LOCAL_STAGES) {
+                if (!isSessionRequest(request)) throw MaestroSetupFailure("invalid_request")
+                return try {
+                    sessionCases.observe(request, run, saved, stage).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                } finally {
+                    save(saved)
+                }
+            }
+            if (stage in MaestroOfflineExerciseCases.LOCAL_STAGES) {
+                if (!isExtendedRequest(request)) throw MaestroSetupFailure("invalid_request")
+                return try {
+                    exerciseCases.observe(request, run, saved, stage).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                } finally {
+                    save(saved)
+                }
+            }
             if (stage in MaestroOfflineExerciseFixture.LOCAL_STAGES) {
                 if (request.flow != "offline-exercise-create" || request.parameters.optString("stage") != stage) {
                     throw MaestroSetupFailure("invalid_request")
@@ -173,8 +275,27 @@ internal class MaestroOfflineFixtures
         suspend fun observeServer(
             request: MaestroFeatureRequest,
             stage: String,
-        ) {
+        ): Map<String, String> {
             val run = run(request)
+            if (stage !in STAGES || request.parameters.has("stage")) throw MaestroSetupFailure("invalid_request")
+            if (stage in MaestroOfflineSessionCases.SERVER_STAGES) {
+                if (!isSessionRequest(request)) throw MaestroSetupFailure("invalid_request")
+                val saved = validateRequest(request)
+                return try {
+                    sessionCases.observe(request, run, saved, stage).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                } finally {
+                    save(saved)
+                }
+            }
+            if (stage in MaestroOfflineExerciseCases.SERVER_STAGES) {
+                if (!isExtendedRequest(request)) throw MaestroSetupFailure("invalid_request")
+                val saved = validateRequest(request)
+                return try {
+                    exerciseCases.observe(request, run, saved, stage).also(MaestroFeaturePolicy::validateOfflineCaseVariables)
+                } finally {
+                    save(saved)
+                }
+            }
             if (stage in MaestroOfflineExerciseFixture.SERVER_STAGES) {
                 if (request.flow != "offline-exercise-create") throw MaestroSetupFailure("invalid_request")
                 val saved = validateRequest(request)
@@ -184,6 +305,7 @@ internal class MaestroOfflineFixtures
                 if (request.flow != "offline-timers-online") throw MaestroSetupFailure("invalid_request")
                 observe(run, stage)
             }
+            return emptyMap()
         }
 
         private fun snapshot() = AtomicFile(File(context.filesDir, "maestro-offline-state.json"))
@@ -323,7 +445,22 @@ internal class MaestroOfflineFixtures
 
         companion object {
             private const val PRIVATE_FILE_MODE = 384
-            private val FLOWS = setOf("offline-exercise-create", "offline-exercise-missing", "offline-timers-online")
+            private val FLOWS =
+                setOf("offline-exercise-create", "offline-exercise-missing", "offline-timers-online") +
+                    MaestroOfflineExerciseCases.FLOWS + MaestroOfflineSessionCases.FLOWS
+
+            fun isExtendedRequest(request: MaestroFeatureRequest): Boolean =
+                request.feature == "offline" && request.flow in MaestroOfflineExerciseCases.FLOWS
+
+            fun isSessionRequest(request: MaestroFeatureRequest): Boolean =
+                request.feature == "offline" && request.flow in MaestroOfflineSessionCases.FLOWS
+
+            fun isSessionStage(request: MaestroFeatureRequest, stage: String): Boolean =
+                isSessionRequest(request) &&
+                    (stage in MaestroOfflineSessionCases.LOCAL_STAGES || stage in MaestroOfflineSessionCases.SERVER_STAGES)
+
+            val LOGIN_ACTIONS = setOf("stage-primary-login", "stage-peer-login")
+            val CONTROL_ACTIONS = MaestroOfflineExerciseCases.CONTROL_ACTIONS + MaestroOfflineSessionCases.CONTROL_ACTIONS
 
             fun run(request: MaestroFeatureRequest): MaestroOfflineRun {
                 MaestroFeaturePolicy.validateIdentity(request.feature, request.flow, request.runId)
@@ -345,8 +482,12 @@ internal class MaestroOfflineFixtures
                 }
             }
 
-            val LOCAL_STAGES = MaestroOfflineExerciseFixture.LOCAL_STAGES + setOf("timers-local-online", "timers-local-created")
-            val STAGES = MaestroOfflineExerciseFixture.SERVER_STAGES + setOf("timers-online", "timers-synced")
+            val LOCAL_STAGES =
+                MaestroOfflineExerciseFixture.LOCAL_STAGES + setOf("timers-local-online", "timers-local-created") +
+                    MaestroOfflineExerciseCases.LOCAL_STAGES + MaestroOfflineSessionCases.LOCAL_STAGES
+            val STAGES =
+                MaestroOfflineExerciseFixture.SERVER_STAGES + setOf("timers-online", "timers-synced") +
+                    MaestroOfflineExerciseCases.SERVER_STAGES + MaestroOfflineSessionCases.SERVER_STAGES
             private const val UPLOAD_TIMEOUT_MS = 120_000L
 
             internal fun matchesTimer(

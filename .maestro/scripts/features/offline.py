@@ -1,5 +1,6 @@
 """Run real offline exercise and timer synchronization with safe recovery."""
 
+import importlib.util
 from pathlib import Path
 import re
 import signal
@@ -15,7 +16,13 @@ SCENARIOS = (
     ("offline-timers-online", "offline-timers-mutate", "offline-timers-relaunch",
      "offline-timers-after-reconnect", "offline-timers-reconnect"),
 )
-FLOWS = tuple(flow for scenario in SCENARIOS for flow in scenario)
+LEGACY_FLOWS = tuple(flow for scenario in SCENARIOS for flow in scenario)
+EXTENDED_FLOWS = (
+    "offline-photo-create", "offline-conflict-local", "offline-conflict-server",
+    "offline-remote-delete", "offline-body-retry", "offline-session-retain",
+    "offline-session-logout", "offline-session-adoption",
+)
+FLOWS = LEGACY_FLOWS + EXTENDED_FLOWS
 HELPERS = (
     "assert-exercise-record", "open-timer-list", "create-timer", "edit-timer",
     "set-timer-time", "assert-timer-list", "prepare-timer-draft", "assert-timer-draft",
@@ -119,9 +126,9 @@ def offline_variables(device):
     return {**variables, "E2E_RUN_ID": run_id}
 
 
-def run_suite(args, core):
-    errors = {flow: [] for flow in FLOWS}
-    durations = {flow: 0.0 for flow in FLOWS}
+def run_legacy_suite(args, core):
+    errors = {flow: [] for flow in LEGACY_FLOWS}
+    durations = {flow: 0.0 for flow in LEGACY_FLOWS}
     completed = set()
     try:
         validate_paths(core)
@@ -135,11 +142,11 @@ def run_suite(args, core):
             device.install(Path(args.apk).resolve())
         device.verify_setup()
     except core.RunInterrupted:
-        return [(flow, 0, ["run-interrupted"]) for flow in FLOWS]
+        return [(flow, 0, ["run-interrupted"]) for flow in LEGACY_FLOWS]
     except core.RunnerFailure as failure:
-        return [(flow, 0, core.failure_codes(failure)) for flow in FLOWS]
+        return [(flow, 0, core.failure_codes(failure)) for flow in LEGACY_FLOWS]
     except Exception:
-        return [(flow, 0, ["offline-driver-setup-failed"]) for flow in FLOWS]
+        return [(flow, 0, ["offline-driver-setup-failed"]) for flow in LEGACY_FLOWS]
 
     for scenario in SCENARIOS:
         network = None
@@ -276,7 +283,28 @@ def run_suite(args, core):
         if not safe_to_continue:
             break
 
-    for flow in FLOWS:
+    for flow in LEGACY_FLOWS:
         if flow not in completed:
             errors[flow].append("offline-phase-not-executed")
-    return [(flow, durations[flow], errors[flow]) for flow in FLOWS]
+    return [(flow, durations[flow], errors[flow]) for flow in LEGACY_FLOWS]
+
+
+def run_suite(args, core):
+    results = run_legacy_suite(args, core)
+    recovery_errors = {
+        "private-state-preserved-for-recovery", "final-app-data-clear-failed",
+        "pending-feature-restoration-refuses-app-data-clear", "run-interrupted",
+    }
+    if any(recovery_errors.intersection(errors) for _, _, errors in results):
+        return results + [(flow, 0, ["offline-phase-not-executed", "offline-prior-recovery-required"])
+                          for flow in EXTENDED_FLOWS]
+    if all(errors for _, _, errors in results):
+        return results + [(flow, 0, ["offline-phase-not-executed", "offline-prior-preparation-failed"])
+                          for flow in EXTENDED_FLOWS]
+    path = Path(__file__).with_name("offline_cases.py")
+    if path.is_symlink() or not path.is_file():
+        return results + [(flow, 0, ["offline-case-driver-missing"]) for flow in EXTENDED_FLOWS]
+    spec = importlib.util.spec_from_file_location("maestro_offline_cases", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return results + module.run_suite(args, core, NetworkState, offline_variables, scenario_input)

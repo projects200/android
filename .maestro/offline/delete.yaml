@@ -1,0 +1,15 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: 삭제하기
+- assertVisible: 운동 기록을 삭제하시겠습니까[?]
+- tapOn: 확인
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: ${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}

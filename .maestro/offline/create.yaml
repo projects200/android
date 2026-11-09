@@ -1,0 +1,63 @@
+appId: com.project200.undabang
+---
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- tapOn:
+    id: exercise_create_btn
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+    timeout: 30000
+- tapOn:
+    id: exercise_title_input
+- inputText: ${EXERCISE_TITLE}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: ${EXERCISE_START_HOUR}
+      TIME_MINUTE: "00"
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_end_time
+      TIME_HOUR: ${EXERCISE_END_HOUR}
+      TIME_MINUTE: "00"
+- scrollUntilVisible:
+    element:
+      id: exercise_description_input
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: exercise_description_input
+- inputText: ${EXERCISE_DESCRIPTION}
+- hideKeyboard
+- assertVisible:
+    id: exercise_description_input
+    text: ${EXERCISE_DESCRIPTION}
+- scrollUntilVisible:
+    element:
+      id: exercise_form_add_photo
+    direction: DOWN
+    timeout: 20000
+- tapOn:
+    id: exercise_form_add_photo
+- runFlow:
+    file: pick-photo.yaml
+    env:
+      IMAGE_SELECTOR: ${PHOTO_A_SELECTOR}
+- tapOn:
+    id: exercise_complete
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- assertNotVisible: ".*점 획득했어요!.*"
+- runFlow:
+    file: assert-exercise-record.yaml
+    env:
+      RECORD_TITLE: ${EXERCISE_TITLE}
+      START_MINUTE: "00"
+- runFlow: assert-detail.yaml

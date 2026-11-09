@@ -178,6 +178,20 @@ class MaestroFeatureFixtureTest {
         }
     }
 
+    @Test
+    fun `확장 오프라인 결과는 합의된 키와 비밀 없는 값만 허용한다`() {
+        MaestroFeaturePolicy.validateOfflineCaseVariables(
+            mapOf("PHOTO_A_NAME" to "maestro-e2e-photo.png", "E2E_SERVER_CONTRACT" to "observed-version-edited-at"),
+        )
+        for (variables in listOf(
+            mapOf("UNREVIEWED_FIELD" to "value"),
+            mapOf("AUTH_STATE" to "value"),
+            mapOf("EXERCISE_DESCRIPTION" to "eyJabc.def.ghi"),
+        )) {
+            expectFailure("invalid_feature_variables") { MaestroFeaturePolicy.validateOfflineCaseVariables(variables) }
+        }
+    }
+
     private fun expectFailure(
         reason: String,
         action: () -> Unit,

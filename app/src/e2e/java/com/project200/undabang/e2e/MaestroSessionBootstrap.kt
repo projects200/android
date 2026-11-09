@@ -1,7 +1,9 @@
 package com.project200.undabang.e2e
 
 import android.net.Uri
+import com.project200.data.local.PreferenceManager
 import com.project200.domain.repository.AuthRepository
+import com.project200.domain.usecase.LoginSessionUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
@@ -25,6 +27,8 @@ internal class MaestroSessionBootstrap
         private val authManager: AuthManager,
         private val authRepository: AuthRepository,
         private val registrationCheck: MaestroRegistrationCheck,
+        private val loginSession: LoginSessionUseCase,
+        private val preferences: PreferenceManager,
     ) {
         suspend fun authenticate(
             state: AuthState,
@@ -41,6 +45,45 @@ internal class MaestroSessionBootstrap
             authStateManager.update(restoredTokens, null)
 
             return refreshAndVerify(expectedMemberId)
+        }
+
+        /**
+         * 자격 증명만 준비합니다. 계정 채택과 폐기 확인은 LoginActivity의 제품 경로가 수행합니다.
+         * 검증 실패 시에도 로그인 대기 경계를 해제하거나 기존 소유자의 데이터를 지우지 않습니다.
+         */
+        suspend fun stagePendingLogin(
+            state: AuthState,
+            expectedMemberId: String,
+            retainedMemberId: String?,
+        ): String {
+            if (expectedMemberId.isBlank() || preferences.getRetainedMemberId() != retainedMemberId) {
+                throw MaestroSetupFailure("member_mismatch")
+            }
+            val trusted = fetchTrustedConfiguration()
+            validateState(state, trusted)
+            val authorization = state.lastAuthorizationResponse ?: throw MaestroSetupFailure("untrusted_session")
+            val tokens = tokensForRestore(state)
+
+            // beginLogin이 먼저 Worker의 계정 경계를 닫고 이전 자격 증명을 무효화합니다.
+            loginSession.beginLogin()
+            val pending = preferences.getPendingLogin() ?: throw MaestroSetupFailure("offline_session_pending_missing")
+            if (pending.retainedMemberId != retainedMemberId || preferences.getMemberId() != null) {
+                throw MaestroSetupFailure("member_mismatch")
+            }
+            authStateManager.update(authorization, null)
+            authStateManager.update(tokens, null)
+            refresh()
+            validateState(currentState(), trusted)
+            // requireRegistered는 계정을 채택할 수 있으므로 준비 단계에서는 읽기 전용 조회만 합니다.
+            val observed = registrationCheck.readRegisteredMember()
+            if (observed != expectedMemberId) throw MaestroSetupFailure("member_mismatch")
+            if (
+                preferences.getPendingLogin() != pending || preferences.getMemberId() != null ||
+                preferences.getRetainedMemberId() != retainedMemberId
+            ) {
+                throw MaestroSetupFailure("offline_session_boundary_changed")
+            }
+            return observed
         }
 
         /** 실패한 오프라인 실행의 회원 경계와 미전송 행을 유지한 채 같은 계정만 복구합니다 */

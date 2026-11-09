@@ -234,9 +234,9 @@ class OfflineDriverTests(unittest.TestCase):
     def run_driver(self, **inputs):
         args = SimpleNamespace(output=self.output, device="synthetic", configure_emulator=False,
                                apk=None, flow_timeout=42, **inputs)
-        result = offline.run_suite(args, core)
-        self.assertEqual([flow for flow, _, _ in result], list(offline.FLOWS))
-        self.assertEqual(core.validate_driver_results(offline.FLOWS, result), result)
+        result = offline.run_legacy_suite(args, core)
+        self.assertEqual([flow for flow, _, _ in result], list(offline.LEGACY_FLOWS))
+        self.assertEqual(core.validate_driver_results(offline.LEGACY_FLOWS, result), result)
         self.results = result
         self.assertNotIn("synthetic-private-token", str(result))
         return {flow: errors for flow, _, errors in result}
