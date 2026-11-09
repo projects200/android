@@ -4,7 +4,6 @@ import android.content.Context
 import androidx.room.withTransaction
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
-import androidx.work.await
 import com.project200.data.api.ApiService
 import com.project200.data.dto.BaseResponse
 import com.project200.data.dto.GetExerciseRecordData
@@ -20,6 +19,7 @@ import com.project200.data.local.entity.SyncState
 import com.project200.undabang.exercise.ExerciseSyncWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
@@ -231,11 +231,17 @@ internal class MaestroOfflineExerciseCases
                     if (action == "block-body") freezeRemote(request, run, saved)
                     if (request.flow == "offline-body-retry") {
                         awaitMatch("offline_retry_scheduler_not_idle") {
-                            WorkManager.getInstance(context).getWorkInfosForUniqueWork(ExerciseSyncWorker.WORK_NAME).await().all {
-                                it.state.isFinished
-                            }
+                            WorkManager.getInstance(context)
+                                .getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME)
+                                .first()
+                                .all {
+                                    it.state.isFinished
+                                }
                         }
-                        val work = WorkManager.getInstance(context).getWorkInfosForUniqueWork(ExerciseSyncWorker.WORK_NAME).await()
+                        val work =
+                            WorkManager.getInstance(context)
+                                .getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME)
+                                .first()
                         ext.put("baselineWorkIds", JSONArray(work.map { it.id.toString() }))
                     }
                     transport.arm(
@@ -500,7 +506,10 @@ internal class MaestroOfflineExerciseCases
                 if (!ext.has("failedWorkId") || !ext.has("firstAttempt") || !ext.optBoolean("faultCleared")) {
                     fail("offline_retry_not_observed")
                 }
-                val work = WorkManager.getInstance(context).getWorkInfosForUniqueWork(ExerciseSyncWorker.WORK_NAME).await()
+                val work =
+                    WorkManager.getInstance(context)
+                        .getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME)
+                        .first()
                 if (
                     work.any { !it.state.isFinished } ||
                     work.none {
@@ -545,7 +554,10 @@ internal class MaestroOfflineExerciseCases
                         fail("offline_retry_snapshot_changed")
                     }
                 }
-                val work = WorkManager.getInstance(context).getWorkInfosForUniqueWork(ExerciseSyncWorker.WORK_NAME).await()
+                val work =
+                    WorkManager.getInstance(context)
+                        .getWorkInfosForUniqueWorkFlow(ExerciseSyncWorker.WORK_NAME)
+                        .first()
                 val baseline = ext.getJSONArray("baselineWorkIds")
                 val baselineIds = (0 until baseline.length()).map { baseline.getString(it) }.toSet()
                 val failed =

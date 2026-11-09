@@ -3,6 +3,7 @@ package com.project200.undabang.e2e
 import android.content.Context
 import android.system.Os
 import android.util.AtomicFile
+import androidx.core.content.pm.PackageInfoCompat
 import com.project200.data.api.ApiService
 import com.project200.data.datasource.TimerLocalDataSource
 import com.project200.data.dto.BaseResponse
@@ -135,7 +136,7 @@ internal class MaestroOfflineFixtures
         private fun appVariables(): Map<String, String> {
             val installed = context.packageManager.getPackageInfo(context.packageName, 0)
             return buildMap {
-                put("E2E_APP_VERSION_CODE", installed.longVersionCode.toString())
+                put("E2E_APP_VERSION_CODE", PackageInfoCompat.getLongVersionCode(installed).toString())
                 installed.versionName?.takeIf { it.isNotBlank() }?.let { put("E2E_APP_VERSION", it) }
             }.also(MaestroFeaturePolicy::validateOfflineCaseVariables)
         }
