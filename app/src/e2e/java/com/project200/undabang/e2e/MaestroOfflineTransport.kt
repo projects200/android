@@ -420,7 +420,7 @@ internal class MaestroOfflineTransport
                 try {
                     stream.close()
                 } catch (_: Exception) {
-                    /* no private diagnostics */
+                    // no private diagnostics
                 }
                 fail("offline_transport_trace_invalid")
             }

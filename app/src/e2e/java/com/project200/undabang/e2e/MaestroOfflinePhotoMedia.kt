@@ -173,39 +173,38 @@ internal class MaestroOfflinePhotoMedia(private val context: Context) {
     suspend fun assertRemote(
         url: String,
         label: String,
-    ) =
-        withContext(Dispatchers.IO) {
-            val target =
-                try {
-                    URL(url)
-                } catch (_: Exception) {
-                    fail("offline_photo_remote_content_failed")
-                }
-            if (target.protocol != "https" || target.userInfo != null) fail("offline_photo_remote_content_failed")
-            val connection = target.openConnection() as HttpURLConnection
+    ) = withContext(Dispatchers.IO) {
+        val target =
             try {
-                connection.instanceFollowRedirects = false
-                connection.connectTimeout = 15_000
-                connection.readTimeout = 15_000
-                connection.useCaches = false
-                if (connection.responseCode != 200 || connection.contentLengthLong > MAX_BYTES) fail("offline_photo_remote_content_failed")
-                val bytes =
-                    connection.inputStream.use { input ->
-                        val output = ByteArrayOutputStream()
-                        val buffer = ByteArray(8192)
-                        while (true) {
-                            val count = input.read(buffer)
-                            if (count < 0) break
-                            if (output.size() + count > MAX_BYTES) fail("offline_photo_remote_content_failed")
-                            output.write(buffer, 0, count)
-                        }
-                        output.toByteArray()
-                    }
-                if (!matchesContent(bytes, label)) fail("offline_photo_remote_content_mismatch")
-            } finally {
-                connection.disconnect()
+                URL(url)
+            } catch (_: Exception) {
+                fail("offline_photo_remote_content_failed")
             }
+        if (target.protocol != "https" || target.userInfo != null) fail("offline_photo_remote_content_failed")
+        val connection = target.openConnection() as HttpURLConnection
+        try {
+            connection.instanceFollowRedirects = false
+            connection.connectTimeout = 15_000
+            connection.readTimeout = 15_000
+            connection.useCaches = false
+            if (connection.responseCode != 200 || connection.contentLengthLong > MAX_BYTES) fail("offline_photo_remote_content_failed")
+            val bytes =
+                connection.inputStream.use { input ->
+                    val output = ByteArrayOutputStream()
+                    val buffer = ByteArray(8192)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        if (output.size() + count > MAX_BYTES) fail("offline_photo_remote_content_failed")
+                        output.write(buffer, 0, count)
+                    }
+                    output.toByteArray()
+                }
+            if (!matchesContent(bytes, label)) fail("offline_photo_remote_content_mismatch")
+        } finally {
+            connection.disconnect()
         }
+    }
 
     private fun ownedFile(path: String): File {
         val directory = File(context.filesDir, "exercise-images").canonicalFile

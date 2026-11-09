@@ -311,18 +311,17 @@ class MaestroOfflineExercisePolicyTest {
     private fun remote(
         version: Long? = 7,
         clock: Long? = now,
-    ) =
-        GetExerciseRecordData(
-            "owned",
-            "body",
-            "",
-            LocalDateTime.of(2026, 1, 1, 9, 0),
-            LocalDateTime.of(2026, 1, 1, 10, 0),
-            "",
-            null,
-            version,
-            clock,
-        )
+    ) = GetExerciseRecordData(
+        "owned",
+        "body",
+        "",
+        LocalDateTime.of(2026, 1, 1, 9, 0),
+        LocalDateTime.of(2026, 1, 1, 10, 0),
+        "",
+        null,
+        version,
+        clock,
+    )
 
     private fun journal() =
         ExerciseSyncEntity(

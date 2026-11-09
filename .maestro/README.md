@@ -240,6 +240,8 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 
 결정적 세부 경계는 기존 테스트와 구분합니다. `ExerciseSyncUiStorageTest`는 동일 시각의 서버 승리, 불명 시각 보존, 늦은 로컬 편집/삭제, 점수 receipt를 검사합니다. `ExerciseSyncRepositoryTest`는 사진 응답 유실의 동일 키 재생, 늦은 계정·세션 응답, 일반 404와 명명된 원격 삭제의 구분, stale 폐기 확인을 검사합니다. 두 테스트의 기존 CAS 회귀는 확정 거절 뒤 새 요청키·최신 기준 버전으로 rebase하되 본문·시각을 보존하는 경로를 유지합니다. `ExerciseSyncTransportTest`는 HTTP 직렬화의 `editId`·`baseVersion`·`editedAt` 계약을 검사합니다. 이 단위/Room/HTTP 시험은 실서버 clock 기반 직접 ACK 사례와 별개이며, 실서버 E2E 통과나 실서버 rebase 수행 증거가 아닙니다.
 
+`MaestroOfflineTransportTest`는 응답·요청 본문 보존, 원문·비밀의 trace 미기록, 소유권과 정리를 검사합니다. Robolectric 4.14.1의 `Os.stat`은 소유자·그룹·기타 권한을 구분하지 않으므로 이 JVM 테스트로 Unix 파일 모드를 단언하지 않습니다. 실제 Android writer의 `Os.fchmod(..., 0600)`은 유지하며, 기기에서의 파일 권한 검증은 별도입니다.
+
 사진 오류 안내·사진 수동 재시도·복구 UI는 #659 선행 기능입니다. 이 확장은 사진의 실제 보존·전송·삭제·중단 복구를 다루며 #660의 본문 재시도 버튼으로 사진 복구 UI를 대신하지 않습니다. 본 변경에서는 Python·Kotlin·Maestro·빌드·기기 실행을 수행하지 않았습니다. 위 23개 사례의 실제 DEV 통과, 서버 계약 배포 상태와 기기 동작은 승인된 기존 CI 결과에서 별도로 확인해야 합니다.
 
 
