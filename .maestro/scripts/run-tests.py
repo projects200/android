@@ -1086,6 +1086,19 @@ def export_session(device, output):
 
 def save_debug(raw, destination, redactor, console):
     destination.mkdir(parents=True, exist_ok=True)
+    try:
+        command_summary = getattr(redactor, "command_summary", None)
+        if callable(command_summary):
+            summary = command_summary(raw)
+            if summary is not None:
+                (destination / "command-summary.json").write_text(
+                    json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+                )
+    except RunInterrupted:
+        raise
+    except Exception:
+        # 선택 진단 실패는 원래 Maestro 실패·정리와 기존 artifact redaction을 바꾸지 않습니다
+        pass
     clean, sensitive = redactor.clean(console.decode("utf-8", "replace"))
     (destination / "console.log").write_text(clean, encoding="utf-8")
     images = []

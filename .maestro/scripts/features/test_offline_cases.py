@@ -1,5 +1,7 @@
 """Behavior checks for native-media identity, private control, and failure boundaries."""
 
+import contextlib
+import copy
 import importlib.util
 import json
 from pathlib import Path
@@ -250,6 +252,357 @@ class ArtifactPrivacyTests(unittest.TestCase):
         self.assertEqual(cases.public_failure_codes(core, failure), ["offline-case-operation-failed"])
 
 
+class CommandSummaryTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="offline-command-tests-")
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.raw = self.root / "raw"
+        self.raw.mkdir()
+        self.destination = self.root / "public"
+        self.redactor = cases.ArtifactRedactor(core, PRIMARY, PEER)
+        self.redactor.set_command_context("offline-photo-create", "create", 1)
+
+    def record(self, command_type, sequence, depth, status="COMPLETED", source=None):
+        return {
+            "command": {command_type: {
+                "sourceDescription": source, "selector": {"textRegex": "private-selector"},
+                "text": "private-input", "env": {"TOKEN": "private-environment"},
+                "primary": PRIMARY, "peer": PEER, "runId": RUN,
+                "url": "https://private.invalid/photo", "uri": "content://private/media/1",
+                "file": "file:///private/photo.png", "hierarchy": "private-hierarchy",
+            }},
+            "metadata": {
+                "sequenceNumber": sequence, "depth": depth, "status": status,
+                "timestamp": "private-timestamp", "duration": 123,
+                "error": "private-error-stack", "evaluatedCommand": {
+                    "command": "private-evaluated", "status": "FAILED",
+                },
+            },
+        }
+
+    def records(self):
+        records = [
+            self.record("runFlowCommand", 0, 0, "FAILED", "../offline/dispatch.yaml"),
+            self.record("applyConfigurationCommand", 1, 1),
+            self.record("runFlowCommand", 2, 1, "FAILED", "create.yaml"),
+            self.record("defineVariablesCommand", 3, 1),
+            self.record("applyConfigurationCommand", 4, 2),
+            self.record("runFlowCommand", 5, 2, source="../subflows/launch-logged-in.yaml"),
+            self.record("launchAppCommand", 6, 3),
+            self.record("runFlowCommand", 7, 2, source="../subflows/set-exercise-time.yaml"),
+            self.record("tapOnElement", 8, 3),
+            self.record("runFlowCommand", 9, 2, "FAILED", "pick-photo.yaml"),
+            self.record("defineVariablesCommand", 10, 2),
+            self.record("tapOnElement", 11, 3),
+            self.record("assertConditionCommand", 12, 3, "FAILED"),
+            self.record("runFlowCommand", 13, 2, "SKIPPED", "assert-detail.yaml"),
+            self.record("inputTextCommand", 14, 2, "PENDING"),
+        ]
+        records[2]["command"]["runFlowCommand"]["commands"] = [
+            self.record("assertConditionCommand", 999, 3, "FAILED"),
+        ]
+        return records
+
+    def capture(self, records=None):
+        if records is not None:
+            (self.raw / "commands.json").write_text(json.dumps(records), encoding="utf-8")
+        core.save_debug(self.raw, self.destination, self.redactor, b"private-console")
+        return json.loads((self.destination / "command-summary.json").read_text())
+
+    def test_runtime_leaf_and_parent_failures_survive_real_scrub_without_private_artifacts(self):
+        (self.raw / "private-photo.png").write_bytes(b"\x89PNG\r\n\x1a\nprivate-image")
+        summary = self.capture(self.records())
+        self.assertEqual({key: summary[key] for key in ("flow", "action", "invocation", "status")}, {
+            "flow": "offline-photo-create", "action": "create", "invocation": 1, "status": "captured",
+        })
+        self.assertEqual([(item["sequenceNumber"], item["failure_role"]) for item in summary["failures"]],
+                         [(0, "propagated"), (2, "propagated"), (9, "propagated"), (12, "leaf")])
+        leaf = summary["failures"][-1]
+        self.assertEqual({key: leaf[key] for key in ("command_type", "sequenceNumber", "depth", "status")},
+                         {"command_type": "assertConditionCommand", "sequenceNumber": 12, "depth": 3, "status": "FAILED"})
+        self.assertEqual([(item["sequenceNumber"], item["helper"]) for item in leaf["ancestors"]], [
+            (0, "offline/dispatch.yaml"), (2, "offline/create.yaml"), (9, "offline/pick-photo.yaml"),
+        ])
+        self.assertEqual(summary["last_executed"]["sequenceNumber"], 12)
+        self.assertEqual(summary["last_completed"]["sequenceNumber"], 11)
+        self.assertEqual(summary["last_completed"]["command_type"], "tapOnElement")
+        public = "\n".join(path.read_text() for path in self.destination.iterdir())
+        for secret in (
+            "private-", "selector", "evaluatedCommand", "timestamp", "999", "assert-detail.yaml",
+            RUN, "https://", "content://", "file://", "hierarchy",
+        ):
+            self.assertNotIn(secret, public)
+        self.assertFalse(list(self.destination.glob("*.png")))
+        self.assertEqual((self.destination / "debug-001.json").read_text(), "[offline private UI details omitted]")
+        self.assertTrue(self.redactor.clean("arbitrary")[1])
+
+    def test_unrelated_json_is_not_opened_as_commands_and_all_artifacts_stay_private(self):
+        unrelated = {
+            "manifest.json": json.dumps({
+                "$schema": "https://private.invalid/schema",
+                "entries": [{"path": "private-manifest-path"}],
+            }),
+            "ai-(private-flow).json": json.dumps({"analysis": "private-ai-response"}),
+            "home/.maestro/config.json": json.dumps({"token": "private-home-token"}),
+            "malformed.json": '{"private-malformed":',
+            "commands-copy.json": '{"private-copy":',
+            "commands-(private-flow).json.bak": '{"private-backup":',
+            "commands.JSON": '{"private-uppercase":',
+            "commands-().json": '{"private-empty-flow":',
+        }
+        for name, content in unrelated.items():
+            path = self.raw / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(content, encoding="utf-8")
+        (self.raw / "private-photo.png").write_bytes(b"\x89PNG\r\n\x1a\nprivate-image")
+        opened = []
+        original_open = Path.open
+
+        def track_report_reads(path, *args, **kwargs):
+            if args == ("rb",):
+                opened.append(path.relative_to(self.raw).as_posix())
+            return original_open(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "open", new=track_report_reads), \
+                mock.patch.object(cases, "COMMAND_MAX_REPORTS", 1):
+            summary = self.capture(self.records())
+        self.assertEqual(summary["status"], "captured")
+        self.assertEqual(summary["failures"][-1]["sequenceNumber"], 12)
+        self.assertEqual(opened, ["commands.json"])
+        artifacts = list(self.destination.iterdir())
+        scrubbed = [path for path in artifacts if path.name != "command-summary.json"]
+        self.assertTrue(scrubbed)
+        self.assertTrue(all(path.read_text() == "[offline private UI details omitted]" for path in scrubbed))
+        public = "\n".join(path.read_text() for path in artifacts)
+        for secret in ("private-", RUN, "https://", "content://", "file://"):
+            self.assertNotIn(secret, public)
+        self.assertFalse(list(self.destination.glob("*.png")))
+
+    def test_malformed_recognized_report_is_not_ignored_beside_valid_commands(self):
+        (self.raw / "commands-(private-flow).json").write_text('{"private-malformed":', encoding="utf-8")
+        summary = self.capture(self.records())
+        self.assertEqual(summary["status"], "unavailable")
+        self.assertNotIn("private", json.dumps(summary))
+
+    def test_known_helpers_are_exact_matches_and_private_sources_become_unknown(self):
+        for source, expected in (
+            ("assert-detail.yaml", "offline/assert-detail.yaml"),
+            ("../subflows/set-exercise-time.yaml", "subflows/set-exercise-time.yaml"),
+            ("../subflows/launch-logged-in.yaml", "subflows/launch-logged-in.yaml"),
+            ("/private/account/pick-photo.yaml", "unknown"),
+            ("https://private.invalid/create.yaml", "unknown"),
+            ("content://private/create.yaml", "unknown"),
+            ("file:///private/create.yaml", "unknown"),
+            ("private-regex-safe.yaml", "unknown"), (None, "unknown"),
+            ({"private-source": "create.yaml"}, "unknown"),
+        ):
+            with self.subTest(source=source):
+                summary = self.capture([self.record("runFlowCommand", 0, 0, "FAILED", source)])
+                self.assertEqual(summary["failures"][0]["helper"], expected)
+                self.assertEqual(summary["failures"][0]["failure_role"], "leaf")
+                self.assertNotIn("private", json.dumps(summary))
+
+    def test_skipped_and_future_records_are_not_execution_or_failure_evidence(self):
+        summary = self.capture([
+            self.record("tapOnElement", 0, 0),
+            self.record("assertConditionCommand", 1, 0, "SKIPPED"),
+            self.record("inputTextCommand", 2, 0, "PENDING"),
+        ])
+        self.assertEqual(summary["failures"], [])
+        self.assertEqual(summary["last_executed"]["sequenceNumber"], 0)
+        self.assertEqual(summary["last_completed"]["sequenceNumber"], 0)
+        summary = self.capture([self.record("tapOnElement", 0, 0, "RUNNING")])
+        self.assertEqual(summary["last_executed"]["status"], "RUNNING")
+        self.assertIsNone(summary["last_completed"])
+        self.assertEqual(self.capture([self.record("tapOnElement", 0, 0, "PENDING")])["status"], "unavailable")
+
+    def test_warned_commands_are_executed_but_not_failed_or_completed(self):
+        summary = self.capture([
+            self.record("runFlowCommand", 0, 0, "WARNED", "create.yaml"),
+            self.record("tapOnElement", 1, 1),
+            self.record("assertConditionCommand", 2, 1, "WARNED"),
+            self.record("assertConditionCommand", 3, 1, "SKIPPED"),
+            self.record("inputTextCommand", 4, 1, "PENDING"),
+        ])
+        self.assertEqual(summary["status"], "captured")
+        self.assertEqual(summary["failures"], [])
+        self.assertEqual(summary["last_executed"]["sequenceNumber"], 2)
+        self.assertEqual(summary["last_executed"]["status"], "WARNED")
+        self.assertEqual(summary["last_executed"]["ancestors"], [{
+            "command_type": "runFlowCommand", "sequenceNumber": 0,
+            "depth": 0, "status": "WARNED", "helper": "offline/create.yaml",
+        }])
+        self.assertEqual(summary["last_completed"]["sequenceNumber"], 1)
+        self.assertEqual(summary["last_completed"]["status"], "COMPLETED")
+        summary = self.capture([self.record("assertConditionCommand", 0, 0, "WARNED")])
+        self.assertEqual(summary["status"], "captured")
+        self.assertEqual(summary["failures"], [])
+        self.assertEqual(summary["last_executed"]["status"], "WARNED")
+        self.assertIsNone(summary["last_completed"])
+
+    def test_missing_malformed_and_ambiguous_records_are_unavailable(self):
+        valid = self.record("assertConditionCommand", 0, 0, "FAILED")
+        invalid = [None, {}, {"nested": [valid]}, [None], [{"command": valid["command"]}]]
+        for field, values in (
+            ("sequenceNumber", (None, True, -1, 1.5, "0", 100001)),
+            ("depth", (None, False, -1, 1.5, "0", 33)),
+            ("status", (None, {}, "private-status")),
+        ):
+            for value in values:
+                record = copy.deepcopy(valid)
+                record["metadata"][field] = value
+                invalid.append([record])
+        invalid.extend((
+            [self.record("privateCommand", 0, 0, "FAILED")],
+            [{"command": {"tapOnElement": {}, "inputTextCommand": {}}, "metadata": valid["metadata"]}],
+            [self.record("tapOnElement", 0, 1, "FAILED")],
+            [self.record("runFlowCommand", 0, 0, "SKIPPED"), self.record("tapOnElement", 1, 1, "FAILED")],
+        ))
+        for records in invalid:
+            with self.subTest(records=records):
+                summary = self.capture(records)
+                self.assertEqual(summary["status"], "unavailable")
+                self.assertNotIn("failures", summary)
+                self.assertNotIn("private", json.dumps(summary))
+
+    def test_duplicate_copies_are_deterministic_but_conflicting_identities_are_unavailable(self):
+        records = self.records()
+        expected = self.capture(records)
+        duplicate = self.raw / "commands-(my_flow).json"
+        duplicate.write_text(json.dumps(records), encoding="utf-8")
+        self.assertEqual(self.capture(records + [records[-1]]), expected)
+        duplicate.write_text(json.dumps(list(reversed(records))), encoding="utf-8")
+        self.assertEqual(self.capture(records), expected)
+        for mutate in ("status", "selector", "numeric-type", "subset"):
+            with self.subTest(mutate=mutate):
+                conflict = copy.deepcopy(records)
+                if mutate == "status":
+                    conflict[12]["metadata"]["status"] = "COMPLETED"
+                elif mutate == "selector":
+                    conflict[12]["command"]["assertConditionCommand"]["text"] = "other-private-input"
+                elif mutate == "numeric-type":
+                    conflict[12]["metadata"]["duration"] = 123.0
+                else:
+                    conflict.pop()
+                duplicate.write_text(json.dumps(conflict), encoding="utf-8")
+                self.assertEqual(self.capture(records)["status"], "unavailable")
+        duplicate.unlink()
+        conflict = copy.deepcopy(records[12])
+        conflict["metadata"]["depth"] = 2
+        self.assertEqual(self.capture(records + [conflict])["status"], "unavailable")
+
+    def test_invalid_json_size_count_and_nesting_are_unavailable(self):
+        nested = "private-nested"
+        for _ in range(65):
+            nested = [nested]
+        deeply_nested = self.record("assertConditionCommand", 0, 0, "FAILED")
+        deeply_nested["command"]["assertConditionCommand"]["selector"] = nested
+        valid_json = json.dumps(self.records())
+        for payload in (
+            "{", "null",
+            valid_json.replace('"status": "FAILED"', '"status": "FAILED", "status": "COMPLETED"', 1),
+            valid_json.replace('"duration": 123', '"duration": NaN', 1),
+            json.dumps([deeply_nested]),
+        ):
+            (self.raw / "commands.json").write_text(payload, encoding="utf-8")
+            self.assertEqual(self.capture()["status"], "unavailable")
+        for constant, limit in (("COMMAND_MAX_BYTES", 16), ("COMMAND_MAX_RECORDS", 2),
+                                ("COMMAND_MAX_PATHS", 0), ("COMMAND_MAX_REPORTS", 0),
+                                ("COMMAND_MAX_TOTAL_BYTES", 16), ("COMMAND_MAX_FAILURES", 1)):
+            with self.subTest(constant=constant), mock.patch.object(cases, constant, limit):
+                self.assertEqual(self.capture(self.records())["status"], "unavailable")
+
+    def test_large_nested_dispatch_definitions_and_copies_remain_bounded_and_private(self):
+        records = self.records()
+        records[0]["command"]["runFlowCommand"]["commands"] = [{
+            "assertConditionCommand": {"selector": {"textRegex": "private-planned-" + "x" * (4 * 1024 * 1024)}},
+        }]
+        content = json.dumps(records)
+        (self.raw / "commands-(dispatch).json").write_text(content, encoding="utf-8")
+        with mock.patch.object(cases.time, "monotonic", return_value=100.0):
+            summary = self.capture(records)
+        self.assertEqual(summary["status"], "captured")
+        self.assertEqual(summary["failures"][-1]["sequenceNumber"], 12)
+        self.assertNotIn("private", json.dumps(summary))
+        self.assertEqual((self.destination / "debug-001.json").read_text(), "[offline private UI details omitted]")
+        self.assertEqual((self.destination / "debug-002.json").read_text(), "[offline private UI details omitted]")
+
+    def test_missing_or_unreadable_reports_are_unavailable_without_changing_scrub(self):
+        self.assertEqual(self.capture()["status"], "unavailable")
+        (self.raw / "commands.json").write_text(json.dumps(self.records()), encoding="utf-8")
+        original_open = Path.open
+
+        def unreadable(path, *args, **kwargs):
+            if path.parent == self.raw and args == ("rb",):
+                raise OSError("private-read-error")
+            return original_open(path, *args, **kwargs)
+
+        with mock.patch.object(Path, "open", new=unreadable):
+            self.assertEqual(self.capture()["status"], "unavailable")
+        self.assertEqual((self.destination / "console.log").read_text(), "[offline private UI details omitted]")
+
+    def test_symlink_reports_and_expired_collection_do_not_claim_execution(self):
+        outside = self.root / "outside.json"
+        outside.write_text(json.dumps(self.records()), encoding="utf-8")
+        linked = self.raw / "commands.json"
+        linked.symlink_to(outside)
+        self.assertEqual(self.capture()["status"], "unavailable")
+        linked.unlink()
+        linked.write_text(json.dumps(self.records()), encoding="utf-8")
+        with mock.patch.object(cases.time, "monotonic", side_effect=[100.0, 103.0]):
+            self.assertEqual(self.capture()["status"], "unavailable")
+
+    def test_context_rejects_nonfixed_names_and_noninteger_invocations(self):
+        for flow, action, invocation in (
+            ("private-flow", "create", 1), ("offline-photo-create", "private-action", 1),
+            ("offline-photo-create", "create", True), ("offline-photo-create", "create", "1"),
+            ("offline-photo-create", "create", 0), ("offline-photo-create", "create", 100001),
+        ):
+            with self.subTest(flow=flow, action=action, invocation=invocation):
+                self.redactor.set_command_context(flow, action, invocation)
+                self.assertIsNone(self.redactor.command_summary(self.raw))
+
+    def test_ordinary_redactors_and_offline_without_ui_context_keep_existing_artifacts(self):
+        (self.raw / "safe.log").write_text("safe text", encoding="utf-8")
+        (self.raw / "safe.png").write_bytes(b"\x89PNG\r\n\x1a\nsynthetic")
+        core.save_debug(self.raw, self.destination, core.Redactor(PRIMARY), b"safe console")
+        self.assertFalse((self.destination / "command-summary.json").exists())
+        self.assertEqual((self.destination / "debug-001.log").read_text(), "safe text")
+        self.assertEqual((self.destination / "screenshot-001.png").read_bytes(), b"\x89PNG\r\n\x1a\nsynthetic")
+        private = self.root / "offline-without-context"
+        core.save_debug(self.raw, private, cases.ArtifactRedactor(core, PRIMARY, PEER), b"safe console")
+        self.assertFalse((private / "command-summary.json").exists())
+        self.assertFalse(list(private.glob("*.png")))
+
+    def test_diagnostic_interruptions_are_not_converted_to_unavailable(self):
+        (self.raw / "commands.json").write_text(json.dumps(self.records()), encoding="utf-8")
+        original_open = Path.open
+        original_write = Path.write_text
+        for stage in ("read", "parse", "write"):
+            for interruption in (core.RunInterrupted("run-interrupted"), KeyboardInterrupt()):
+                with self.subTest(stage=stage, kind=type(interruption).__name__), contextlib.ExitStack() as patches:
+                    def interrupted_open(path, *args, **kwargs):
+                        if path.parent == self.raw and args == ("rb",):
+                            raise interruption
+                        return original_open(path, *args, **kwargs)
+
+                    def interrupted_write(path, *args, **kwargs):
+                        if path.name == "command-summary.json":
+                            raise interruption
+                        return original_write(path, *args, **kwargs)
+
+                    if stage == "read":
+                        patches.enter_context(mock.patch.object(Path, "open", new=interrupted_open))
+                    elif stage == "parse":
+                        patches.enter_context(mock.patch.object(cases, "parse_command_records", side_effect=interruption))
+                    else:
+                        patches.enter_context(mock.patch.object(Path, "write_text", new=interrupted_write))
+                    with self.assertRaises(type(interruption)) as caught:
+                        self.capture()
+                    self.assertIs(caught.exception, interruption)
+
+
 class DriverBoundaryTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="offline-case-tests-")
@@ -288,6 +641,9 @@ class DriverBoundaryTests(unittest.TestCase):
         action = variables["UI_ACTION"]
         self.events.append("ui:" + action)
         self.assertNotIn("authState", variables)
+        self.assertEqual(redactor.command_context, {
+            "flow": _flow, "action": action, "invocation": int(_output.name.split("-", 1)[0]),
+        })
         for private in (PRIMARY["memberId"], PEER["memberId"], PRIMARY["authState"]["accessToken"], PEER["authState"]["accessToken"]):
             self.assertNotIn(private, redactor.clean(private)[0])
 
@@ -458,6 +814,67 @@ class DriverBoundaryTests(unittest.TestCase):
         self.assertEqual(status["failureStage"], "preparation")
         self.assertEqual(status["cleanupStatus"], "failed")
         self.assertNotIn("ui:delete", self.events)
+
+    def test_command_diagnostic_errors_preserve_original_failure_and_unsafe_cleanup(self):
+        self.fail_cleanup = True
+        self.device.exercise_variables.return_value = {}
+        original_open = Path.open
+        original_write = Path.write_text
+
+        def command(argv, _env, timeout=60):
+            if argv[1:] == ["--version"]:
+                return 0, core.MAESTRO_VERSION.encode(), b""
+            raw = Path(argv[argv.index("--debug-output") + 1])
+            raw.mkdir()
+            (raw / "commands.json").write_text(json.dumps([{
+                "command": {"assertConditionCommand": {"selector": "private-selector"}},
+                "metadata": {"status": "FAILED", "sequenceNumber": 0, "depth": 0},
+            }]), encoding="utf-8")
+            (raw / "private.png").write_bytes(b"\x89PNG\r\n\x1a\nprivate-image")
+            return 1, b"private-console", b"private-error"
+
+        def unreadable(path, *args, **kwargs):
+            if path.name == "commands.json" and args == ("rb",):
+                raise OSError("private-read-error")
+            return original_open(path, *args, **kwargs)
+
+        def unwritable(path, *args, **kwargs):
+            if path.name == "command-summary.json":
+                raise OSError("private-write-error")
+            return original_write(path, *args, **kwargs)
+
+        for stage in ("read", "parse", "write"):
+            with self.subTest(stage=stage), contextlib.ExitStack() as patches:
+                self.events.clear()
+                self.args.output = self.output / stage
+                patches.enter_context(mock.patch.object(core, "run_maestro", side_effect=core._run_maestro))
+                patches.enter_context(mock.patch.object(core, "command", side_effect=command))
+                patches.enter_context(mock.patch.object(core.shutil, "which", return_value="synthetic-maestro"))
+                for name in ("save_failure_logcat", "save_failure_anr", "save_failure_anr_events", "save_driver_failure"):
+                    patches.enter_context(mock.patch.object(core, name))
+                if stage == "read":
+                    patches.enter_context(mock.patch.object(Path, "open", new=unreadable))
+                elif stage == "parse":
+                    patches.enter_context(mock.patch.object(cases, "parse_command_records", side_effect=RuntimeError("private-parser-error")))
+                else:
+                    patches.enter_context(mock.patch.object(Path, "write_text", new=unwritable))
+                result = self.run_driver("offline-photo-create", "offline-body-retry")
+                self.assertIn("maestro-flow-failed", result[0][2])
+                self.assertIn("bootstrap-cleanup-failed-offline-exercise-cleanup-unsafe", result[0][2])
+                self.assertIn("private-state-preserved-for-recovery", result[0][2])
+                self.assertIn("offline-phase-not-executed", result[1][2])
+                self.assertEqual(self.events.count("clear"), 1)
+                self.assertLess(self.index("online"), self.index("cleanup:"))
+                output = self.args.output / "offline/offline-photo-create"
+                result_json = json.loads((output / "result.json").read_text())
+                self.assertEqual(result_json["status"], "cleanup-failed")
+                self.assertEqual(result_json["failureStage"], "function")
+                diagnostics = output / "01-create/offline-photo-create"
+                self.assertFalse(list(diagnostics.glob("*.png")))
+                for path in diagnostics.iterdir():
+                    self.assertNotIn("private-", path.read_text())
+                if stage != "write":
+                    self.assertEqual(json.loads((diagnostics / "command-summary.json").read_text())["status"], "unavailable")
 
 
 class SuiteCompositionTests(unittest.TestCase):

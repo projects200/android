@@ -63,10 +63,164 @@ def capability_evidence(variables):
 
 
 
+COMMAND_TYPES = frozenset({
+    "defineVariablesCommand", "applyConfigurationCommand", "runFlowCommand",
+    "launchAppCommand", "stopAppCommand", "tapOnElement", "assertConditionCommand",
+    "inputTextCommand", "eraseTextCommand", "hideKeyboardCommand", "backPressCommand",
+    "scrollUntilVisible",
+})
+COMMAND_STATUSES = frozenset({"COMPLETED", "FAILED", "WARNED", "RUNNING", "SKIPPED", "PENDING"})
+COMMAND_EXECUTED = frozenset({"COMPLETED", "FAILED", "WARNED", "RUNNING"})
+COMMAND_HELPERS = {
+    source: "offline/" + name + ".yaml"
+    for name in ("dispatch", *ACTIONS, "pick-photo", "assert-exercise-record")
+    for source in (name + ".yaml", "../offline/" + name + ".yaml")
+}
+COMMAND_HELPERS.update({
+    source: "subflows/" + name + ".yaml"
+    for name in (
+        "launch-logged-in", "set-exercise-time", "select-exercise-date",
+        "assert-exercise-detail", "assert-exercise-records-absent",
+        "timer-clear-text", "timer-hide-keyboard",
+    )
+    for source in (name + ".yaml", "../subflows/" + name + ".yaml")
+})
+COMMAND_MAX_BYTES = 8388608
+COMMAND_MAX_TOTAL_BYTES = 33554432
+COMMAND_MAX_PATHS = 256
+COMMAND_MAX_REPORTS = 16
+COMMAND_MAX_RECORDS = 4096
+COMMAND_MAX_DEPTH = 32
+COMMAND_MAX_SEQUENCE = 100000
+COMMAND_MAX_FAILURES = 32
+
+
+def command_integer(value, maximum):
+    return type(value) is int and 0 <= value <= maximum
+
+
+def command_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError
+        result[key] = value
+    return result
+
+
+def invalid_command_constant(_value):
+    raise ValueError
+
+
+def command_identity(records):
+    return json.dumps(records, sort_keys=True, allow_nan=False, separators=(",", ":"))
+
+
+def parse_command_records(content):
+    # JSON 전체 크기와 중첩을 먼저 제한하고 실행 레코드의 root 배열만 읽습니다
+    if len(content) > COMMAND_MAX_BYTES:
+        raise ValueError
+    nesting, quoted, escaped = 0, False, False
+    for byte in content:
+        if quoted:
+            if escaped:
+                escaped = False
+            elif byte == 92:
+                escaped = True
+            elif byte == 34:
+                quoted = False
+        elif byte == 34:
+            quoted = True
+        elif byte in (91, 123):
+            nesting += 1
+            if nesting > 64:
+                raise ValueError
+        elif byte in (93, 125):
+            nesting -= 1
+    report = json.loads(content.decode("utf-8", "strict"), object_pairs_hook=command_object,
+                        parse_constant=invalid_command_constant)
+    if not isinstance(report, list) or not report or len(report) > COMMAND_MAX_RECORDS:
+        raise ValueError
+    records = {}
+    for record in report:
+        if not isinstance(record, dict):
+            raise ValueError
+        command, metadata = record.get("command"), record.get("metadata")
+        if not isinstance(command, dict) or len(command) != 1 or not isinstance(metadata, dict):
+            raise ValueError
+        command_type = next(iter(command))
+        if command_type not in COMMAND_TYPES or not isinstance(command[command_type], dict):
+            raise ValueError
+        sequence, depth = metadata.get("sequenceNumber"), metadata.get("depth")
+        if (not command_integer(sequence, COMMAND_MAX_SEQUENCE)
+                or not command_integer(depth, COMMAND_MAX_DEPTH)
+                or metadata.get("status") not in COMMAND_STATUSES):
+            raise ValueError
+        if sequence in records and command_identity(records[sequence]) != command_identity(record):
+            raise ValueError
+        records[sequence] = record
+    return records
+
+
+def summarize_commands(records):
+    active, executed, failures = [], [], []
+    for sequence in sorted(records):
+        record = records[sequence]
+        command_type = next(iter(record["command"]))
+        metadata = record["metadata"]
+        depth, status = metadata["depth"], metadata["status"]
+        # Maestro는 helper 환경 변수를 호출자 depth에서 기록한 뒤 자식 depth로 진입합니다
+        while active and active[-1]["depth"] >= depth:
+            if command_type == "defineVariablesCommand" and active[-1]["depth"] == depth:
+                break
+            active.pop()
+        ancestors = [parent for parent in active if parent["depth"] < depth]
+        if [parent["depth"] for parent in ancestors] != list(range(depth)):
+            raise ValueError
+        public = {
+            "command_type": command_type, "sequenceNumber": sequence,
+            "depth": depth, "status": status,
+        }
+        if command_type == "runFlowCommand":
+            source = record["command"][command_type].get("sourceDescription")
+            public["helper"] = COMMAND_HELPERS.get(source, "unknown") if isinstance(source, str) else "unknown"
+        if status not in COMMAND_EXECUTED:
+            continue
+        observed = {**public, "ancestors": list(ancestors)}
+        executed.append(observed)
+        if status == "FAILED":
+            failures.append(observed)
+            if len(failures) > COMMAND_MAX_FAILURES:
+                raise ValueError
+        if command_type == "runFlowCommand":
+            active.append(public)
+    if not executed:
+        raise ValueError
+    propagated = {
+        parent["sequenceNumber"]
+        for failure in failures
+        for parent in failure["ancestors"]
+    }
+    completed = [record for record in executed if record["status"] == "COMPLETED"]
+    return {
+        "status": "captured",
+        "failures": [
+            {**failure, "failure_role": (
+                "propagated" if failure["sequenceNumber"] in propagated else "leaf"
+            )}
+            for failure in failures
+        ],
+        "last_executed": executed[-1],
+        "last_completed": completed[-1] if completed else None,
+    }
+
+
 class ArtifactRedactor:
     """Keep fixed diagnostics, not arbitrary picker/account hierarchy or user images."""
 
     def __init__(self, core, primary, peer):
+        self.core = core
+        self.command_context = None
         self.redactor = core.Redactor({"primary": primary, "peer": peer})
         self.allowed = PUBLIC_FAILURES | frozenset(FLOWS) | frozenset(ACTIONS)
 
@@ -75,6 +229,49 @@ class ArtifactRedactor:
         lines = [line.strip() for line in clean.splitlines() if line.strip() in self.allowed]
         # save_debug omits screenshots when safety cannot be established from the text.
         return "\n".join(lines) or "[offline private UI details omitted]", True
+
+    def set_command_context(self, flow, action, invocation):
+        self.command_context = (
+            {"flow": flow, "action": action, "invocation": invocation}
+            if flow in FLOWS and action in ACTIONS
+            and command_integer(invocation, COMMAND_MAX_SEQUENCE) and invocation > 0 else None
+        )
+
+    def command_summary(self, raw):
+        if self.command_context is None:
+            return None
+        summary = {"status": "unavailable"}
+        try:
+            records = None
+            total, count = 0, 0
+            deadline = time.monotonic() + 2
+            for index, path in enumerate(raw.rglob("*")):
+                if index >= COMMAND_MAX_PATHS or time.monotonic() >= deadline:
+                    raise ValueError
+                if (path.is_symlink()
+                        or not re.fullmatch(r"commands(?:-\(.+\))?\.json", path.name)
+                        or not path.is_file()):
+                    continue
+                count += 1
+                if count > COMMAND_MAX_REPORTS:
+                    raise ValueError
+                with path.open("rb") as handle:
+                    content = handle.read(min(COMMAND_MAX_BYTES, COMMAND_MAX_TOTAL_BYTES - total) + 1)
+                total += len(content)
+                if len(content) > COMMAND_MAX_BYTES or total > COMMAND_MAX_TOTAL_BYTES:
+                    raise ValueError
+                candidate = parse_command_records(content)
+                # 복사본은 원문 신원까지 같아야 하며 서로 다른 보고서를 임의 병합하지 않습니다
+                if records is not None and command_identity(records) != command_identity(candidate):
+                    raise ValueError
+                records = candidate
+            if records is not None:
+                summary = summarize_commands(records)
+        except self.core.RunInterrupted:
+            raise
+        except Exception:
+            pass
+        return {**self.command_context, **summary}
 
 
 def selector(value):
@@ -179,6 +376,7 @@ class Case:
             raise self.core.RunnerFailure("offline-invalid-ui-action")
         self.step += 1
         variables = self.core.safe_variables({**self.variables, "UI_ACTION": action, **values})
+        self.redactor.set_command_context(self.flow, action, self.step)
         self.core.run_maestro(self.device, self.flow, self.output / ("%02d-" % self.step + action),
                               self.redactor, self.args.flow_timeout, variables=variables)
 
