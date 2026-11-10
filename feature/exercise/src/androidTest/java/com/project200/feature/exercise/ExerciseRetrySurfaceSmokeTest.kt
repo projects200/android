@@ -3,6 +3,7 @@ package com.project200.feature.exercise
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
+import android.net.Uri
 import android.view.ContextThemeWrapper
 import android.view.View
 import android.view.WindowManager
@@ -37,6 +38,7 @@ import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -67,8 +69,10 @@ import androidx.test.espresso.matcher.ViewMatchers.isDisplayed
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.project200.domain.model.ExerciseImageSyncStatus
 import com.project200.domain.model.ExerciseListItem
 import com.project200.domain.model.ExerciseRecord
+import com.project200.domain.model.ExerciseRecordPicture
 import com.project200.domain.model.canShowExerciseBodyRetry
 import com.project200.feature.exercise.detail.ExerciseDetailScreen
 import com.project200.feature.exercise.main.ExerciseListAdapter
@@ -84,6 +88,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.io.File
 import java.time.LocalDateTime
 import kotlin.math.ceil
 import com.project200.undabang.presentation.R as PresentationR
@@ -264,6 +269,50 @@ class ExerciseRetrySurfaceSmokeTest {
             compose.onNodeWithTag("exercise_body_retry").assertDoesNotExist()
             compose.onNodeWithTag("exercise_body_failure").assertDoesNotExist()
             assertDetailBody()
+        }
+    }
+
+    @Test
+    fun localPhotoDetailLoadsAndKeepsMenuAndBodyReadable() {
+        val photo = File.createTempFile("exercise-detail-photo-", ".png", compose.activity.cacheDir)
+        try {
+            val bitmap = Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888)
+            try {
+                bitmap.eraseColor(Color.BLUE)
+                photo.outputStream().use { output ->
+                    check(bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)) { "Synthetic photo encoding failed" }
+                }
+            } finally {
+                bitmap.recycle()
+            }
+            val picture =
+                ExerciseRecordPicture(
+                    localId = "surface-smoke-photo",
+                    serverId = null,
+                    source = Uri.fromFile(photo).toString(),
+                    syncStatus = ExerciseImageSyncStatus.PENDING,
+                )
+            var menus = 0
+            compose.setContent {
+                AppTheme {
+                    ExerciseDetailScreen(
+                        state = UiState.Success(record(syncPending = true).copy(pictures = listOf(picture))),
+                        onBackClick = {},
+                        onShareClick = {},
+                        onMenuClick = { menus++ },
+                    )
+                }
+            }
+            compose.onNodeWithTag("exercise_detail_photos_count_1").assertIsDisplayed()
+            compose.waitUntil {
+                compose.onAllNodesWithTag("exercise_detail_photo_loaded").fetchSemanticsNodes().size == 1
+            }
+            compose.onNodeWithTag("exercise_detail_photo_loaded").assertIsDisplayed()
+            compose.onNodeWithTag("exercise_detail_menu").assertIsDisplayed().assertIsEnabled().performClick()
+            compose.runOnIdle { assertEquals(1, menus) }
+            assertDetailBody()
+        } finally {
+            photo.delete()
         }
     }
 

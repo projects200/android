@@ -227,6 +227,11 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 공통 상세 검사는 상세 메뉴(`exercise_detail_menu`)와 성공 본문 컨테이너(`exercise_detail_scroll`)를 차례로 기다린 뒤 정확한 제목까지 스크롤하고 제목·시작/종료 시각을 검증합니다. 이 순서로 상세 진입·본문 로딩·제목 가시성 실패를 구분합니다.
 목록의 상세 이동은 정확한 제목·시각이 일치하는 클릭 가능한 행 컨테이너(`exercise_list_cl`)를 탭합니다.
 
+공통 Compose BOM `2024.09.01`은 사진 Pager와 타이머 reorderable의 Foundation `1.7.1` 요구를 맞춥니다.
+기존 `ExerciseRetrySurfaceSmokeTest`는 합성 로컬 PNG의 실제 Coil 디코딩 완료, 상세 메뉴 클릭과 제목·본문 가독성도 검사합니다.
+test-only CI의 compile/runtime Foundation `dependencyInsight` 로그는 기존 `android-local-first-evidence` artifact의 `compose-compile-tasks.log`·`compose-runtime-tasks.log`에 보존합니다.
+`offline-photo-create`의 실제 앱 동작은 기존 Maestro E2E로 별도 검증하며, 라이브러리 스모크가 앱 전체 런타임 의존성 그래프를 검증하지는 않습니다.
+
 `photos-pending`은 최초 생성의 BODY ACK 후에도 사진 대기·점수 receipt 미소비를 확인합니다. A→B 교체에서는 생산 전송 순서(사진 삭제 → 본문 수정 → B 업로드)에 맞춰 삭제/추가 의도와 기존 receipt 상태를 고정합니다. 최종 목록 진입·재진입·재실행의 `points-consumed/points-stable`은 실제 receipt 신원·점수·소비 상태·중복 부재를 읽기 전용으로 대조하며 0점도 정상 계약입니다. quota를 초기화하거나 fixture가 receipt를 소비하지 않습니다.
 
 연결/Worker 전후에 같은 폼의 미저장 설명과 화면상 bounds, 같은 목록의 제목·선택 ISO 날짜·행 bounds를 메모리에서 비교합니다. 상세의 실패 안내가 생기는 동안에도 본문 bounds를 비교합니다. hierarchy 원문·외부 필드·스크린샷을 추가 저장하지 않습니다. 색·아이콘·글자 확대·세부 노출 조합은 기존 `ExerciseRetrySurfaceSmokeTest` 범위입니다.
