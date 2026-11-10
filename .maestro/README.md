@@ -225,6 +225,7 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 
 합성 A/B PNG만 MediaStore에 준비합니다. 전체 갤러리의 파일명·촬영시각·상대 경로와 같은 초의 외부 이미지 모호성을 검사한 뒤 feed와 같은 native 촬영시각 설명+thumbnail selector로 선택합니다. 앱 소유 복사·해시 검증 전에는 소유 원본도 제거하지 않습니다. UI는 URI/URL 대신 사진 수와 실제 Coil `onSuccess`의 loaded tag만 노출합니다.
 공통 상세 검사는 상세 메뉴(`exercise_detail_menu`)와 성공 본문 컨테이너(`exercise_detail_scroll`)를 차례로 기다린 뒤 정확한 제목까지 스크롤하고 제목·시작/종료 시각을 검증합니다. 이 순서로 상세 진입·본문 로딩·제목 가시성 실패를 구분합니다.
+목록의 상세 이동은 정확한 제목·시각이 일치하는 클릭 가능한 행 컨테이너(`exercise_list_cl`)를 탭합니다.
 
 `photos-pending`은 최초 생성의 BODY ACK 후에도 사진 대기·점수 receipt 미소비를 확인합니다. A→B 교체에서는 생산 전송 순서(사진 삭제 → 본문 수정 → B 업로드)에 맞춰 삭제/추가 의도와 기존 receipt 상태를 고정합니다. 최종 목록 진입·재진입·재실행의 `points-consumed/points-stable`은 실제 receipt 신원·점수·소비 상태·중복 부재를 읽기 전용으로 대조하며 0점도 정상 계약입니다. quota를 초기화하거나 fixture가 receipt를 소비하지 않습니다.
 
