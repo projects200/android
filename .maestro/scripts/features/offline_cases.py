@@ -215,6 +215,128 @@ def summarize_commands(records):
     }
 
 
+APP_STATE_PACKAGE = "com.project200.undabang"
+APP_STATE_MAX_BYTES = 1048576
+APP_STATE_MAX_PROCESSES = 4096
+APP_STATE_MAX_ACTIVITY_LINES = 16384
+APP_STATE_MAX_NODES = 8192
+APP_STATE_MAX_DEPTH = 64
+APP_STATE_MARKERS = {
+    "list": "exercise_list_rv", "detail_menu": "exercise_detail_menu",
+    "detail_content": "exercise_detail_scroll", "form": "exercise_title_input",
+}
+
+
+def app_state_text(content):
+    if not isinstance(content, bytes) or len(content) > APP_STATE_MAX_BYTES:
+        raise ValueError
+    return content.decode("utf-8", "strict")
+
+
+def parse_app_processes(content):
+    try:
+        lines = app_state_text(content).splitlines()
+        if (not 2 <= len(lines) <= APP_STATE_MAX_PROCESSES + 1
+                or lines[0].strip() != "NAME"):
+            raise ValueError
+        names = [line.strip() for line in lines[1:]]
+        if any(not re.fullmatch(r"[A-Za-z0-9_./:@+\[\]-]{1,256}", name) for name in names):
+            raise ValueError
+        return {"status": "captured", "main_process_present": APP_STATE_PACKAGE in names}
+    except (ValueError, UnicodeError):
+        return {"status": "unrecognized"}
+
+
+def parse_resumed_activity(content):
+    try:
+        lines = app_state_text(content).splitlines()
+        if len(lines) > APP_STATE_MAX_ACTIVITY_LINES:
+            raise ValueError
+        current = {"topResumedActivity": [], "legacy": []}
+        for line in lines:
+            if not re.match(r"^\s*(?:topResumedActivity|mResumedActivity|ResumedActivity)\b", line):
+                continue
+            marker = re.fullmatch(
+                r"\s*(topResumedActivity|mResumedActivity|ResumedActivity)\s*[:=]\s*(.*?)\s*", line,
+            )
+            if marker is None:
+                raise ValueError
+            name, value = marker.groups()
+            record = None
+            if value != "null":
+                # AOSP Task.dumpInner/ActivityRecord.toString (android-13.0.0_r1):
+                # both the initial "...component}" and cached "...component} tN}" occur.
+                # Older Android records put tN inside the first closing brace.
+                activity = re.fullmatch(
+                    r"ActivityRecord\{([0-9a-fA-F]{1,32}) u([0-9]{1,10}) "
+                    r"([A-Za-z_][A-Za-z0-9_.]{0,254})/(\.?[A-Za-z_$][A-Za-z0-9_.$]{0,254})"
+                    r"(?:\}(?: t(-?[0-9]{1,10})(?: f\})?(?: isExiting)?\})?"
+                    r"| t(-?[0-9]{1,10})(?: f)?\})", value,
+                )
+                if activity is None:
+                    raise ValueError
+                identity, user, package, component, cached_task, legacy_task = activity.groups()
+                component = package + component if component.startswith(".") else component
+                task = cached_task if cached_task is not None else legacy_task
+                record = (identity.lower(), int(user), package, component, int(task) if task is not None else None)
+            current["topResumedActivity" if name == "topResumedActivity" else "legacy"].append(record)
+        # Multiple leaf tasks/displays or conflicting records must not become a guessed category.
+        selected = current["topResumedActivity"] or current["legacy"]
+        if not selected or len(set(selected)) != 1:
+            raise ValueError
+        record = selected[0]
+        if record is None:
+            category = "none"
+        elif record[2] != APP_STATE_PACKAGE:
+            category = "other_app"
+        elif record[3] == APP_STATE_PACKAGE + ".main.MainActivity":
+            category = "main"
+        elif record[3] == APP_STATE_PACKAGE + ".auth.login.LoginActivity":
+            category = "login"
+        else:
+            category = "app_other"
+        return {"status": "captured", "category": category}
+    except (ValueError, UnicodeError):
+        return {"status": "unrecognized"}
+
+
+def parse_app_markers(content):
+    try:
+        report = app_state_text(content)
+        if re.search(r"<!\s*(?:DOCTYPE|ENTITY)\b", report, re.IGNORECASE):
+            raise ValueError
+        start = re.search(r"<(?:\?xml\b|hierarchy\b)", report)
+        if start is None:
+            raise ValueError
+        end = report.rfind(">")
+        xml = report[start.start():end + 1]
+        parser = ET.XMLPullParser(events=("start", "end"))
+        markers = dict.fromkeys(APP_STATE_MARKERS, False)
+        count, depth = 0, 0
+        for offset in range(0, len(xml), 4096):
+            parser.feed(xml[offset:offset + 4096])
+            for event, node in parser.read_events():
+                if event == "end":
+                    depth -= 1
+                    continue
+                count += 1
+                depth += 1
+                if (count > APP_STATE_MAX_NODES or depth > APP_STATE_MAX_DEPTH
+                        or node.tag != ("hierarchy" if count == 1 else "node")):
+                    raise ValueError
+                if node.tag == "node" and node.get("package") == APP_STATE_PACKAGE:
+                    resource = node.get("resource-id")
+                    for name, tag in APP_STATE_MARKERS.items():
+                        if resource in (tag, APP_STATE_PACKAGE + ":id/" + tag):
+                            markers[name] = True
+        parser.close()
+        if count == 0 or depth != 0:
+            raise ValueError
+        return {"status": "captured", "markers": markers}
+    except (ValueError, UnicodeError, ET.ParseError):
+        return {"status": "unrecognized"}
+
+
 class ArtifactRedactor:
     """Keep fixed diagnostics, not arbitrary picker/account hierarchy or user images."""
 
@@ -272,6 +394,51 @@ class ArtifactRedactor:
         except Exception:
             pass
         return {**self.command_context, **summary}
+
+    def capture_failure_state(self, device, destination):
+        context = self.command_context
+        if (not isinstance(context, dict) or context.get("flow") not in FLOWS
+                or context.get("action") not in ACTIONS
+                or not command_integer(context.get("invocation"), COMMAND_MAX_SEQUENCE)
+                or context["invocation"] == 0):
+            return
+        summary = {
+            **{key: context[key] for key in ("flow", "action", "invocation")},
+            "phase": "after-maestro-failure-before-fixture-cleanup",
+        }
+        deadline = time.monotonic() + 10
+        for name, arguments, parser in (
+            ("process", ("shell", "ps", "-A", "-o", "NAME"), parse_app_processes),
+            ("resumed_activity", ("shell", "dumpsys", "activity", "activities"), parse_resumed_activity),
+            ("ui_markers", ("shell", "uiautomator", "dump", "/dev/tty"), parse_app_markers),
+        ):
+            summary[name] = {"status": "unavailable"}
+            try:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    continue
+                code, output, _ = device.call(*arguments, timeout=min(5, remaining))
+                if code != 0:
+                    continue
+            except self.core.RunInterrupted:
+                raise
+            except Exception:
+                continue
+            try:
+                summary[name] = parser(output)
+            except self.core.RunInterrupted:
+                raise
+            except Exception:
+                summary[name] = {"status": "unrecognized"}
+        try:
+            destination.mkdir(parents=True, exist_ok=True)
+            (destination / "app-state-summary.json").write_text(
+                json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+            )
+        except self.core.RunInterrupted:
+            raise
+        except Exception:
+            pass
 
 
 def selector(value):

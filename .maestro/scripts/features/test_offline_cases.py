@@ -3,6 +3,7 @@
 import contextlib
 import copy
 import importlib.util
+import io
 import json
 from pathlib import Path
 import tempfile
@@ -50,6 +51,19 @@ def gallery(values):
         index, index + 1, values["PHOTO_" + label + "_NAME"], values["PHOTO_" + label + "_TAKEN"],
         values["PHOTO_" + label + "_RELATIVE_PATH"],
     ) for index, label in enumerate(("A", "B")))
+
+
+def app_state_responses():
+    # Synthetic data shaped like public Android dumps, never a device capture.
+    return (
+        (0, b"NAME\ncom.project200.undabang\nprivate-process\n", b"private-process-error"),
+        (0, b"  topResumedActivity=ActivityRecord{abc u0 com.project200.undabang/.main.MainActivity} t12}\n",
+         b"private-activity-error"),
+        (0, b'<?xml version="1.0"?><hierarchy rotation="0"><node package="com.project200.undabang" '
+         b'resource-id="exercise_detail_menu" text="private-ui-text" content-desc="private-description"/>'
+         b'<node package="private.foreign" resource-id="private-id" text="private-account-token"/>'
+         b'</hierarchy>\nUI hierchary dumped to: /dev/tty', b"private-ui-error"),
+    )
 
 
 class PickerIdentityTests(unittest.TestCase):
@@ -603,6 +617,343 @@ class CommandSummaryTests(unittest.TestCase):
                     self.assertIs(caught.exception, interruption)
 
 
+class AppStateParserTests(unittest.TestCase):
+    def test_exact_main_process_is_distinct_from_prefix_subprocess_and_driver(self):
+        for names, expected in (
+            ("init\ncom.project200.undabang\n[kworker/0:0]", True),
+            ("init\ncom.project200.undabang:worker\ncom.project200.undabang.other\n"
+             "dev.mobile.maestro\ndev.mobile.maestro.test", False),
+        ):
+            self.assertEqual(cases.parse_app_processes(("NAME\n" + names + "\n").encode()), {
+                "status": "captured", "main_process_present": expected,
+            })
+
+    def test_missing_invalid_or_oversized_process_data_is_not_absence(self):
+        for content in (
+            b"", b"NAME\n", b"PID NAME\n1 private-process\n", b"NAME\n\n",
+            b"NAME\nerror: private-adb-error\n", b"NAME\nprivate\x00process\n", b"NAME\n\xff\n",
+            b"x" * (cases.APP_STATE_MAX_BYTES + 1),
+            b"NAME\n" + b"init\n" * (cases.APP_STATE_MAX_PROCESSES + 1),
+        ):
+            self.assertEqual(cases.parse_app_processes(content), {"status": "unrecognized"})
+
+    def test_public_current_record_shapes_and_exact_components_collapse_to_categories(self):
+        for component, expected in (
+            ("com.project200.undabang/.main.MainActivity", "main"),
+            ("com.project200.undabang/com.project200.undabang.main.MainActivity", "main"),
+            ("com.project200.undabang/.auth.login.LoginActivity", "login"),
+            ("com.project200.undabang/com.project200.undabang.auth.login.LoginActivity", "login"),
+            ("com.project200.undabang/.private.UnknownActivity", "app_other"),
+            ("private.foreign/.PrivateActivity", "other_app"),
+            ("com.project200.undabang.other/.main.MainActivity", "other_app"),
+        ):
+            for marker in ("topResumedActivity=", "mResumedActivity: ", "mResumedActivity=", "ResumedActivity: "):
+                for tail in ("}", "} t12}", " t12}", "} t12 f} isExiting}"):
+                    with self.subTest(component=component, marker=marker, tail=tail):
+                        content = ("  " + marker + "ActivityRecord{abc u0 " + component + tail + "\n").encode()
+                        self.assertEqual(cases.parse_resumed_activity(content), {
+                            "status": "captured", "category": expected,
+                        })
+
+    def test_only_explicit_current_null_is_none_and_history_is_not_current(self):
+        for content in (
+            b"", b"ACTIVITY MANAGER ACTIVITIES\n",
+            b"  Hist #0: ActivityRecord{abc u0 com.project200.undabang/.main.MainActivity t12}\n",
+            b"  mLastResumedActivity: ActivityRecord{abc u0 private.foreign/.PrivateActivity t12}\n",
+        ):
+            self.assertEqual(cases.parse_resumed_activity(content), {"status": "unrecognized"})
+        self.assertEqual(cases.parse_resumed_activity(b"  topResumedActivity=null\n"), {
+            "status": "captured", "category": "none",
+        })
+
+    def test_top_current_marker_has_priority_but_conflicts_and_malformed_records_reject(self):
+        top = b"topResumedActivity=ActivityRecord{abc u0 com.project200.undabang/.main.MainActivity t12}\n"
+        legacy = b"mResumedActivity: ActivityRecord{def u0 private.foreign/.PrivateActivity t13}\n"
+        self.assertEqual(cases.parse_resumed_activity(legacy + top), {"status": "captured", "category": "main"})
+        for content in (
+            top + top.replace(b".main.MainActivity", b".auth.login.LoginActivity"),
+            top + top.replace(b"abc", b"def"),  # Same category is not the same resumed record.
+            legacy + legacy.replace(b"private.foreign", b"another.foreign"),
+            top + b"topResumedActivity=null\n", top + b"mResumedActivity: private-malformed\n",
+            b"topResumedActivity\n", b"topResumedActivity=ActivityRecord{private-unknown}\n",
+            top.replace(b" t12}", b" t12} private-trailing-data"),
+            b"\xff", b"x" * (cases.APP_STATE_MAX_BYTES + 1),
+            b"\n" * (cases.APP_STATE_MAX_ACTIVITY_LINES + 1),
+        ):
+            self.assertEqual(cases.parse_resumed_activity(content), {"status": "unrecognized"})
+
+    def test_ui_markers_use_only_exact_owned_package_and_resource_ids(self):
+        for selected in (("list",), ("detail_menu", "detail_content"), ("form",)):
+            nodes = "".join(
+                '<node package="com.project200.undabang" resource-id="%s"/>' % resource
+                for name in selected for resource in (
+                    cases.APP_STATE_MARKERS[name],
+                    "com.project200.undabang:id/" + cases.APP_STATE_MARKERS[name],
+                )
+            )
+            result = cases.parse_app_markers((
+                '<?xml version="1.0"?><hierarchy rotation="0">' + nodes + '</hierarchy>\n'
+                'UI hierchary dumped to: /dev/tty'
+            ).encode())
+            self.assertEqual(result, {
+                "status": "captured", "markers": {name: name in selected for name in cases.APP_STATE_MARKERS},
+            })
+        foreign = (
+            '<hierarchy><node package="private.foreign" resource-id="exercise_list_rv"/>'
+            '<node resource-id="exercise_detail_menu"/>'
+            '<node package="com.project200.undabang" resource-id="private.foreign:id/exercise_title_input" '
+            'text="exercise_list_rv" content-desc="exercise_detail_scroll"/>'
+            '<node package="com.project200.undabang.other" resource-id="exercise_detail_menu"/>'
+            '<node package="com.project200.undabang" resource-id="exercise_detail_scroll_suffix"/></hierarchy>'
+        )
+        self.assertEqual(cases.parse_app_markers(foreign.encode()), {
+            "status": "captured", "markers": dict.fromkeys(cases.APP_STATE_MARKERS, False),
+        })
+        self.assertEqual(cases.parse_app_markers(b"<hierarchy/>")["status"], "captured")
+
+    def test_invalid_xml_entities_and_resource_limits_cannot_fabricate_markers(self):
+        for content in (
+            b"", b"ERROR: private-display-unavailable", b"<hierarchy><node></hierarchy>",
+            b"<other><node/></other>", b"<hierarchy/><hierarchy/>", b"<hierarchy>\xff</hierarchy>",
+            b'<!DOCTYPE hierarchy [<!ENTITY secret "private-token">]><hierarchy>&secret;</hierarchy>',
+            b'<!ENTITY secret SYSTEM "file:///private/account"><hierarchy/>',
+            b"x" * (cases.APP_STATE_MAX_BYTES + 1),
+            ("<hierarchy>" + "<node/>" * cases.APP_STATE_MAX_NODES + "</hierarchy>").encode(),
+            ("<hierarchy>" + "<node>" * cases.APP_STATE_MAX_DEPTH
+             + "</node>" * cases.APP_STATE_MAX_DEPTH + "</hierarchy>").encode(),
+        ):
+            self.assertEqual(cases.parse_app_markers(content), {"status": "unrecognized"})
+
+
+class AppStateCollectionTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="offline-app-state-tests-")
+        self.addCleanup(temporary.cleanup)
+        self.destination = Path(temporary.name) / "public"
+        self.redactor = cases.ArtifactRedactor(core, PRIMARY, PEER)
+        self.redactor.set_command_context("offline-photo-create", "create", 1)
+        self.device = mock.Mock()
+        self.device.call.side_effect = app_state_responses()
+
+    def capture(self):
+        self.redactor.capture_failure_state(self.device, self.destination)
+        return json.loads((self.destination / "app-state-summary.json").read_text())
+
+    def test_schema_queries_and_public_only_serialization(self):
+        stdout, stderr = io.StringIO(), io.StringIO()
+        self.redactor.command_context["private-extra"] = PRIMARY
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = self.capture()
+        self.assertEqual(result, {
+            "flow": "offline-photo-create", "action": "create", "invocation": 1,
+            "phase": "after-maestro-failure-before-fixture-cleanup",
+            "process": {"status": "captured", "main_process_present": True},
+            "resumed_activity": {"status": "captured", "category": "main"},
+            "ui_markers": {"status": "captured", "markers": {
+                "list": False, "detail_menu": True, "detail_content": False, "form": False,
+            }},
+        })
+        self.assertEqual([call.args for call in self.device.call.call_args_list], [
+            ("shell", "ps", "-A", "-o", "NAME"),
+            ("shell", "dumpsys", "activity", "activities"),
+            ("shell", "uiautomator", "dump", "/dev/tty"),
+        ])
+        self.assertTrue(all(0 < call.kwargs["timeout"] <= 5 for call in self.device.call.call_args_list))
+        public = json.dumps(result) + stdout.getvalue() + stderr.getvalue()
+        for secret in ("private-", "com.project200", "ActivityRecord", " t12", "<?xml", "<node", "resource-id", RUN):
+            self.assertNotIn(secret, public)
+        self.assertEqual({path.name for path in self.destination.iterdir()}, {"app-state-summary.json"})
+        self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
+    def test_missing_or_invalid_context_prevents_queries_and_writes(self):
+        for context in (None, {}, {"flow": "private-flow", "action": "create", "invocation": 1},
+                        {"flow": "offline-photo-create", "action": "create", "invocation": True},
+                        {"flow": "offline-photo-create", "action": "create", "invocation": 0}):
+            self.redactor.command_context = context
+            self.redactor.capture_failure_state(self.device, self.destination)
+        self.device.call.assert_not_called()
+        self.assertFalse(self.destination.exists())
+
+    def test_shared_budget_skips_later_queries_and_each_timeout_is_remaining_positive_time(self):
+        with mock.patch.object(cases.time, "monotonic", side_effect=[100, 108, 109, 110]):
+            result = self.capture()
+        self.assertEqual([call.kwargs["timeout"] for call in self.device.call.call_args_list], [2, 1])
+        self.assertEqual(result["ui_markers"], {"status": "unavailable"})
+        self.device.call.reset_mock()
+        with mock.patch.object(cases.time, "monotonic", side_effect=[100, 110, 111, 112]):
+            result = self.capture()
+        self.device.call.assert_not_called()
+        self.assertTrue(all(result[name] == {"status": "unavailable"}
+                            for name in ("process", "resumed_activity", "ui_markers")))
+
+    def test_failures_invalid_bytes_and_unknown_names_do_not_leak_or_claim_absence(self):
+        for responses, statuses in (
+            ((OSError("private-read-error"), (1, b"private-output", b"private-error"),
+              (0, b"ERROR: private-display-unavailable", b"")),
+             ("unavailable", "unavailable", "unrecognized")),
+            (((0, b"\xff", b""), (0, b"private-unsupported-format", b""),
+              (0, b"x" * (cases.APP_STATE_MAX_BYTES + 1), b"")),
+             ("unrecognized", "unrecognized", "unrecognized")),
+            (((0, b"NAME\nprivate-process\n", b""),
+              (0, b"ResumedActivity: ActivityRecord{abc u0 private.package/.PrivateActivity t12}\n", b""),
+              (0, b'<hierarchy><node package="private.package" text="private-account"/></hierarchy>', b"")),
+             ("captured", "captured", "captured")),
+        ):
+            self.device.call.side_effect = responses
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                result = self.capture()
+            self.assertEqual(tuple(result[name]["status"] for name in (
+                "process", "resumed_activity", "ui_markers",
+            )), statuses)
+            self.assertNotIn("private", json.dumps(result) + stdout.getvalue() + stderr.getvalue())
+            self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+            if statuses[0] != "captured":
+                self.assertNotIn("main_process_present", result["process"])
+                self.assertNotIn("category", result["resumed_activity"])
+                self.assertNotIn("markers", result["ui_markers"])
+
+    def test_cancellation_propagates_at_read_parse_and_write_boundaries(self):
+        original_write = Path.write_text
+        for stage in ("read", "parse", "write"):
+            for interruption in (core.RunInterrupted("run-interrupted"), KeyboardInterrupt()):
+                self.device.call.side_effect = app_state_responses()
+                with self.subTest(stage=stage, kind=type(interruption).__name__), contextlib.ExitStack() as patches:
+                    def interrupted_write(path, *args, **kwargs):
+                        if path.name == "app-state-summary.json":
+                            raise interruption
+                        return original_write(path, *args, **kwargs)
+
+                    if stage == "read":
+                        self.device.call.side_effect = interruption
+                    elif stage == "parse":
+                        patches.enter_context(mock.patch.object(cases, "parse_app_processes", side_effect=interruption))
+                    else:
+                        patches.enter_context(mock.patch.object(Path, "write_text", new=interrupted_write))
+                    with self.assertRaises(type(interruption)) as caught:
+                        self.capture()
+                    self.assertIs(caught.exception, interruption)
+
+
+class MaestroAppStateBoundaryTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(prefix="offline-maestro-state-tests-")
+        self.addCleanup(temporary.cleanup)
+        self.output = Path(temporary.name)
+        self.device = mock.Mock(serial="private-device-serial")
+        self.device.exercise_variables.return_value = {}
+        self.device.call.side_effect = app_state_responses()
+        self.redactor = cases.ArtifactRedactor(core, PRIMARY, PEER)
+        self.redactor.set_command_context("offline-photo-create", "create", 1)
+        self.mode = "failure"
+        self.events = []
+        for name in ("save_failure_logcat", "save_failure_anr", "save_failure_anr_events",
+                     "save_driver_failure", "save_driver_connectivity"):
+            patch = mock.patch.object(core, name, side_effect=lambda *_, name=name: self.events.append(name))
+            patch.start()
+            self.addCleanup(patch.stop)
+        for patch in (mock.patch.object(core.shutil, "which", return_value="synthetic-maestro"),
+                      mock.patch.object(core, "command", side_effect=self.command)):
+            patch.start()
+            self.addCleanup(patch.stop)
+
+    def command(self, argv, _env, timeout=60):
+        if argv[1:] == ["--version"]:
+            return (0, b"private-version", b"") if self.mode == "version" else (0, core.MAESTRO_VERSION.encode(), b"")
+        debug = Path(argv[argv.index("--debug-output") + 1])
+        debug.mkdir()
+        (debug / "private.png").write_bytes(b"\x89PNG\r\n\x1a\nprivate-image")
+        if self.mode == "timeout":
+            raise core.RunnerFailure("tool-timeout")
+        if self.mode == "interrupted":
+            raise core.RunInterrupted("run-interrupted")
+        if self.mode == "keyboard":
+            raise KeyboardInterrupt()
+        if self.mode != "invalid-junit":
+            report = Path(argv[argv.index("--output") + 1])
+            report.write_text('<testsuite><testcase>' + (
+                '<failure message="private-failure"/>' if self.mode == "failed-junit" else ""
+            ) + '</testcase></testsuite>', encoding="utf-8")
+        return (1 if self.mode == "failure" else 0), b"private-console", b"private-error"
+
+    def run_maestro(self):
+        core.run_maestro(self.device, "offline-photo-create", self.output, self.redactor, 42)
+
+    def test_actual_failure_collects_once_before_existing_diagnostics_and_scrub(self):
+        capture = self.redactor.capture_failure_state
+
+        def collect(*args):
+            self.events.append("capture")
+            return capture(*args)
+
+        with mock.patch.object(self.redactor, "capture_failure_state", side_effect=collect) as collector:
+            with self.assertRaisesRegex(core.RunnerFailure, "^maestro-flow-failed$"):
+                self.run_maestro()
+        collector.assert_called_once_with(self.device, self.output / "offline-photo-create")
+        self.assertEqual(self.events, [
+            "capture", "save_failure_logcat", "save_failure_anr", "save_failure_anr_events",
+            "save_driver_failure", "save_driver_connectivity",
+        ])
+        destination = self.output / "offline-photo-create"
+        self.assertTrue((destination / "app-state-summary.json").exists())
+        self.assertEqual((destination / "console.log").read_text(), "[offline private UI details omitted]")
+        self.assertFalse(list(destination.glob("*.png")))
+        for path in destination.iterdir():
+            self.assertNotIn("private-", path.read_text())
+
+    def test_success_interruption_and_version_failure_do_not_collect(self):
+        for mode, failure in (("success", None), ("interrupted", core.RunInterrupted),
+                              ("keyboard", KeyboardInterrupt), ("version", core.RunnerFailure)):
+            self.mode = mode
+            with self.subTest(mode=mode), mock.patch.object(self.redactor, "capture_failure_state") as collector:
+                if failure is None:
+                    self.run_maestro()
+                else:
+                    with self.assertRaises(failure):
+                        self.run_maestro()
+                collector.assert_not_called()
+            self.assertFalse((self.output / "offline-photo-create/app-state-summary.json").exists())
+        self.device.call.assert_not_called()
+
+    def test_ordinary_redactor_does_not_add_device_queries(self):
+        self.redactor = core.Redactor(PRIMARY)
+        with self.assertRaisesRegex(core.RunnerFailure, "^maestro-flow-failed$"):
+            self.run_maestro()
+        self.device.call.assert_not_called()
+        self.assertFalse((self.output / "offline-photo-create/app-state-summary.json").exists())
+
+    def test_diagnostic_read_parse_and_write_errors_preserve_original_public_failure_and_scrub(self):
+        original_write = Path.write_text
+        for stage in ("read", "parse", "write", "hook"):
+            self.device.call.side_effect = app_state_responses()
+            with self.subTest(stage=stage), contextlib.ExitStack() as patches:
+                def unwritable(path, *args, **kwargs):
+                    if path.name == "app-state-summary.json":
+                        raise OSError("private-write-error")
+                    return original_write(path, *args, **kwargs)
+
+                if stage == "read":
+                    self.device.call.side_effect = OSError("private-adb-error")
+                elif stage == "parse":
+                    patches.enter_context(mock.patch.object(cases, "parse_app_processes",
+                                                            side_effect=RuntimeError("private-parser-error")))
+                elif stage == "write":
+                    patches.enter_context(mock.patch.object(Path, "write_text", new=unwritable))
+                else:
+                    patches.enter_context(mock.patch.object(self.redactor, "capture_failure_state",
+                                                            side_effect=RuntimeError("private-hook-error")))
+                stdout, stderr = io.StringIO(), io.StringIO()
+                with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                    with self.assertRaisesRegex(core.RunnerFailure, "^maestro-flow-failed$"):
+                        self.run_maestro()
+                destination = self.output / "offline-photo-create"
+                self.assertEqual((destination / "console.log").read_text(), "[offline private UI details omitted]")
+                self.assertFalse(list(destination.glob("*.png")))
+                public = "".join(path.read_text() for path in destination.iterdir())
+                self.assertNotIn("private-", public + stdout.getvalue() + stderr.getvalue())
+                self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
+
 class DriverBoundaryTests(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(prefix="offline-case-tests-")
@@ -621,6 +972,7 @@ class DriverBoundaryTests(unittest.TestCase):
         self.network.restore.side_effect = self.restore
         self.device.require.side_effect = lambda *args: self.events.append(("adb", args)) or b""
         self.args = SimpleNamespace(output=self.output, device="synthetic", flow_timeout=42)
+        self.real_run_maestro = core.run_maestro
         self.patches = (
             mock.patch.object(core, "Device", return_value=self.device),
             mock.patch.object(core, "read_credentials", side_effect=lambda prefix="MAESTRO_": PEER if prefix == "MAESTRO_PEER_" else PRIMARY),
@@ -875,6 +1227,84 @@ class DriverBoundaryTests(unittest.TestCase):
                     self.assertNotIn("private-", path.read_text())
                 if stage != "write":
                     self.assertEqual(json.loads((diagnostics / "command-summary.json").read_text())["status"], "unavailable")
+
+    def test_real_cli_failure_boundaries_capture_once_before_fixture_cleanup(self):
+        capture = cases.ArtifactRedactor.capture_failure_state
+        save_debug = core.save_debug
+        self.device.serial = "private-device-serial"
+        self.device.exercise_variables.return_value = {}
+        self.fail_cleanup = True
+        for mode, expected in (
+            ("failure", "maestro-flow-failed"), ("timeout", "tool-timeout"),
+            ("failed-junit", "maestro-assertion-failed"), ("invalid-junit", "missing-or-invalid-maestro-junit"),
+        ):
+            with self.subTest(mode=mode), contextlib.ExitStack() as patches:
+                self.events.clear()
+                self.args.output = self.output / mode
+                responses = iter(app_state_responses())
+
+                def query(*args, timeout):
+                    self.events.append("state-query")
+                    return next(responses)
+
+                def collect(redactor, device, destination):
+                    self.events.append("capture")
+                    capture(redactor, device, destination)
+                    self.events.append("captured")
+
+                def scrub(*args):
+                    self.events.append("scrub")
+                    return save_debug(*args)
+
+                def command(argv, _env, timeout=60):
+                    if argv[1:] == ["--version"]:
+                        return 0, core.MAESTRO_VERSION.encode(), b""
+                    raw = Path(argv[argv.index("--debug-output") + 1])
+                    raw.mkdir()
+                    (raw / "private.png").write_bytes(b"\x89PNG\r\n\x1a\nprivate-image")
+                    if mode == "timeout":
+                        raise core.RunnerFailure("tool-timeout")
+                    report = Path(argv[argv.index("--output") + 1])
+                    report.write_text(
+                        "<private-invalid" if mode == "invalid-junit"
+                        else "<testsuite><testcase><failure/></testcase></testsuite>", encoding="utf-8",
+                    )
+                    return (1 if mode == "failure" else 0), b"private-console", b"private-error"
+
+                self.device.call.side_effect = query
+                patches.enter_context(mock.patch.object(core, "run_maestro", side_effect=self.real_run_maestro))
+                patches.enter_context(mock.patch.object(core, "command", side_effect=command))
+                patches.enter_context(mock.patch.object(core.shutil, "which", return_value="synthetic-maestro"))
+                collector = patches.enter_context(mock.patch.object(
+                    cases.ArtifactRedactor, "capture_failure_state", autospec=True, side_effect=collect,
+                ))
+                patches.enter_context(mock.patch.object(core, "save_debug", side_effect=scrub))
+                for name in ("save_failure_logcat", "save_failure_anr", "save_failure_anr_events",
+                             "save_driver_failure", "save_driver_connectivity"):
+                    patches.enter_context(mock.patch.object(
+                        core, name, side_effect=lambda *_, name=name: self.events.append(name),
+                    ))
+                result = self.run_driver("offline-photo-create", "offline-body-retry")
+                self.assertIn(expected, result[0][2])
+                self.assertIn("private-state-preserved-for-recovery", result[0][2])
+                self.assertIn("offline-phase-not-executed", result[1][2])
+                collector.assert_called_once()
+                self.assertEqual(self.events.count("state-query"), 3)
+                self.assertLess(self.index("captured"), self.index("save_driver_failure"))
+                self.assertLess(self.index("captured"), self.index("scrub"))
+                self.assertLess(self.index("scrub"), self.index("online"))
+                self.assertLess(self.index("online"), self.index("cleanup:"))
+                if mode == "failure":
+                    self.assertLess(self.index("captured"), self.index("save_failure_logcat"))
+                self.assertEqual(self.events.count("clear"), 1)
+                destination = self.args.output / "offline/offline-photo-create/01-create/offline-photo-create"
+                summary = json.loads((destination / "app-state-summary.json").read_text())
+                self.assertEqual(summary["process"], {"status": "captured", "main_process_present": True})
+                self.assertEqual(summary["resumed_activity"], {"status": "captured", "category": "main"})
+                self.assertEqual(summary["ui_markers"]["markers"]["detail_menu"], True)
+                self.assertFalse(list(destination.glob("*.png")))
+                for path in destination.iterdir():
+                    self.assertNotIn("private-", path.read_text())
 
 
 class SuiteCompositionTests(unittest.TestCase):

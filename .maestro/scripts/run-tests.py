@@ -1578,6 +1578,18 @@ def save_driver_connectivity(device, destination):
         pass
 
 
+def capture_failure_state(device, destination, redactor):
+    try:
+        collector = getattr(redactor, "capture_failure_state", None)
+        if callable(collector):
+            collector(device, destination)
+    except RunInterrupted:
+        raise
+    except Exception:
+        # 선택 진단은 private 오류를 공개하거나 원래 실패·scrub·정리를 바꾸지 않습니다.
+        pass
+
+
 def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
     try:
         _run_maestro(device, flow, output, redactor, timeout, fixture_start_date, variables)
@@ -1627,9 +1639,12 @@ def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=Non
         for key, value in variables.items():
             argv[2:2] = ["-e", key + "=" + value]
         stdout = stderr = b""
+        capture_attempted = False
         try:
             code, stdout, stderr = command(argv, env, timeout=timeout)
             if code != 0:
+                capture_attempted = True
+                capture_failure_state(device, output / flow, redactor)
                 save_failure_logcat(device, output / flow, redactor)
                 save_failure_anr(device, output / flow)
                 save_failure_anr_events(device, output / flow)
@@ -1638,6 +1653,9 @@ def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=Non
         except RunInterrupted:
             raise
         except Exception:
+            if not capture_attempted:
+                capture_attempted = True
+                capture_failure_state(device, output / flow, redactor)
             try:
                 save_driver_failure(raw, output / flow)
             except RunInterrupted:
