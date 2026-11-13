@@ -34,6 +34,85 @@ class MaestroOfflineExercisePolicyTest {
     }
 
     @Test
+    fun `synced versions allow absent list metadata and zero as a valid initial revision`() {
+        assertThat(
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = 7L,
+                listVersion = null,
+                localDetailVersion = 7L,
+                localListVersion = 7L,
+            ),
+        ).isTrue()
+        assertThat(
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = 0L,
+                listVersion = null,
+                localDetailVersion = 0L,
+                localListVersion = 0L,
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun `synced versions require supplied list metadata to match the authoritative detail`() {
+        assertThat(
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = 7L,
+                listVersion = 7L,
+                localDetailVersion = 7L,
+                localListVersion = 7L,
+            ),
+        ).isTrue()
+        assertThat(
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = 7L,
+                listVersion = 8L,
+                localDetailVersion = 7L,
+                localListVersion = 7L,
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun `synced versions require detail metadata without inferring it from list or local versions`() {
+        failure("offline_server_version_prerequisite") {
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = null,
+                listVersion = 7L,
+                localDetailVersion = 7L,
+                localListVersion = 7L,
+            )
+        }
+        failure("offline_server_version_prerequisite") {
+            MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                detailVersion = null,
+                listVersion = null,
+                localDetailVersion = null,
+                localListVersion = null,
+            )
+        }
+    }
+
+    @Test
+    fun `absent list metadata does not hide stale or missing local detail and list versions`() {
+        for ((localDetailVersion, localListVersion) in listOf(
+            null to 7L,
+            6L to 7L,
+            7L to null,
+            7L to 6L,
+        )) {
+            assertThat(
+                MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                    detailVersion = 7L,
+                    listVersion = null,
+                    localDetailVersion = localDetailVersion,
+                    localListVersion = localListVersion,
+                ),
+            ).isFalse()
+        }
+    }
+
+    @Test
     fun `representative conflict requires strict genuine clock ordering and does not invent equal timestamps`() {
         MaestroOfflineExercisePolicy.requireOrdering(now + 1, now, true)
         MaestroOfflineExercisePolicy.requireOrdering(now - 1, now, false)

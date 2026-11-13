@@ -22,6 +22,17 @@ internal object MaestroOfflineExercisePolicy {
         return version to clock
     }
 
+    fun syncedVersionsMatch(
+        detailVersion: Long?,
+        listVersion: Long?,
+        localDetailVersion: Long?,
+        localListVersion: Long?,
+    ): Boolean {
+        val version = detailVersion ?: fail("offline_server_version_prerequisite")
+        return (listVersion == null || listVersion == version) &&
+            localDetailVersion == version && localListVersion == version
+    }
+
     fun requireOrdering(
         local: Long?,
         remote: Long,

@@ -443,11 +443,19 @@ internal class MaestroOfflineExerciseCases
             if (local.syncState != SyncState.SYNCED || item.syncState != SyncState.SYNCED) return false
             requireBody(request, run, id, edited, remoteWins, SyncState.SYNCED)
             if (database.exerciseSyncDao().get(request.memberId, id) != null) return false
-            if (remote.version == null || summary.version == null) fail("offline_server_version_prerequisite")
+            if (
+                !MaestroOfflineExercisePolicy.syncedVersionsMatch(
+                    detailVersion = remote.version,
+                    listVersion = summary.version,
+                    localDetailVersion = local.serverVersion,
+                    localListVersion = item.serverVersion,
+                )
+            ) {
+                return false
+            }
             if (
                 local.serverId != summary.exerciseId || item.serverId != summary.exerciseId ||
-                local.serverVersion != remote.version || item.serverVersion != remote.version ||
-                summary.version != remote.version || local.confirmedDate != item.date || item.confirmedDate != item.date
+                local.confirmedDate != item.date || item.confirmedDate != item.date
             ) {
                 return false
             }
