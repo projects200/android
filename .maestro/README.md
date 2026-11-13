@@ -235,6 +235,9 @@ Room 상세·목록 버전은 모두 이 기준과 일치해야 하며, 기존 �
 test-only CI의 compile/runtime Foundation `dependencyInsight` 로그는 기존 `android-local-first-evidence` artifact의 `compose-compile-tasks.log`·`compose-runtime-tasks.log`에 보존합니다.
 `offline-photo-create`의 실제 앱 동작은 기존 Maestro E2E로 별도 검증하며, 라이브러리 스모크가 앱 전체 런타임 의존성 그래프를 검증하지는 않습니다.
 
+DEV test-only CI는 lint·단위 테스트와 debug·e2e APK 패키징을 함께 수행하는 검증 호출의 빌드 JVM에만 최대 4GiB 힙을 적용합니다.
+프로젝트 기본 2GiB 힙과 에뮬레이터 설정은 유지하며, 테스트·빌드·커버리지 게이트와 실패 전파도 그대로 유지합니다.
+
 `photos-pending`은 최초 생성의 BODY ACK 후에도 사진 대기·점수 receipt 미소비를 확인합니다. A→B 교체에서는 생산 전송 순서(사진 삭제 → 본문 수정 → B 업로드)에 맞춰 삭제/추가 의도와 기존 receipt 상태를 고정합니다. 최종 목록 진입·재진입·재실행의 `points-consumed/points-stable`은 실제 receipt 신원·점수·소비 상태·중복 부재를 읽기 전용으로 대조하며 0점도 정상 계약입니다. quota를 초기화하거나 fixture가 receipt를 소비하지 않습니다.
 
 연결/Worker 전후에 같은 폼의 미저장 설명과 화면상 bounds, 같은 목록의 제목·선택 ISO 날짜·행 bounds를 메모리에서 비교합니다. 상세의 실패 안내가 생기는 동안에도 본문 bounds를 비교합니다. hierarchy 원문·외부 필드·스크린샷을 추가 저장하지 않습니다. 색·아이콘·글자 확대·세부 노출 조합은 기존 `ExerciseRetrySurfaceSmokeTest` 범위입니다.
