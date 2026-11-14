@@ -21,6 +21,7 @@ ACTIONS = (
     "adoption-confirm", "login-ready", "list-preserved", "open-server-record",
 )
 LOGIN_COMPONENT = "com.project200.undabang/com.project200.undabang.auth.login.LoginActivity"
+HIERARCHY_COMMAND = ("shell", "-tt", "uiautomator", "dump", "/dev/tty")
 PUBLIC_FAILURES = frozenset({
     "adb-operation-failed", "tool-timeout", "tool-unavailable", "maestro-flow-failed",
     "maestro-assertion-failed", "maestro-unavailable", "maestro-version-must-be-2.11.0",
@@ -31,7 +32,9 @@ PUBLIC_FAILURES = frozenset({
     "offline-photo-invalid-device-api", "offline-photo-requires-api-33",
     "offline-photo-invalid-media-metadata", "offline-photo-unexpected-media-provider-result",
     "offline-photo-owned-media-mismatch", "offline-photo-ambiguous-media-metadata",
-    "offline-ui-preservation-unavailable", "offline-ui-preservation-mismatch",
+    "offline-ui-preservation-capture-failed", "offline-ui-preservation-hierarchy-missing",
+    "offline-ui-preservation-hierarchy-too-large", "offline-ui-preservation-xml-invalid",
+    "offline-ui-preservation-bounds-invalid", "offline-ui-preservation-mismatch",
     "offline-suite-requires-initial-online-network", "unsupported-device-network-settings",
     "unsupported-device-connectivity-report", "device-network-transition-not-observed",
     "device-network-restore-failed", "offline-suite-exercise-server-mismatch",
@@ -410,7 +413,7 @@ class ArtifactRedactor:
         for name, arguments, parser in (
             ("process", ("shell", "ps", "-A", "-o", "NAME"), parse_app_processes),
             ("resumed_activity", ("shell", "dumpsys", "activity", "activities"), parse_resumed_activity),
-            ("ui_markers", ("shell", "uiautomator", "dump", "/dev/tty"), parse_app_markers),
+            ("ui_markers", HIERARCHY_COMMAND, parse_app_markers),
         ):
             summary[name] = {"status": "unavailable"}
             try:
@@ -499,14 +502,18 @@ def picker_variables(core, device, variables, run_id):
 
 def visible_snapshot(core, device, expected):
     """Keep only owned field values and bounds in memory; never persist hierarchy."""
-    raw = device.require("shell", "uiautomator", "dump", "/dev/tty")
+    code, raw, _ = device.call(*HIERARCHY_COMMAND)
+    if code != 0:
+        raise core.RunnerFailure("offline-ui-preservation-capture-failed")
+    if len(raw) > 1024 * 1024:
+        raise core.RunnerFailure("offline-ui-preservation-hierarchy-too-large")
     start, end = raw.find(b"<?xml"), raw.rfind(b"</hierarchy>")
-    if start < 0 or end < start or len(raw) > 1024 * 1024:
-        raise core.RunnerFailure("offline-ui-preservation-unavailable")
+    if start < 0 or end < start:
+        raise core.RunnerFailure("offline-ui-preservation-hierarchy-missing")
     try:
         root = ET.fromstring(raw[start:end + len(b"</hierarchy>")])
     except ET.ParseError:
-        raise core.RunnerFailure("offline-ui-preservation-unavailable") from None
+        raise core.RunnerFailure("offline-ui-preservation-xml-invalid") from None
     result = {}
     for identifier, value in expected.items():
         nodes = [node for node in root.iter("node")
@@ -517,7 +524,7 @@ def visible_snapshot(core, device, expected):
         bounds = nodes[0].get("bounds", "")
         match = re.fullmatch(r"\[([0-9]+),([0-9]+)\]\[([0-9]+),([0-9]+)\]", bounds)
         if not match:
-            raise core.RunnerFailure("offline-ui-preservation-unavailable")
+            raise core.RunnerFailure("offline-ui-preservation-bounds-invalid")
         left, top, right, bottom = map(int, match.groups())
         if right <= left or bottom <= top:
             raise core.RunnerFailure("offline-ui-preservation-mismatch")

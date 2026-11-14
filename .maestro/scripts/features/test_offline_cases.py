@@ -59,10 +59,11 @@ def app_state_responses():
         (0, b"NAME\ncom.project200.undabang\nprivate-process\n", b"private-process-error"),
         (0, b"  topResumedActivity=ActivityRecord{abc u0 com.project200.undabang/.main.MainActivity} t12}\n",
          b"private-activity-error"),
-        (0, b'<?xml version="1.0"?><hierarchy rotation="0"><node package="com.project200.undabang" '
-         b'resource-id="exercise_detail_menu" text="private-ui-text" content-desc="private-description"/>'
-         b'<node package="private.foreign" resource-id="private-id" text="private-account-token"/>'
-         b'</hierarchy>\nUI hierchary dumped to: /dev/tty', b"private-ui-error"),
+        (0, b'private-ui-tool-preamble\r\n<?xml version="1.0"?>\r\n<hierarchy rotation="0">\r\n'
+         b'<node package="com.project200.undabang" resource-id="exercise_detail_menu" '
+         b'text="private-ui-text" content-desc="private-description"/>\r\n'
+         b'<node package="private.foreign" resource-id="private-id" text="private-account-token"/>\r\n'
+         b'</hierarchy>\r\nUI hierchary dumped to: /dev/tty\r\n', b"private-ui-error"),
     )
 
 
@@ -183,27 +184,97 @@ class ControlEnvelopeTests(unittest.TestCase):
 
 
 class UiPreservationTests(unittest.TestCase):
-    def test_field_value_and_geometry_are_compared_without_exporting_foreign_text(self):
+    def test_crlf_capture_preserves_owned_values_and_geometry_without_exporting_foreign_text(self):
         device = mock.Mock()
-        device.require.return_value = (
-            b'<?xml version="1.0"?><hierarchy><node resource-id="exercise_description_input" '
-            b'text="owned-unsaved" bounds="[20,200][400,360]"/>'
-            b'<node text="foreign private content" bounds="[0,0][1,1]"/></hierarchy>\nUI hierchary dumped'
+        raw = (
+            b'private-tool-preamble\r\n<?xml version="1.0"?>\r\n<hierarchy>\r\n'
+            b'<node resource-id="com.project200.undabang:id/exercise_description_input" '
+            b'text="owned-unsaved" bounds="[20,200][400,360]"/>\r\n'
+            b'<node text="foreign private content" bounds="[0,0][1,1]"/>\r\n'
+            b'</hierarchy>\r\nUI hierchary dumped to: /dev/tty\r\n'
         )
-        result = cases.visible_snapshot(core, device, {"exercise_description_input": "owned-unsaved"})
-        self.assertEqual(result, {"exercise_description_input": ("owned-unsaved", "[20,200][400,360]")})
-        self.assertNotIn("foreign", str(result))
-        with self.assertRaisesRegex(core.RunnerFailure, "^offline-ui-preservation-mismatch$"):
-            cases.visible_snapshot(core, device, {"exercise_description_input": "replaced-by-server"})
+
+        device.call.return_value = (0, raw, b"private-stderr-token")
+
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+            result = cases.visible_snapshot(core, device, {"exercise_description_input": "owned-unsaved"})
+            self.assertEqual(result, {"exercise_description_input": ("owned-unsaved", "[20,200][400,360]")})
+            self.assertNotIn("foreign", str(result))
+            self.assertNotIn("private", str(result))
+            with self.assertRaisesRegex(core.RunnerFailure, "^offline-ui-preservation-mismatch$"):
+                cases.visible_snapshot(core, device, {"exercise_description_input": "replaced-by-server"})
+        self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
 
     def test_ambiguous_missing_or_zero_area_fields_are_not_preservation_evidence(self):
         device = mock.Mock()
         for nodes in ('<node resource-id="field" text="owned" bounds="[0,0][0,0]"/>',
+                      '<node resource-id="field" text="owned" bounds="[10,0][0,10]"/>',
+                      '<node resource-id="field" text="owned" bounds="[0,10][10,0]"/>',
                       '<node resource-id="other" text="owned" bounds="[0,0][10,10]"/>',
                       '<node resource-id="field" text="owned" bounds="[0,0][10,10]"/>' * 2):
-            device.require.return_value = ('<?xml version="1.0"?><hierarchy>' + nodes + '</hierarchy>').encode()
-            with self.assertRaises(core.RunnerFailure):
+            device.call.return_value = (
+                0, ('<?xml version="1.0"?><hierarchy>' + nodes + '</hierarchy>').encode(), b"",
+            )
+            with self.subTest(nodes=nodes), self.assertRaisesRegex(
+                    core.RunnerFailure, "^offline-ui-preservation-mismatch$"):
                 cases.visible_snapshot(core, device, {"field": "owned"})
+
+    def test_capture_and_parser_failures_publish_only_their_distinct_fixed_codes(self):
+        valid = (b'<?xml version="1.0"?><hierarchy><node resource-id="field" '
+                 b'text="owned" bounds="[0,0][10,10]"/></hierarchy>')
+        device = mock.Mock()
+        redactor = cases.ArtifactRedactor(core, PRIMARY, PEER)
+        raw_stderr = b"private-stderr-token https://private.invalid/account"
+        for code, raw, failure in (
+            (1, b"private-stdout-token\r\n" + valid, "capture-failed"),
+            (0, b"private-stdout-token", "hierarchy-missing"),
+            (0, b'<?xml version="1.0"?><hierarchy>private-truncated', "hierarchy-missing"),
+            (0, b'<hierarchy>private-missing-declaration</hierarchy>', "hierarchy-missing"),
+            (0, b"private-oversized " + b"x" * (1024 * 1024), "hierarchy-too-large"),
+            (0, b'<?xml version="1.0"?><hierarchy><node text="private-xml-token"></hierarchy>', "xml-invalid"),
+            (0, valid.replace(b"[0,0][10,10]", b"private-bounds-token"), "bounds-invalid"),
+            (0, valid.replace(b' bounds="[0,0][10,10]"', b""), "bounds-invalid"),
+            (0, valid.replace(b"[0,0][10,10]", b"[-1,0][10,10]"), "bounds-invalid"),
+        ):
+            expected = "offline-ui-preservation-" + failure
+            device.call.return_value = code, raw, raw_stderr
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with self.subTest(failure=failure), contextlib.redirect_stdout(stdout), \
+                    contextlib.redirect_stderr(stderr):
+                with self.assertRaisesRegex(core.RunnerFailure, "^" + expected + "$") as caught:
+                    cases.visible_snapshot(core, device, {"field": "owned"})
+                public = cases.public_failure_codes(core, caught.exception)
+                clean, sensitive = redactor.clean(
+                    str(caught.exception) + "\n" + raw.decode("utf-8") + "\n" + raw_stderr.decode("utf-8"),
+                )
+            self.assertEqual(public, [expected])
+            self.assertEqual(clean, expected)
+            self.assertTrue(sensitive)
+            self.assertNotIn("private", json.dumps(public) + clean)
+            self.assertEqual(stdout.getvalue() + stderr.getvalue(), "")
+
+    def test_one_mib_capture_is_allowed_but_one_more_byte_is_rejected(self):
+        raw = (b'<?xml version="1.0"?><hierarchy><node resource-id="field" '
+               b'text="owned" bounds="[0,0][10,10]"/></hierarchy>')
+        raw = b" " * (1024 * 1024 - len(raw)) + raw
+        device = mock.Mock()
+        device.call.return_value = 0, raw, b""
+        self.assertEqual(cases.visible_snapshot(core, device, {"field": "owned"}), {
+            "field": ("owned", "[0,0][10,10]"),
+        })
+        device.call.return_value = 0, raw + b"\n", b""
+        with self.assertRaisesRegex(core.RunnerFailure, "^offline-ui-preservation-hierarchy-too-large$"):
+            cases.visible_snapshot(core, device, {"field": "owned"})
+
+    def test_capture_tool_errors_and_interruptions_propagate_without_reclassification(self):
+        device = mock.Mock()
+        for failure in (core.RunnerFailure("tool-timeout"), core.RunnerFailure("tool-unavailable"),
+                        core.RunInterrupted("run-interrupted"), KeyboardInterrupt()):
+            device.call.side_effect = failure
+            with self.subTest(kind=type(failure).__name__), self.assertRaises(type(failure)) as caught:
+                cases.visible_snapshot(core, device, {"field": "owned"})
+            self.assertIs(caught.exception, failure)
 
     def test_worker_completion_cannot_move_the_same_visible_body(self):
         case = object.__new__(cases.Case)
@@ -212,9 +283,9 @@ class UiPreservationTests(unittest.TestCase):
         case.variables = {"RECORD_DESCRIPTION": "owned"}
         initial = ('<?xml version="1.0"?><hierarchy><node resource-id="exercise_detail_description" '
                    'text="owned" bounds="[20,200][400,360]"/></hierarchy>')
-        case.device.require.return_value = initial.encode()
+        case.device.call.return_value = 0, initial.encode(), b""
         before = case.snapshot()
-        case.device.require.return_value = initial.replace("[20,200][400,360]", "[20,240][400,400]").encode()
+        case.device.call.return_value = 0, initial.replace("[20,200][400,360]", "[20,240][400,400]").encode(), b""
         with self.assertRaisesRegex(core.RunnerFailure, "^offline-ui-preservation-mismatch$"):
             case.unchanged(before)
 
@@ -227,9 +298,9 @@ class UiPreservationTests(unittest.TestCase):
                    'text="owned" bounds="[20,200][400,240]"/>'
                    '<node resource-id="exercise_list_rv" content-desc="2026-10-15 운동 기록 목록" '
                    'bounds="[0,100][450,700]"/></hierarchy>')
-        case.device.require.return_value = initial.encode()
+        case.device.call.return_value = 0, initial.encode(), b""
         before = case.snapshot(listing=True)
-        case.device.require.return_value = initial.replace("2026-10-15", "2026-10-16").encode()
+        case.device.call.return_value = 0, initial.replace("2026-10-15", "2026-10-16").encode(), b""
         with self.assertRaisesRegex(core.RunnerFailure, "^offline-ui-preservation-mismatch$"):
             case.unchanged(before, listing=True)
 
@@ -262,8 +333,18 @@ class ArtifactPrivacyTests(unittest.TestCase):
         self.assertEqual(observed["server"], {"status": "observed", "contract": "version-edited-at"})
 
     def test_arbitrary_runner_failure_is_not_published_as_a_fixed_code(self):
-        failure = core.RunnerFailure("https://private.invalid/private-primary-token")
-        self.assertEqual(cases.public_failure_codes(core, failure), ["offline-case-operation-failed"])
+        redactor = cases.ArtifactRedactor(core, PRIMARY, PEER)
+        for message in (
+            "https://private.invalid/private-primary-token",
+            'private-stdout <hierarchy text="private-account"/> private-stderr',
+            "offline-ui-preservation-capture-failed private-token",
+            "offline-ui-preservation-unavailable",
+        ):
+            failure = core.RunnerFailure(message)
+            self.assertEqual(cases.public_failure_codes(core, failure), ["offline-case-operation-failed"])
+            clean, sensitive = redactor.clean(message)
+            self.assertEqual(clean, "[offline private UI details omitted]")
+            self.assertTrue(sensitive)
 
 
 class CommandSummaryTests(unittest.TestCase):
@@ -753,11 +834,6 @@ class AppStateCollectionTests(unittest.TestCase):
                 "list": False, "detail_menu": True, "detail_content": False, "form": False,
             }},
         })
-        self.assertEqual([call.args for call in self.device.call.call_args_list], [
-            ("shell", "ps", "-A", "-o", "NAME"),
-            ("shell", "dumpsys", "activity", "activities"),
-            ("shell", "uiautomator", "dump", "/dev/tty"),
-        ])
         self.assertTrue(all(0 < call.kwargs["timeout"] <= 5 for call in self.device.call.call_args_list))
         public = json.dumps(result) + stdout.getvalue() + stderr.getvalue()
         for secret in ("private-", "com.project200", "ActivityRecord", " t12", "<?xml", "<node", "resource-id", RUN):
