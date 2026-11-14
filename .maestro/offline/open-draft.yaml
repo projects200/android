@@ -1,0 +1,22 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: 수정하기
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+      text: ${RECORD_TITLE}
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: exercise_description_input
+    direction: DOWN
+    timeout: 20000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: exercise_description_input
+- inputText: ${EXERCISE_EDITED_DESCRIPTION + '-unsaved'}
+- hideKeyboard
+- runFlow: assert-draft.yaml

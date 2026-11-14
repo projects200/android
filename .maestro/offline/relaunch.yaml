@@ -1,0 +1,12 @@
+appId: com.project200.undabang
+---
+- stopApp
+- runFlow: ../subflows/launch-logged-in.yaml
+- tapOn:
+    id: exercise_nav_graph
+- runFlow:
+    file: assert-exercise-record.yaml
+    env:
+      RECORD_TITLE: ${RECORD_TITLE}
+      START_MINUTE: ${START_MINUTE}
+- runFlow: assert-detail.yaml

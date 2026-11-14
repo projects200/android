@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 강제 이탈과 같은 계정 복귀의 본문·사진 보존
+---
+- runFlow: ../offline/dispatch.yaml

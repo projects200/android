@@ -1,0 +1,9 @@
+appId: com.project200.undabang
+---
+- runFlow: assert-retry.yaml
+- tapOn:
+    id: exercise_body_retry
+- assertVisible:
+    id: exercise_detail_description
+    text: ${RECORD_DESCRIPTION}
+# The fixture independently checks the same frozen retry key and real server ACK.

@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 최신 로컬 본문 자동 충돌 해결
+---
+- runFlow: ../offline/dispatch.yaml

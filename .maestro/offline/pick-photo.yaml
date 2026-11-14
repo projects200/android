@@ -1,0 +1,23 @@
+appId: com.project200.undabang
+---
+# Match verified native capture text plus a thumbnail, never a gallery coordinate.
+- scrollUntilVisible:
+    element:
+      text: ${IMAGE_SELECTOR}
+      containsDescendants:
+        - id: ".*:id/icon_thumbnail"
+    direction: DOWN
+    timeout: 30000
+- tapOn:
+    text: ${IMAGE_SELECTOR}
+    containsDescendants:
+      - id: ".*:id/icon_thumbnail"
+- tapOn:
+    id: ".*:id/button_add"
+    enabled: true
+- extendedWaitUntil:
+    visible:
+      id: exercise_form_photo_loaded
+    timeout: 30000
+- assertVisible:
+    id: exercise_form_photos_count_1

@@ -1,0 +1,20 @@
+appId: com.project200.undabang
+---
+- assertVisible:
+    id: exercise_remote_deleted
+- tapOn:
+    id: exercise_remote_discard
+- extendedWaitUntil:
+    visible:
+      id: exercise_remote_discard_confirm
+    timeout: 10000
+- tapOn:
+    id: exercise_remote_discard_confirm
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow:
+    file: ../subflows/assert-exercise-records-absent.yaml
+    env:
+      ABSENT_RECORD_PATTERN: ${EXERCISE_TITLE + '|' + EDITED_EXERCISE_TITLE}

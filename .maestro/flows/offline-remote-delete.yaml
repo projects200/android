@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 원격 삭제 안내와 기기 폐기 취소·승인
+---
+- runFlow: ../offline/dispatch.yaml

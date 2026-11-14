@@ -1,9 +1,19 @@
 appId: com.project200.undabang
 ---
+# 상세 진입·본문 준비와 사진 아래 제목의 가시성을 분리해 확인합니다.
 - extendedWaitUntil:
     visible:
+      id: exercise_detail_menu
+    timeout: 30000
+- extendedWaitUntil:
+    visible:
+      id: exercise_detail_scroll
+    timeout: 30000
+- scrollUntilVisible:
+    element:
       id: exercise_detail_title
       text: "${RECORD_TITLE}"
+    direction: DOWN
     timeout: 30000
 - assertVisible:
     id: exercise_detail_title

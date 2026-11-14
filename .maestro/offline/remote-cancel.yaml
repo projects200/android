@@ -1,0 +1,21 @@
+appId: com.project200.undabang
+---
+- extendedWaitUntil:
+    visible:
+      id: exercise_remote_deleted
+    timeout: 30000
+- assertNotVisible:
+    id: exercise_remote_discard_confirm
+- tapOn:
+    id: exercise_remote_discard
+- extendedWaitUntil:
+    visible:
+      id: exercise_remote_discard_cancel
+    timeout: 10000
+- assertVisible:
+    id: exercise_remote_discard_confirm
+- tapOn:
+    id: exercise_remote_discard_cancel
+- assertVisible:
+    id: exercise_remote_deleted
+- runFlow: assert-detail.yaml

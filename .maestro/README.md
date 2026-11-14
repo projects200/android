@@ -86,7 +86,7 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 | `feed` | fixture 소유권·snapshot 형식/일치, validation 글 목록 보존, fixture 읽기/삭제/변경·타인 댓글 보호·정리 잔존, 소유 미디어 정리 |
 | `chatting` | 전용 방 요청 유효성·방 존재·상대 일치·목록 읽기 |
 
-offline 전용 범위는 아래 기존 규칙을 유지합니다. 다른 기능의 코드, 알 수 없는 값, 접미사·개행이 붙은 문자열과 임의 예외 본문은 정리 상세로 공개하지 않습니다. prepare/observe의 기존 매핑은 바꾸지 않습니다. feature 메타데이터는 `prepare`/`cleanup`/`feature-observe`에서만 허용하며 `offline-observe`에는 허용하지 않습니다. 작업 단위 `offline-observe`는 timer 전용 오류 매핑을 선택하지 않습니다. profile의 영역별 복구가 내부에서 포착하는 세부 오류는 앱이 실제 반환하는 `profile_restore_failed`로만 전달합니다.
+offline 전용 범위는 아래 기존 규칙을 유지합니다. 다른 기능의 코드, 알 수 없는 값, 접미사·개행이 붙은 문자열과 임의 예외 본문은 정리 상세로 공개하지 않습니다. feature 메타데이터는 `prepare`/`cleanup`/`feature-observe`와 새 `offline-control`에서 허용하며 `offline-observe`는 기존 flat envelope를 유지합니다. 작업 단위 `offline-observe`는 timer 전용 오류 매핑을 선택하지 않습니다. profile의 영역별 복구가 내부에서 포착하는 세부 오류는 앱이 실제 반환하는 `profile_restore_failed`로만 전달합니다.
 
 이 파일을 `cat`해서 CI 로그에 넣거나 셸 인자로 전달하지 마세요. 비밀 저장소의 보안 입력 경로로 `authState` 객체의 JSON과 `memberId`를 각각 등록합니다. 내보내기 파일 전체는 `MAESTRO_AUTH_STATE_JSON`이 아닙니다. 토큰 만료/철회/회전 정책에 따라 재로그인과 재내보내기가 필요합니다. 실패한 인증을 로그인된 척 통과시키는 폴백은 없습니다. 로컬 파일과 CI 비밀을 함께 갱신하고 이전 파일/비밀을 폐기하세요.
 
@@ -170,7 +170,7 @@ UI가 생성·수정·삭제를 수행합니다. bootstrap은 테스트를 통�
 
 ### offline suite
 
-`offline` suite는 한 대의 에뮬레이터에서 실행합니다. `offline.py`가 실제 네트워크 상태를 기록한 뒤 차단·복구하고, 실행별 ownership으로 운동 기록과 타이머를 정리합니다. 채팅 peer 에뮬레이터나 `MAESTRO_PEER_*`, `MAESTRO_CHAT_ROOM_ID`는 필요하지 않습니다.
+`offline` suite는 **API33 이상 전용 에뮬레이터 한 대**에서 기존 15개 흐름과 사진·충돌·세션 8개 사례를 실행합니다. `offline.py`/`offline_cases.py`가 실제 라디오 상태를 기록·차단·복구하고 사례마다 새 ownership을 사용합니다. 세션 전환은 별개 등록 계정 A/B의 `MAESTRO_PEER_AUTH_STATE_JSON`, `MAESTRO_PEER_MEMBER_ID`, `MAESTRO_PEER_FIXTURE_START_DATE`가 모두 필요합니다. 두 번째 기기나 채팅 방은 필요하지 않습니다. 기존 CI는 descriptor의 API·필수 환경을 그대로 읽으므로 새 workflow는 없습니다.
 
 ```bash
 python3 .maestro/scripts/run-tests.py \
@@ -180,7 +180,7 @@ python3 .maestro/scripts/run-tests.py \
   --configure-emulator
 ```
 
-실행에는 `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`가 필요합니다. 로컬 우선 읽기는 기본 동작이며 Remote Config 활성화는 필요하지 않습니다. 인증·fixture 설정이 없으면 suite를 skip하지 않고 preflight에서 실패합니다. 첫 저장 스냅샷을 표시한 뒤의 서버 갱신은 Room만 바꾸며, 표시 중인 목록·상세·수정 폼은 명시적 새로고침이나 로컬 복귀 조회까지 유지됩니다.
+실행에는 primary `MAESTRO_AUTH_STATE_JSON`, `MAESTRO_MEMBER_ID`, `MAESTRO_FIXTURE_START_DATE`와 위 peer 3개 비밀이 필요합니다. 두 계정은 각각 현재 DEV Cognito 설정·refresh·서버 등록 회원으로 검증하며 같으면 실패합니다. 로컬 우선 읽기는 기본 동작이며 Remote Config 활성화는 필요하지 않습니다. 인증·fixture·서버 계약이 준비되지 않으면 skip/허용 실패로 처리하지 않습니다. 첫 저장 스냅샷 뒤 서버 갱신은 Room만 바꾸며, 표시 중인 목록·상세·수정 폼은 명시적 새로고침이나 로컬 복귀 조회까지 유지됩니다.
 
 운동 시나리오는 온라인 준비 → 실제 망 단절 → UI 생성 → 오프라인 재실행 → 복구와 실제 생성 동기화 → 재단절과 UI 수정 → 오프라인 재실행 → 실제 수정 동기화 → 재단절과 UI 삭제 → 오프라인 재실행 → 실제 삭제 동기화 순서입니다. 각 생성·수정·삭제, 재실행, 동기화는 descriptor의 별도 플로우/JUnit 결과입니다. cache-missing 시나리오와 타이머 시나리오는 별도 ownership으로 유지합니다.
 원제목과 `-edited` 제목, 시작 분 `00`→`05`, 종료 시각은 UI 동작 전 run 입력에서 정합니다. `exercise-local-created`/`updated`/`deleted`와 각 `-relaunch` 단계는 하나의 Room 트랜잭션으로 목록·상세·저널을 읽고 동일 localId·정확한 값·대기 상태를 확인합니다. 로컬 관찰은 recovery ownership과 현재 로컬 인증/회원을 검증하며 서버 인증·Repository refresh·Worker/동기화 use case 호출을 하지 않습니다.
@@ -205,6 +205,66 @@ prepare/cleanup의 문자열 parameters는 `startedAt`, `endedAt`, `initialSecon
 
 이번 병합에서는 코드·빌드·테스트·린트·포매터·에뮬레이터를 실행하지 않았습니다. file-backed Room 회귀 테스트는 생성·수정·삭제 대기와 DB close/reopen 뒤 동일 ID, 서버 GET과 Room ACK의 동시 충족, 삭제 ACK 뒤 완전 부재를 검사합니다. 별도 Room 회귀는 미전송 `CREATE_PENDING` 생성을 재개방 후 취소하고 다시 재개방해 완전 부재를 검사하며, 실제 Worker 동기화 E2E를 대신하지 않습니다. 잘못된 값·중복/orphan·교체 ID·다른 회원·in-flight/저널/사진 잔존과 DELETE 직전 새 대기도 거절합니다. Python 회귀 테스트는 관찰·후속 UI 실패의 미완료 처리, 라디오 복구/증거 보존, 공개 XML 진단의 비밀 차단을 다룹니다. 운영 검증 대상은 Python driver tests, `:app:testE2eUnitTest`, data 단위 테스트, 타이머 UI instrumentation 및 실제 DEV E2E입니다. 단위 테스트 fake나 관찰 ID를 E2E 성공값으로 대신하지 않으며 로컬과 CI는 서로 다른 전용 계정 또는 겹치지 않는 실행 시간을 사용해야 합니다.
 
+#### 사진·충돌·세션 확장(9/9)
+
+| 사례 | 실제 사용자 동작 | 독립 판정 |
+| --- | --- | --- |
+| `offline-photo-create` | 망 단절 중 A 첨부 생성, A 제거·B 추가/본문 수정, 원본 제거 뒤 재실행, 사진 전송 보류 중 재실행·복구, 마지막 UI 삭제 | `exercise-case-local-created/local-edited/retained`, `baseline-synced/photos-pending/complete/ui-deleted-synced`로 동일 local/server ID, 앱 소유 파일 SHA·서버 사진 ID 집합·내용·삭제 의도와 대기 없음 대조 |
+| `offline-conflict-local` / `offline-conflict-server` | 소유 서버 기록의 독립 PATCH와 실제 UI 편집의 순서를 바꿔 두 대표 충돌 발생, 선택창 없이 해결, 미저장 폼 유지 | 독립 version 증가·`editedAt` echo와 최종 서버/Room 본문·사진·시각·버전을 대조. 로컬 최신은 원래 키·오래된 기준 버전의 직접 ACK, 서버 최신은 원래 요청의 확정 거절 후 서버 본문 채택을 요구 |
+| `offline-body-retry` | 소유 PATCH만 차단, production Worker 다섯 번째 실제 실패 뒤 오프라인 버튼 부재 확인, 같은 상세 Activity에서 온라인 버튼 탭 | `retry-exhausted`가 WorkManager terminal FAILED/idle과 원래 snapshot을 확인한 뒤에만 버튼 탭. 완료는 독립 GET+Room ACK로 판정 |
+| `offline-remote-delete` | 소유 서버 기록 독립 삭제 → 안내·휴지통 → 취소 → 재실행 → 명시 승인 | `remote-deleted/discard-cancelled/retained/discarded`로 취소 원문·사진 유지와 승인한 행만 제거 확인 |
+| `offline-session-retain` | 미전송 사진이 있는 상태의 강제 이탈, 같은 A 계정 LoginActivity 복귀, 재개·UI 삭제 | `session-pending/forced-retained/primary-restored`와 실제 BODY/사진 ACK 대조. 강제 이탈은 세션 정책 전이이며 실제 OAuth 만료 시험은 아님 |
+| `offline-session-logout` | 손실 경고 취소·로그아웃 승인, A 재로그인 후 남아 있는 서버 본문 UI 삭제 | `session-logout-cancelled/logout-approved`와 승인 삭제 proof, UI 삭제 ACK, `session-primary-restored-clean` 확인 |
+| `offline-session-adoption` | 강제 이탈 → B 채택 취소 → A 복귀 → B 채택 승인 → 실제 B 로그아웃 → A 복귀·서버 본문 UI 삭제 | `session-peer-pending/cancelled/approved`, B 독립 GET `session-peer-isolated`, 원 소유 A 복원·UI 삭제 ACK·빈 로컬 proof 확인 |
+
+표의 축약 운동 단계에는 `exercise-case-` 접두사가 붙습니다. 모든 전송 대상 본문·첨부·삭제는 실제 UI로 만들며 fixture가 Worker를 호출하거나 Room 성공 상태를 쓰지 않습니다. e2e 전용 private transport fault는 run·member·session·기록·정확한 PATCH/사진 endpoint만 일치할 때 `IOException`을 발생시킵니다. 독립 fixture API·다른 기록·서버 전체는 차단하지 않으며 이것을 서버가 생성한 실패라고 보고하지 않습니다.
+
+두 충돌 사례는 알려진 본문 시각을 비교하는 실서버 계약을 검사합니다. `offline-conflict-local`은 로컬 `editedAt`이 서버보다 엄격히 최신이므로 오래된 `baseVersion`을 그대로 보낸 원래 요청의 HTTP 200 `ACK`를 요구합니다. 최초 캡처의 키·기준 버전·시각은 UI 저장 증거와 같아야 하며, 모든 전송의 키·기준 버전·시각·직렬화 본문 SHA·의도한 본문 SHA가 동일해야 합니다. 마지막 ACK 전에는 `INJECTED`/`IO_ERROR`만 허용하며, `CONFLICT` 뒤 새 키로 rebase하는 이전 CAS 경로는 이 사례의 통과 조건이 아닙니다.
+
+`offline-conflict-server`는 같은 원래 요청의 확정 `EXERCISE_EDIT_CONFLICT`와 이후 PATCH/ACK 부재를 요구합니다. 클라이언트는 독립 GET으로 확인한 서버 본문을 채택해야 하며 최종 서버/Room 본문·사진과 서버 승자의 시각·버전도 일치해야 합니다. 두 사례 모두 먼저 관측한 서버 version이 원래 로컬 기준보다 증가해야 하며, 시각 선행 조건이 없거나 동률이면 임의 시각으로 성공을 만들지 않습니다.
+
+독립 상세 GET의 `version`은 필수이며 기준 버전입니다. 서버 목록의 `version`은 없어도 되지만, 있으면 상세 버전과 같아야 합니다.
+Room 상세·목록 버전은 모두 이 기준과 일치해야 하며, 기존 목록 ID·제목·시각, 본문·동기화·저널·사진·점수 검사는 계속 필수입니다.
+
+합성 A/B PNG만 MediaStore에 준비합니다. 전체 갤러리의 파일명·촬영시각·상대 경로와 같은 초의 외부 이미지 모호성을 검사한 뒤 feed와 같은 native 촬영시각 설명+thumbnail selector로 선택합니다. 앱 소유 복사·해시 검증 전에는 소유 원본도 제거하지 않습니다. UI는 URI/URL 대신 사진 수와 실제 Coil `onSuccess`의 loaded tag만 노출합니다.
+공통 상세 검사는 상세 메뉴(`exercise_detail_menu`)와 성공 본문 컨테이너(`exercise_detail_scroll`)를 차례로 기다린 뒤 정확한 제목까지 스크롤하고 제목·시작/종료 시각을 검증합니다. 이 순서로 상세 진입·본문 로딩·제목 가시성 실패를 구분합니다.
+목록의 상세 이동은 정확한 제목·시각이 일치하는 클릭 가능한 행 컨테이너(`exercise_list_cl`)를 탭합니다.
+
+공통 Compose BOM `2024.09.01`은 사진 Pager와 타이머 reorderable의 Foundation `1.7.1` 요구를 맞춥니다.
+기존 `ExerciseRetrySurfaceSmokeTest`는 합성 로컬 PNG의 실제 Coil 디코딩 완료, 상세 메뉴 클릭과 제목·본문 가독성도 검사합니다.
+test-only CI의 compile/runtime Foundation `dependencyInsight` 로그는 기존 `android-local-first-evidence` artifact의 `compose-compile-tasks.log`·`compose-runtime-tasks.log`에 보존합니다.
+`offline-photo-create`의 실제 앱 동작은 기존 Maestro E2E로 별도 검증하며, 라이브러리 스모크가 앱 전체 런타임 의존성 그래프를 검증하지는 않습니다.
+
+DEV test-only CI는 lint·단위 테스트와 debug·e2e APK 패키징을 함께 수행하는 검증 호출의 빌드 JVM에만 최대 4GiB 힙을 적용합니다.
+프로젝트 기본 2GiB 힙과 에뮬레이터 설정은 유지하며, 테스트·빌드·커버리지 게이트와 실패 전파도 그대로 유지합니다.
+
+`photos-pending`은 최초 생성의 BODY ACK 후에도 사진 대기·점수 receipt 미소비를 확인합니다. A→B 교체에서는 생산 전송 순서(사진 삭제 → 본문 수정 → B 업로드)에 맞춰 삭제/추가 의도와 기존 receipt 상태를 고정합니다. 최종 목록 진입·재진입·재실행의 `points-consumed/points-stable`은 실제 receipt 신원·점수·소비 상태·중복 부재를 읽기 전용으로 대조하며 0점도 정상 계약입니다. quota를 초기화하거나 fixture가 receipt를 소비하지 않습니다.
+
+연결/Worker 전후에 같은 폼의 미저장 설명과 화면상 bounds, 같은 목록의 제목·선택 ISO 날짜·행 bounds를 메모리에서 비교합니다. 상세의 실패 안내가 생기는 동안에도 본문 bounds를 비교합니다. hierarchy 원문·외부 필드·스크린샷을 추가 저장하지 않습니다. 색·아이콘·글자 확대·세부 노출 조합은 기존 `ExerciseRetrySurfaceSmokeTest` 범위입니다.
+
+화면 비교와 실패 후 `ui_markers` 수집은 `adb shell -tt uiautomator dump /dev/tty`를 사용합니다. CI처럼 stdin이 파이프인 실행에서도 `/dev/tty` 출력을 읽도록 원격 PTY를 강제하며, `-t` 하나만 지정하지 않습니다.
+화면 비교 실패는 `offline-ui-preservation-` 접두사 뒤의 `capture-failed`(ADB 비정상 종료), `hierarchy-missing`(XML 경계 누락), `hierarchy-too-large`(1MiB 초과), `xml-invalid`(XML 해석 실패), `bounds-invalid`(좌표 형식 오류)로 구분합니다. 실제 필드·값·영역·위치 불일치는 기존 `mismatch`로 계속 실패합니다. 오류 원문·stderr·화면 XML은 공개하지 않으며 재시도나 검증 생략으로 대체하지 않습니다.
+
+`offline-control`은 공통 `feature=offline`, `flow`, `runId`, 5개 문자열 parameters, 원 소유 `memberId`와 **root `action`**을 받습니다. `stage-primary-login`/`stage-peer-login`만 root `authState`+`targetMemberId` 쌍을 허용합니다. 결과는 `controlled`여야 하며 `observed`로 대체하지 않습니다. 이 작업과 관찰은 force-stop/일반 authenticate/Main 재진입을 하지 않습니다. staged 로그인 직후에는 LoginActivity만 직접 열어 제품 확인창을 실제 탭하며 자동 승인은 없습니다.
+
+기본 bootstrap timeout 300초는 유지합니다. `exercise-case-retry-exhausted` 관찰에만 750초를 전달해 기본 지수 backoff의 실제 다섯 시도를 기다립니다. Worker 상태는 공개 `getWorkInfosForUniqueWorkFlow(...).first()`로 조회마다 한 번 읽고, 기존 종료·실패·성공 조건으로 판정합니다. 버튼 전에 Main 재진입이나 재인증으로 새 작업을 예약하지 않습니다. 세션 복원은 PHOTOS fault를 유지한 온라인 상태에서 실제 등록 검증을 진행하며, 승인한 로컬 폐기는 이미 ACK된 A 서버 본문 삭제를 대신하지 않습니다. A로 복귀한 뒤 해당 서버 본문을 UI에서 삭제하고 production Worker ACK까지 확인한 후 정리합니다.
+
+`offline/<case>/result.json`은 `passed`, `preparation-failed`, `functional-failed`, `interrupted`, `cleanup-failed`를 구분합니다. JUnit의 미실행은 실패 코드로 남기며 준비·정리 실패가 UI 통과로 바뀌지 않습니다. 앱 버전은 실제 설치 metadata에서 읽으며, 버전 코드는 API 26 호환 `PackageInfoCompat.getLongVersionCode`로 가져옵니다. 서버 계약은 독립 PATCH/GET에서 관측한 version/editedAt 증거만 기록합니다. 없는 증거는 `unavailable`이며 PR 병합을 DEV 배포로 추정하지 않습니다. primary/peer 비밀을 함께 redact하고 기존 실패 증거 정책을 재사용합니다.
+확장 사례의 native picker·계정 화면에는 테스트 소유가 아닌 사진·문구가 섞일 수 있으므로 CLI 텍스트는 고정 flow/action/오류 코드만 남기며 새 스크린샷은 공개하지 않습니다. 각 UI 호출의 `command-summary.json`은 원문 삭제 전에 고정 flow/action·정수 호출 순번, 유한 command type·상태, Maestro 런타임 `sequenceNumber`·`depth`와 정확히 허용한 helper 이름만 구성합니다(YAML 줄 번호가 아닙니다). 실패 leaf와 상위 run-flow의 전파 실패, 실행된 helper 조상, 마지막 실행/완료 명령을 구분하며 selector·입력·계정·동적 경로·오류 원문·이미지는 포함하지 않습니다. 미실행·skipped·중첩된 계획 명령은 실행 증거가 아니며, 손상·한도 초과·서로 다른 복사본은 `unavailable`입니다. 진단 실패는 기존 scrub·원래 실패·정리를 바꾸지 않습니다. 기존 15개 흐름의 실패 증거·안전 진단 수집은 유지합니다. 서버 version/clock 선행 조건 실패는 UI 생성 뒤 발견돼도 준비 실패로 분류하며, 정리까지 실패한 경우 `cleanupStatus`와 `failureStage`를 함께 기록합니다.
+
+확장 사례만 유효한 flow/action/호출 순번이 있는 Maestro 실패 직후 한 번, 기존 logcat/ANR·artifact scrub·fixture cleanup 전에 같은 호출 폴더에 `app-state-summary.json`을 추가합니다. 성공·중단·버전/준비 실패에서는 수집하지 않습니다. 상위 필드는 `flow`, `action`, `invocation`, 고정 `phase=after-maestro-failure-before-fixture-cleanup`이며, `process.main_process_present`는 정확한 `com.project200.undabang` 메인 프로세스 존재 여부입니다(접두사·서브프로세스 제외). 기존 `driver-connectivity-summary.json`의 `app_present`는 Maestro 드라이버이며 대상 앱을 뜻하지 않습니다.
+`resumed_activity.category`는 현재 `topResumedActivity` 우선, 없으면 현재 `mResumedActivity`/`ResumedActivity`만 읽어 `main`·`login`·`app_other`·`other_app`·명시적 null의 `none`으로 축약합니다. 선택한 우선순위의 충돌·모호성, 손상된 현재 레코드·미지원 형식은 `unrecognized`입니다. `ui_markers.markers`의 `list`·`detail_menu`·`detail_content`·`form`은 정확한 앱 package와 `exercise_list_rv`·`exercise_detail_menu`·`exercise_detail_scroll`·`exercise_title_input` resource ID(맨 태그 또는 앱 `:id/` 형식)의 존재 여부만 기록합니다. 각 하위 결과의 `status`는 `captured`·`unavailable`·`unrecognized`이며, 유효한 hierarchy에서 태그가 없는 false와 수집 실패를 구분합니다.
+세 조회는 선택 기기의 읽기 전용 `ps -A -o NAME`, `dumpsys activity activities`, `uiautomator dump /dev/tty`를 재시도 없이 순차 수행합니다(공유 10초, 호출당 최대 5초). hierarchy 조회에만 `adb shell -tt`를 적용합니다. 엄격 UTF-8·명령당 최대 1MiB, 프로세스 4096행·activity 16384행·XML 8192요소/깊이64로 제한하고 DTD/entity를 거부합니다. UI 문구·설명·임의 ID/컴포넌트·프로세스 목록/PID·원문 dump/XML·예외·이미지는 저장하지 않습니다. 이 비원자적 실패 후 관측은 이동 이력이 아니며, 메인 프로세스 부재만으로 crash·종료 시점을 확정하지 않습니다. resumed activity는 focused window와 같다고 보장하지 않으며 MainActivity만으로 목록/상세를 구분할 수 없습니다. 태그 존재도 가시성·resumed 상태·탭/이동 성공의 확정 판정은 아닙니다.
+
+실패 시 먼저 원래 라디오와 소유 transport fault 복구를 시도합니다. 복구·정리 안전성이 확인되지 않으면 private snapshot·복구 표식·미전송 본문·앱 소유 사진을 보존하고 후속 사례를 실행하지 않습니다. 정상 사례도 마지막 실제 UI 삭제 ACK 또는 명시 승인한 기기 폐기 proof 없이 fixture cleanup 성공을 받지 못합니다.
+
+결정적 세부 경계는 기존 테스트와 구분합니다. `ExerciseSyncUiStorageTest`는 동일 시각의 서버 승리, 불명 시각 보존, 늦은 로컬 편집/삭제, 점수 receipt를 검사합니다. `ExerciseSyncRepositoryTest`는 사진 응답 유실의 동일 키 재생, 늦은 계정·세션 응답, 일반 404와 명명된 원격 삭제의 구분, stale 폐기 확인을 검사합니다. 두 테스트의 기존 CAS 회귀는 확정 거절 뒤 새 요청키·최신 기준 버전으로 rebase하되 본문·시각을 보존하는 경로를 유지합니다. `ExerciseSyncTransportTest`는 HTTP 직렬화의 `editId`·`baseVersion`·`editedAt` 계약을 검사합니다. 이 단위/Room/HTTP 시험은 실서버 clock 기반 직접 ACK 사례와 별개이며, 실서버 E2E 통과나 실서버 rebase 수행 증거가 아닙니다.
+
+`MaestroOfflineTransportTest`는 응답·요청 본문 보존, 원문·비밀의 trace 미기록, 소유권과 정리를 검사합니다. Robolectric 4.14.1의 `Os.stat`은 소유자·그룹·기타 권한을 구분하지 않으므로 이 JVM 테스트로 Unix 파일 모드를 단언하지 않습니다. 실제 Android writer의 `Os.fchmod(..., 0600)`은 유지하며, 기기에서의 파일 권한 검증은 별도입니다.
+
+사진 오류 안내·사진 수동 재시도·복구 UI는 #659 선행 기능입니다. 이 확장은 사진의 실제 보존·전송·삭제·중단 복구를 다루며 #660의 본문 재시도 버튼으로 사진 복구 UI를 대신하지 않습니다. 본 변경에서는 Python·Kotlin·Maestro·빌드·기기 실행을 수행하지 않았습니다. 위 23개 사례의 실제 DEV 통과, 서버 계약 배포 상태와 기기 동작은 승인된 기존 CI 결과에서 별도로 확인해야 합니다.
+
+
 descriptor 스키마(모든 필드 필수):
 
 ```json
@@ -214,7 +274,7 @@ descriptor 스키마(모든 필드 필수):
 - `fixture:true`: `MaestroFeatureFixture`의 `prepare(MaestroFeatureRequest): Map<String,String>`, `cleanup(MaestroFeatureRequest)`를 같은 요청으로 호출합니다. request는 `feature`, `flow`, `runId`, 검증된 `memberId`, private `parameters: JSONObject`입니다. 비어 있는 공통 Hilt multibinding으로 기능 없는 기준 트리도 지원하며, 요청한 handler가 없으면 실패합니다.
 - `.maestro/scripts/features/<feature>.py`가 있으면 `driver:null`이어도 `before_flow(core, device, flow, variables, credentials, run_id) -> dict`와 `after_flow(...) -> None` hook을 자동 사용합니다. hook 실패도 backend cleanup을 거칩니다. `E2E_RUN_ID`는 플로우당 16자리 UUID hex이며 prepare/UI/cleanup 간 동일합니다.
 - `driver:"<feature>"`는 `run_suite(args, core)` 전체 수명 소유자입니다. 실제 두 기기 채팅이 사용하며 양 기기 인증·locale·ARM ABI 설치 검증·정리를 직접 수행합니다. `--peer-device`로 별도 serial을 주거나 driver가 같은 AVD의 읽기 전용 두 번째 emulator를 만듭니다. 반환 결과는 선언한 모든 `(flow_name, seconds, [fixed_error_codes])`여야 하며 누락/잘못된 결과는 실패입니다.
-- 공통 Python API: `read_credentials(prefix="MAESTRO_")`(peer는 `MAESTRO_PEER_`), `Device.bootstrap(operation, credentials=None, timeout=300, feature=None, flow=None, run_id=None, parameters=None) -> dict`, `run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None)`. feature metadata 네 필드는 prepare/cleanup에 함께 전달합니다. driver의 `args.output`은 공통 결과 `Path`입니다.
+- 공통 Python API: `read_credentials(prefix="MAESTRO_")`(peer는 `MAESTRO_PEER_`), `Device.bootstrap(operation, credentials=None, timeout=300, feature=None, flow=None, run_id=None, parameters=None, action=None) -> dict`, `run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None)`. feature metadata 네 필드는 prepare/cleanup에 함께 전달하며 `offline-control`에는 root action을 추가합니다. driver의 `args.output`은 공통 결과 `Path`입니다.
 - `requiredEnvironment` 값은 명시한 이름 그대로 private parameters에만 전달합니다. 비밀 변수나 auth/token/FCM 반환은 거절합니다. 모든 가족을 하나의 계정 잠금 안에서 순차 실행하고, 실제 선택한 플로우 이름의 JUnit을 하나로 합칩니다. 입력 preflight 실패도 선택 플로우를 실패로 기록하며 smoke로 대체하지 않습니다.
 
 CRUD 입력은 ASCII 제목과 숫자를 사용합니다. 러너는 준비 완료 뒤 Maestro 실행 직전 기기 시간으로 `EXERCISE_START_HOUR`, `EXERCISE_END_HOUR`, `EXERCISE_START_DATE`, `EXERCISE_END_DATE`를 계산합니다. 날짜 형식은 `yyyy.MM.dd`, 시간은 두 자리입니다. 시작은 기기 정시−1시간, 종료는 정시입니다. UI 수정에서는 시작 분을 `00`→`05`로 바꿉니다. CLI 시작~폼 진입 사이 정시/날짜 경계를 넘으면 기본 날짜와 기대값이 달라져 실패할 수 있으며 자동 재시도하지 않습니다.

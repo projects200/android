@@ -44,6 +44,20 @@ TOOL_ENV_KEYS = (
 FEATURE_NAME = re.compile(r"[a-z][a-z0-9-]*")
 FLOW_NAME = re.compile(r"[a-z][a-z0-9-]*")
 VARIABLE_NAME = re.compile(r"[A-Z][A-Z0-9_]*")
+OFFLINE_CONTROL_ACTIONS = frozenset({
+    "media-delete-originals", "block-body", "block-photos", "unblock-transport",
+    "remote-update", "remote-delete", "force-exit", "stage-primary-login", "stage-peer-login",
+})
+OFFLINE_PREREQUISITE_FAILURES = {
+    "offline_server_version_prerequisite": "offline-prerequisite-server-version",
+    "offline_server_clock_prerequisite": "offline-prerequisite-server-clock",
+    "offline_server_clock_untrusted": "offline-prerequisite-server-clock-untrusted",
+    "offline_conflict_clock_order_prerequisite": "offline-prerequisite-conflict-clock-order",
+    "offline_local_clock_prerequisite": "offline-prerequisite-local-clock",
+    "offline_server_clock_contract_missing": "offline-prerequisite-server-clock-contract",
+    "offline_photo_picker_prerequisite": "offline-prerequisite-native-photo-picker",
+    "offline_session_baseline_not_empty": "offline-prerequisite-empty-session-baseline",
+}
 REQUIRED_ENVIRONMENT = frozenset({
     "MAESTRO_PEER_AUTH_STATE_JSON", "MAESTRO_PEER_MEMBER_ID",
     "MAESTRO_PEER_FIXTURE_START_DATE", "MAESTRO_CHAT_ROOM_ID",
@@ -78,6 +92,16 @@ OFFLINE_CLEANUP_FAILURES = {
     "feature_recovery_pending": "bootstrap-cleanup-failed-feature-recovery-pending",
     "feature_recovery_owner_mismatch": "bootstrap-cleanup-failed-feature-recovery-owner-mismatch",
     "feature_recovery_invalid": "bootstrap-cleanup-failed-feature-recovery-invalid",
+    "offline_session_cleanup_unsafe": "bootstrap-cleanup-failed-offline-session-cleanup-unsafe",
+    "offline_session_boundary_invalid": "bootstrap-cleanup-failed-offline-session-boundary-invalid",
+    "offline_exercise_erasure_not_observed": "bootstrap-cleanup-failed-offline-exercise-erasure-not-observed",
+    "offline_remote_delete_not_observed": "bootstrap-cleanup-failed-offline-remote-delete-not-observed",
+    "offline_photo_media_cleanup_failed": "bootstrap-cleanup-failed-offline-photo-media-cleanup-failed",
+    "offline_photo_identity_changed": "bootstrap-cleanup-failed-offline-photo-identity-changed",
+    "offline_photo_erasure_not_observed": "bootstrap-cleanup-failed-offline-photo-erasure-not-observed",
+    "offline_transport_armed": "bootstrap-cleanup-failed-offline-transport-armed",
+    "offline_transport_ownership_invalid": "bootstrap-cleanup-failed-offline-transport-ownership-invalid",
+    "offline_transport_clear_failed": "bootstrap-cleanup-failed-offline-transport-clear-failed",
 }
 FEATURE_CLEANUP_FAILURES = {
     "offline": OFFLINE_CLEANUP_FAILURES,
@@ -238,7 +262,9 @@ def bootstrap_failure_code(operation, feature, reason):
         return failure + "-" + common
     if operation == "cleanup":
         return FEATURE_CLEANUP_FAILURES.get(feature, {}).get(reason, failure)
-    if operation not in ("prepare", "offline-observe", "feature-observe"):
+    if (feature == "offline" or operation == "offline-observe") and reason in OFFLINE_PREREQUISITE_FAILURES:
+        return OFFLINE_PREREQUISITE_FAILURES[reason]
+    if operation not in ("prepare", "offline-observe", "feature-observe", "offline-control"):
         return failure
     if operation == "offline-observe" or feature == "offline":
         return {
@@ -459,7 +485,7 @@ def safe_variables(variables):
 def feature_metadata(operation, feature, flow, run_id, parameters):
     if all(value is None for value in (feature, flow, run_id, parameters)):
         return {}
-    if (operation not in ("prepare", "cleanup", "feature-observe")
+    if (operation not in ("prepare", "cleanup", "feature-observe", "offline-control")
             or not isinstance(feature, str) or not FEATURE_NAME.fullmatch(feature)
             or not isinstance(flow, str) or not FLOW_NAME.fullmatch(flow)
             or not isinstance(run_id, str) or not re.fullmatch(r"[a-f0-9]{16,32}", run_id)
@@ -938,13 +964,29 @@ class Device:
         self.require("shell", "-T", "run-as", APP_ID, "rm", "-f", *paths)
 
     def bootstrap(self, operation, credentials=None, timeout=300, feature=None, flow=None,
-                  run_id=None, parameters=None):
-        if operation not in ("prepare", "cleanup", "export", "offline-observe", "feature-observe"):
+                  run_id=None, parameters=None, action=None):
+        if operation not in ("prepare", "cleanup", "export", "offline-observe", "feature-observe", "offline-control"):
             raise RunnerFailure("invalid-bootstrap-operation")
         metadata = feature_metadata(operation, feature, flow, run_id, parameters)
+        if operation == "offline-control":
+            stage_login = action in ("stage-primary-login", "stage-peer-login")
+            allowed = {"memberId", "authState", "targetMemberId"} if stage_login else {"memberId"}
+            if (feature != "offline" or not isinstance(action, str) or action not in OFFLINE_CONTROL_ACTIONS
+                    or any(key in parameters for key in ("action", "authState", "targetMemberId"))
+                    or not isinstance(credentials, dict) or set(credentials) != allowed
+                    or not isinstance(credentials.get("memberId"), str) or not credentials["memberId"]
+                    or (stage_login and (not isinstance(credentials["authState"], dict)
+                                         or not credentials["authState"]
+                                         or not isinstance(credentials["targetMemberId"], str)
+                                         or not credentials["targetMemberId"]))):
+                raise RunnerFailure("invalid-offline-control")
+        elif action is not None:
+            raise RunnerFailure("invalid-offline-control")
         request = {"operation": operation, **(credentials or {}), **metadata}
-        # 관찰은 실행 중 Room과 미저장 폼을 초기화하지 않습니다.
-        if operation not in ("offline-observe", "feature-observe"):
+        if action is not None:
+            request["action"] = action
+        # 관찰과 제어는 실행 중 Activity·미저장 폼·실제 Worker 수명을 유지합니다.
+        if operation not in ("offline-observe", "feature-observe", "offline-control"):
             self.require("shell", "am", "force-stop", APP_ID)
         self.remove_private(include_session=operation == "export")
         payload = json.dumps(request, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -958,6 +1000,7 @@ class Device:
             "export": "exported",
             "offline-observe": "observed",
             "feature-observe": "observed",
+            "offline-control": "controlled",
         }[operation]
         # 결과 파일이 아직 없을 때만 기다리고, 실제 읽기 실패의 종료 상태는 보존합니다.
         probe = "if [ ! -e " + RESULT + " ]; then exit 3; fi; cat " + RESULT
@@ -1043,6 +1086,19 @@ def export_session(device, output):
 
 def save_debug(raw, destination, redactor, console):
     destination.mkdir(parents=True, exist_ok=True)
+    try:
+        command_summary = getattr(redactor, "command_summary", None)
+        if callable(command_summary):
+            summary = command_summary(raw)
+            if summary is not None:
+                (destination / "command-summary.json").write_text(
+                    json.dumps(summary, sort_keys=True, allow_nan=False) + "\n", encoding="utf-8",
+                )
+    except RunInterrupted:
+        raise
+    except Exception:
+        # 선택 진단 실패는 원래 Maestro 실패·정리와 기존 artifact redaction을 바꾸지 않습니다
+        pass
     clean, sensitive = redactor.clean(console.decode("utf-8", "replace"))
     (destination / "console.log").write_text(clean, encoding="utf-8")
     images = []
@@ -1522,6 +1578,18 @@ def save_driver_connectivity(device, destination):
         pass
 
 
+def capture_failure_state(device, destination, redactor):
+    try:
+        collector = getattr(redactor, "capture_failure_state", None)
+        if callable(collector):
+            collector(device, destination)
+    except RunInterrupted:
+        raise
+    except Exception:
+        # 선택 진단은 private 오류를 공개하거나 원래 실패·scrub·정리를 바꾸지 않습니다.
+        pass
+
+
 def run_maestro(device, flow, output, redactor, timeout, fixture_start_date=None, variables=None):
     try:
         _run_maestro(device, flow, output, redactor, timeout, fixture_start_date, variables)
@@ -1571,9 +1639,12 @@ def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=Non
         for key, value in variables.items():
             argv[2:2] = ["-e", key + "=" + value]
         stdout = stderr = b""
+        capture_attempted = False
         try:
             code, stdout, stderr = command(argv, env, timeout=timeout)
             if code != 0:
+                capture_attempted = True
+                capture_failure_state(device, output / flow, redactor)
                 save_failure_logcat(device, output / flow, redactor)
                 save_failure_anr(device, output / flow)
                 save_failure_anr_events(device, output / flow)
@@ -1582,6 +1653,9 @@ def _run_maestro(device, flow, output, redactor, timeout, fixture_start_date=Non
         except RunInterrupted:
             raise
         except Exception:
+            if not capture_attempted:
+                capture_attempted = True
+                capture_failure_state(device, output / flow, redactor)
             try:
                 save_driver_failure(raw, output / flow)
             except RunInterrupted:

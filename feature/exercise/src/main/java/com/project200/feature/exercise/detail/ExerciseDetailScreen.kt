@@ -226,13 +226,23 @@ private fun DetailContent(
                     ) {
                         HorizontalPager(
                             state = pagerState,
-                            modifier = Modifier.fillMaxWidth().height(240.dp),
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(240.dp)
+                                    .testTag("exercise_detail_photos_count_${pictures.size}"),
                         ) { page ->
+                            var loaded by remember(pictures[page].source) { mutableStateOf(false) }
                             AsyncImage(
                                 model = pictures[page].source,
                                 contentDescription = null,
                                 contentScale = ContentScale.Fit,
-                                modifier = Modifier.fillMaxSize(),
+                                onSuccess = { loaded = true },
+                                onError = { loaded = false },
+                                modifier =
+                                    Modifier
+                                        .fillMaxSize()
+                                        .testTag(if (loaded) "exercise_detail_photo_loaded" else "exercise_detail_photo_loading"),
                             )
                         }
                         if (pictures.size > 1) {
@@ -337,6 +347,7 @@ private fun DetailContent(
                         label = stringResource(R.string.exercise_record_desc),
                         value = record.detail.orEmpty(),
                         minHeight = 120.dp,
+                        valueModifier = Modifier.testTag("exercise_detail_description"),
                     )
                 }
             }

@@ -1,0 +1,96 @@
+appId: com.project200.undabang
+---
+# The Python driver owns barriers between UI actions. No fixture mutates UI state.
+- assertTrue: ${['create', 'edit', 'replace-photo', 'relaunch', 'assert-detail', 'open-list', 'open-draft', 'assert-draft', 'cancel-draft', 'assert-retry', 'retry', 'assert-no-retry', 'remote-cancel', 'remote-confirm', 'delete', 'logout-cancel', 'logout-confirm', 'adoption-pending', 'adoption-cancel', 'adoption-confirm', 'login-ready', 'list-preserved', 'open-server-record'].indexOf(UI_ACTION) >= 0}
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'create'}
+    file: create.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'edit'}
+    file: edit.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'replace-photo'}
+    file: replace-photo.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'relaunch'}
+    file: relaunch.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'assert-detail'}
+    file: assert-detail.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'open-list'}
+    file: open-list.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'open-draft'}
+    file: open-draft.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'assert-draft'}
+    file: assert-draft.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'cancel-draft'}
+    file: cancel-draft.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'assert-retry'}
+    file: assert-retry.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'retry'}
+    file: retry.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'assert-no-retry'}
+    file: assert-no-retry.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'remote-cancel'}
+    file: remote-cancel.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'remote-confirm'}
+    file: remote-confirm.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'delete'}
+    file: delete.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'logout-cancel'}
+    file: logout-cancel.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'logout-confirm'}
+    file: logout-confirm.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'adoption-pending'}
+    file: adoption-pending.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'adoption-cancel'}
+    file: adoption-cancel.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'adoption-confirm'}
+    file: adoption-confirm.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'login-ready'}
+    file: login-ready.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'list-preserved'}
+    file: list-preserved.yaml
+- runFlow:
+    when:
+      true: ${UI_ACTION === 'open-server-record'}
+    file: open-server-record.yaml

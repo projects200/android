@@ -14,10 +14,22 @@
     "offline-timers-mutate",
     "offline-timers-relaunch",
     "offline-timers-after-reconnect",
-    "offline-timers-reconnect"
+    "offline-timers-reconnect",
+    "offline-photo-create",
+    "offline-conflict-local",
+    "offline-conflict-server",
+    "offline-remote-delete",
+    "offline-body-retry",
+    "offline-session-retain",
+    "offline-session-logout",
+    "offline-session-adoption"
   ],
-  "apiLevel": 30,
+  "apiLevel": 33,
   "fixture": true,
-  "requiredEnvironment": [],
+  "requiredEnvironment": [
+    "MAESTRO_PEER_AUTH_STATE_JSON",
+    "MAESTRO_PEER_MEMBER_ID",
+    "MAESTRO_PEER_FIXTURE_START_DATE"
+  ],
   "driver": "offline"
 }

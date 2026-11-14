@@ -1,0 +1,46 @@
+appId: com.project200.undabang
+---
+- runFlow:
+    when:
+      visible:
+        id: exercise_create_btn
+    commands:
+      - runFlow:
+          file: assert-exercise-record.yaml
+          env:
+            RECORD_TITLE: ${RECORD_TITLE}
+            START_MINUTE: ${START_MINUTE}
+- extendedWaitUntil:
+    visible:
+      id: exercise_detail_menu
+    timeout: 30000
+- scrollUntilVisible:
+    element:
+      id: exercise_detail_photo_loaded
+    direction: UP
+    timeout: 20000
+- assertVisible:
+    id: exercise_detail_photos_count_1
+- assertVisible:
+    id: exercise_detail_photo_loaded
+- scrollUntilVisible:
+    element:
+      id: exercise_detail_title
+      text: ${RECORD_TITLE}
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: exercise_detail_title
+    text: ${RECORD_TITLE}
+- scrollUntilVisible:
+    element:
+      id: exercise_detail_description
+      text: ${RECORD_DESCRIPTION}
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: exercise_detail_description
+    text: ${RECORD_DESCRIPTION}
+- assertNotVisible:
+    id: exercise_remote_discard_confirm
+- assertNotVisible: 다른 계정으로 계속하시겠어요[?]

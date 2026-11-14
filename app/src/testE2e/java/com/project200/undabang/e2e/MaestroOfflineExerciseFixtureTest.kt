@@ -106,7 +106,16 @@ class MaestroOfflineExerciseFixtureTest {
                 .build()
         local = ExerciseRecordLocalDataSource(database, database.exerciseCountDao(), database.exerciseRecordDao(), preferences)
         observer = MaestroOfflineExerciseFixture(database, preferences, api)
-        fixtures = MaestroOfflineFixtures(api, context, timers, observer)
+        fixtures =
+            MaestroOfflineFixtures(
+                api,
+                context,
+                timers,
+                observer,
+                mockk(),
+                mockk(),
+                mockk(relaxed = true),
+            )
     }
 
     private fun reopen() {

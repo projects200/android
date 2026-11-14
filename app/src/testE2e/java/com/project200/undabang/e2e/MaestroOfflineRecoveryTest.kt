@@ -21,6 +21,8 @@ import com.project200.data.local.PreferenceManager
 import com.project200.data.local.entity.CustomTimerEntity
 import com.project200.data.local.entity.SyncState
 import com.project200.domain.manager.SessionDataCleaner
+import com.project200.domain.usecase.ClearSessionUseCase
+import com.project200.domain.usecase.LoginSessionUseCase
 import com.project200.undabang.oauth.AuthManager
 import com.project200.undabang.oauth.AuthStateManager
 import com.project200.undabang.oauth.TokenRefreshResult
@@ -76,7 +78,10 @@ class MaestroOfflineRecoveryTest {
     private val protocol = MaestroSetupProtocol(context)
     private val local = mockk<TimerLocalDataSource>()
     private val exerciseObserver = mockk<MaestroOfflineExerciseFixture>(relaxed = true)
-    private val offline = MaestroOfflineFixtures(api, context, local, exerciseObserver)
+    private val exerciseCases = mockk<MaestroOfflineExerciseCases>()
+    private val sessionCases = mockk<MaestroOfflineSessionCases>()
+    private val transport = mockk<MaestroOfflineTransport>(relaxed = true)
+    private val offline = MaestroOfflineFixtures(api, context, local, exerciseObserver, exerciseCases, sessionCases, transport)
 
     // 실제 AuthRepository가 clearAll을 호출하면 pending 증거가 사라지는 경계를 감지합니다.
     private val pending = mutableListOf("pending-create", "pending-update", "pending-delete")
@@ -106,6 +111,7 @@ class MaestroOfflineRecoveryTest {
     private lateinit var savedState: AuthState
     private var current = AuthState()
     private lateinit var bootstrap: MaestroSessionBootstrap
+    private lateinit var loginSession: LoginSessionUseCase
     private lateinit var coordinator: MaestroSetupCoordinator
     private lateinit var recoveryBytes: ByteArray
 
@@ -176,7 +182,12 @@ class MaestroOfflineRecoveryTest {
                 UnconfinedTestDispatcher(),
                 imageFileStore,
             )
-        bootstrap = MaestroSessionBootstrap(config, stateManager, authManager, repository, registrationCheck)
+        loginSession =
+            LoginSessionUseCase(
+                repository,
+                ClearSessionUseCase(repository, mockk(relaxed = true), mockk(relaxed = true), dataCleaner, mockk(relaxed = true)),
+            )
+        bootstrap = MaestroSessionBootstrap(config, stateManager, authManager, repository, registrationCheck, loginSession, preferences)
         coordinator = MaestroSetupCoordinator(protocol, bootstrap, commonCleaner, mapOf("offline" to offline), offline)
         coEvery { api.getIsRegistered() } returns success(GetIsRegisteredData(MEMBER, true))
         coEvery { api.getExerciseList(run.startedAt.toLocalDate()) } returns success(emptyList())
@@ -784,6 +795,212 @@ class MaestroOfflineRecoveryTest {
             coVerify(exactly = 0) { dataCleaner.clearAll() }
             assertNoFixtureCalls()
         }
+
+    @Test
+    fun `offline control은 로그인 동작에만 엄격한 자격 증명 쌍을 받는다`() {
+        val owner = feature.copy(flow = "offline-session-adoption")
+        val invalid =
+            listOf<(JSONObject) -> Unit>(
+                { it.put("extra", "value") },
+                { it.put("action", "unknown-action") },
+                { it.put("action", 1) },
+                { it.put("authState", savedState.jsonSerialize()) },
+                { it.put("targetMemberId", "peer") },
+                { it.put("action", "stage-peer-login") },
+                { it.put("action", "stage-peer-login").put("authState", savedState.jsonSerialize()) },
+                { it.put("action", "stage-peer-login").put("targetMemberId", "peer") },
+                {
+                    it.put("action", "stage-peer-login").put("authState", savedState.jsonSerialize())
+                        .put("targetMemberId", MEMBER)
+                },
+                {
+                    it.put("action", "stage-primary-login").put("authState", savedState.jsonSerialize())
+                        .put("targetMemberId", "peer")
+                },
+                { it.getJSONObject("parameters").put("stage", "session-pending") },
+            )
+        val file = File(context.filesDir, "maestro-request.json")
+        for (change in invalid) {
+            val json = controlRequest(owner, "force-exit")
+            change(json)
+            file.writeText(json.toString())
+            val failure = assertThrows(MaestroSetupFailure::class.java) { protocol.consumeRequest() }
+            assertThat(failure.reason).isEqualTo("invalid_request")
+            assertThat(file.exists()).isFalse()
+            assertPreserved()
+        }
+        file.writeText(
+            controlRequest(owner, "stage-peer-login")
+                .put("authState", savedState.jsonSerialize()).put("targetMemberId", "peer").toString(),
+        )
+        val request = protocol.consumeRequest() as MaestroSetupRequest.OfflineControl
+        assertThat(request.action).isEqualTo("stage-peer-login")
+        assertThat(request.targetMemberId).isEqualTo("peer")
+        assertThat(request.preserveLocalDataOnFailure).isTrue()
+        assertThat(request.preserveSessionOnFailure).isTrue()
+    }
+
+    @Test
+    fun `해석 불가 입력과 알 수 없는 operation은 로그인 대기와 원본을 변경하지 않는다`() =
+        runTest {
+            current = authorizedState()
+            loginSession.beginLogin()
+            val boundary = preferences.getPendingLogin()
+            val snapshot = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            for (text in listOf("{", JSONObject().put("operation", "unknown-operation").toString())) {
+                File(context.filesDir, "maestro-request.json").writeText(text)
+
+                coordinator.consumeRequest()
+
+                assertFailure("invalid_request")
+                assertThat(preferences.getPendingLogin()).isEqualTo(boundary)
+                assertThat(preferences.getRetainedMemberId()).isEqualTo(MEMBER)
+                assertThat(preferences.getMemberId()).isNull()
+                assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(snapshot)
+                assertThat(pending).containsExactly("pending-create", "pending-update", "pending-delete")
+            }
+            assertNoFixtureCalls()
+            coVerify(exactly = 0) { dataCleaner.clearAll() }
+        }
+
+    @Test
+    fun `세션 제어 실패는 pending 로그인과 retained 회원과 private ownership을 보존한다`() =
+        runTest {
+            val owner = extendedOwner("offline-session-adoption")
+            current = authorizedState()
+            loginSession.beginLogin()
+            val boundary = preferences.getPendingLogin()
+            val snapshot = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            coEvery { sessionCases.control(any(), any(), any(), "stage-peer-login", any(), "peer") } throws
+                MaestroSetupFailure("offline_session_boundary_invalid")
+            File(context.filesDir, "maestro-request.json").writeText(
+                controlRequest(owner, "stage-peer-login")
+                    .put("authState", savedState.jsonSerialize()).put("targetMemberId", "peer").toString(),
+            )
+
+            coordinator.consumeRequest()
+
+            assertFailure("offline_session_boundary_invalid")
+            assertThat(preferences.getPendingLogin()).isEqualTo(boundary)
+            assertThat(preferences.getRetainedMemberId()).isEqualTo(MEMBER)
+            assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(snapshot)
+            assertThat(recoveryFile.readBytes()).isEqualTo(recoveryBytes)
+            assertThat(pending).containsExactly("pending-create", "pending-update", "pending-delete")
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { dataCleaner.clearAll() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `foreign control은 인증이나 helper 전에 private 소유권에서 실패한다`() =
+        runTest {
+            val owner = extendedOwner("offline-body-retry")
+            current = authorizedState()
+            val before = current.jsonSerializeString()
+            val snapshot = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            File(context.filesDir, "maestro-request.json").writeText(
+                controlRequest(owner.copy(memberId = "foreign"), "block-body").toString(),
+            )
+
+            coordinator.consumeRequest()
+
+            assertFailure("feature_recovery_owner_mismatch")
+            assertThat(current.jsonSerializeString()).isEqualTo(before)
+            assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(snapshot)
+            assertPreserved()
+            coVerify(exactly = 0) { exerciseCases.control(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `로컬 control은 서버 인증 없이 동작하고 helper 증거를 저장한 뒤 controlled를 반환한다`() =
+        runTest {
+            val owner = extendedOwner("offline-body-retry")
+            current = authorizedState()
+            coEvery { exerciseCases.control(any(), run, any(), "block-body") } answers {
+                thirdArg<JSONObject>().put("extendedExercise", JSONObject().put("firstAttempt", "frozen-request"))
+                emptyMap()
+            }
+            File(context.filesDir, "maestro-request.json").writeText(controlRequest(owner, "block-body").toString())
+
+            coordinator.consumeRequest()
+
+            assertThat(result().getString("status")).isEqualTo("controlled")
+            val snapshot = JSONObject(File(context.filesDir, "maestro-offline-state.json").readText())
+            assertThat(snapshot.getJSONObject("extendedExercise").getString("firstAttempt")).isEqualTo("frozen-request")
+            assertPreserved()
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            verify(exactly = 0) { stateManager.update(any<AuthorizationResponse>(), any()) }
+        }
+
+    @Test
+    fun `서버 변경 control은 실제 등록 회원 불일치 시 helper를 실행하지 않는다`() =
+        runTest {
+            val owner = extendedOwner("offline-conflict-server")
+            current = authorizedState()
+            coEvery { api.getIsRegistered() } returns success(GetIsRegisteredData("foreign", true))
+            File(context.filesDir, "maestro-request.json").writeText(controlRequest(owner, "remote-update").toString())
+
+            coordinator.consumeRequest()
+
+            assertFailure("member_mismatch")
+            assertPreserved()
+            coVerify(exactly = 1) { authManager.refreshAccessToken() }
+            coVerify(exactly = 1) { api.getIsRegistered() }
+            coVerify(exactly = 0) { exerciseCases.control(any(), any(), any(), any()) }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `세션 정리는 저장된 자격 증명으로 승인 대기 경계를 우회하지 않는다`() =
+        runTest {
+            val owner = extendedOwner("offline-session-adoption")
+            current = authorizedState()
+            loginSession.beginLogin()
+            val boundary = preferences.getPendingLogin()
+            val snapshot = File(context.filesDir, "maestro-offline-state.json").readBytes()
+            coEvery { sessionCases.requireSafeCleanup(any(), any(), any()) } throws
+                MaestroSetupFailure("offline_session_cleanup_unsafe")
+            writeCleanup(owner)
+
+            coordinator.consumeRequest()
+
+            assertFailure("offline_session_cleanup_unsafe")
+            assertThat(preferences.getPendingLogin()).isEqualTo(boundary)
+            assertThat(preferences.getRetainedMemberId()).isEqualTo(MEMBER)
+            assertThat(File(context.filesDir, "maestro-offline-state.json").readBytes()).isEqualTo(snapshot)
+            assertThat(recoveryFile.readBytes()).isEqualTo(recoveryBytes)
+            coVerify(exactly = 0) { authManager.refreshAccessToken() }
+            coVerify(exactly = 0) { exerciseCases.cleanup(any(), any(), any()) }
+            verify(exactly = 0) { stateManager.update(any<AuthorizationResponse>(), any()) }
+            verify(exactly = 0) { stateManager.update(any<TokenResponse>(), any()) }
+            assertNoFixtureCalls()
+        }
+
+    private fun extendedOwner(flow: String): MaestroFeatureRequest {
+        val owner = feature.copy(flow = flow)
+        protocol.completeFeatureRecovery()
+        protocol.markFeatureRecovery(owner)
+        recoveryBytes = recoveryFile.readBytes()
+        val file = File(context.filesDir, "maestro-offline-state.json")
+        file.writeText(JSONObject(file.readText()).put("flow", flow).toString())
+        return owner
+    }
+
+    private fun controlRequest(
+        owner: MaestroFeatureRequest,
+        action: String,
+    ): JSONObject =
+        JSONObject()
+            .put("operation", "offline-control")
+            .put("memberId", owner.memberId)
+            .put("feature", owner.feature)
+            .put("flow", owner.flow)
+            .put("runId", owner.runId)
+            .put("parameters", JSONObject(owner.parameters.toString()))
+            .put("action", action)
 
     private fun exerciseOwner(): MaestroFeatureRequest {
         val owner = feature.copy(flow = "offline-exercise-create")
