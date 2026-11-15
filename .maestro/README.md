@@ -76,6 +76,22 @@ python3 .maestro/scripts/run-tests.py --device emulator-5554 \
 
 호스트는 `status=failed`일 때만 `reason`과 `cleanupFailures`를 해석합니다. 공통 `discovery_failed`, `refresh_failed`, `fixture_read_failed`, `fixture_delete_failed`, `member_mismatch`, `untrusted_session`, `dev_configuration_missing`, `private_file_failed`, `local_session_clear_failed`, `setup_failed`는 작업/기능과 무관하게 `bootstrap-<operation>-failed-<분류>`로 전달합니다. 등록 분류는 기존 `registration`, `registration-unregistered`, `registration-response-missing`, `registration-member-id-missing`, `registration-authentication-failed`, `registration-user-id-header-missing`, `registration-business-error`, `registration-network-error`, `registration-network-timeout`, `registration-parse-error`, `registration-unknown`, `registration-http-100`–`registration-http-599`를 유지합니다. secondary는 `bootstrap-<operation>-secondary-private-file`/`bootstrap-<operation>-secondary-local-session-clear`이며 최초 실패와 별개로 JUnit/console에 남깁니다. 배열 밖 값·알 수 없는 코드·접미사/개행이 붙은 문자열은 공개하지 않습니다. 알 수 없는 최초 reason은 `bootstrap-<operation>-failed`로 남기며 기능 전용 reason의 기존 작업/기능 제한은 유지합니다. HTTP·네트워크 분류만으로 실제 인증 실패의 근본 원인을 확정하지 않습니다.
 
+토큰 갱신 실패는 아래 고정 분류로 구분합니다. `bootstrap-<operation>-failed-` 뒤에 붙으며 prepare와 cleanup 모두 같은 규칙을 사용합니다. AppAuth의 **type+code**만 판정하고 오류 설명·원인 예외·응답 원문은 공개하지 않습니다. 기존 `refresh`만 기록된 실행에서는 세부 원인을 소급해서 알 수 없습니다.
+
+| 갱신 분류 | 의미와 확인할 항목 |
+| --- | --- |
+| `refresh-token-missing` | 복원된 상태에 refresh token이 없음. 전용 계정의 세션 내보내기 확인 |
+| `refresh-configuration-missing` | 복원된 상태에 토큰 요청 설정이 없음. AppAuth 세션 내보내기 확인 |
+| `refresh-invalid-grant` | 인증 제공자가 갱신 자격 증명을 거절함. 만료·철회·회전 여부를 확인하고 필요하면 아래 절차로 재로그인·재내보내기 |
+| `refresh-invalid-client` / `refresh-unauthorized-client` | 클라이언트 인증 또는 해당 갱신 방식이 허용되지 않음. DEV 앱 클라이언트 설정과 내보낸 세션의 일치 여부 확인 |
+| `refresh-network` | AppAuth가 네트워크 오류로 분류함. 러너에서 인증 엔드포인트까지의 연결 확인; 이 코드만으로 DNS·TLS·시간 초과를 구별할 수 없음 |
+| `refresh-server` | AppAuth가 인증 엔드포인트 응답을 서버 오류로 분류함. 인증 서비스 상태·응답 확인; 앱 API 장애로 단정하지 않음 |
+| `refresh-response-invalid` | 토큰 응답 또는 ID 토큰의 파싱·검증 실패. 인증 제공자 응답 계약 확인 |
+| `refresh-state-invalid` | 성공 콜백 뒤에도 저장된 인가 상태 또는 ID/refresh 토큰이 유효하지 않음. 갱신 상태 저장 경로 확인 |
+| `refresh` | null 또는 분류되지 않은 SDK 오류. 토큰 만료나 네트워크 장애로 단정하지 않음 |
+
+분류는 진단만 바꾸며 인증 실패를 통과시키거나 자동으로 다시 로그인하지 않습니다. 안전한 cleanup까지 실패하면 기존대로 원본·복구 상태를 보존하고 후속 플로우를 중단합니다. 비밀을 갱신할 때도 로그·PR·이슈·채팅에 토큰을 붙이지 않습니다.
+
 기능 cleanup의 추가 진단은 **`operation=cleanup`과 해당 `feature`가 모두 일치할 때만** `bootstrap-cleanup-failed-<분류>`로 전달합니다. bootstrap 변환과 정리 보고서 필터는 같은 exact allowlist를 사용합니다. 현재 앱 cleanup과 도달 가능한 helper에서 외부로 전달하는 범위만 지원합니다.
 
 | feature | 지원하는 고정 정리 분류 |

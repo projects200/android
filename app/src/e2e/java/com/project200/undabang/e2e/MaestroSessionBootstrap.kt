@@ -10,6 +10,7 @@ import com.project200.undabang.oauth.TokenRefreshResult
 import com.project200.undabang.oauth.config.CognitoConfig
 import kotlinx.coroutines.suspendCancellableCoroutine
 import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationServiceConfiguration
 import net.openid.appauth.ResponseTypeValues
 import net.openid.appauth.TokenResponse
@@ -126,14 +127,32 @@ internal class MaestroSessionBootstrap
 
         private suspend fun refresh() {
             // 만료 시각이나 가져온 ID 토큰을 믿지 않고 실제 DEV 서버에서 새 토큰을 발급받습니다
-            if (authManager.refreshAccessToken() !is TokenRefreshResult.Success) {
-                throw MaestroSetupFailure("refresh_failed")
+            when (val result = authManager.refreshAccessToken()) {
+                is TokenRefreshResult.Success -> Unit
+                TokenRefreshResult.NoRefreshToken -> throw MaestroSetupFailure("refresh_token_missing")
+                TokenRefreshResult.ConfigError -> throw MaestroSetupFailure("refresh_configuration_missing")
+                is TokenRefreshResult.Error -> throw MaestroSetupFailure(refreshFailureReason(result.exception))
             }
             val current = authStateManager.getCurrent()
             if (!current.isAuthorized || current.idToken.isNullOrBlank() || current.refreshToken.isNullOrBlank()) {
-                throw MaestroSetupFailure("refresh_failed")
+                throw MaestroSetupFailure("refresh_state_invalid")
             }
         }
+
+        private fun refreshFailureReason(exception: AuthorizationException?): String =
+            when (exception) {
+                AuthorizationException.TokenRequestErrors.INVALID_GRANT -> "refresh_invalid_grant"
+                AuthorizationException.TokenRequestErrors.INVALID_CLIENT -> "refresh_invalid_client"
+                AuthorizationException.TokenRequestErrors.UNAUTHORIZED_CLIENT -> "refresh_unauthorized_client"
+                AuthorizationException.GeneralErrors.NETWORK_ERROR -> "refresh_network_error"
+                AuthorizationException.GeneralErrors.SERVER_ERROR -> "refresh_server_error"
+                AuthorizationException.GeneralErrors.JSON_DESERIALIZATION_ERROR,
+                AuthorizationException.GeneralErrors.TOKEN_RESPONSE_CONSTRUCTION_ERROR,
+                AuthorizationException.GeneralErrors.ID_TOKEN_PARSING_ERROR,
+                AuthorizationException.GeneralErrors.ID_TOKEN_VALIDATION_ERROR,
+                -> "refresh_response_invalid"
+                else -> "refresh_failed"
+            }
 
         private suspend fun refreshAndVerify(expectedMemberId: String?): String {
             refresh()

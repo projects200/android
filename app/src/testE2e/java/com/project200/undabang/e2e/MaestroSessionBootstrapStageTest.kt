@@ -38,6 +38,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationServiceConfiguration
@@ -202,13 +203,54 @@ class MaestroSessionBootstrapStageTest {
     @Test
     fun `authentication failure leaves pending boundary and original owner files intact`() =
         runTest {
-            coEvery { manager.refreshAccessToken() } returns TokenRefreshResult.NoRefreshToken
-            val failure = runCatching { bootstrap.stagePendingLogin(authorizedState(), "member-b", "member-a") }.exceptionOrNull()
-            assertThat((failure as MaestroSetupFailure).reason).isEqualTo("refresh_failed")
-            assertThat(preferences.getPendingLogin()).isNotNull()
-            assertThat(preferences.getMemberId()).isNull()
-            coVerify(exactly = 0) { api.getIsRegistered() }
-            assertPreserved()
+            for ((result, reason) in listOf(
+                TokenRefreshResult.NoRefreshToken to "refresh_token_missing",
+                TokenRefreshResult.ConfigError to "refresh_configuration_missing",
+                TokenRefreshResult.Error(null) to "refresh_failed",
+                TokenRefreshResult.Error(hostileException(AuthorizationException.TokenRequestErrors.OTHER)) to "refresh_failed",
+            )) {
+                coEvery { manager.refreshAccessToken() } returns result
+                assertStagingFailure(reason)
+            }
+        }
+
+    @Test
+    fun `refresh errors use SDK type and code without exposing hostile exception details`() =
+        runTest {
+            for ((template, reason) in listOf(
+                AuthorizationException.TokenRequestErrors.INVALID_GRANT to "refresh_invalid_grant",
+                AuthorizationException.TokenRequestErrors.INVALID_CLIENT to "refresh_invalid_client",
+                AuthorizationException.TokenRequestErrors.UNAUTHORIZED_CLIENT to "refresh_unauthorized_client",
+                AuthorizationException.GeneralErrors.NETWORK_ERROR to "refresh_network_error",
+                AuthorizationException.GeneralErrors.SERVER_ERROR to "refresh_server_error",
+                AuthorizationException.GeneralErrors.JSON_DESERIALIZATION_ERROR to "refresh_response_invalid",
+                AuthorizationException.GeneralErrors.TOKEN_RESPONSE_CONSTRUCTION_ERROR to "refresh_response_invalid",
+                AuthorizationException.GeneralErrors.ID_TOKEN_PARSING_ERROR to "refresh_response_invalid",
+                AuthorizationException.GeneralErrors.ID_TOKEN_VALIDATION_ERROR to "refresh_response_invalid",
+            )) {
+                coEvery { manager.refreshAccessToken() } returns TokenRefreshResult.Error(hostileException(template))
+                assertStagingFailure(reason)
+
+                val wrongType =
+                    if (template.type == AuthorizationException.TYPE_GENERAL_ERROR) {
+                        AuthorizationException.TYPE_OAUTH_TOKEN_ERROR
+                    } else {
+                        AuthorizationException.TYPE_GENERAL_ERROR
+                    }
+                coEvery { manager.refreshAccessToken() } returns TokenRefreshResult.Error(hostileException(template, wrongType))
+                assertStagingFailure("refresh_failed")
+            }
+        }
+
+    @Test
+    fun `successful refresh response cannot open pending gate with invalid persisted state`() =
+        runTest {
+            coEvery { manager.refreshAccessToken() } coAnswers {
+                val response = checkNotNull(current.lastTokenResponse)
+                current = AuthState()
+                TokenRefreshResult.Success(response)
+            }
+            assertStagingFailure("refresh_state_invalid")
         }
 
     @Test
@@ -290,6 +332,33 @@ class MaestroSessionBootstrapStageTest {
                 context.deleteDatabase(name)
             }
         }
+
+    private suspend fun assertStagingFailure(reason: String) {
+        val failure = runCatching { bootstrap.stagePendingLogin(authorizedState(), "member-b", "member-a") }.exceptionOrNull()
+        assertThat(failure).isInstanceOf(MaestroSetupFailure::class.java)
+        assertThat((failure as MaestroSetupFailure).reason).isEqualTo(reason)
+        assertThat(failure.message).isEqualTo(reason)
+        assertThat(failure.cause).isNull()
+        assertThat(preferences.getPendingLogin()).isNotNull()
+        assertThat(preferences.getPendingLogin()?.targetMemberId).isNull()
+        assertThat(preferences.getPendingLogin()?.confirmationId).isNull()
+        assertThat(preferences.getMemberId()).isNull()
+        coVerify(exactly = 0) { api.getIsRegistered() }
+        assertPreserved()
+    }
+
+    private fun hostileException(
+        template: AuthorizationException,
+        type: Int = template.type,
+    ): AuthorizationException =
+        AuthorizationException(
+            type,
+            template.code,
+            "invalid_grant",
+            "invalid_client unauthorized_client network server private-token private-member",
+            Uri.parse("https://private.example.test/private-token"),
+            IllegalStateException("private-cause private-token"),
+        )
 
     private fun assertPreserved() {
         assertThat(preferences.getRetainedMemberId()).isEqualTo("member-a")

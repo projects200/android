@@ -39,6 +39,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import net.openid.appauth.AuthState
+import net.openid.appauth.AuthorizationException
 import net.openid.appauth.AuthorizationRequest
 import net.openid.appauth.AuthorizationResponse
 import net.openid.appauth.AuthorizationServiceConfiguration
@@ -369,7 +370,7 @@ class MaestroOfflineRecoveryTest {
             coEvery { authManager.refreshAccessToken() } returns TokenRefreshResult.NoRefreshToken
             writeCleanup()
             coordinator.consumeRequest()
-            assertFailure("refresh_failed")
+            assertFailure("refresh_token_missing")
             assertPreserved()
 
             coEvery { authManager.refreshAccessToken() } throws CancellationException("private diagnostic")
@@ -382,18 +383,57 @@ class MaestroOfflineRecoveryTest {
         }
 
     @Test
-    fun `갱신 성공 응답만 있고 현재 토큰이 쓸 수 없으면 등록이나 삭제를 하지 않는다`() =
+    fun `갱신 네트워크 오류는 비공개 상세 없이 구분하고 복구와 회원 경계를 보존한다`() =
         runTest {
-            coEvery { authManager.refreshAccessToken() } coAnswers {
-                current = AuthState()
-                TokenRefreshResult.Success(checkNotNull(savedState.lastTokenResponse))
-            }
+            val template = AuthorizationException.GeneralErrors.NETWORK_ERROR
+            val exception =
+                AuthorizationException(
+                    template.type,
+                    template.code,
+                    "invalid_grant",
+                    "private-token private-member",
+                    Uri.parse("https://private.example.test/private-token"),
+                    IOException("private-cause private-token"),
+                )
+            coEvery { authManager.refreshAccessToken() } returns TokenRefreshResult.Error(exception)
             writeCleanup()
 
             coordinator.consumeRequest()
 
-            assertFailure("refresh_failed")
+            assertFailure("refresh_network_error")
+            val output = result()
+            assertThat(output.length()).isEqualTo(3)
+            assertThat(output.getJSONArray("cleanupFailures").length()).isEqualTo(0)
             assertPreserved()
+            coVerify(exactly = 0) { api.getIsRegistered() }
+            coVerify(exactly = 0) { dataCleaner.clearForAccountAdoption(any(), any(), any()) }
+            assertNoFixtureCalls()
+        }
+
+    @Test
+    fun `갱신 성공 응답만 있고 현재 토큰이 쓸 수 없으면 등록이나 삭제를 하지 않는다`() =
+        runTest {
+            val authorization = checkNotNull(savedState.lastAuthorizationResponse)
+            val invalidStates =
+                listOf(AuthState()) +
+                    listOf(null to "refreshed-token", " " to "refreshed-token", jwt() to null, jwt() to " ").map { (id, refresh) ->
+                        AuthState().apply {
+                            update(authorization, null)
+                            update(tokens(authorization, refresh, id), null)
+                        }
+                    }
+            for (invalid in invalidStates) {
+                coEvery { authManager.refreshAccessToken() } coAnswers {
+                    current = invalid
+                    TokenRefreshResult.Success(checkNotNull(savedState.lastTokenResponse))
+                }
+                writeCleanup()
+
+                coordinator.consumeRequest()
+
+                assertFailure("refresh_state_invalid")
+                assertPreserved()
+            }
             coVerify(exactly = 0) { api.getIsRegistered() }
             assertNoFixtureCalls()
         }
@@ -1026,12 +1066,13 @@ class MaestroOfflineRecoveryTest {
 
     private fun tokens(
         response: AuthorizationResponse,
-        refreshToken: String,
+        refreshToken: String?,
+        idToken: String? = jwt(),
     ): TokenResponse =
         TokenResponse.Builder(response.createTokenExchangeRequest())
             .setTokenType("Bearer")
             .setAccessToken("test-access-token")
-            .setIdToken(jwt())
+            .setIdToken(idToken)
             .setRefreshToken(refreshToken)
             .build()
 
