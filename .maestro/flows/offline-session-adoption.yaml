@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 다른 계정 채택 취소·승인과 계정 간 전송 격리
+---
+- runFlow: ../offline/dispatch.yaml

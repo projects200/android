@@ -1,0 +1,13 @@
+appId: com.project200.undabang
+---
+- extendedWaitUntil:
+    visible:
+      id: exercise_body_retry
+    timeout: 30000
+- assertVisible:
+    id: exercise_body_failure
+- assertVisible:
+    id: exercise_body_retry
+- assertVisible:
+    id: exercise_detail_description
+    text: ${RECORD_DESCRIPTION}

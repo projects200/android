@@ -1,0 +1,16 @@
+appId: com.project200.undabang
+---
+# No scroll/date selection/refresh here: this must remain the same visible row and date.
+- assertVisible:
+    id: exercise_list_rv
+    text: "${EXERCISE_START_DATE.split('.').join('-') + ' 운동 기록 목록'}"
+- assertVisible:
+    id: exercise_title_tv
+    text: ${RECORD_TITLE}
+- assertVisible:
+    id: exercise_list_cl
+    containsDescendants:
+      - id: exercise_title_tv
+        text: ${RECORD_TITLE}
+      - id: exercise_time_tv
+        text: "${EXERCISE_START_HOUR + ':' + START_MINUTE + ' ~ ' + EXERCISE_END_HOUR + ':00'}"

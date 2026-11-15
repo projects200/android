@@ -621,6 +621,152 @@ class SessionTransportTests(unittest.TestCase):
             self.assertIn(code, failure.get("message"))
         self.assertNotIn(SYNTHETIC_SECRET, (self.host / "report.xml").read_text())
 
+    def test_refresh_prepare_and_cleanup_categories_independently_reach_report(self):
+        self.transport.pending_sleeps = 0
+        self.device.clear = mock.Mock()
+        cases = (
+            ("refresh_token_missing", "refresh-token-missing"),
+            ("refresh_configuration_missing", "refresh-configuration-missing"),
+            ("refresh_invalid_grant", "refresh-invalid-grant"),
+            ("refresh_invalid_client", "refresh-invalid-client"),
+            ("refresh_unauthorized_client", "refresh-unauthorized-client"),
+            ("refresh_network_error", "refresh-network"),
+            ("refresh_server_error", "refresh-server"),
+            ("refresh_response_invalid", "refresh-response-invalid"),
+            ("refresh_state_invalid", "refresh-state-invalid"),
+            ("refresh_failed", "refresh"),
+        )
+        for (prepare_reason, prepare_suffix), (cleanup_reason, cleanup_suffix) in zip(
+            cases, cases[1:] + cases[:1],
+        ):
+            with self.subTest(prepare=prepare_reason, cleanup=cleanup_reason):
+                self.device.clear.reset_mock()
+
+                def publish():
+                    operation = json.loads(self.transport.request_bytes)["operation"]
+                    self.transport.result = json.dumps({
+                        "status": "failed",
+                        "reason": prepare_reason if operation == "prepare" else cleanup_reason,
+                        "cleanupFailures": ["private_file_failed", "local_session_clear_failed"],
+                        "token": SYNTHETIC_SECRET, "memberId": CREDENTIALS["memberId"],
+                        "errorDescription": SYNTHETIC_SECRET, "errorUri": SYNTHETIC_SECRET,
+                        "cause": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.transport.publish()
+
+                self.transport.on_publish = publish
+                published = io.StringIO()
+                with mock.patch.object(runner, "run_maestro") as run_maestro:
+                    with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                        result, safe = runner.run_ordinary_flow(
+                            SimpleNamespace(flow_timeout=10), self.device,
+                            {"name": "offline", "fixture": True}, "offline-exercise-create",
+                            self.host, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+                        )
+                self.assertFalse(safe)
+                self.device.clear.assert_called_once_with()
+                run_maestro.assert_not_called()
+                expected = [
+                    "bootstrap-prepare-failed-" + prepare_suffix,
+                    "bootstrap-prepare-secondary-private-file",
+                    "bootstrap-prepare-secondary-local-session-clear",
+                    "fixture-cleanup-failed",
+                    "bootstrap-cleanup-failed-" + cleanup_suffix,
+                    "bootstrap-cleanup-secondary-private-file",
+                    "bootstrap-cleanup-secondary-local-session-clear",
+                    "private-state-preserved-for-recovery",
+                ]
+                self.assertEqual(result[2], expected)
+                self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), self.transport.result)
+                runner.write_report(self.host, [result])
+                report = (self.host / "report.xml").read_text(encoding="utf-8")
+                failure = runner.ET.fromstring(report).find("testcase/failure")
+                self.assertEqual(failure.get("message"), "; ".join(expected))
+                self.assertEqual(failure.text, "; ".join(expected))
+                self.assertNotIn(SYNTHETIC_SECRET, report)
+                self.assertNotIn(CREDENTIALS["memberId"], report)
+                self.assertEqual(published.getvalue(), "")
+
+    def test_refresh_unknown_malformed_and_nonfailed_reasons_stay_generic_in_report(self):
+        self.transport.pending_sleeps = 0
+        reasons = (
+            "refresh_unknown_error-" + SYNTHETIC_SECRET,
+            SYNTHETIC_SECRET,
+            "refresh_invalid_grant-" + SYNTHETIC_SECRET,
+            "refresh_network_error\n" + SYNTHETIC_SECRET,
+            "refresh_server_error\n", " refresh_state_invalid", "REFRESH_INVALID_CLIENT",
+            {"code": "refresh_invalid_grant", "private": SYNTHETIC_SECRET},
+            ["refresh_response_invalid", SYNTHETIC_SECRET],
+            None, 7, True,
+        )
+        for operation, wrong_status in (("prepare", "cleaned"), ("cleanup", "ready")):
+            cases = (
+                *(("failed", reason) for reason in reasons),
+                (wrong_status, "refresh_invalid_grant"),
+                ("unknown", "refresh_network_error"),
+                (None, "refresh_state_invalid"),
+            )
+            for index, (status, reason) in enumerate(cases):
+                with self.subTest(operation=operation, case=index):
+                    payload = json.dumps({
+                        "status": status, "reason": reason,
+                        "token": SYNTHETIC_SECRET, "memberId": CREDENTIALS["memberId"],
+                        "message": SYNTHETIC_SECRET, "errorUri": SYNTHETIC_SECRET,
+                    }).encode("utf-8")
+                    self.transport.result = payload
+                    published = io.StringIO()
+                    with contextlib.redirect_stdout(published), contextlib.redirect_stderr(published):
+                        with self.assertRaises(runner.BootstrapFailure) as caught:
+                            self.device.bootstrap(operation, CREDENTIALS)
+                    expected = ["bootstrap-" + operation + "-failed"]
+                    self.assertEqual(runner.failure_codes(caught.exception), expected)
+                    if operation == "cleanup":
+                        self.assertEqual(runner.safe_cleanup_failure_codes(caught.exception), expected)
+                    self.assertNotIn(SYNTHETIC_SECRET, str(caught.exception.__dict__))
+                    self.assertEqual((self.transport.root / runner.RESULT).read_bytes(), payload)
+                    runner.write_report(self.host, [("smoke-tabs", 0, runner.failure_codes(caught.exception))])
+                    report = (self.host / "report.xml").read_text(encoding="utf-8")
+                    failure = runner.ET.fromstring(report).find("testcase/failure")
+                    self.assertEqual(failure.get("message"), expected[0])
+                    self.assertEqual(failure.text, expected[0])
+                    self.assertNotIn(SYNTHETIC_SECRET, report)
+                    self.assertNotIn(CREDENTIALS["memberId"], report)
+                    self.assertEqual(published.getvalue(), "")
+
+    def test_refresh_cleanup_failure_preserves_original_maestro_error_in_report(self):
+        self.transport.pending_sleeps = 0
+        self.device.clear = mock.Mock()
+
+        def publish():
+            operation = json.loads(self.transport.request_bytes)["operation"]
+            self.transport.result = json.dumps({
+                "status": "ready" if operation == "prepare" else "failed",
+                "reason": "refresh_invalid_grant" if operation == "prepare" else "refresh_network_error",
+                "message": SYNTHETIC_SECRET, "memberId": CREDENTIALS["memberId"],
+            }).encode("utf-8")
+            self.transport.publish()
+
+        self.transport.on_publish = publish
+        with mock.patch.object(runner, "run_maestro", side_effect=runner.RunnerFailure("maestro-flow-failed")):
+            result, safe = runner.run_ordinary_flow(
+                SimpleNamespace(flow_timeout=10), self.device, {"name": None, "fixture": False},
+                "smoke-tabs", self.host, runner.Redactor(CREDENTIALS), CREDENTIALS, {}, None,
+            )
+        expected = [
+            "maestro-flow-failed", "fixture-cleanup-failed",
+            "bootstrap-cleanup-failed-refresh-network", "private-state-preserved-for-recovery",
+        ]
+        self.assertFalse(safe)
+        self.device.clear.assert_called_once_with()
+        self.assertEqual(result[2], expected)
+        runner.write_report(self.host, [result])
+        report = (self.host / "report.xml").read_text(encoding="utf-8")
+        failure = runner.ET.fromstring(report).find("testcase/failure")
+        self.assertEqual(failure.get("message"), "; ".join(expected))
+        self.assertEqual(failure.text, "; ".join(expected))
+        self.assertNotIn(SYNTHETIC_SECRET, report)
+        self.assertNotIn(CREDENTIALS["memberId"], report)
+
     def test_feature_cleanup_details_reach_report_with_initial_failure_and_private_evidence(self):
         self.transport.pending_sleeps = 0
         self.device.clear = mock.Mock()

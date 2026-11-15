@@ -7,7 +7,7 @@ kotlin = "1.9.23"
 ksp = "1.9.23-1.0.19"
 
 # Compose
-composeBom = "2024.02.02"
+composeBom = "2024.09.01"
 composeCompiler = "1.5.13"  # Kotlin 1.9.23 호환 필수
 compileSdk = "36"
 minSdk = "26"

@@ -1,0 +1,33 @@
+appId: com.project200.undabang
+---
+# Geometry was compared before these scrolls. Now check the remaining frozen fields.
+- scrollUntilVisible:
+    element:
+      id: exercise_title_input
+    direction: UP
+    timeout: 20000
+- assertVisible:
+    id: exercise_title_input
+    text: ${RECORD_TITLE}
+- scrollUntilVisible:
+    element:
+      id: exercise_start_date
+    direction: DOWN
+    timeout: 20000
+- assertVisible:
+    id: exercise_start_date
+    text: ${EXERCISE_START_DATE.split('.').join('[.]')}
+- assertVisible:
+    id: exercise_end_date
+    text: ${EXERCISE_END_DATE.split('.').join('[.]')}
+- assertVisible:
+    id: exercise_start_time
+    text: ${EXERCISE_START_HOUR + ':' + START_MINUTE}
+- assertVisible:
+    id: exercise_end_time
+    text: ${EXERCISE_END_HOUR + ':00'}
+- tapOn: 뒤로가기
+- extendedWaitUntil:
+    visible:
+      id: exercise_detail_menu
+    timeout: 30000

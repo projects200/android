@@ -1,0 +1,66 @@
+appId: com.project200.undabang
+---
+- tapOn:
+    id: exercise_detail_menu
+- tapOn: 수정하기
+- extendedWaitUntil:
+    visible:
+      id: exercise_title_input
+    timeout: 30000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: exercise_title_input
+- inputText: ${EDITED_EXERCISE_TITLE}
+- hideKeyboard
+- runFlow:
+    file: ../subflows/set-exercise-time.yaml
+    env:
+      TIME_BUTTON: exercise_start_time
+      TIME_HOUR: ${EXERCISE_START_HOUR}
+      TIME_MINUTE: "05"
+- scrollUntilVisible:
+    element:
+      id: exercise_description_input
+    direction: DOWN
+    timeout: 20000
+- runFlow:
+    file: ../subflows/timer-clear-text.yaml
+    env:
+      FIELD_ID: exercise_description_input
+- inputText: ${EXERCISE_EDITED_DESCRIPTION}
+- hideKeyboard
+- assertVisible:
+    id: exercise_description_input
+    text: ${EXERCISE_EDITED_DESCRIPTION}
+- runFlow:
+    when:
+      true: ${typeof REPLACE_PHOTO !== 'undefined' && REPLACE_PHOTO === 'true'}
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: exercise_form_remove_photo
+          direction: DOWN
+          timeout: 20000
+      - tapOn:
+          id: exercise_form_remove_photo
+      - assertVisible:
+          id: exercise_form_photos_count_0
+      - tapOn:
+          id: exercise_form_add_photo
+      - runFlow:
+          file: pick-photo.yaml
+          env:
+            IMAGE_SELECTOR: ${PHOTO_B_SELECTOR}
+- tapOn:
+    id: exercise_complete
+- extendedWaitUntil:
+    visible:
+      id: exercise_detail_menu
+    timeout: 30000
+- runFlow:
+    file: assert-detail.yaml
+    env:
+      RECORD_TITLE: ${EDITED_EXERCISE_TITLE}
+      RECORD_DESCRIPTION: ${EXERCISE_EDITED_DESCRIPTION}
+      START_MINUTE: "05"

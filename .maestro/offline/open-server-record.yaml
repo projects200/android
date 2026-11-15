@@ -1,0 +1,14 @@
+appId: com.project200.undabang
+---
+# A is restored through LoginActivity. Query its real server body through production UI.
+- tapOn:
+    id: exercise_nav_graph
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow:
+    file: assert-exercise-record.yaml
+    env:
+      RECORD_TITLE: ${EXERCISE_TITLE}
+      START_MINUTE: "00"

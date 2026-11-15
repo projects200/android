@@ -1,0 +1,8 @@
+appId: com.project200.undabang
+---
+- extendedWaitUntil:
+    visible: 다른 계정으로 계속하시겠어요[?]
+    timeout: 60000
+- assertVisible: 이전에 사용한 계정의 아직 전송하지 않은 운동.*
+- assertVisible: 기기 데이터 삭제 후 계속
+- assertVisible: 취소

@@ -62,6 +62,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Record resolved Compose Foundation dependencies
+        if: env.VALIDATION_ONLY == 'true'
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/ci
+          ./gradlew --no-daemon --console=plain :feature:exercise:dependencyInsight \
+            --dependency androidx.compose.foundation:foundation --configuration debugCompileClasspath \
+            2>&1 | tee build/ci/compose-compile-tasks.log
+          ./gradlew --no-daemon --console=plain :app:dependencyInsight \
+            --dependency androidx.compose.foundation:foundation --configuration e2eRuntimeClasspath \
+            2>&1 | tee build/ci/compose-runtime-tasks.log
+
       - name: Run test-only validation without distribution or deployment
         id: validation
         if: env.VALIDATION_ONLY == 'true'
@@ -69,7 +82,9 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p build/ci
+          # 통합 검사와 두 APK 패키징을 수행하는 빌드 JVM에만 힙 여유를 준다.
           ./gradlew --no-daemon --stacktrace --console=plain --continue \
+            '-Dorg.gradle.jvmargs=-Xmx4096m -Dfile.encoding=UTF-8' \
             lintDebug ktlintCheck testDebugUnitTest :domain:test \
             jacocoLogicReport jacocoLogicCoverageVerification assembleDebug \
             :app:lintE2e :app:testE2eUnitTest :app:assembleE2e \

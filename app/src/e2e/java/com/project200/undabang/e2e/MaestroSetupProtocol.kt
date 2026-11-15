@@ -14,6 +14,8 @@ import javax.inject.Inject
 internal sealed interface MaestroSetupRequest {
     val preserveLocalDataOnFailure: Boolean
         get() = false
+    val preserveSessionOnFailure: Boolean
+        get() = false
 
     data object Export : MaestroSetupRequest
 
@@ -26,6 +28,8 @@ internal sealed interface MaestroSetupRequest {
     ) : MaestroSetupRequest {
         override val preserveLocalDataOnFailure: Boolean
             get() = featureRequest?.feature in setOf("offline", "timer")
+        override val preserveSessionOnFailure: Boolean
+            get() = featureRequest?.let { MaestroOfflineFixtures.isExtendedRequest(it) } == true
     }
 
     data class OfflineObservation(
@@ -35,6 +39,8 @@ internal sealed interface MaestroSetupRequest {
         val featureRequest: MaestroFeatureRequest,
     ) : MaestroSetupRequest {
         override val preserveLocalDataOnFailure: Boolean = true
+        override val preserveSessionOnFailure: Boolean
+            get() = MaestroOfflineFixtures.isExtendedRequest(featureRequest)
     }
 
     data class FeatureObservation(
@@ -43,6 +49,18 @@ internal sealed interface MaestroSetupRequest {
         val featureRequest: MaestroFeatureRequest,
     ) : MaestroSetupRequest {
         override val preserveLocalDataOnFailure: Boolean = true
+        override val preserveSessionOnFailure: Boolean
+            get() = MaestroOfflineFixtures.isExtendedRequest(featureRequest)
+    }
+
+    data class OfflineControl(
+        val featureRequest: MaestroFeatureRequest,
+        val action: String,
+        val authState: AuthState? = null,
+        val targetMemberId: String? = null,
+    ) : MaestroSetupRequest {
+        override val preserveLocalDataOnFailure: Boolean = true
+        override val preserveSessionOnFailure: Boolean = true
     }
 }
 
@@ -103,6 +121,50 @@ internal class MaestroSetupProtocol
                                 } else {
                                     null
                                 },
+                        )
+                    }
+                    "offline-control" -> {
+                        val action = json.get("action") as? String ?: throw MaestroSetupFailure("invalid_request")
+                        if (action !in MaestroOfflineFixtures.CONTROL_ACTIONS) throw MaestroSetupFailure("invalid_request")
+                        val login = action in MaestroOfflineFixtures.LOGIN_ACTIONS
+                        requireKeys(
+                            json,
+                            setOf("operation", "memberId", "feature", "flow", "runId", "parameters", "action") +
+                                if (login) setOf("authState", "targetMemberId") else emptySet(),
+                        )
+                        val memberId = json.get("memberId") as? String
+                        val feature = json.get("feature") as? String
+                        val flow = json.get("flow") as? String
+                        val runId = json.get("runId") as? String
+                        if (memberId.isNullOrBlank() || feature == null || flow == null || runId == null) {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
+                        val request = MaestroFeatureRequest(feature, flow, runId, memberId, json.getJSONObject("parameters"))
+                        MaestroOfflineFixtures.run(request)
+                        if (
+                            request.parameters.has("stage") || !MaestroOfflineFixtures.isExtendedRequest(request) ||
+                            (action in MaestroOfflineSessionCases.CONTROL_ACTIONS && !MaestroOfflineFixtures.isSessionRequest(request))
+                        ) {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
+                        val target =
+                            if (login) {
+                                (json.get("targetMemberId") as? String)?.takeIf { it.isNotBlank() }
+                                    ?: throw MaestroSetupFailure("invalid_request")
+                            } else {
+                                null
+                            }
+                        if (
+                            (action == "stage-primary-login" && target != memberId) ||
+                            (action == "stage-peer-login" && (target == memberId || flow != "offline-session-adoption"))
+                        ) {
+                            throw MaestroSetupFailure("invalid_request")
+                        }
+                        MaestroSetupRequest.OfflineControl(
+                            request,
+                            action,
+                            if (login) AuthState.jsonDeserialize(json.getJSONObject("authState")) else null,
+                            target,
                         )
                     }
                     "feature-observe" -> {

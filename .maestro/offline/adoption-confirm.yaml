@@ -1,0 +1,5 @@
+appId: com.project200.undabang
+---
+- runFlow: adoption-pending.yaml
+- tapOn: 기기 데이터 삭제 후 계속
+- runFlow: login-ready.yaml

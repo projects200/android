@@ -1,0 +1,33 @@
+appId: com.project200.undabang
+---
+- runFlow:
+    when:
+      visible:
+        id: exercise_detail_menu
+    commands:
+      - tapOn: 뒤로가기
+- runFlow:
+    when:
+      notVisible: 설정
+    commands:
+      - tapOn:
+          id: profile_nav_graph
+      - extendedWaitUntil:
+          visible:
+            id: setting_btn
+          timeout: 30000
+      - tapOn:
+          id: setting_btn
+- extendedWaitUntil:
+    visible: 설정
+    timeout: 30000
+- tapOn: 로그아웃
+- extendedWaitUntil:
+    visible: 정말 로그아웃 하시겠어요[?]
+    timeout: 10000
+- assertVisible: 아직 전송하지 않은 운동.*
+- tapOn: 로그아웃
+- extendedWaitUntil:
+    visible:
+      id: google_login_btn
+    timeout: 60000

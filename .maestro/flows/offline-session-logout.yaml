@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 미전송 사진·본문의 명시적 로그아웃 취소·승인
+---
+- runFlow: ../offline/dispatch.yaml

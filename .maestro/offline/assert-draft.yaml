@@ -1,0 +1,11 @@
+appId: com.project200.undabang
+---
+# Do not scroll or re-open the form after Worker completion.
+- assertVisible:
+    id: exercise_description_input
+    text: ${EXERCISE_EDITED_DESCRIPTION + '-unsaved'}
+- assertVisible:
+    id: exercise_complete
+- assertNotVisible:
+    id: exercise_remote_discard_confirm
+- assertNotVisible: 다른 계정으로 계속하시겠어요[?]

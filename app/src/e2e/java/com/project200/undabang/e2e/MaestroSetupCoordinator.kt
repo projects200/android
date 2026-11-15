@@ -25,10 +25,13 @@ internal class MaestroSetupCoordinator
             // Activity 종료로 refresh 콜백과 실패 정리가 교차하지 않도록 작업을 끝까지 직렬화합니다
             withContext(NonCancellable + Dispatchers.IO) {
                 requestMutex.withLock {
-                    var preserveLocalDataOnFailure = false
+                    // 분류되지 않은 입력은 보존 중인 계정·로그인 경계도 변경하지 않습니다.
+                    var preserveLocalDataOnFailure = true
+                    var preserveSessionOnFailure = true
                     try {
                         val request = protocol.consumeRequest()
                         preserveLocalDataOnFailure = request.preserveLocalDataOnFailure
+                        preserveSessionOnFailure = request.preserveSessionOnFailure
                         protocol.clearOutputs()
                         when (request) {
                             MaestroSetupRequest.Export -> {
@@ -43,11 +46,20 @@ internal class MaestroSetupCoordinator
                                 val offlineCleanup =
                                     request.operation == "cleanup" && feature?.feature == "offline"
                                 if (offlineCleanup) {
-                                    protocol.validateFeatureRecovery(feature, required = true)
-                                    sessionBootstrap.authenticateForOfflineCleanup(request.authState, request.memberId)
+                                    val owned = feature ?: throw MaestroSetupFailure("invalid_request")
+                                    protocol.validateFeatureRecovery(owned, required = true)
+                                    offlineFixtures.validateRequest(owned)
+                                    if (MaestroOfflineFixtures.isExtendedRequest(owned)) {
+                                        offlineFixtures.validateCleanupContext(owned)
+                                        sessionBootstrap.verifyCurrent(request.memberId)
+                                    } else {
+                                        sessionBootstrap.authenticateForOfflineCleanup(request.authState, request.memberId)
+                                    }
                                 } else {
+                                    val extended = feature?.let { MaestroOfflineFixtures.isExtendedRequest(it) } == true
+                                    if (extended) protocol.validateFeatureRecovery(feature)
                                     sessionBootstrap.authenticate(request.authState, request.memberId)
-                                    protocol.validateFeatureRecovery(feature)
+                                    if (!extended) protocol.validateFeatureRecovery(feature)
                                 }
                                 // 인증과 대상 handler 확인을 모두 마친 뒤에만 서버 정리를 시작합니다.
                                 val handler =
@@ -65,7 +77,9 @@ internal class MaestroSetupCoordinator
                                         }
                                     } else {
                                         if (feature != null && handler != null) handler.cleanup(feature)
-                                        fixtureCleaner.clean(request.fixtureStartDate, today)
+                                        if (feature == null || !MaestroOfflineFixtures.isExtendedRequest(feature)) {
+                                            fixtureCleaner.clean(request.fixtureStartDate, today)
+                                        }
                                         sessionBootstrap.clearSession()
                                         if (feature != null) protocol.completeFeatureRecovery()
                                         emptyMap()
@@ -76,18 +90,36 @@ internal class MaestroSetupCoordinator
                                 protocol.validateFeatureRecovery(request.featureRequest, required = true)
                                 offlineFixtures.validateRequest(request.featureRequest)
                                 offlineFixtures.validateDate(request.run)
-                                sessionBootstrap.verifyCurrent(request.memberId)
-                                offlineFixtures.observeServer(request.featureRequest, request.stage)
-                                protocol.writeStatus("observed")
+                                if (!MaestroOfflineFixtures.isSessionStage(request.featureRequest, request.stage)) {
+                                    sessionBootstrap.verifyCurrent(request.memberId)
+                                }
+                                val variables = offlineFixtures.observeServer(request.featureRequest, request.stage)
+                                protocol.writeStatus("observed", variables)
+                            }
+                            is MaestroSetupRequest.OfflineControl -> {
+                                val feature = request.featureRequest
+                                protocol.validateFeatureRecovery(feature, required = true)
+                                offlineFixtures.validateRequest(feature)
+                                offlineFixtures.validateDate(MaestroOfflineFixtures.run(feature))
+                                if (request.action !in MaestroOfflineSessionCases.CONTROL_ACTIONS) {
+                                    if (request.action == "remote-update" || request.action == "remote-delete") {
+                                        sessionBootstrap.verifyCurrent(feature.memberId)
+                                    } else {
+                                        sessionBootstrap.verifyLocalCurrent(feature.memberId)
+                                    }
+                                }
+                                val variables =
+                                    offlineFixtures.control(feature, request.action, request.authState, request.targetMemberId)
+                                protocol.writeStatus("controlled", variables)
                             }
                             is MaestroSetupRequest.FeatureObservation -> {
                                 protocol.validateFeatureRecovery(request.featureRequest, required = true)
-                                if (
-                                    request.featureRequest.feature == "offline" &&
-                                    request.stage in MaestroOfflineFixtures.LOCAL_STAGES
-                                ) {
-                                    // 단절 중에는 복구 표식과 현재 회원만 검증하고 Room 상태만 읽습니다
-                                    sessionBootstrap.verifyLocalCurrent(request.memberId)
+                                if (request.featureRequest.feature == "offline") {
+                                    offlineFixtures.validateRequest(request.featureRequest)
+                                    if (!MaestroOfflineFixtures.isSessionStage(request.featureRequest, request.stage)) {
+                                        // 기존 로컬 단계는 계속 현재 인증 회원만 허용합니다.
+                                        sessionBootstrap.verifyLocalCurrent(request.memberId)
+                                    }
                                 } else {
                                     sessionBootstrap.verifyCurrent(request.memberId)
                                 }
@@ -99,10 +131,10 @@ internal class MaestroSetupCoordinator
                             }
                         }
                     } catch (failure: MaestroSetupFailure) {
-                        failClosed(failure.reason, preserveLocalDataOnFailure)
+                        failClosed(failure.reason, preserveLocalDataOnFailure, preserveSessionOnFailure)
                     } catch (_: Exception) {
                         // 예외 본문이나 서버 응답을 결과 파일과 로그로 전달하지 않습니다
-                        failClosed("setup_failed", preserveLocalDataOnFailure)
+                        failClosed("setup_failed", preserveLocalDataOnFailure, preserveSessionOnFailure)
                     }
                 }
             }
@@ -110,6 +142,7 @@ internal class MaestroSetupCoordinator
         private suspend fun failClosed(
             reason: String,
             preserveLocalDataOnFailure: Boolean,
+            preserveSessionOnFailure: Boolean,
         ) {
             val cleanupFailures = mutableListOf<String>()
             try {
@@ -118,10 +151,12 @@ internal class MaestroSetupCoordinator
                 cleanupFailures += "private_file_failed"
             }
             try {
-                if (preserveLocalDataOnFailure) {
-                    sessionBootstrap.clearTokens()
-                } else {
-                    sessionBootstrap.clearSession()
+                if (!preserveSessionOnFailure) {
+                    if (preserveLocalDataOnFailure) {
+                        sessionBootstrap.clearTokens()
+                    } else {
+                        sessionBootstrap.clearSession()
+                    }
                 }
             } catch (_: Exception) {
                 cleanupFailures += "local_session_clear_failed"

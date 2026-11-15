@@ -1,0 +1,6 @@
+appId: com.project200.undabang
+---
+- runFlow:
+    file: edit.yaml
+    env:
+      REPLACE_PHOTO: "true"

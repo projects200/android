@@ -41,7 +41,10 @@ class MaestroOfflineFixturesTest {
     private val context: Context = RuntimeEnvironment.getApplication()
     private val local = mockk<TimerLocalDataSource>()
     private val exercises = mockk<MaestroOfflineExerciseFixture>(relaxed = true)
-    private val fixtures = MaestroOfflineFixtures(api, context, local, exercises)
+    private val exerciseCases = mockk<MaestroOfflineExerciseCases>()
+    private val sessionCases = mockk<MaestroOfflineSessionCases>()
+    private val transport = mockk<MaestroOfflineTransport>(relaxed = true)
+    private val fixtures = MaestroOfflineFixtures(api, context, local, exercises, exerciseCases, sessionCases, transport)
     private val run =
         MaestroOfflineRun(
             "0123456789abcdef0123456789abcdef",
@@ -390,6 +393,73 @@ class MaestroOfflineFixturesTest {
             coEvery { local.getCustomTimers("member") } returns listOf(baseline, localTimer("replacement", run.createdTimer))
             expectFailure("offline_timer_identity_changed") { fixtures.observe(request, "timers-local-created") }
             coVerify(exactly = 0) { api.deleteCustomTimer(any(), any()) }
+        }
+
+    @Test
+    fun `확장 제어는 독립 helper 증거를 성공과 실패 모두 private snapshot에 보존한다`() =
+        runTest {
+            val owner = request(run).copy(flow = "offline-body-retry")
+            coEvery { exerciseCases.prepare(owner, run, any()) } answers {
+                thirdArg<JSONObject>().put("extendedExercise", JSONObject().put("localId", "owned"))
+                emptyMap()
+            }
+            fixtures.prepare(owner)
+            val file = File(context.filesDir, "maestro-offline-state.json")
+            val original = JSONObject(file.readText())
+            coEvery { exerciseCases.control(owner, run, any(), "block-body") } answers {
+                thirdArg<JSONObject>().getJSONObject("extendedExercise").put("firstAttempt", "frozen-key")
+                throw MaestroSetupFailure("offline_case_not_ready")
+            }
+
+            expectFailure("offline_case_not_ready") { fixtures.control(owner, "block-body", null, null) }
+
+            val retained = JSONObject(file.readText())
+            assertThat(retained.getString("memberId")).isEqualTo(original.getString("memberId"))
+            assertThat(retained.getString("runId")).isEqualTo(original.getString("runId"))
+            assertThat(retained.getJSONObject("parameters").toString()).isEqualTo(original.getJSONObject("parameters").toString())
+            assertThat(retained.getJSONObject("extendedExercise").getString("firstAttempt")).isEqualTo("frozen-key")
+            coVerify(exactly = 0) { api.getExerciseList(any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
+        }
+
+    @Test
+    fun `다른 실행과 auth 오용은 확장 제어와 snapshot 변경 전에 거절한다`() =
+        runTest {
+            val owner = request(run).copy(flow = "offline-photo-create")
+            coEvery { exerciseCases.prepare(owner, run, any()) } returns emptyMap()
+            fixtures.prepare(owner)
+            val file = File(context.filesDir, "maestro-offline-state.json")
+            val original = file.readBytes()
+
+            expectFailure("offline_snapshot_identity_invalid") {
+                fixtures.control(owner.copy(memberId = "foreign"), "media-delete-originals", null, null)
+            }
+            expectFailure("invalid_request") { fixtures.control(owner, "force-exit", null, null) }
+            expectFailure("invalid_request") { fixtures.control(owner, "block-body", mockk(), "foreign") }
+            expectFailure("invalid_request") { fixtures.control(owner, "unknown-action", null, null) }
+
+            assertThat(file.readBytes()).isEqualTo(original)
+            coVerify(exactly = 0) { exerciseCases.control(any(), any(), any(), any()) }
+            coVerify(exactly = 0) { sessionCases.control(any(), any(), any(), any(), any(), any()) }
+        }
+
+    @Test
+    fun `확장 정리는 helper 안전성 실패 시 fault와 원 snapshot을 보존한다`() =
+        runTest {
+            val owner = request(run).copy(flow = "offline-photo-create")
+            coEvery { exerciseCases.prepare(owner, run, any()) } returns emptyMap()
+            fixtures.prepare(owner)
+            val file = File(context.filesDir, "maestro-offline-state.json")
+            val original = file.readBytes()
+            coEvery { exerciseCases.requireSafeCleanup(owner, run, any()) } throws
+                MaestroSetupFailure("offline_exercise_cleanup_unsafe")
+
+            expectFailure("offline_exercise_cleanup_unsafe") { fixtures.cleanup(owner) }
+
+            assertThat(file.readBytes()).isEqualTo(original)
+            coVerify(exactly = 0) { exerciseCases.cleanup(any(), any(), any()) }
+            coVerify(exactly = 0) { transport.clear(any(), any()) }
+            coVerify(exactly = 0) { api.deleteExerciseRecord(any()) }
         }
 
     private fun localTimer(

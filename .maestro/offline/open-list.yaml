@@ -1,0 +1,21 @@
+appId: com.project200.undabang
+---
+- runFlow:
+    when:
+      visible:
+        id: exercise_detail_menu
+    commands:
+      - tapOn: 뒤로가기
+- extendedWaitUntil:
+    visible:
+      id: exercise_create_btn
+    timeout: 30000
+- runFlow: ../subflows/select-exercise-date.yaml
+- scrollUntilVisible:
+    element:
+      id: exercise_title_tv
+      text: ${RECORD_TITLE}
+    direction: DOWN
+    timeout: 20000
+    centerElement: true
+- runFlow: list-preserved.yaml

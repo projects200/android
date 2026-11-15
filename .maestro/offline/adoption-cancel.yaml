@@ -1,0 +1,11 @@
+appId: com.project200.undabang
+---
+- runFlow: adoption-pending.yaml
+- tapOn: 취소
+- extendedWaitUntil:
+    visible:
+      id: google_login_btn
+    timeout: 30000
+- assertNotVisible: 다른 계정으로 계속하시겠어요[?]
+- assertNotVisible:
+    id: matching_nav_graph

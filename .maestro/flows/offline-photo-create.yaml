@@ -1,0 +1,4 @@
+appId: com.project200.undabang
+name: 사진 오프라인 생성·교체·재실행·실서버 확인
+---
+- runFlow: ../offline/dispatch.yaml

@@ -250,6 +250,7 @@ fun ExerciseFormScreen(
                     onValueChange = onDetailChange,
                     hint = "",
                     variant = TextFieldVariant.FilledLarge,
+                    inputModifier = Modifier.testTag("exercise_description_input"),
                     modifier =
                         Modifier
                             .fillMaxWidth()
@@ -590,7 +591,10 @@ private fun ImageGrid(
 ) {
     // verticalScroll Column 안에 LazyVerticalGrid를 못 두므로 chunked Row로 직접 그림
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .testTag("exercise_form_photos_count_${items.count { it !is ExerciseImageListItem.AddButtonItem }}"),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items.chunked(3).forEach { rowItems ->
@@ -635,7 +639,8 @@ private fun ImageCell(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = onAddClick,
-                        ),
+                        )
+                        .testTag("exercise_form_add_photo"),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
@@ -647,6 +652,7 @@ private fun ImageCell(
         }
         is ExerciseImageListItem.NewImageItem, is ExerciseImageListItem.ExistingImageItem -> {
             Box(modifier = modifier.fillMaxSize()) {
+                var loaded by remember(item) { mutableStateOf(false) }
                 val model =
                     when (item) {
                         is ExerciseImageListItem.NewImageItem -> item.uri
@@ -657,11 +663,14 @@ private fun ImageCell(
                     model = model,
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
+                    onSuccess = { loaded = true },
+                    onError = { loaded = false },
                     modifier =
                         Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(8.dp))
-                            .background(ColorGray100),
+                            .background(ColorGray100)
+                            .testTag(if (loaded) "exercise_form_photo_loaded" else "exercise_form_photo_loading"),
                 )
                 Icon(
                     painter = painterResource(PresentationR.drawable.ic_close),
@@ -678,7 +687,8 @@ private fun ImageCell(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = onDeleteClick,
-                            ),
+                            )
+                            .testTag("exercise_form_remove_photo"),
                 )
             }
         }
